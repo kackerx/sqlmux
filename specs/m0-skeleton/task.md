@@ -233,7 +233,7 @@
 
 以下 F0.11–F0.15 是用户体验 M0 之后提出的改进（2026-09-23），按编号顺序做。
 
-## F0.11 精简默认键位 · 状态：reviewing
+## F0.11 精简默认键位 · 状态：testing
 
 - **依赖**：F0.10
 - **涉及**：`internal/keymap`（default.toml）、`internal/app`（Action 注册表）
