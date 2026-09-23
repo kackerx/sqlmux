@@ -233,7 +233,7 @@
 
 以下 F0.11–F0.15 是用户体验 M0 之后提出的改进（2026-09-23），按编号顺序做。
 
-## F0.11 精简默认键位 · 状态：testing
+## F0.11 精简默认键位 · 状态：passed（d6af259；e2e 264b62f）
 
 - **依赖**：F0.10
 - **涉及**：`internal/keymap`（default.toml）、`internal/app`（Action 注册表）
@@ -246,10 +246,10 @@
 - [x] `window.select` 去掉标题：不再出现在 which-key 和命令面板里，只供点击状态栏上的 window 名时使用。
 
 **验收**
-- [ ] 按 `SPC` 停半秒，which-key 只列出上面保留和新增的键。
-- [ ] `sqlmux keys` 的输出里没有 `SPC 0-9`、`SPC h/j/k/l`、`SPC H/J/K/L`、`SPC ,`、`SPC &`。
-- [ ] 在 `config.toml` 里写 `[keys.normal] "<Leader>h" = "pane.focus.left"` 后，`SPC h` 能切焦点，which-key 里也出现这一项。
-- [ ] 默认键位的兼容性单测照常通过。
+- [x] 按 `SPC` 停半秒，which-key 只列出上面保留和新增的键。
+- [x] `sqlmux keys` 的输出里没有 `SPC 0-9`、`SPC h/j/k/l`、`SPC H/J/K/L`、`SPC ,`、`SPC &`。
+- [x] 在 `config.toml` 里写 `[keys.normal] "<Leader>h" = "pane.focus.left"` 后，`SPC h` 能切焦点，which-key 里也出现这一项。
+- [x] 默认键位的兼容性单测照常通过。
 
 ## F0.12 主题文件、按类型配色、console 图标 · 状态：todo
 
