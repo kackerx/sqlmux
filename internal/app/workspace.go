@@ -144,8 +144,12 @@ func (a *App) openTable(t string, newTab bool) {
 		p.Tabs[p.Cur] = t
 		return
 	}
+	p.Prev = p.Cur
+	if len(p.Tabs) == 0 { // an empty pane: there is no tab to go back to
+		p.Prev = -1
+	}
 	p.Tabs = append(p.Tabs, t)
-	p.Prev, p.Cur = p.Cur, len(p.Tabs)-1
+	p.Cur = len(p.Tabs) - 1
 }
 
 // closeTab closes the focused pane's current tab (:q). Closing the last tab

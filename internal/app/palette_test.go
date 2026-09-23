@@ -284,6 +284,14 @@ func TestPaletteOpensTables(t *testing.T) {
 	}
 
 	a = sized(160, 45, "nerd")
+	data = a.focused()
+	data.Tabs, data.Cur, data.Prev = nil, 0, -1 // an empty data pane
+	feed(t, a, "<C-p>@t_user<CR>")
+	if strings.Join(data.Tabs, " ") != "t_user" || data.Cur != 0 || data.Prev != -1 {
+		t.Errorf("into an empty pane: tabs %v cur %d prev %d, want no previous tab", data.Tabs, data.Cur, data.Prev)
+	}
+
+	a = sized(160, 45, "nerd")
 	feed(t, a, ":q<CR>:q<CR>") // no data pane left
 	feed(t, a, "<C-p>@t_user<CR>")
 	if leaves := a.win().Root.Leaves(); len(leaves) != 1 || leaves[0].Kind != KindConsole || leaves[0].Object() != "console_1" {
