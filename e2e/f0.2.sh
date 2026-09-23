@@ -9,8 +9,6 @@ NF_FILTER=$(printf '\xef\x82\xb0') NF_CONSOLE=$(printf '\xef\x84\xa0')  # U+F0B0
 
 cols_are() { local got; got=$(e2e_find "$1" "$2"); [[ $got == "$3" ]] || { echo "  row $2 '$1' at [$got], want [$3]"; false; }; }
 widths_are() { local got; got=$(e2e_widths | sed '/^0$/d' | sort -u | tr '\n' ' '); [[ $got == "$1 " ]] || { echo "  row widths: $got"; false; }; }
-text_has() { local got; got=$(e2e_text "$1" "$2" "$3"); [[ $got == *"$4"* ]] || { echo "  [$1..$2,$3] '$got' lacks '$4'"; false; }; }
-text_ends() { local got; got=$(e2e_text "$1" "$2" "$3"); [[ $got == *"$4" ]] || { echo "  [$1..$2,$3] '$got' doesn't end with '$4'"; false; }; }
 row_blank() { [[ -z $(e2e_text 1 "$1" "$2" | tr -d ' ') ]]; }
 running() { flag_is alternate_on 1 && ! screen_has '[e2e-exit'; }
 at() { local c; c=$(e2e_find "$1" "$2"); style_has "$((${c%% *} + ${4:-0}))" "$2" "$3"; }  # TEXT Y STYLE [DX]
