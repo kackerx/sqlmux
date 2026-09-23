@@ -102,7 +102,7 @@ sqlmux/
 
 依赖：
 
-- 界面：`charm.land/bubbletea/v2`、`charm.land/lipgloss/v2`、`charm.land/bubbles/v2`（只用 textinput）、`github.com/charmbracelet/ultraviolet`
+- 界面：`charm.land/bubbletea/v2`、`charm.land/lipgloss/v2`、`github.com/charmbracelet/ultraviolet`。不用 bubbles 的 textinput：它按 rune 删字，退格会把 é、👍🏽 这类字素簇拆开（M1 核对时实测）。单行输入框在 F0.4 命令行的输入处理上扩展。
 - 数据库驱动：`github.com/jackc/pgx/v5`、`github.com/go-sql-driver/mysql`
 - 格式化：`github.com/dop251/goja`
 - 模糊匹配：`github.com/junegunn/fzf/src/algo`
@@ -188,6 +188,8 @@ Window
   - 与 tmux 不同的一点：到了边上不绕到另一侧。侧栏固定在最左边，vim 的 `<C-w>h` 也不绕回。
 - **按编号跳转**（`SPC q`）：编号一直显示到下一个按键，不自动消失（相当于 tmux 的 `display-panes -d 0`）。按数字跳到对应的 pane；按其他键只关闭编号，这个键不再执行别的操作。
   - 鼠标：编号也是键位提示，按 §7.4 可以点击。点击某个 pane（含侧栏 ⟨0⟩），等于按下它的编号；点击 pane 以外的地方（状态栏、间隔）只关闭编号。
+
+默认 window 名为 `data`。各个 pane 随里程碑逐步出现：M1 只有侧栏和 data，data 占满其余宽度；console 在 M3 加入默认布局，结果区在第一次执行 SQL 时出现。
 
 所有持久化字段都是普通值类型，运行时句柄（连接、编辑器实例）不进入序列化结构。所以以后如果要支持工作现场恢复（PRD 10.2 #6），只需要补上读写逻辑。
 
@@ -457,6 +459,7 @@ type Hit struct {
 - **宽度计算**：按字素簇计算（§7.1「宽度」），CJK 字符和 emoji 都能正确处理。
 - **单元格显示**：
   - 数值右对齐，用 `number` 色；NULL 显示为 `dim` 色的 `<null>`；超长内容用 `…` 截断；主键列的表头带钥匙图标。
+  - 显示前清理控制字符：换行显示为 `dim` 色的 `↵`，Tab 显示为一个空格，其余控制字符（包括 ESC）直接去掉，避免把终端控制序列画到屏幕上。截断按字素簇进行。完整的值在单元格编辑（M2）里看。
   - 已修改的单元格用 `warn` 色文字、`edited_bg` 底色、点状下划线（SGR 4:4）。终端不支持点状下划线时，退化为普通下划线。
 - **转置（G-05）只影响渲染**：`GridState` 始终保存数据坐标，按键时把屏幕方向换算成数据方向，所以光标位置和修改标记在两种视图之间自然保持。
 - **网格样式**：按用户要求，行和列都要有清晰的分隔（参考 DataGrip 的表格）。
@@ -572,6 +575,7 @@ type Result struct {
   - `pgconn.Exec`（简单协议）本身就返回文本；`ExecParams` 把结果格式指定为文本，参数 OID 传 0，由服务端推断类型。
   - 列类型取自 FieldDescription 里的 OID。
   - 连接建立后执行 `SET DateStyle = ISO, YMD`，保证时间文本的格式可以解析（§10.2）。
+  - 连接参数交给 `pgconn.ParseConfig(dsn)` 解析，环境变量（`PGHOST` 等）和 `~/.pgpass` 都由它处理，不自己实现。没写 `application_name` 时补成 `sqlmux`，没写连接超时时补成 10s。
 - **MySQL**：DSN 加上 `interpolateParams=true`，全程走文本协议；列类型从 `ColumnTypes()` 获取。
 - **已知上限**：MySQL 中非 UTF-8 的 blob 显示为 `<binary n bytes>`；PG 的 bytea 按服务端返回的 `\x…` 文本显示。
 
@@ -586,11 +590,12 @@ type Result struct {
 
 - 拆成两条的原因：console 里跑长查询时，树、命令面板和表格浏览不会跟着卡住。
 - manual 事务模式下表格读取改走 `Main`，这样能看到自己还没提交的修改。
+- `Meta` 建连后设为只读：PG 执行 `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`，MySQL 执行 `SET SESSION TRANSACTION READ ONLY`。`Meta` 上只有读操作，写入只走 `Main`，所以 WHERE 里就算调用了会写数据的函数，也改不了数据。和 §13 一样，这是为了防误操作，不是权限边界。
 
 ### 8.3 取消、超时、过期响应
 
 - **取消**：`Main` 忙碌时，状态栏显示 `busy · C-c 取消`，这段文字可以点击。
-  - PG 调用 `PgConn.CancelRequest`。
+  - PG 调用 `PgConn.CancelRequest`。pgconn 默认的 `DeadlineContextWatcherHandler` 会在 context 取消时给连接设 deadline，连接随之断开。每个 session 只有两条长连接，所以改用 `CancelRequestContextWatcherHandler`（设 `DeadlineDelay`），取消之后连接还能继续用。
   - MySQL 另开一条临时连接执行 `KILL QUERY <connection_id>`，id 在建连时记录。只取消 context 的话，驱动会关掉连接，但服务端上的查询会继续跑。
 - **超时**：建连 10s。计数查询 3s：PG 用 `SET LOCAL statement_timeout`，MySQL 用 `MAX_EXECUTION_TIME` hint。
 - **过期响应**：每个 tab 维护一个递增的 `seq`，请求时带上。结果回来时 `seq` 已经不是最新的就丢弃，避免快速翻页时旧结果覆盖新结果。
@@ -600,16 +605,28 @@ type Result struct {
 | 内容 | PostgreSQL | MySQL |
 |---|---|---|
 | 表列表、行数量级（D-01） | `pg_class.reltuples` + `pg_namespace` | `information_schema.TABLES.TABLE_ROWS` |
-| 列属性：类型、可空、默认值、主键 | `information_schema.columns` + `pg_index` | `information_schema.COLUMNS` + `KEY_COLUMN_USAGE` |
-| 所有列都不可空的唯一索引（用于定位行，见 §10.1） | `pg_index.indisunique`，并要求每列的 `attnotnull` 为真 | `information_schema.STATISTICS` 中 `NON_UNIQUE = 0`，并要求每列的 `IS_NULLABLE = 'NO'` |
+| 列属性：类型、可空、默认值、主键 | `pg_attribute`（`format_type`、`attnotnull`、`pg_get_expr(adbin, adrelid)`）+ `pg_constraint` | `information_schema.COLUMNS` + `KEY_COLUMN_USAGE` |
+| 所有列都不可空的唯一索引（用于定位行，见 §10.1） | `pg_index`，条件见表下 | `information_schema.STATISTICS` 中 `NON_UNIQUE = 0`，并要求每列的 `IS_NULLABLE = 'NO'` |
 | 枚举值（§10.2） | `pg_type.typtype = 'e'` 时查 `pg_enum` | 解析 `COLUMN_TYPE`，如 `enum('a','b')` |
 | DDL 预览（K-05） | 用 `format_type`、`pg_get_constraintdef`、`pg_get_indexdef` 拼出，不要求与 pg_dump 一致 | `SHOW CREATE TABLE` |
+
+PG 的几处细节（M1 核对时对照 lazysql、pgtui 确认，两者各有问题）：
+
+- **表列表**：`relkind IN ('r','p','v','m','f')` 且 `NOT relispartition`，分区的子表不列出，只列父表。系统 schema 用 `nspname !~ '^pg_'` 排除；`NOT LIKE 'pg_%'` 里的 `_` 是通配符，会误伤 `pgx_data` 这类 schema。
+- **行数量级**：`reltuples < 0`（从没 analyze 过，或者是分区表的父表）时显示为 `?`。
+- **列属性**：不用 `information_schema.columns`，它会漏掉没有权限的列，数组和枚举的类型也只显示成 `ARRAY`、`USER-DEFINED`。
+- **主键**：列按 `unnest(conkey) WITH ORDINALITY` 的顺序排列。
+- **可用于定位行的唯一索引**：`indisunique AND indisvalid AND indpred IS NULL AND 0 <> ALL(indkey)`；只看前 `indnkeyatts` 个键列（INCLUDE 列不算），并要求这些列都是 `attnotnull`。
+- **枚举值**：`array_agg(enumlabel ORDER BY enumsortorder)`，按列的 `atttypid` 关联。
 
 catalog 按 session 缓存。console 执行 DDL 后（由 §9.3 的判定得知）或用户执行刷新命令时，重新加载。
 
 ### 8.5 分页与计数
 
 **取数**：`SELECT * FROM t WHERE … ORDER BY … LIMIT n OFFSET m`。
+
+- 每页默认 100 行，LIMIT chip 可选 100 / 500 / 1000。100 与 PRD 快速 SQL 的 limit 100 一致。
+- 每次多取一行（`LIMIT n+1`），用来判断还有没有下一页。这样计数还没回来或者超时的时候，翻页也能正确停在最后一页。
 
 - 默认按「行标识列」排序（§10.1：主键，没有主键时用所有列都不可空的唯一索引），保证分页结果稳定。
   - 两者都没有时，不加默认排序，用户可以通过 ORDER 指定排序列。
@@ -713,7 +730,9 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 
 不做简写语法。输入框里直接写完整的 SQL 条件表达式，例如 `deleted_at is null and status <> 'cancelled'`。
 
-- **拼接方式**：输入原样放进 `SELECT * FROM t WHERE (<输入>) ORDER BY … LIMIT … OFFSET …`；计数查询用同一个表达式。外面加一层括号，是为了防止表达式里的 `OR` 和后面拼上的子句发生优先级错乱。输入为空时不加 WHERE。
+- **拼接方式**：输入原样放进 `SELECT * FROM t WHERE (\n<输入>\n) ORDER BY … LIMIT … OFFSET …`；计数查询用同一个表达式。
+  - 外面加一层括号，是为了防止表达式里的 `OR` 和后面拼上的子句发生优先级错乱。
+  - 括号内侧各加一个换行，这样输入末尾的 `--` 注释不会把右括号和后面的 ORDER / LIMIT 一起注释掉（lazysql 有这个问题）。输入为空时不加 WHERE。
 - **只允许一条语句**：
   - PG 的表格查询走扩展协议，协议本身就拒绝多条语句；MySQL 不开启 `multiStatements`。
   - 发送之前，扫描器如果在顶层发现 `;`，直接提示错误，不发送。这样可以防止类似 `1=1; drop table t` 的输入连带执行其他语句。
@@ -1006,6 +1025,7 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
 | `~/.local/share/sqlmux/consoles/` | 由应用写入 | console 的 SQL 文件 |
 
 - 连接定义单独放一个文件，是因为应用改写 TOML 时会丢掉注释，所以不能去改用户手写的 config.toml。
+- **启动时找不到连接**：没有 `connections.toml`、文件里没有连接，或者 `sqlmux <名字>` 找不到这个名字时，在终端打印一行错误就退出（退出码 1），不进入界面。错误里写明配置文件的路径；名字找不到时列出已有的连接名。连接失败（比如密码错误）也一样，打印数据库返回的错误后退出。在界面里新建连接（S-03）要到 M5。
 - state 文件先写到临时文件，再 rename 过去，保证原子性。
 
 ```toml
