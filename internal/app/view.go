@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"fmt"
 	"image/color"
 	"strings"
@@ -11,13 +12,17 @@ import (
 	"sqlmux/internal/ui"
 )
 
-// sidebarWidth is the ⟨0⟩ schema sidebar's width, borders included (§7.8).
+// sidebarWidth is the ⟨0⟩ schema sidebar's default width, borders included (§7.8).
 func sidebarWidth(w int) int {
 	if w < 100 {
 		return 24
 	}
 	return 32
 }
+
+// minTreeW is as narrow as dragging makes the sidebar; the widest is half
+// the window (§7.8).
+const minTreeW = 16
 
 // hints joins several actions' keys, e.g. "hjkl" or "gt/gT"; "" if any is unbound.
 func (a *App) hints(scope, sep string, actions ...string) string {
@@ -39,7 +44,7 @@ func (a *App) window() uv.Rectangle { return uv.Rect(0, 0, max(a.w, 0), max(a.h-
 // sidebarRect is where the ⟨0⟩ sidebar, open or folded, goes.
 func (a *App) sidebarRect() uv.Rectangle {
 	side := a.window()
-	w := sidebarWidth(a.w)
+	w := cmp.Or(a.win().TreeW, sidebarWidth(a.w))
 	if !a.win().TreeOpen {
 		w = thinBarWidth
 	}
@@ -86,6 +91,9 @@ func (a *App) render() *ui.Frame {
 	if a.win().Zoom == 0 {
 		for _, h := range a.win().Root.handles(a.mainArea()) {
 			f.Region(h.rect, ui.Target{Kind: ui.KindBorder, I: h.idx})
+		}
+		if a.win().TreeOpen { // the gap right of the sidebar sets its width
+			f.Region(uv.Rect(a.sidebarRect().Max.X, 0, 1, a.window().Dy()), ui.Target{Kind: ui.KindBorder, I: -1})
 		}
 	}
 	if a.paneNumbers {
@@ -182,11 +190,13 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	}
 	paneRegions(f, p.ID, r)
 	b := ui.Block{
-		Icon:    a.icons.Schema,
-		Title:   "schema",
-		Hints:   bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
-		Focused: a.win().Focus == p.ID,
-		Pane:    p.ID,
+		Icon:  a.icons.Schema,
+		Title: "public ▾", // ponytail: M0's fake schema; M1 F1.2 shows the tree's own
+		// the whole title opens the schema dropdown (§7.8)
+		TitleAction: "tree.schema",
+		Hints:       bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
+		Focused:     a.win().Focus == p.ID,
+		Pane:        p.ID,
 	}
 	in := b.Draw(f, r)
 	if in.Dy() < 1 {

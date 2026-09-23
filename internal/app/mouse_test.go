@@ -180,3 +180,58 @@ func TestClickUnderPaneNumbers(t *testing.T) {
 		}
 	}
 }
+
+// The gap right of the sidebar drags its width, from 16 columns to half the
+// window; the width is the window's, so it outlasts splits, zooms and folds
+// (§7.8).
+func TestDragSidebarEdge(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	edge := find(t, a, ui.Target{Kind: ui.KindBorder, I: -1})
+	if edge.Min.X != 32 {
+		t.Fatalf("the edge is at column %d, want right of the 32-column sidebar", edge.Min.X)
+	}
+	a.Update(tea.MouseClickMsg{X: 32, Y: 10, Button: tea.MouseLeft})
+	for _, c := range [][2]int{{50, 50}, {5, 16}, {150, 80}, {40, 40}} {
+		a.Update(tea.MouseMotionMsg{X: c[0], Y: 10, Button: tea.MouseLeft})
+		if got := a.sidebarRect().Dx(); got != c[1] {
+			t.Errorf("pointer at %d: sidebar %d wide, want %d", c[0], got, c[1])
+		}
+	}
+	a.Update(tea.MouseReleaseMsg{X: 40, Y: 10, Button: tea.MouseLeft})
+	a.Update(tea.MouseMotionMsg{X: 60, Y: 10})
+	if got := a.sidebarRect().Dx(); got != 40 {
+		t.Fatalf("after release: %d wide", got)
+	}
+	if main := a.layout()[1]; main.Min.X != 41 {
+		t.Errorf("the panes start right of the gap: %v", main)
+	}
+	feed(t, a, `<Space>%<Space>z<Space>z<Space>b<Space>b`)
+	if got := a.sidebarRect().Dx(); got != 40 {
+		t.Errorf("after split, zoom and fold: %d wide, want 40", got)
+	}
+
+	feed(t, a, "<Space>b")
+	a.View()
+	for _, h := range a.hits {
+		if h.Target.Kind == ui.KindBorder && h.Target.I == -1 {
+			t.Fatal("a folded sidebar has no edge to drag")
+		}
+	}
+}
+
+// The sidebar's title is the schema, one button for tree.schema (§7.8).
+func TestSidebarSchemaTitle(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	top := strings.Split(a.render().String(), "\n")[0]
+	if !strings.HasPrefix(top, "┌─ ⟨0⟩ "+ui.NerdIcons.Schema.Text+" public ▾ ─") || !strings.Contains(top, "SPC b ─┐") {
+		t.Fatalf("title: %q", top)
+	}
+	r := find(t, a, ui.Target{Kind: ui.KindHint, Action: "tree.schema"})
+	if r.Min.X != 2 || r.Dx() != ui.Width(" ⟨0⟩ "+ui.NerdIcons.Schema.Text+" public ▾ ") {
+		t.Errorf("the button covers the whole title: %v", r)
+	}
+	click(a, uv.Pos(r.Min.X+5, 0))
+	if a.win().Focus != 0 {
+		t.Error("clicking the title focuses the sidebar (tree.schema itself is M1's)")
+	}
+}

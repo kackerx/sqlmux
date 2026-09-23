@@ -1,4 +1,4 @@
-┌─ ⟨0⟩ # schema ───────┐ ┌─ ⟨1⟩ = data · t_order ─────┐ ┌─ ⟨2⟩ > console · c… ─┐
+┌─ ⟨0⟩ # public ▾ ─────┐ ┌─ ⟨1⟩ = data · t_order ─────┐ ┌─ ⟨2⟩ > console · c… ─┐
 │ ? / 14 tables        │ │ WHERE deleted_at is null   │ │ select * from mt_tas │
 │──────────────────────│ │    │ * id │ biz_type │ stat│ │ where status = 'runn │
 │ + agent          124 │ │────┼──────┼──────────┼─────│ │                      │

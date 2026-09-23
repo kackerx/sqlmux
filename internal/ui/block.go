@@ -45,6 +45,8 @@ type Block struct {
 	Hints   []Hint // in drawing order
 	Focused bool
 	Pane    int
+	// TitleAction makes the drawn title a button (the sidebar's schema, §7.8).
+	TitleAction string
 }
 
 // Draw paints the box over r and returns the inner area.
@@ -68,6 +70,10 @@ func (b Block) Draw(f *Frame, r uv.Rectangle) uv.Rectangle {
 	title, hints := b.fit(x1 - x0 - 1 - 4)
 	if title != "" {
 		st := uv.Style{Fg: tc, Bg: th.PaneBg}
+		t := uv.Rect(x0+2, y0, min(Width(" "+title+" "), x1-x0-2), 1)
+		if b.TitleAction != "" && f.Region(t, Target{Kind: KindHint, Pane: b.Pane, Action: b.TitleAction}) {
+			st.Bg = th.Select
+		}
 		f.Text(x0+2, y0, x1, " "+title+" ", st)
 		// An icon with its own color keeps it (§7.7).
 		if n := fmt.Sprintf("⟨%d⟩ ", b.N); b.Icon.Fg != nil && strings.HasPrefix(title, n+b.Icon.Text) {

@@ -43,6 +43,7 @@ func (p *Pane) Object() string {
 type Window struct {
 	Name     string
 	TreeOpen bool  // the ⟨0⟩ sidebar is open, not folded to its thin bar
+	TreeW    int   // the sidebar's width once dragged (§7.8); 0 is the default
 	Tree     *Pane // ⟨0⟩ sidebar, not part of the split tree (D-04)
 	Root     *Node
 	Focus    int // pane ID
