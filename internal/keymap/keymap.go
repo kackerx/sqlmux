@@ -56,13 +56,6 @@ func New(user *config.Config) (*Map, []Problem) {
 		panic("default.toml: " + err.Error())
 	}
 	m := &Map{tables: map[string][]Binding{}, tries: map[string]*node{}}
-	if ps := m.apply(def); len(ps) > 0 {
-		panic(fmt.Sprint("default.toml: ", ps))
-	}
-	m.defaults = map[string][]Binding{}
-	for t, bs := range m.tables {
-		m.defaults[t] = slices.Clone(bs)
-	}
 	m.Leader, _ = Parse(def.Leader)
 	var problems []Problem
 	if user.Leader != "" {
@@ -71,6 +64,15 @@ func New(user *config.Config) (*Map, []Problem) {
 		} else {
 			m.Leader = ks
 		}
+	}
+	// The leader is final before any binding is merged: "same key" is decided
+	// on expanded sequences, so a user's "<Space>s" rebinds the default "<Leader>s".
+	if ps := m.apply(def); len(ps) > 0 {
+		panic(fmt.Sprint("default.toml: ", ps))
+	}
+	m.defaults = map[string][]Binding{}
+	for t, bs := range m.tables {
+		m.defaults[t] = slices.Clone(bs)
 	}
 	m.Timeout = time.Duration(user.Timeoutlen) * time.Millisecond
 	problems = append(problems, m.apply(user)...)
@@ -93,7 +95,7 @@ func (m *Map) apply(c *config.Config) []Problem {
 			bad("键位写法不对：%v", err)
 			continue
 		}
-		id := b.Table + " " + String(keys)
+		id := b.Table + " " + String(m.expand(keys))
 		if prev, dup := seen[id]; dup {
 			bad("与 %q 是同一个键", prev)
 			continue
@@ -114,7 +116,7 @@ func (m *Map) apply(c *config.Config) []Problem {
 
 func (m *Map) set(table string, b Binding, unbind bool) {
 	bs := m.tables[table]
-	i := slices.IndexFunc(bs, func(o Binding) bool { return slices.Equal(o.Keys, b.Keys) })
+	i := slices.IndexFunc(bs, func(o Binding) bool { return m.same(o.Keys, b.Keys) })
 	switch {
 	case unbind && i >= 0:
 		bs = slices.Delete(bs, i, i+1)
@@ -129,6 +131,8 @@ func (m *Map) set(table string, b Binding, unbind bool) {
 
 // ambiguities warns where one binding is a prefix of another in the same
 // table: the shorter one then fires only after timeoutlen (§6.7).
+// ponytail: same table only; a grid "g" against normal's "gt" also makes an
+// ambiguous node once merged. Check per context if that bites.
 func (m *Map) ambiguities() []Problem {
 	var ps []Problem
 	for _, t := range tables {
@@ -144,6 +148,9 @@ func (m *Map) ambiguities() []Problem {
 	}
 	return ps
 }
+
+// same reports whether two bindings are the same key once <Leader> is expanded.
+func (m *Map) same(a, b []Key) bool { return slices.Equal(m.expand(a), m.expand(b)) }
 
 func (m *Map) expand(ks []Key) []Key {
 	if !slices.Contains(ks, Leader) {
@@ -205,7 +212,7 @@ func (m *Map) TOML() string {
 			lines = append(lines, strconv.Quote(String(bd.Keys))+" = "+strconv.Quote(v))
 		}
 		for _, d := range m.defaults[t] {
-			if !slices.ContainsFunc(m.tables[t], func(o Binding) bool { return slices.Equal(o.Keys, d.Keys) }) {
+			if !slices.ContainsFunc(m.tables[t], func(o Binding) bool { return m.same(o.Keys, d.Keys) }) {
 				lines = append(lines, strconv.Quote(String(d.Keys))+` = ""`)
 			}
 		}

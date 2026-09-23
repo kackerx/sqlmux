@@ -22,6 +22,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, "sqlmux:", err)
 		os.Exit(1)
 	}
+	// ponytail: problems are only reported by `sqlmux keys --check`; the startup
+	// conflict overlay (§6.7) is M6.
 	keys, _ := keymap.New(cfg)
 	if _, err := tea.NewProgram(app.New(cfg, keys)).Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "sqlmux:", err)

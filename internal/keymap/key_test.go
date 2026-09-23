@@ -27,6 +27,8 @@ func TestParse(t *testing.T) {
 		"<S-a>":     {"A"},
 		"<bar>":     {"|"},
 		"中":         {"中"},
+		" ":         {"<Space>"},
+		"<Space>":   {"<Space>"},
 	} {
 		got, err := Parse(in)
 		if err != nil || !reflect.DeepEqual(got, want) {

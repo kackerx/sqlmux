@@ -181,7 +181,7 @@ func (r *Resolver) fire(c Context, out *[]Result) {
 	// noremap: the right-hand side runs against the bindings without user
 	// maps; a count typed before the mapping goes in front, as in vim.
 	base := r.m.trie(c, false)
-	for _, k := range append(digits(count), n.rhs...) {
+	for _, k := range append(digits(count), r.m.expand(n.rhs)...) {
 		r.feed(c, k, base, out)
 	}
 }

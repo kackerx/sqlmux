@@ -22,7 +22,9 @@ const (
 	Leader Key = "<Leader>" // placeholder, expanded to the configured leader
 )
 
-// names maps lower-cased notation names to their canonical spelling.
+// names maps lower-cased notation names to their canonical spelling. The
+// defaults use only the §6.2 portable keys; the rest (F-keys, Home, aliases
+// like <Enter>) are here for user configs.
 var names = map[string]string{
 	"space": "Space", "cr": "CR", "enter": "CR", "return": "CR", "esc": "Esc",
 	"tab": "Tab", "bs": "BS", "backspace": "BS", "del": "Del", "delete": "Del",
@@ -67,9 +69,14 @@ func looksLikeName(s string) bool {
 	return true
 }
 
+// plain is the key for a typed character. A literal space is <Space>, as in
+// vim, so it matches what FromTea reports.
 func plain(r rune) Key {
-	if r == '<' {
+	switch r {
+	case '<':
 		return "<lt>"
+	case ' ':
+		return "<Space>"
 	}
 	return Key(string(r))
 }
@@ -89,41 +96,34 @@ func parseBracket(body string) (Key, error) {
 		}
 		body = body[2:]
 	}
-	name, ok := names[strings.ToLower(body)]
-	if !ok {
-		r, n := utf8.DecodeRuneInString(body)
-		if n != len(body) {
-			return "", fmt.Errorf("<%s>：不认识的键名", body)
-		}
+	mod := ctrl || alt || shift
+	if name, ok := names[strings.ToLower(body)]; ok {
 		switch {
-		case ctrl:
-			r = unicode.ToLower(r) // <C-P> is <C-p>, as in vim
-		case shift && unicode.IsLetter(r):
-			r, shift = unicode.ToUpper(r), false // <S-a> is A
+		case name == "Leader" && mod:
+			return "", fmt.Errorf("<%s>：<Leader> 不能带修饰键", body)
+		case len(name) == 1 && !mod: // <Bar>, <Bslash> are just the characters
+			return Key(name), nil
 		}
-		name = string(r)
-		if name == "<" {
-			name = "lt"
-		}
+		return mods(ctrl, alt, shift, name), nil
 	}
-	if !ctrl && !alt && !shift && len(name) == 1 && name != "lt" {
-		return Key(name), nil // <|> or <\> spelled out
+	r, n := utf8.DecodeRuneInString(body)
+	if n != len(body) {
+		return "", fmt.Errorf("<%s>：不认识的键名", body)
 	}
-	if name == "Leader" && (ctrl || alt || shift) {
-		return "", fmt.Errorf("<%s>：<Leader> 不能带修饰键", body)
+	switch {
+	case ctrl:
+		r = unicode.ToLower(r) // <C-P> is <C-p>, as in vim
+	case shift && unicode.IsLetter(r):
+		r, shift = unicode.ToUpper(r), false // <S-a> is A
 	}
-	var b strings.Builder
-	b.WriteByte('<')
-	for _, m := range []struct {
-		on bool
-		s  string
-	}{{ctrl, "C-"}, {alt, "M-"}, {shift, "S-"}} {
-		if m.on {
-			b.WriteString(m.s)
-		}
+	if !ctrl && !alt && !shift {
+		return plain(r), nil
 	}
-	b.WriteString(name + ">")
-	return Key(b.String()), nil
+	name := string(r)
+	if r == '<' {
+		name = "lt"
+	}
+	return mods(ctrl, alt, shift, name), nil
 }
 
 // String renders keys back to vim notation.
