@@ -120,6 +120,8 @@ sqlmux/
 
 - 对设计或验收标准有疑问，或者发现 spec 与实际情况冲突时，发消息问决策者，不要自己决定产品行为。决策者改完 spec 会通知你。
 - 会话名称可能会变，发消息前先用 ListAgents 确认。
+- **commit 说明一律用英文**，标题和正文都是，`F0.x:`、`docs:`、`e2e:` 这些前缀照旧。
+- **作者身份**由仓库的 git 配置决定（kackerx），不要改 `user.name`、`user.email`。仓库配置了 `origin`（`kackerx/sqlmux`），但仍然只提交到本地，不 push。
 
 **worker 的规则**：
 
@@ -139,7 +141,7 @@ sqlmux/
   - 不要对整个工作区执行 stash、checkout 或 reset。决策者可能正在修改 `specs/` 和 `AGENTS.md`，所有 worktree 也共用同一个 stash 栈。需要把工作暂时放到一边时，只处理自己的代码路径，例如 `git stash push -u -m "<唯一标签>" -- internal/ cmd/`，或者提交一个临时的 WIP commit。
 - **每完成一个可测试的 feature**，依次：
   1. 确认所有测试通过：单测、golden，以及合入 `e2e` 分支后的 e2e 回归；
-  2. 提交 commit，说明以 feature ID 开头，例如 `F0.3: keymap 引擎与配置`；
+  2. 提交 commit，说明用英文、以 feature ID 开头，例如 `F0.3: keymap engine and config`；
   3. 把 task.md 里这个 feature 的状态改为 `reviewing`；
   4. 发消息给 reviewer，写明 feature ID、commit sha、对应的 task.md 小节，以及希望重点审查的地方。
 - **不等审查和测试的结果**，接着做下一个 feature。
