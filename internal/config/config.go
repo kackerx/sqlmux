@@ -10,11 +10,14 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"sqlmux/internal/ui"
 )
 
 type Config struct {
-	Icons      string // nerd | ascii
-	Timeoutlen int    // ms to wait on an ambiguous key sequence
+	Theme      *ui.Theme // `theme = "<name>"` (§7.3)
+	Icons      *ui.Icons // `icons = "nerd" | "ascii"`, with the theme file's [icon] on top (§7.7)
+	Timeoutlen int       // ms to wait on an ambiguous key sequence
 
 	// Leader and Bindings are the raw [keys] and [map.*] entries; the keymap
 	// package gives them meaning.
@@ -29,7 +32,9 @@ type Binding struct {
 	Value string // action for keys.*, key sequence for map.*; "" unbinds
 }
 
-func Default() *Config { return &Config{Icons: "nerd", Timeoutlen: 1000} }
+func Default() *Config {
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, Timeoutlen: 1000}
+}
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
 // Unix, macOS included (§14).
@@ -58,11 +63,13 @@ func Load() (*Config, error) {
 	return c, nil
 }
 
-// Parse reads config TOML over the defaults. Binding order follows the file,
-// so "first binding" questions have a stable answer.
+// Parse reads config TOML over the defaults, and the theme file it names.
+// Binding order follows the file, so "first binding" questions have a stable
+// answer.
 func Parse(data string) (*Config, error) {
 	c := Default()
 	raw := struct {
+		Theme      *string        `toml:"theme"`
 		Icons      *string        `toml:"icons"`
 		Timeoutlen *int           `toml:"timeoutlen"`
 		Keys       map[string]any `toml:"keys"`
@@ -76,7 +83,12 @@ func Parse(data string) (*Config, error) {
 		if *raw.Icons != "nerd" && *raw.Icons != "ascii" {
 			return nil, fmt.Errorf(`icons = %q：只能是 "nerd" 或 "ascii"`, *raw.Icons)
 		}
-		c.Icons = *raw.Icons
+		c.Icons = ui.IconSet(*raw.Icons)
+	}
+	if raw.Theme != nil {
+		if c.Theme, c.Icons, err = loadTheme(*raw.Theme, c.Icons); err != nil {
+			return nil, fmt.Errorf("theme = %q：%w", *raw.Theme, err)
+		}
 	}
 	if raw.Timeoutlen != nil {
 		if *raw.Timeoutlen <= 0 {
@@ -103,6 +115,27 @@ func Parse(data string) (*Config, error) {
 		c.Bindings = append(c.Bindings, Binding{strings.Join(k[:len(k)-1], "."), k[len(k)-1], v})
 	}
 	return c, nil
+}
+
+// loadTheme finds a theme by name (§7.3): themes/<name>.toml first, then a
+// built-in theme.
+func loadTheme(name string, icons *ui.Icons) (*ui.Theme, *ui.Icons, error) {
+	path := filepath.Join(Dir(), "themes", name+".toml")
+	data, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		if th, ok := ui.Themes[name]; ok {
+			return th, icons, nil
+		}
+		return nil, nil, fmt.Errorf("找不到 %s，也没有这个内置主题", path)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	th, icons, err := ui.ParseTheme(string(data), icons)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%s：%w", path, err)
+	}
+	return th, icons, nil
 }
 
 func lookup(m map[string]any, path []string) any {

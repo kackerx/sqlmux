@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 
 func sized(w, h int, icons string) *App {
 	c := config.Default()
-	c.Icons = icons
+	c.Icons = ui.IconSet(icons)
 	return sizedWith(w, h, c)
 }
 

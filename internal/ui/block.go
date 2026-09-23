@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"slices"
+	"strings"
 
 	uv "github.com/charmbracelet/ultraviolet"
 )
@@ -37,8 +38,9 @@ func (h Hint) titleText() string {
 //
 //	┌─ ⟨1⟩ data · t_order ──────── hint hint ─┐
 type Block struct {
-	N       int    // shown as ⟨n⟩
-	Title   string // "<icon> type"
+	N       int // shown as ⟨n⟩
+	Icon    Icon
+	Title   string // the pane type, after the icon
 	Object  string // "· object" part; truncated first
 	Hints   []Hint // in drawing order
 	Focused bool
@@ -65,7 +67,12 @@ func (b Block) Draw(f *Frame, r uv.Rectangle) uv.Rectangle {
 	// "─ " + " " before the title and "─" before the corner.
 	title, hints := b.fit(x1 - x0 - 1 - 4)
 	if title != "" {
-		f.Text(x0+2, y0, x1, " "+title+" ", uv.Style{Fg: tc, Bg: th.PaneBg})
+		st := uv.Style{Fg: tc, Bg: th.PaneBg}
+		f.Text(x0+2, y0, x1, " "+title+" ", st)
+		// An icon with its own color keeps it (§7.7).
+		if n := fmt.Sprintf("⟨%d⟩ ", b.N); b.Icon.Fg != nil && strings.HasPrefix(title, n+b.Icon.Text) {
+			f.Text(x0+3+Width(n), y0, x1, b.Icon.Text, b.Icon.On(st))
+		}
 	}
 	if len(hints) > 0 {
 		x := x1 - 1 - hintsWidth(hints) - 1
@@ -87,7 +94,7 @@ func (b Block) fit(room int) (string, []Hint) {
 	n := fmt.Sprintf("⟨%d⟩", b.N)
 	head := n
 	if b.Title != "" {
-		head += " " + b.Title
+		head += " " + strings.TrimLeft(b.Icon.Text+" "+b.Title, " ")
 	}
 	if Width(head) > room {
 		return Truncate(n, room), nil

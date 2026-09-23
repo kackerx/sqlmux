@@ -251,19 +251,19 @@
 - [x] 在 `config.toml` 里写 `[keys.normal] "<Leader>h" = "pane.focus.left"` 后，`SPC h` 能切焦点，which-key 里也出现这一项。
 - [x] 默认键位的兼容性单测照常通过。
 
-## F0.12 主题文件：颜色、按类型配色、图标 · 状态：todo
+## F0.12 主题文件：颜色、按类型配色、图标 · 状态：reviewing
 
 - **依赖**：F0.9
 - **涉及**：`internal/ui`（theme、grid、icons）、`internal/config`、`internal/app`
 
 **开发**
-- [ ] 主题文件（§7.3）：`config.toml` 的 `theme = "<名字>"` 先找 `$XDG_CONFIG_HOME/sqlmux/themes/<名字>.toml`，再找内置主题。文件里只写要改的 token，其余沿用 tokyonight-storm。token 名写错、颜色不是 `#rrggbb`、找不到这个主题时，启动报错，指出文件和出错的那一项。
-- [ ] 新增 token：
+- [x] 主题文件（§7.3）：`config.toml` 的 `theme = "<名字>"` 先找 `$XDG_CONFIG_HOME/sqlmux/themes/<名字>.toml`，再找内置主题。文件里只写要改的 token，其余沿用 tokyonight-storm。token 名写错、颜色不是 `#rrggbb`、找不到这个主题时，启动报错，指出文件和出错的那一项。
+- [x] 新增 token：
   - `bar`：状态栏和 toast 的底色，从原来共用的 `row` 拆出来；
   - `string`、`time`、`bool`、`json`：默认都与 `fg` 相同。
-- [ ] grid 按列类型着色（§7.6）：每列带一个类型分类（number / string / time / bool / json / 其他）。M0 的假数据给每列标上分类：id 是 number，biz_type、status 是 string，created_at 是 time；M1 再按数据库类型映射。
-- [ ] console 图标改为 `nf-oct-terminal`（U+F489，带方框的终端图标）；ascii 下仍是 `>`。
-- [ ] 主题文件的 `[icon]` 表（§7.7，写法参考 yazi）：`名字 = { text = "…", fg = "#…" }`。
+- [x] grid 按列类型着色（§7.6）：每列带一个类型分类（number / string / time / bool / json / 其他）。M0 的假数据给每列标上分类：id 是 number，biz_type、status 是 string，created_at 是 time；M1 再按数据库类型映射。
+- [x] console 图标改为 `nf-oct-terminal`（U+F489，带方框的终端图标）；ascii 下仍是 `>`。
+- [x] 主题文件的 `[icon]` 表（§7.7，写法参考 yazi）：`名字 = { text = "…", fg = "#…" }`。
   - `text` 换字形，`fg` 换颜色，两者都可以只写一个；没写的沿用 `icons`（nerd / ascii）那一套；
   - 写了 `fg` 的图标在任何位置都用这个颜色，没写时跟随所在位置的颜色；
   - 可以写的名字：`schema`、`table`、`data`、`console`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`。

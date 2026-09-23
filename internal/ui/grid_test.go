@@ -10,14 +10,14 @@ import (
 
 func testGrid() Grid {
 	return Grid{
-		Cols: []GridCol{{Name: "id", PK: true, Numeric: true}, {Name: "name"}, {Name: "note"}},
+		Cols: []GridCol{{Name: "id", PK: true, Type: ColNumber}, {Name: "name"}, {Name: "note"}},
 		Rows: [][]string{
 			{"1", "alpha", "short"},
 			{"22", "b", "a much longer note here"},
 			{"333", "gamma", "mid note"},
 			{"4", "d", ""},
 		},
-		Row: 2, Col: 1, Focused: true, Key: "*",
+		Row: 2, Col: 1, Focused: true, Key: Icon{Text: "*"},
 	}
 }
 
@@ -87,10 +87,16 @@ func TestGridColors(t *testing.T) {
 		t.Errorf("current cell: %v", bg(nameX, 4))
 	}
 	g.Focused = false
+	g.Key.Fg = th.Error
 	f = NewFrame(60, 7, th)
 	g.Draw(f, uv.Rect(0, 0, 60, 7))
 	if f.Buf.CellAt(nameX, 4).Style.Bg != th.CursorBlur {
 		t.Error("an unfocused grid shows the blurred cursor")
+	}
+	head := strings.Split(f.String(), "\n")[0]
+	keyX := len([]rune(head[:strings.Index(head, "* id")]))
+	if f.Buf.CellAt(keyX, 0).Style.Fg != th.Error || f.Buf.CellAt(keyX+2, 0).Style.Fg != th.Func {
+		t.Error("the key icon keeps its own color, the name stays func")
 	}
 }
 

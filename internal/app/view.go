@@ -99,7 +99,7 @@ func (a *App) render() *ui.Frame {
 	}
 	if a.toast != "" && y > 0 {
 		t := " " + a.toast + " "
-		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Row})
+		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Bar})
 	}
 	return f
 }
@@ -108,7 +108,8 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	th := f.Theme
 	b := ui.Block{
 		N:       n,
-		Title:   a.kindIcon(p.Kind) + " " + p.Kind.String(),
+		Icon:    a.kindIcon(p.Kind),
+		Title:   p.Kind.String(),
 		Object:  p.Object(),
 		Focused: a.win().Focus == p.ID,
 		Pane:    p.ID,
@@ -176,7 +177,8 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	}
 	paneRegions(f, p.ID, r)
 	b := ui.Block{
-		Title:   a.icons.Schema + " schema",
+		Icon:    a.icons.Schema,
+		Title:   "schema",
 		Hints:   bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
 		Focused: a.win().Focus == p.ID,
 		Pane:    p.ID,
@@ -186,7 +188,9 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 		return
 	}
 	x, y, right := in.Min.X+1, in.Min.Y, in.Max.X-1
-	x = f.Text(x, y, right, a.icons.Filter+" ", uv.Style{Fg: th.Info, Bg: th.PaneBg})
+	info := uv.Style{Fg: th.Info, Bg: th.PaneBg}
+	x = f.Text(x, y, right, a.icons.Filter.Text, a.icons.Filter.On(info))
+	x = f.Text(x, y, right, " ", info)
 	x = f.Text(x, y, right, "/ ", uv.Style{Fg: th.Fg, Bg: th.PaneBg})
 	f.Text(x, y, right, fmt.Sprintf("%d tables", len(fakeTables)), uv.Style{Fg: th.Dim, Bg: th.PaneBg})
 
@@ -204,7 +208,9 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 			f.Fill(uv.Rect(list.Min.X, row, list.Dx(), 1), uv.Style{Bg: bg})
 		}
 		cx := right - ui.Width(t.rows)
-		x := f.Text(list.Min.X+1, row, right, a.icons.Table+" ", uv.Style{Fg: icon, Bg: bg})
+		ist := uv.Style{Fg: icon, Bg: bg}
+		x := f.Text(list.Min.X+1, row, right, a.icons.Table.Text, a.icons.Table.On(ist))
+		x = f.Text(x, row, right, " ", ist)
 		f.Text(x, row, cx-1, t.name, uv.Style{Fg: th.Fg, Bg: bg})
 		f.Text(cx, row, right, t.rows, uv.Style{Fg: th.Border, Bg: bg})
 	}
@@ -237,9 +243,15 @@ func bound(hs ...ui.Hint) []ui.Hint {
 	return out
 }
 
-func (a *App) kindIcon(k PaneKind) string {
+func (a *App) kindIcon(k PaneKind) ui.Icon {
 	ic := a.icons
-	return [...]string{ic.Schema, ic.Data, ic.Console}[k]
+	return [...]ui.Icon{ic.Schema, ic.Data, ic.Console}[k]
+}
+
+// icon is " <icon>" and then tail as status bar runs, the icon in its own
+// color if it has one (§7.7).
+func icon(i ui.Icon, st uv.Style, tail string) []ui.Run {
+	return []ui.Run{{Text: " ", Style: st}, {Text: i.Text, Style: i.On(st)}, {Text: tail, Style: st}}
 }
 
 // Drop order of status bar segments when the bar is too narrow (§7.8); the
@@ -253,7 +265,7 @@ const (
 // statusLine lays out the bottom bar (B-01~B-03, §7.8).
 func (a *App) statusLine() ui.StatusLine {
 	th, ic := a.theme, a.icons
-	bar := func(fg color.Color) uv.Style { return uv.Style{Fg: fg, Bg: th.Row} }
+	bar := func(fg color.Color) uv.Style { return uv.Style{Fg: fg, Bg: th.Bar} }
 	mode := a.mode()
 	var s ui.StatusLine
 
@@ -267,11 +279,10 @@ func (a *App) statusLine() ui.StatusLine {
 	} else {
 		sess := uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
 		// ponytail: postgres only; pick the icon by a.sess.Engine when MySQL lands (M5).
-		s.Left = []ui.Segment{{Runs: []ui.Run{
-			{Text: " " + ic.Postgres + " ", Style: sess},
-			{Text: a.sess.Name, Style: sess, Shrink: true},
-			{Text: " ▾ ", Style: sess},
-		}}}
+		s.Left = []ui.Segment{{Runs: append(icon(ic.Postgres, sess, " "),
+			ui.Run{Text: a.sess.Name, Style: sess, Shrink: true},
+			ui.Run{Text: " ▾ ", Style: sess},
+		)}}
 		for i, w := range a.sess.Windows {
 			seg := ui.Segment{Runs: []ui.Run{{Text: fmt.Sprintf(" %d: %s ", i, w.Name), Style: bar(th.Dim)}}, Drop: dropWindow}
 			if i == a.sess.Active {
@@ -283,17 +294,17 @@ func (a *App) statusLine() ui.StatusLine {
 
 	pending := ui.Run{Text: "·", Style: bar(th.Dim)}
 	if ks := a.res.Pending(); len(ks) > 0 {
-		pending = ui.Run{Text: keymap.Display(ks), Style: uv.Style{Fg: th.Warn, Bg: th.Row, Attrs: uv.AttrBold}}
+		pending = ui.Run{Text: keymap.Display(ks), Style: uv.Style{Fg: th.Warn, Bg: th.Bar, Attrs: uv.AttrBold}}
 	}
 	// At least 3 columns, left-aligned: SPC, g or a count don't shift the bar (§7.8).
 	pending.Text += strings.Repeat(" ", max(3-ui.Width(pending.Text), 0))
 	modeColor := [...]color.Color{keymap.Normal: th.Focus, keymap.Visual: th.Keyword, keymap.Insert: th.Warn, keymap.Command: th.Info}[mode]
-	palette := strings.TrimRight(" "+ic.Search+" "+a.keys.Hint("palette.open", "global"), " ") + " "
+	conn := uv.Style{Fg: th.Info, Bg: th.Sep}
 	s.Right = []ui.Segment{
-		{Runs: []ui.Run{{Text: palette, Style: bar(th.Info)}}, Action: "palette.open"},
-		{Runs: []ui.Run{{Text: " " + ic.Keys + " ", Style: bar(th.FgMuted)}, pending, {Text: " ", Style: bar(th.FgMuted)}}},
+		{Runs: icon(ic.Search, bar(th.Info), strings.TrimRight(" "+a.keys.Hint("palette.open", "global"), " ")+" "), Action: "palette.open"},
+		{Runs: append(icon(ic.Keys, bar(th.FgMuted), " "), pending, ui.Run{Text: " ", Style: bar(th.FgMuted)})},
 		{Runs: []ui.Run{{Text: " 1,1 ", Style: bar(th.FgMuted)}}, Drop: dropCursor}, // ponytail: M0 has no cursor yet
-		{Runs: []ui.Run{{Text: " " + ic.Conn + " " + a.sess.Addr + " ", Style: uv.Style{Fg: th.Info, Bg: th.Sep}}}, Drop: dropConn},
+		{Runs: icon(ic.Conn, conn, " "+a.sess.Addr+" "), Drop: dropConn},
 		{Runs: []ui.Run{{Text: " " + strings.ToUpper(mode.String()) + " ", Style: uv.Style{Fg: th.Bg, Bg: modeColor, Attrs: uv.AttrBold}}}},
 	}
 	return s

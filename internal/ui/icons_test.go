@@ -10,7 +10,7 @@ func TestIconSetsComplete(t *testing.T) {
 	for name, set := range map[string]*Icons{"nerd": NerdIcons, "ascii": ASCIIIcons} {
 		v := reflect.ValueOf(*set)
 		for i := range v.NumField() {
-			if v.Field(i).String() == "" {
+			if v.Field(i).Interface().(Icon).Text == "" {
 				t.Errorf("%s icons: %s is empty", name, v.Type().Field(i).Name)
 			}
 		}

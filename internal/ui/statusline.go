@@ -45,7 +45,7 @@ const minInfo = 12
 
 func (s StatusLine) Draw(f *Frame, r uv.Rectangle) {
 	th := f.Theme
-	f.Fill(r, uv.Style{Bg: th.Row})
+	f.Fill(r, uv.Style{Bg: th.Bar})
 	left, right := dropToFit(s.Left, s.Right, r.Dx())
 	if over := segsWidth(left) + segsWidth(right) - r.Dx(); over > 0 {
 		shrink(left, over)
@@ -59,7 +59,7 @@ func (s StatusLine) Draw(f *Frame, r uv.Rectangle) {
 	whole := len(left)+len(right) == len(s.Left)+len(s.Right)
 	if spare := rx - x; s.Info != "" && whole && spare >= minInfo {
 		info := " " + Truncate(s.Info, spare-2) + " "
-		f.Text(rx-Width(info), r.Min.Y, rx, info, uv.Style{Fg: th.Dim, Bg: th.Row})
+		f.Text(rx-Width(info), r.Min.Y, rx, info, uv.Style{Fg: th.Dim, Bg: th.Bar})
 	}
 	for _, seg := range right {
 		rx = drawSegment(f, rx, r.Min.Y, r.Max.X, seg)

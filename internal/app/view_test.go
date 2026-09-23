@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"sqlmux/internal/config"
@@ -153,7 +154,7 @@ func TestEmptyPane(t *testing.T) {
 	f, r := a.render(), a.layout()[p.ID]
 	lines := strings.Split(f.String(), "\n")
 	cells := func(y int) string { return strings.TrimSpace(string([]rune(lines[y])[r.Min.X+1 : r.Max.X-1])) }
-	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ⟨1⟩ "+ui.NerdIcons.Console+" console ─") || strings.Contains(top, "run") || strings.Contains(top, "▾") {
+	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ⟨1⟩ "+ui.NerdIcons.Console.Text+" console ─") || strings.Contains(top, "run") || strings.Contains(top, "▾") {
 		t.Errorf("title, with no hints: %q", top)
 	}
 	for y := r.Min.Y + 1; y < r.Max.Y-2; y++ {
@@ -194,8 +195,8 @@ func TestStatusPendingKeys(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	pending := func() string {
 		row := statusRow(a)
-		i := strings.Index(row, ui.NerdIcons.Keys)
-		return strings.Fields(row[i+len(ui.NerdIcons.Keys):])[0]
+		i := strings.Index(row, ui.NerdIcons.Keys.Text)
+		return strings.Fields(row[i+len(ui.NerdIcons.Keys.Text):])[0]
 	}
 	for _, c := range []struct{ in, want string }{
 		{"", "·"},
@@ -220,7 +221,7 @@ func TestStatusPendingKeys(t *testing.T) {
 func TestStatusPendingKeepsPlace(t *testing.T) {
 	cp := func(a *App) int {
 		row := statusRow(a)
-		return ui.Width(row[:strings.Index(row, ui.NerdIcons.Search)])
+		return ui.Width(row[:strings.Index(row, ui.NerdIcons.Search.Text)])
 	}
 	idle := cp(sized(160, 45, "nerd"))
 	for _, in := range []string{"<Space>", "g", "5", "12"} {
@@ -251,7 +252,7 @@ func TestStatusCommandLine(t *testing.T) {
 	if strings.Contains(row, ":q |") || strings.Contains(row, "pg@localhost") || !strings.HasSuffix(row, " COMMAND ") {
 		t.Errorf("COMMAND at 80: %q", row)
 	}
-	if i := strings.Index(row, ui.NerdIcons.Search); ui.Width(row[:i]) < 40 {
+	if i := strings.Index(row, ui.NerdIcons.Search.Text); ui.Width(row[:i]) < 40 {
 		t.Errorf("the command line must keep half the bar: %q", row)
 	}
 	if !strings.Contains(row, " 1,1 ") {
@@ -287,5 +288,52 @@ func TestStatusNarrowing(t *testing.T) {
 				t.Errorf("w=%d still has %q: %q", c.w, s, row)
 			}
 		}
+	}
+}
+
+// A theme file changes only what it names; icons with a color keep it (§7.3, §7.7).
+func TestThemeColors(t *testing.T) {
+	th, ic, err := ui.ParseTheme(`
+row = "#6c6a6d"
+number = "#ab9df2"
+string = "#ffd866"
+time = "#fc9867"
+[icon]
+console = { text = "C", fg = "#ff0000" }
+table = { fg = "#a9dc76" }
+`, ui.NerdIcons)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := config.Default()
+	c.Theme, c.Icons = th, ic
+	a := sizedWith(160, 45, c)
+	f := a.render()
+	lines := strings.Split(f.String(), "\n")
+	// cell finds s on row y and returns its cell style
+	cell := func(y int, s string) uv.Style {
+		t.Helper()
+		i := strings.Index(lines[y], s)
+		if i < 0 {
+			t.Fatalf("row %d has no %q: %s", y, s, lines[y])
+		}
+		return f.Buf.CellAt(len([]rune(lines[y][:i])), y).Style
+	}
+	if bg := f.Buf.CellAt(80, a.h-1).Style.Bg; bg != th.Bar || th.Bar == th.Row {
+		t.Errorf("status bar %v, want bar %v whatever row is", bg, th.Bar)
+	}
+	for s, want := range map[string]color.Color{"689": th.Number, "goal": th.String, "2026-09-21 10:00:00": th.Time} {
+		if st := cell(4, s); st.Fg != want { // the first data row: id, biz_type, created_at
+			t.Errorf("%q: %v, want %v", s, st.Fg, want)
+		}
+	}
+	if st := cell(0, " C console"); st.Fg != th.Dim {
+		t.Fatal("the title around the icon keeps its color")
+	}
+	if st := cell(0, "C console"); st.Fg != ic.Console.Fg {
+		t.Errorf("console icon %v, want %v", st.Fg, ic.Console.Fg)
+	}
+	if st := cell(3, ui.NerdIcons.Table.Text); st.Fg != ic.Table.Fg {
+		t.Errorf("table icon %v, want %v", st.Fg, ic.Table.Fg)
 	}
 }

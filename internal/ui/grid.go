@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"slices"
 	"strings"
 
@@ -10,10 +11,23 @@ import (
 
 // GridCol is one column of a Grid.
 type GridCol struct {
-	Name    string
-	PK      bool // header gets the key icon
-	Numeric bool // right-aligned, number color
+	Name string
+	PK   bool // header gets the key icon
+	Type ColType
 }
+
+// ColType is the class of a column's values: it picks their color, and
+// numbers are right-aligned (§7.6).
+type ColType int
+
+const (
+	ColOther ColType = iota
+	ColNumber
+	ColString
+	ColTime
+	ColBool
+	ColJSON
+)
 
 // Grid is a data table in the §7.6 style: │ between columns and after the
 // row numbers, a ─┼─ rule under the header, zebra rows, and the current row
@@ -24,7 +38,7 @@ type Grid struct {
 	Top      int // index of the first row shown (scrolling)
 	Row, Col int // current cell; -1 for none
 	Focused  bool
-	Key      string // key icon for primary key headers
+	Key      Icon // for primary key headers
 }
 
 // maxColWidth caps a column's wish (§7.6).
@@ -62,8 +76,8 @@ func (g Grid) widths(room int) []int {
 }
 
 func (g Grid) header(col GridCol) string {
-	if col.PK && g.Key != "" {
-		return g.Key + " " + col.Name
+	if col.PK && g.Key.Text != "" {
+		return g.Key.Text + " " + col.Name
 	}
 	return col.Name
 }
@@ -78,6 +92,7 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 	room := area.Dx() - (noW + 2 + 1) - 3*len(g.Cols) + 1
 	ws := g.widths(room)
 	line := uv.Style{Fg: th.Sep, Bg: th.PaneBg}
+	fg := [...]color.Color{ColOther: th.Fg, ColNumber: th.Number, ColString: th.String, ColTime: th.Time, ColBool: th.Bool, ColJSON: th.JSON}
 
 	// seps are the x of each │: after the row numbers, then between columns.
 	seps := []int{area.Min.X + noW + 2}
@@ -87,8 +102,13 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 	cellX := func(c int) int { return seps[c] + 2 }
 
 	y := area.Min.Y
+	head := uv.Style{Fg: th.Func, Bg: th.PaneBg, Attrs: uv.AttrBold}
 	for c, col := range g.Cols {
-		f.Text(cellX(c), y, min(cellX(c)+ws[c], area.Max.X), Truncate(g.header(col), ws[c]), uv.Style{Fg: th.Func, Bg: th.PaneBg, Attrs: uv.AttrBold})
+		right := min(cellX(c)+ws[c], area.Max.X)
+		f.Text(cellX(c), y, right, Truncate(g.header(col), ws[c]), head)
+		if col.PK && g.Key.Fg != nil { // the key icon keeps its own color (§7.7)
+			f.Text(cellX(c), y, right, g.Key.Text, g.Key.On(head))
+		}
 	}
 	for _, x := range seps {
 		f.Text(x, y, area.Max.X, "│", line)
@@ -118,10 +138,9 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 			if c < len(g.Rows[i]) {
 				v = Truncate(g.Rows[i][c], ws[c])
 			}
-			st := uv.Style{Fg: th.Fg, Bg: bg}
+			st := uv.Style{Fg: fg[col.Type], Bg: bg}
 			x := cellX(c)
-			if col.Numeric {
-				st.Fg = th.Number
+			if col.Type == ColNumber {
 				x += ws[c] - Width(v)
 			}
 			if i == g.Row && c == g.Col {

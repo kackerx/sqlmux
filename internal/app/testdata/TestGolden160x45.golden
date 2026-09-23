@@ -1,4 +1,4 @@
-┌─ ⟨0⟩  schema ─────── SPC b ─┐ ┌─ ⟨1⟩  data · t_order ─────────────────────────────────────────────┐ ┌─ ⟨2⟩  console · cons…  doraemon.public ▾  ▶ run  ↵ ─┐
+┌─ ⟨0⟩  schema ─────── SPC b ─┐ ┌─ ⟨1⟩  data · t_order ─────────────────────────────────────────────┐ ┌─ ⟨2⟩  console · cons…  doraemon.public ▾  ▶ run  ↵ ─┐
 │  / 14 tables                │ │ WHERE deleted_at is null                                           │ │ select * from mt_task                                │
 │──────────────────────────────│ │    │  id │ biz_type │ status  │ created_at                        │ │ where status = 'running';                            │
 │  agent                  124 │ │────┼──────┼──────────┼─────────┼───────────────────────────────────│ │                                                      │

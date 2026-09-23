@@ -56,7 +56,7 @@ var whichKeyDelay = 400 * time.Millisecond
 
 func New(cfg *config.Config, keys *keymap.Map) *App {
 	return &App{
-		theme: ui.TokyonightStorm, icons: ui.IconSet(cfg.Icons),
+		theme: cfg.Theme, icons: cfg.Icons,
 		keys: keys, res: keymap.NewResolver(keys), sess: fakeSession(),
 		mouse: uv.Pos(-1, -1),
 	}

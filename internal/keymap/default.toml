@@ -15,7 +15,7 @@ leader = "<Space>"
 "<C-j>" = "pane.focus.down"
 "<C-k>" = "pane.focus.up"
 "<C-l>" = "pane.focus.right"
-# Only the common keys (§6.8). Everything else runs from the palette, or
+# Only the common keys (§6.8). Everything else runs from the palette (F0.13), or
 # gets a key in config.toml: "<Leader>h" = "pane.focus.left".
 "<Leader>s" = "session.list"
 "<Leader>c" = "window.new"

@@ -104,7 +104,8 @@ var fakeTables = []fakeTable{
 
 // fakeCols and fakeGrid are the data pane's M0 stand-in table.
 var fakeCols = []ui.GridCol{
-	{Name: "id", PK: true, Numeric: true}, {Name: "biz_type"}, {Name: "status"}, {Name: "created_at"},
+	{Name: "id", PK: true, Type: ui.ColNumber}, {Name: "biz_type", Type: ui.ColString},
+	{Name: "status", Type: ui.ColString}, {Name: "created_at", Type: ui.ColTime},
 }
 
 func fakeGrid() [][]string {
