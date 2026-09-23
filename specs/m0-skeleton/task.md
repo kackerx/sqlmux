@@ -251,7 +251,7 @@
 - [x] 在 `config.toml` 里写 `[keys.normal] "<Leader>h" = "pane.focus.left"` 后，`SPC h` 能切焦点，which-key 里也出现这一项。
 - [x] 默认键位的兼容性单测照常通过。
 
-## F0.12 主题文件：颜色、按类型配色、图标 · 状态：reviewing
+## F0.12 主题文件：颜色、按类型配色、图标 · 状态：testing
 
 - **依赖**：F0.9
 - **涉及**：`internal/ui`（theme、grid、icons）、`internal/config`、`internal/app`
