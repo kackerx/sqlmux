@@ -9,11 +9,10 @@ const (
 	KindSchema PaneKind = iota // the ⟨0⟩ sidebar
 	KindData
 	KindConsole
-	KindResult
 )
 
 func (k PaneKind) String() string {
-	return [...]string{"schema", "data", "console", "result"}[k]
+	return [...]string{"schema", "data", "console"}[k]
 }
 
 type Pane struct {
@@ -22,7 +21,6 @@ type Pane struct {
 	Tabs      []string
 	Cur, Prev int      // tab bar * and - (T-01)
 	Lines     []string // M0 placeholder content
-	Scroll    int
 }
 
 // Object is the title's "· name" part: the current tab.
@@ -34,35 +32,19 @@ func (p *Pane) Object() string {
 }
 
 type Window struct {
-	Name     string
-	TreeOpen bool
-	Tree     *Pane // ⟨0⟩ sidebar, not part of the split tree (D-04)
-	Root     *Node
-	Focus    int // pane ID
-	Zoom     int // 0 = none (P-03)
+	Tree  *Pane // ⟨0⟩ sidebar, not part of the split tree (D-04)
+	Root  *Node
+	Focus int // pane ID
 }
 
-type Session struct {
-	Name, Engine, Addr string
-	Windows            []*Window
-	ActiveWin          int
-}
-
-func (s *Session) Win() *Window { return s.Windows[s.ActiveWin] }
-
-// fakeSession is M0's stand-in workspace: no database behind it.
-func fakeSession() *Session {
-	tree := &Pane{ID: 0, Kind: KindSchema}
+// fakeWindow is M0's stand-in workspace: no database behind it.
+func fakeWindow() *Window {
 	data := &Pane{ID: 1, Kind: KindData, Tabs: []string{"t_order", "t_user"}, Prev: 1, Lines: fakeRows()}
 	cons := &Pane{ID: 2, Kind: KindConsole, Tabs: []string{"console_1"}, Prev: -1, Lines: fakeSQL}
-	w := &Window{
-		Name: "main", TreeOpen: true, Tree: tree, Focus: 1,
-		Root: &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(cons)}, // data : console = 5 : 4 (§7.8)
-	}
-	return &Session{
-		Name: "doraemon", Engine: "postgres", Addr: "ctw@localhost:5432/doraemon",
-		Windows: []*Window{w, {Name: "report", TreeOpen: true, Tree: &Pane{ID: 0, Kind: KindSchema}, Focus: 1,
-			Root: leaf(&Pane{ID: 1, Kind: KindData, Tabs: []string{"t_report"}, Prev: -1})}},
+	return &Window{
+		Tree:  &Pane{ID: 0, Kind: KindSchema},
+		Root:  &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(cons)}, // data : console = 5 : 4 (§7.8)
+		Focus: 1,
 	}
 }
 

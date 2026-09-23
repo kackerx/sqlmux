@@ -2,9 +2,8 @@ package app
 
 import (
 	"os"
-	"time"
-
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -44,23 +43,23 @@ func feed(a *App, ss ...string) (quit bool) {
 	return quit
 }
 
-func sized(w, h int) *App {
-	a := New("nerd")
+func sized(w, h int, icons string) *App {
+	a := New(icons)
 	a.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return a
 }
 
 func TestQuit(t *testing.T) {
-	if !feed(sized(160, 45), ":qa", "<CR>") {
+	if !feed(sized(160, 45, "nerd"), ":qa", "<CR>") {
 		t.Fatal(":qa did not quit")
 	}
-	if feed(sized(160, 45), ":q", "<BS>", "<Esc>", "qa", "<CR>") {
+	if feed(sized(160, 45, "nerd"), ":q", "<BS>", "<Esc>", "qa", "<CR>") {
 		t.Fatal("esc'd cmdline still quit")
 	}
 }
 
 func TestCtrlCToasts(t *testing.T) {
-	a := sized(160, 45)
+	a := sized(160, 45, "nerd")
 	if feed(a, "<C-c>") {
 		t.Fatal("C-c quit")
 	}
@@ -74,7 +73,7 @@ func TestCtrlCToasts(t *testing.T) {
 }
 
 func TestResizeNoPanic(t *testing.T) {
-	a := sized(160, 45)
+	a := sized(160, 45, "nerd")
 	feed(a, "<C-c>")
 	for _, s := range [][2]int{{100, 30}, {160, 45}, {80, 24}, {1, 1}, {0, 0}} {
 		a.Update(tea.WindowSizeMsg{Width: s[0], Height: s[1]})

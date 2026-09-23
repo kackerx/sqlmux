@@ -15,7 +15,7 @@ type App struct {
 	w, h  int
 	theme *ui.Theme
 	icons *ui.Icons
-	sess  *Session
+	win   *Window
 
 	cmdline *string // non-nil while the : command line is open (COMMAND mode)
 
@@ -27,7 +27,7 @@ type toastExpired struct{ seq int }
 
 // New builds the app; icons is "nerd" or "ascii" (§7.7).
 func New(icons string) *App {
-	return &App{theme: ui.TokyonightStorm, icons: ui.IconSet(icons), sess: fakeSession()}
+	return &App{theme: ui.TokyonightStorm, icons: ui.IconSet(icons), win: fakeWindow()}
 }
 
 func (a *App) Init() tea.Cmd { return nil }

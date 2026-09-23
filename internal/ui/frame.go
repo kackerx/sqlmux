@@ -10,21 +10,15 @@ import (
 type Kind uint8
 
 const (
-	KindNone Kind = iota
-	KindPane
-	KindTitle
-	KindBorder
-	KindTab
-	KindItem
+	KindTab Kind = iota + 1
 	KindHint
-	KindBackdrop
 )
 
 // Target is what a click on a hit region resolves to.
 type Target struct {
 	Kind   Kind
 	Pane   int    // pane ID
-	I, J   int    // kind-specific indices
+	I      int    // tab index
 	Action string // action with args, e.g. "window.select 3"
 }
 
@@ -40,13 +34,12 @@ type Frame struct {
 	Hits  []Hit
 	Mouse uv.Position // pointer, for hover styles; (-1,-1) when unknown
 	Theme *Theme
-	Icons *Icons
 }
 
-func NewFrame(w, h int, th *Theme, ic *Icons) *Frame {
+func NewFrame(w, h int, th *Theme) *Frame {
 	buf := uv.NewScreenBuffer(max(w, 0), max(h, 0))
 	buf.Method = ansi.GraphemeWidth
-	return &Frame{Buf: buf, Mouse: uv.Pos(-1, -1), Theme: th, Icons: ic}
+	return &Frame{Buf: buf, Mouse: uv.Pos(-1, -1), Theme: th}
 }
 
 func (f *Frame) Bounds() uv.Rectangle { return f.Buf.Bounds() }
@@ -59,16 +52,6 @@ func (f *Frame) Region(r uv.Rectangle, t Target) (hover bool) {
 	}
 	f.Hits = append(f.Hits, Hit{r, t})
 	return f.Mouse.In(r)
-}
-
-// HitAt returns the topmost target at p. Later hits are drawn on top.
-func HitAt(hits []Hit, p uv.Position) (Target, bool) {
-	for i := len(hits) - 1; i >= 0; i-- {
-		if p.In(hits[i].Rect) {
-			return hits[i].Target, true
-		}
-	}
-	return Target{}, false
 }
 
 // Fill paints every cell of r with a blank in style st.

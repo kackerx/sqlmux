@@ -1,27 +1,22 @@
 package ui
 
-// Icons are the glyphs used in titles, trees and the status bar (§7.7).
+// Icons are the glyphs used in titles and the sidebar (§7.7).
 type Icons struct {
-	Postgres, MySQL string
-	Schema, Table   string
-	Data, Console   string
-	Result, Key     string
-	Filter          string
+	Schema, Table string
+	Data, Console string
+	Filter        string
 }
 
 // Nerd Font glyphs, all from the BMP private use area.
 var NerdIcons = &Icons{
-	Postgres: "", MySQL: "",
-	Schema: "", Table: "",
-	Data: "", Console: "",
-	Result: "", Key: "",
+	Schema: "", Table: "", // nf-fa-sitemap, nf-fa-table
+	Data: "", Console: "", // nf-fa-database, nf-fa-terminal
+	Filter: "", // nf-fa-filter
 }
 
 var ASCIIIcons = &Icons{
-	Postgres: "pg", MySQL: "my",
 	Schema: "#", Table: "+",
 	Data: "=", Console: ">",
-	Result: "~", Key: "*",
 	Filter: "?",
 }
 

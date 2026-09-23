@@ -17,17 +17,17 @@ func sidebarWidth(w int) int {
 	return 32
 }
 
-// hintKey is the displayed key for an action; unbound actions show nothing.
-// ponytail: fixed table until the keymap lands (F0.4).
-func hintKey(action string) string {
-	return map[string]string{
-		"tree.toggle": "SPC b", "console.run": "↵", "console.schema": "gs",
-		"grid.left": "h", "grid.down": "j", "grid.up": "k", "grid.right": "l",
-		"grid.edit": "↵", "grid.transpose": "T", "tab.next": "gt", "tab.prev": "gT",
-		"tree.down": "j", "tree.up": "k", "tree.open": "↵", "tree.open.tab": "t",
-		"console.format": "gq",
-	}[action]
+// hintKeys stands in for keymap.Hint; unbound actions show nothing.
+// ponytail: fixed table until the keymap lands (F0.3).
+var hintKeys = map[string]string{
+	"tree.toggle": "SPC b", "console.run": "↵",
+	"grid.left": "h", "grid.down": "j", "grid.up": "k", "grid.right": "l",
+	"grid.edit": "↵", "grid.transpose": "T", "tab.next": "gt", "tab.prev": "gT",
+	"tree.down": "j", "tree.up": "k", "tree.open": "↵", "tree.open.tab": "t",
+	"console.format": "gq",
 }
+
+func hintKey(action string) string { return hintKeys[action] }
 
 func joinKeys(sep string, actions ...string) string {
 	ks := make([]string, len(actions))
@@ -40,33 +40,26 @@ func joinKeys(sep string, actions ...string) string {
 // layout places the sidebar and every pane of the current window, keyed by
 // pane ID. The last row is the status bar.
 func (a *App) layout() map[int]uv.Rectangle {
-	win := a.sess.Win()
 	main := uv.Rect(0, 0, max(a.w, 0), max(a.h-1, 0))
-	rects := map[int]uv.Rectangle{}
-	if win.TreeOpen {
-		side := main
-		side.Max.X = min(main.Min.X+sidebarWidth(a.w), main.Max.X)
-		main.Min.X = min(side.Max.X+1, main.Max.X)
-		rects[win.Tree.ID] = side
-	}
-	win.Root.Rects(main, rects)
+	side := main
+	side.Max.X = min(main.Min.X+sidebarWidth(a.w), main.Max.X)
+	main.Min.X = min(side.Max.X+1, main.Max.X)
+	rects := map[int]uv.Rectangle{a.win.Tree.ID: side}
+	a.win.Root.Rects(main, rects)
 	return rects
 }
 
 func (a *App) render() *ui.Frame {
 	th := a.theme
-	f := ui.NewFrame(a.w, a.h, th, a.icons)
+	f := ui.NewFrame(a.w, a.h, th)
 	f.Fill(f.Bounds(), uv.Style{Fg: th.Fg, Bg: th.Bg})
 	if a.w <= 0 || a.h <= 0 {
 		return f
 	}
-	win := a.sess.Win()
 	rects := a.layout()
-	if win.TreeOpen {
-		a.drawSidebar(f, win, rects[win.Tree.ID])
-	}
-	for i, p := range win.Root.Leaves() {
-		a.drawPane(f, win, p, i+1, rects[p.ID])
+	a.drawSidebar(f, rects[a.win.Tree.ID])
+	for i, p := range a.win.Root.Leaves() {
+		a.drawPane(f, p, i+1, rects[p.ID])
 	}
 
 	y := a.h - 1
@@ -80,18 +73,23 @@ func (a *App) render() *ui.Frame {
 	return f
 }
 
-func (a *App) drawPane(f *ui.Frame, win *Window, p *Pane, n int, r uv.Rectangle) {
+func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	th := f.Theme
 	b := ui.Block{
-		Title:   fmt.Sprintf("⟨%d⟩ %s %s · %s", n, a.kindIcon(p.Kind), p.Kind, p.Object()),
-		Focused: win.Focus == p.ID,
+		N:       n,
+		Title:   a.kindIcon(p.Kind) + " " + p.Kind.String(),
+		Object:  p.Object(),
+		Focused: a.win.Focus == p.ID,
 		Pane:    p.ID,
 	}
 	var tabHints []ui.Hint
 	switch p.Kind {
 	case KindConsole:
-		b.Hints = append([]ui.Hint{{Label: "doraemon.public ▾", Action: "console.schema", Color: th.PK}},
-			bound(ui.Hint{Label: "▶ run", Key: hintKey("console.run"), Action: "console.run", Button: true})...)
+		// Drawn left to right; Prio says what goes first when space runs out (§7.8).
+		b.Hints = append([]ui.Hint{
+			{Label: "doraemon.public ▾", Action: "console.schema", Color: th.PK, Prio: 1},
+			{Label: "▶ run", Action: "console.run", Button: true},
+		}, bound(ui.Hint{Key: hintKey("console.run"), Action: "console.run", Prio: 2})...)
 		tabHints = bound(
 			ui.Hint{Key: hintKey("console.format"), Label: "format", Action: "console.format"},
 			ui.Hint{Key: joinKeys("/", "tab.next", "tab.prev")},
@@ -115,26 +113,25 @@ func (a *App) drawPane(f *ui.Frame, win *Window, p *Pane, n int, r uv.Rectangle)
 			Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
 	}
 	st := uv.Style{Fg: th.FgMuted, Bg: th.PaneBg}
-	for i := 0; i < body.Dy() && p.Scroll+i < len(p.Lines); i++ {
-		f.Text(body.Min.X+1, body.Min.Y+i, body.Max.X-1, p.Lines[p.Scroll+i], st)
+	for i := 0; i < body.Dy() && i < len(p.Lines); i++ {
+		f.Text(body.Min.X+1, body.Min.Y+i, body.Max.X-1, p.Lines[i], st)
 	}
 }
 
 // drawSidebar paints the ⟨0⟩ schema tree placeholder (§7.8).
-func (a *App) drawSidebar(f *ui.Frame, win *Window, r uv.Rectangle) {
+func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	th := f.Theme
-	p := win.Tree
+	p := a.win.Tree
 	b := ui.Block{
-		Title:   fmt.Sprintf("⟨0⟩ %s schema", a.icons.Schema),
+		Title:   a.icons.Schema + " schema",
 		Hints:   bound(ui.Hint{Key: hintKey("tree.toggle"), Action: "tree.toggle"}),
-		Focused: win.Focus == p.ID,
+		Focused: a.win.Focus == p.ID,
 		Pane:    p.ID,
 	}
 	in := b.Draw(f, r)
 	if in.Dy() < 1 {
 		return
 	}
-	bg := uv.Style{Bg: th.PaneBg}
 	x, y, right := in.Min.X+1, in.Min.Y, in.Max.X-1
 	x = f.Text(x, y, right, a.icons.Filter+" ", uv.Style{Fg: th.Info, Bg: th.PaneBg})
 	x = f.Text(x, y, right, "/ ", uv.Style{Fg: th.Fg, Bg: th.PaneBg})
@@ -145,19 +142,18 @@ func (a *App) drawSidebar(f *ui.Frame, win *Window, r uv.Rectangle) {
 	}
 	sep(y + 1)
 	list := uv.Rect(in.Min.X, y+2, in.Dx(), max(in.Dy()-4, 0))
-	for i := 0; i < list.Dy() && p.Scroll+i < len(fakeTables); i++ {
-		t := fakeTables[p.Scroll+i]
+	for i := 0; i < list.Dy() && i < len(fakeTables); i++ {
+		t := fakeTables[i]
 		row := list.Min.Y + i
-		st, icon := bg, uv.Style{Fg: th.Func, Bg: th.PaneBg}
+		bg, icon := th.PaneBg, th.Func
 		if t.name == "t_order" { // the table open in ⟨1⟩
-			st.Bg, icon = th.Select, uv.Style{Fg: th.Focus, Bg: th.Select}
-			f.Fill(uv.Rect(list.Min.X, row, list.Dx(), 1), st)
+			bg, icon = th.Select, th.Focus
+			f.Fill(uv.Rect(list.Min.X, row, list.Dx(), 1), uv.Style{Bg: bg})
 		}
-		cnt := t.rows
-		cx := right - ui.Width(cnt)
-		x := f.Text(list.Min.X+1, row, right, a.icons.Table+" ", icon)
-		f.Text(x, row, cx-1, t.name, uv.Style{Fg: th.Fg, Bg: st.Bg})
-		f.Text(cx, row, right, cnt, uv.Style{Fg: th.Border, Bg: st.Bg})
+		cx := right - ui.Width(t.rows)
+		x := f.Text(list.Min.X+1, row, right, a.icons.Table+" ", uv.Style{Fg: icon, Bg: bg})
+		f.Text(x, row, cx-1, t.name, uv.Style{Fg: th.Fg, Bg: bg})
+		f.Text(cx, row, right, t.rows, uv.Style{Fg: th.Border, Bg: bg})
 	}
 	if in.Dy() >= 4 {
 		sep(in.Max.Y - 2)
@@ -186,5 +182,5 @@ func bound(hs ...ui.Hint) []ui.Hint {
 
 func (a *App) kindIcon(k PaneKind) string {
 	ic := a.icons
-	return [...]string{ic.Schema, ic.Data, ic.Console, ic.Result}[k]
+	return [...]string{ic.Schema, ic.Data, ic.Console}[k]
 }

@@ -5,33 +5,27 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"sqlmux/internal/ui"
 )
 
-func sizedWith(w, h int, icons string) *App {
-	a := New(icons)
-	a.Update(tea.WindowSizeMsg{Width: w, Height: h})
-	return a
-}
-
 // Run `go test ./internal/app -update` to regenerate.
 func TestGolden160x45(t *testing.T) {
-	golden.RequireEqual(t, sizedWith(160, 45, "nerd").render().String())
+	golden.RequireEqual(t, sized(160, 45, "nerd").render().String())
 }
 
 func TestGolden80x24ASCII(t *testing.T) {
-	golden.RequireEqual(t, sizedWith(80, 24, "ascii").render().String())
+	golden.RequireEqual(t, sized(80, 24, "ascii").render().String())
 }
 
 func TestFocusColors(t *testing.T) {
-	a := sizedWith(160, 45, "nerd")
+	a := sized(160, 45, "nerd")
 	f, rects := a.render(), a.layout()
 	th := ui.TokyonightStorm
-	if colorHex(th.Focus) != "#9ece6a" {
-		t.Fatalf("focus token = %s", colorHex(th.Focus))
+	if th.Focus != lipgloss.Color("#9ece6a") {
+		t.Fatalf("focus token = %v", th.Focus)
 	}
 	for id, want := range map[int][2]color.Color{
 		0: {th.Border, th.Dim},  // sidebar
@@ -42,19 +36,9 @@ func TestFocusColors(t *testing.T) {
 		border := f.Buf.CellAt(r.Min.X, r.Min.Y).Style.Fg
 		title := f.Buf.CellAt(r.Min.X+3, r.Min.Y).Style.Fg // "┌─ ⟨n⟩"
 		if border != want[0] || title != want[1] {
-			t.Errorf("pane %d: border %s title %s, want %s %s", id,
-				colorHex(border), colorHex(title), colorHex(want[0]), colorHex(want[1]))
+			t.Errorf("pane %d: border %v title %v, want %v %v", id, border, title, want[0], want[1])
 		}
 	}
-}
-
-func colorHex(c color.Color) string {
-	r, g, b, _ := c.RGBA()
-	return "#" + hex2(r>>8) + hex2(g>>8) + hex2(b>>8)
-}
-
-func hex2(v uint32) string {
-	return string("0123456789abcdef"[v>>4]) + string("0123456789abcdef"[v&15])
 }
 
 func privateUse(s string) rune {
@@ -67,11 +51,11 @@ func privateUse(s string) rune {
 }
 
 func TestASCIIIconsHaveNoNerdGlyphs(t *testing.T) {
-	if privateUse(sizedWith(160, 45, "nerd").render().String()) == 0 {
+	if privateUse(sized(160, 45, "nerd").render().String()) == 0 {
 		t.Fatal("nerd frame has no private-use glyphs; the check below would prove nothing")
 	}
 	for _, s := range [][2]int{{160, 45}, {80, 24}} {
-		if r := privateUse(sizedWith(s[0], s[1], "ascii").render().String()); r != 0 {
+		if r := privateUse(sized(s[0], s[1], "ascii").render().String()); r != 0 {
 			t.Fatalf("%dx%d ascii frame contains %U", s[0], s[1], r)
 		}
 	}
@@ -82,7 +66,7 @@ func TestASCIIIconsHaveNoNerdGlyphs(t *testing.T) {
 func TestSmallSizes(t *testing.T) {
 	for w := 0; w <= 90; w += 3 {
 		for h := 0; h <= 26; h += 2 {
-			a := sizedWith(w, h, "nerd")
+			a := sized(w, h, "nerd")
 			f := a.render()
 			for id, r := range a.layout() {
 				if r.Dx() < 2 || r.Dy() < 2 {
@@ -94,9 +78,16 @@ func TestSmallSizes(t *testing.T) {
 			}
 		}
 	}
-	top := strings.Split(sizedWith(80, 24, "nerd").render().String(), "\n")[0]
-	if !strings.Contains(top, "…") {
-		t.Errorf("80x24: expected a truncated title: %q", top)
+}
+
+// §7.8: at 160×45 the console title keeps both the schema dropdown and
+// "▶ run ↵", cutting the object name instead.
+func TestConsoleTitleAt160(t *testing.T) {
+	top := strings.Split(sized(160, 45, "nerd").render().String(), "\n")[0]
+	for _, want := range []string{"console · cons…", "doraemon.public ▾", " ▶ run  ↵ ─┐"} {
+		if !strings.Contains(top, want) {
+			t.Errorf("top row lacks %q: %q", want, top)
+		}
 	}
 }
 
@@ -108,7 +99,7 @@ func TestLayoutSizes(t *testing.T) {
 		{99, 24, 41, 32},
 		{80, 24, 30, 24},
 	} {
-		r := sizedWith(c.w, 45, "nerd").layout()
+		r := sized(c.w, 45, "nerd").layout()
 		side, data, cons := r[0], r[1], r[2]
 		if side.Min.X != 0 || side.Dx() != c.side || data.Min.X != side.Max.X+1 ||
 			cons.Min.X != data.Max.X+1 || cons.Max.X != c.w || data.Dx() != c.data || cons.Dx() != c.cons {

@@ -32,13 +32,14 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		case t.Prev:
 			mark = "-"
 		}
-		s := fmt.Sprintf(" %d:%s%s ", i+1, n, mark)
-		f.Region(uv.Rect(x, y, Width(s), 1), Target{Kind: KindTab, Pane: t.Pane, I: i})
-		x = f.Text(x, y, r.Max.X, s, st)
+		start := x
+		x = f.Text(x, y, r.Max.X, fmt.Sprintf(" %d:%s%s ", i+1, n, mark), st)
+		f.Region(uv.Rect(start, y, x-start, 1), Target{Kind: KindTab, Pane: t.Pane, I: i})
 	}
 	x = f.Text(x, y, r.Max.X, "│", uv.Style{Fg: th.Sep, Bg: th.Bg})
-	f.Region(uv.Rect(x, y, 3, 1), Target{Kind: KindTab, Pane: t.Pane, I: -1})
+	start := x
 	x = f.Text(x, y, r.Max.X, " + ", base)
+	f.Region(uv.Rect(start, y, x-start, 1), Target{Kind: KindTab, Pane: t.Pane, I: -1})
 
 	w := -3 // " · " before the first item is not drawn
 	for _, h := range t.Hints {
@@ -52,10 +53,11 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		if i > 0 {
 			hx = f.Text(hx, y, r.Max.X, " · ", base)
 		}
-		if h.Action != "" {
-			f.Region(uv.Rect(hx, y, Width(h.tabText()), 1), Target{Kind: KindHint, Pane: t.Pane, Action: h.Action})
-		}
+		start := hx
 		hx = f.Text(hx, y, r.Max.X, h.tabText(), base)
+		if h.Action != "" {
+			f.Region(uv.Rect(start, y, hx-start, 1), Target{Kind: KindHint, Pane: t.Pane, Action: h.Action})
+		}
 	}
 }
 
