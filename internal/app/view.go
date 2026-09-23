@@ -17,22 +17,16 @@ func sidebarWidth(w int) int {
 	return 32
 }
 
-// hintKeys stands in for keymap.Hint; unbound actions show nothing.
-// ponytail: fixed table until the keymap lands (F0.3).
-var hintKeys = map[string]string{
-	"tree.toggle": "SPC b", "console.run": "↵",
-	"grid.left": "h", "grid.down": "j", "grid.up": "k", "grid.right": "l",
-	"grid.edit": "↵", "grid.transpose": "T", "tab.next": "gt", "tab.prev": "gT",
-	"tree.down": "j", "tree.up": "k", "tree.open": "↵", "tree.open.tab": "t",
-	"console.format": "gq",
-}
+// hint is the key text for action in scope; "" when unbound (§6.7).
+func (a *App) hint(scope, action string) string { return a.keys.Hint(action, scope) }
 
-func hintKey(action string) string { return hintKeys[action] }
-
-func joinKeys(sep string, actions ...string) string {
+// hints joins several actions' keys, e.g. "hjkl" or "gt/gT"; "" if any is unbound.
+func (a *App) hints(scope, sep string, actions ...string) string {
 	ks := make([]string, len(actions))
-	for i, a := range actions {
-		ks[i] = hintKey(a)
+	for i, act := range actions {
+		if ks[i] = a.hint(scope, act); ks[i] == "" {
+			return ""
+		}
 	}
 	return strings.Join(ks, sep)
 }
@@ -89,17 +83,17 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		b.Hints = append([]ui.Hint{
 			{Label: "doraemon.public ▾", Action: "console.schema", Color: th.PK, Prio: 1},
 			{Label: "▶ run", Action: "console.run", Button: true},
-		}, bound(ui.Hint{Key: hintKey("console.run"), Action: "console.run", Prio: 2})...)
+		}, bound(ui.Hint{Key: a.hint("console", "console.run"), Action: "console.run", Prio: 2})...)
 		tabHints = bound(
-			ui.Hint{Key: hintKey("console.format"), Label: "format", Action: "console.format"},
-			ui.Hint{Key: joinKeys("/", "tab.next", "tab.prev")},
+			ui.Hint{Key: a.hint("console", "console.format"), Label: "format", Action: "console.format"},
+			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},
 		)
 	case KindData:
 		tabHints = bound(
-			ui.Hint{Key: joinKeys("", "grid.left", "grid.down", "grid.up", "grid.right")},
-			ui.Hint{Key: hintKey("grid.edit"), Label: "edit", Action: "grid.edit"},
-			ui.Hint{Key: hintKey("grid.transpose"), Label: "转置", Action: "grid.transpose"},
-			ui.Hint{Key: joinKeys("/", "tab.next", "tab.prev")},
+			ui.Hint{Key: a.hints("grid", "", "grid.left", "grid.down", "grid.up", "grid.right")},
+			ui.Hint{Key: a.hint("grid", "grid.edit"), Label: "edit", Action: "grid.edit"},
+			ui.Hint{Key: a.hint("grid", "grid.transpose"), Label: "转置", Action: "grid.transpose"},
+			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},
 		)
 	}
 	in := b.Draw(f, r)
@@ -124,7 +118,7 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	p := a.win.Tree
 	b := ui.Block{
 		Title:   a.icons.Schema + " schema",
-		Hints:   bound(ui.Hint{Key: hintKey("tree.toggle"), Action: "tree.toggle"}),
+		Hints:   bound(ui.Hint{Key: a.hint("normal", "tree.toggle"), Action: "tree.toggle"}),
 		Focused: a.win.Focus == p.ID,
 		Pane:    p.ID,
 	}
@@ -159,9 +153,9 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 		sep(in.Max.Y - 2)
 		hx := in.Min.X + 1
 		for _, h := range []struct{ key, label string }{
-			{joinKeys("/", "tree.down", "tree.up"), "move"},
-			{hintKey("tree.open"), "open"},
-			{hintKey("tree.open.tab"), "tab"},
+			{a.hints("tree", "/", "tree.down", "tree.up"), "move"},
+			{a.hint("tree", "tree.open"), "open"},
+			{a.hint("tree", "tree.open.tab"), "tab"},
 		} {
 			hx = f.Text(hx, in.Max.Y-1, right, h.key, uv.Style{Fg: th.Focus, Bg: th.PaneBg, Attrs: uv.AttrBold})
 			hx = f.Text(hx, in.Max.Y-1, right, " "+h.label+"  ", uv.Style{Fg: th.Dim, Bg: th.PaneBg})

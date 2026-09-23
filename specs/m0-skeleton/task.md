@@ -46,22 +46,22 @@
 - [ ] 80×24 下不 panic、不越界。标题栏空间不够时，按 §7.8 的顺序退让：先截短标题中的对象名，再从优先级最低的提示开始丢；160×45 下，console 标题栏的 `doraemon.public ▾` 和 `▶ run ↵` 都能完整显示
 - [ ] 布局尺寸符合 §7.8：侧栏 32 列（窗口宽度小于 100 列时为 24 列）、data 与 console 为 5 : 4、横向间隔 1 列
 
-## F0.3 keymap 引擎与配置 · 状态：todo
+## F0.3 keymap 引擎与配置 · 状态：reviewing
 
 - **依赖**：F0.1。这一项是纯逻辑加命令行，不依赖 F0.2 的界面，可以和 F0.2 交错进行。
 - **涉及**：`internal/keymap`、`internal/config`、`cmd/sqlmux`（`keys` 子命令）
 
 **开发**
-- [ ] 键位记法的解析与规范化：`<C-p>`、`<Space>`、`<S-Tab>`、`<CR>`、`<Esc>`，以及普通字符序列
-- [ ] 作用域 trie，并按当前上下文合并优先级（§6.4）
-- [ ] 按键序列：纯前缀节点一直等待；歧义节点等待 `timeoutlen` 后执行
-- [ ] leader：`<Space>` 只在 NORMAL 下生效；配置成 Ctrl 组合时全局生效
-- [ ] 次数前缀：通过 `Args.Count` 传给 Action；没有输入次数时，`0` 作为普通按键
-- [ ] 用户映射 `[map.<mode>]`、`[map.<pane>.<mode>]`，语义同 noremap，优先级为 pane 类型 > 通用 > 默认
-- [ ] 冲突检测；`keymap.Hint`
-- [ ] `default.toml`（embed）写入 §6.8 的全部默认键位
-- [ ] 配置加载：读取 `$XDG_CONFIG_HOME/sqlmux/config.toml`，未设置时读 `~/.config/sqlmux/config.toml`；把 `icons` 接进来
-- [ ] 命令行：`sqlmux keys`（输出 markdown 表）、`--format toml`、`--check`
+- [x] 键位记法的解析与规范化：`<C-p>`、`<Space>`、`<S-Tab>`、`<CR>`、`<Esc>`，以及普通字符序列
+- [x] 作用域 trie，并按当前上下文合并优先级（§6.4）
+- [x] 按键序列：纯前缀节点一直等待；歧义节点等待 `timeoutlen` 后执行
+- [x] leader：`<Space>` 只在 NORMAL 下生效；配置成 Ctrl 组合时全局生效
+- [x] 次数前缀：通过 `Args.Count` 传给 Action；没有输入次数时，`0` 作为普通按键
+- [x] 用户映射 `[map.<mode>]`、`[map.<pane>.<mode>]`，语义同 noremap，优先级为 pane 类型 > 通用 > 默认
+- [x] 冲突检测；`keymap.Hint`
+- [x] `default.toml`（embed）写入 §6.8 的全部默认键位
+- [x] 配置加载：读取 `$XDG_CONFIG_HOME/sqlmux/config.toml`，未设置时读 `~/.config/sqlmux/config.toml`；把 `icons` 接进来
+- [x] 命令行：`sqlmux keys`（输出 markdown 表）、`--format toml`、`--check`
 
 **验收**
 - [ ] 单测覆盖以下几项：
