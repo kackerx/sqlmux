@@ -154,3 +154,19 @@ func TestWheelScrollsPaneUnderPointer(t *testing.T) {
 		t.Fatalf("scrolling up stops at the top, got %d", data.Scroll)
 	}
 }
+
+// SPC q's numbers are an overlay too: a click closes them, and the next key
+// is a key again.
+func TestClickClosesPaneNumbers(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<Space>q")
+	r := a.layout()[2]
+	click(a, uv.Pos(r.Min.X+5, r.Min.Y+5))
+	if a.paneNumbers {
+		t.Fatal("clicking should close the pane numbers")
+	}
+	feed(t, a, ":")
+	if a.cmdline == nil {
+		t.Fatal("the key after the click must not be swallowed")
+	}
+}

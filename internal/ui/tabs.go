@@ -65,7 +65,8 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 	}
 }
 
-// tabText is how a hint reads in a tab bar: "Key Label".
+// tabText is how a hint reads in a tab bar: "Key Label"; its width is the
+// hint's hit region, measured before drawing to pick the hover style.
 func (h Hint) tabText() string {
 	if h.Label == "" {
 		return h.Key

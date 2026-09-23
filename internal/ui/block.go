@@ -18,7 +18,8 @@ type Hint struct {
 	Attached   bool        // key text of the hint before it: shown only with it (§7.8); needs a higher Prio than that hint
 }
 
-// titleText is how a hint reads on a border: "Label Key".
+// titleText is how a hint reads on a border: "Label Key". It must match what
+// titleHintText draws: layout and the hit region are measured from it.
 func (h Hint) titleText() string {
 	switch {
 	case h.Button:

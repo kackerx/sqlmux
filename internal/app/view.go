@@ -334,6 +334,7 @@ func (a *App) drawThinBar(f *ui.Frame, r uv.Rectangle) {
 // a digit jumps there.
 func (a *App) drawPaneNumbers(f *ui.Frame, rects map[int]uv.Rectangle) {
 	th := f.Theme
+	f.Region(f.Bounds(), ui.Target{Kind: ui.KindBackdrop}) // a click anywhere closes it (§7.4)
 	for n, p := range a.panesByNumber() {
 		r, ok := rects[p.ID]
 		if !ok {

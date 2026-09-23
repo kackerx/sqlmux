@@ -144,8 +144,8 @@ func (a *App) click(p uv.Position) tea.Cmd {
 	}
 	focus := func() tea.Cmd { return a.run(fmt.Sprintf("pane.focus %d", t.Pane), 0) }
 	switch t.Kind {
-	case ui.KindBackdrop:
-		a.whichKey = false
+	case ui.KindBackdrop: // outside an overlay: close it
+		a.whichKey, a.paneNumbers = false, false
 		a.res.Reset()
 	case ui.KindItem:
 		if next := a.res.Next(); t.I < len(next) {
