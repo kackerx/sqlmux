@@ -80,6 +80,7 @@ start -x 200
 check "200 宽：对象名完整，doraemon.public ▾ 在 ▶ run ↵ 左边" title_ends "console · console_1 ────────────── doraemon.public ▾  ▶ run  ↵ ─┐"
 check "200 宽：data:console 仍约为 5:4" eval 'set -- $(e2e_find ┌ 1) $(e2e_find ┐ 1); dw=$(($5 - $2 + 1)) cw=$(($6 - $3 + 1)); ((dw * 4 - cw * 5 <= 9 && cw * 5 - dw * 4 <= 9))'
 start -x 140; check "140 宽：对象名已截完，先丢 ↵" title_ends "⟨2⟩ $NF_CONSOLE console ─ doraemon.public ▾  ▶ run  ─┐"
+start -x 130; check "130 宽：跳过下拉框，▶ run ↵ 完整，对象名完整" title_ends "⟨2⟩ $NF_CONSOLE console · console_1 ─  ▶ run  ↵ ─┐"
 start -x 100; check "100 宽：只剩 ▶ run" title_ends "⟨2⟩ $NF_CONSOLE console ─  ▶ run  ─┐"
 start -x 60;  check "60 宽：只保留 ⟨2⟩" title_ends "─ ⟨2⟩ ───────┐"
 ok=1; for w in 110 115 120 125 130; do start -x $w -y 12; title_ends "▶ run  ↵ ─┐" || ok=0; done
