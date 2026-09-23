@@ -89,7 +89,7 @@ sqlmux/
 
 ## 协作流程（多会话开发）
 
-本项目由四个角色协作开发。里程碑的索引和推进规则见 [`specs/plan.md`](specs/plan.md)；每个里程碑的任务清单在对应的目录下，例如 [`specs/m0-skeleton/task.md`](specs/m0-skeleton/task.md)。
+本项目由五个角色协作开发。里程碑的索引和推进规则见 [`specs/plan.md`](specs/plan.md)；每个里程碑的任务清单在对应的目录下，例如 [`specs/m0-skeleton/task.md`](specs/m0-skeleton/task.md)。
 
 | 角色 | 职责 |
 |---|---|
@@ -97,6 +97,7 @@ sqlmux/
 | worker | 按 task.md 的开发清单逐项实现 |
 | reviewer | 审查 worker 的每个 commit，通过后提测给 tester |
 | tester | 按 task.md 的验收项逐个测试 feature |
+| pruner（修剪者） | 每个里程碑的 feature 和改进项全部通过后，按 ponytail 原则，对整个仓库做一次不改变行为的精简；每个里程碑新开一个会话 |
 
 固定的工作流：
 
@@ -112,9 +113,10 @@ sqlmux/
 
 - 用户深度体验这个里程碑，提出问题和改进意见；
 - 决策者把反馈整理成改进 feature，照常走完上面的流程；
+- 改进项全部通过后，由 pruner 修剪一轮（见下文「pruner 的规则」），tester 在最后一个 commit 上跑完整回归；
 - 用户确认验收通过后，打 tag，进入下一个里程碑。
 
-暂停期间，worker 不写代码，只可以起草下一个里程碑的开发清单。
+暂停期间，worker 不写代码，只可以起草下一个里程碑的开发清单。修剪期间，main 只由 pruner 提交。
 
 **通用规则**：
 
@@ -136,7 +138,7 @@ sqlmux/
   - 严格按 task.md 的开发清单逐项实现并勾选，不跳步，不顺手做清单以外的事。
   - 发现清单漏了东西或者不合理，先提给决策者。
 - **提交**：
-  - 只有 worker 在主工作区（本目录）改代码，并提交到 `main`。只提交到本地，不 push。
+  - 只有 worker 在主工作区（本目录）改代码，并提交到 `main`；修剪期间例外，由 pruner 提交。只提交到本地，不 push。
   - feature commit 里不包含 `specs/` 和 `AGENTS.md` 的改动（自己改的任务状态除外）。决策者通知文档有更新时，单独提交一个 `docs:` commit。
   - 不要对整个工作区执行 stash、checkout 或 reset。决策者可能正在修改 `specs/` 和 `AGENTS.md`，所有 worktree 也共用同一个 stash 栈。需要把工作暂时放到一边时，只处理自己的代码路径，例如 `git stash push -u -m "<唯一标签>" -- internal/ cmd/`，或者提交一个临时的 WIP commit。
 - **每完成一个可测试的 feature**，依次：
@@ -171,6 +173,7 @@ sqlmux/
   - 同时告知 worker，由 worker 把状态改为 `testing`；
   - 抄送决策者一句话结论。
 - **spec 本身有问题时**：发给决策者，不要自己决定。
+- **审 pruner 的 commit 时**，重点确认行为没有变：测试的期望值（包括 golden 和 e2e）一个都没改，也没有删掉 spec 要求的东西。
 
 **tester 的规则**：
 
@@ -192,6 +195,32 @@ sqlmux/
 - **隔离用户数据**：e2e 运行时，把 `XDG_CONFIG_HOME`、`XDG_STATE_HOME`、`XDG_DATA_HOME` 指向临时目录，不要读写用户自己的配置和数据。
 - **报告问题**：发给 worker，写明 feature ID、复现步骤（脚本或按键序列）、期望结果（引用 tech-design 的章节或 PRD 编号）、实际结果（贴屏幕截取）。
 - **测完一个 feature**：把结论（通过 / 不通过、问题数）同时发给决策者和 worker。
+
+**pruner 的规则**：
+
+- **什么时候干活**：里程碑的 feature 和改进项全部 `passed` 之后、最终回归之前。这段时间 worker 不写代码，main 只由 pruner 提交。
+- **每个里程碑新开一个会话**（名为 `sqlmux-pruner`），不需要 worker 交接。
+  - 从本文件、`specs/`、代码和 git 历史读起；
+  - 决策者会在开工消息里给出这个里程碑的起点 commit，以及还没处理的审查「建议」。
+- **目标**（ponytail，`ponytail:ponytail` skill）：
+  - 删掉死代码和没人用的导出；
+  - 合并重复的代码，包括测试里重复的辅助函数；
+  - 去掉只有一个实现的接口，以及为「以后」预留的参数和配置；
+  - 简化过长、过绕的函数；
+  - 让包的边界符合 tech-design §4；
+  - 处理积压的审查「建议」；
+  - 清点 `ponytail:` 注释：已经具备升级条件的提出来，过时的删掉。
+- **硬性约束**：
+  - **不改行为**：单元测试、golden、e2e 都不改期望值就能通过。要改期望值的，就不算修剪，提给决策者。
+  - 不改 `specs/` 和 `AGENTS.md`。发现 spec 本身带来了多余的复杂度，提给决策者。
+  - 不加依赖，不加新的抽象，不做没有测量依据的性能优化，也不为了风格偏好大面积改名或搬文件。
+- **做法**：
+  1. **先只读**：用 `ponytail:ponytail-audit` 扫整个仓库，用 `ponytail:ponytail-debt` 汇总 `ponytail:` 注释；需要时再用 `simplify`、`code-review`。
+  2. **列清单发给决策者**：每一项写明位置、要删或要改什么、理由和风险，按收益排序。
+  3. **决策者确认范围后再动手**：每一项，或者一组相关的小项，提交一个 commit，说明用英文，以 `prune:` 开头。
+  4. **每个 commit 之前**：跑全部单测、golden 和 e2e 回归。
+  5. **每个 commit 交给 reviewer 审查**。全部做完后，tester 在最后一个 commit 上跑完整回归，结论发给决策者。
+- **只修剪一轮**：做的过程中新发现、但不在清单里的问题记下来，留给下一个里程碑的修剪。
 
 ## 其他约定
 
