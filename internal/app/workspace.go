@@ -129,7 +129,8 @@ var fakeSQL = []string{
 }
 
 // openTable shows table t in the focused data pane, else the window's first
-// one (F0.14): in place of its current tab, or in a new tab it switches to.
+// one, and focuses it (§12): in place of its current tab, or in a new tab it
+// switches to.
 // ponytail: M0 only renames the tab; M1 opens the table's data.
 func (a *App) openTable(t string, newTab bool) {
 	p := a.focused()
@@ -140,6 +141,7 @@ func (a *App) openTable(t string, newTab bool) {
 		}
 		p = a.win().Root.Leaves()[i]
 	}
+	a.showPane(p.ID)
 	if !newTab && len(p.Tabs) > 0 {
 		p.Tabs[p.Cur] = t
 		return
@@ -279,6 +281,16 @@ func (a *App) jumpToPane(k keymap.Key) {
 }
 
 // focusPane gives focus to pane id if it is on screen (a click).
+// showPane focuses pane id where the palette sends the user (§12). A zoom on
+// another pane ends first, as a jump by number ends it (§5): the pane is on
+// screen once it has focus.
+func (a *App) showPane(id int) {
+	if a.win().Zoom != id {
+		a.win().Zoom = 0
+	}
+	a.focusPane(id)
+}
+
 func (a *App) focusPane(id int) {
 	if _, ok := a.layout()[id]; ok && (id != a.win().Tree.ID || a.win().TreeOpen) {
 		a.win().focus(id)

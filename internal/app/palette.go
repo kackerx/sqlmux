@@ -233,7 +233,7 @@ func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 		a.openTable(it.id, newTab)
 	case itemPane:
 		id, _ := strconv.Atoi(it.id)
-		a.focusPane(id)
+		a.showPane(id)
 	}
 	return nil
 }

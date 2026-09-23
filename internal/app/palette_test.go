@@ -266,10 +266,13 @@ func TestPaletteOpensTables(t *testing.T) {
 	if a.palette != nil || strings.Join(data.Tabs, " ") != "t_user t_user" || data.Cur != 0 {
 		t.Fatalf("↵: tabs %v cur %d", data.Tabs, data.Cur)
 	}
-	a.win().Focus = a.win().Tree.ID // from the sidebar: the first data pane
+	a.win().focus(2) // from the console: the first data pane
 	feed(t, a, "<C-p>@t_sku<C-t>")
 	if strings.Join(data.Tabs, " ") != "t_user t_user t_sku" || data.Cur != 2 || data.Prev != 0 {
 		t.Fatalf("C-t: tabs %v cur %d prev %d", data.Tabs, data.Cur, data.Prev)
+	}
+	if a.win().Focus != data.ID {
+		t.Errorf("focus %d: the pane the table opened in takes it", a.win().Focus)
 	}
 	if feed(t, a, "<C-p>"); namesOf(a)[0] != "表:t_sku" {
 		t.Errorf("recent first whatever the kind: %v", namesOf(a)[:2])
@@ -304,5 +307,27 @@ func TestPaletteFocusesPanes(t *testing.T) {
 	feed(t, a, "<C-p>%console<CR>")
 	if a.palette != nil || a.win().Focus != 2 {
 		t.Fatalf("focus %d, want the console", a.win().Focus)
+	}
+}
+
+// Where the palette sends focus, the pane is on screen: a zoom on another
+// pane ends, one on that pane stays (§12, §5).
+func TestPaletteFocusUnzooms(t *testing.T) {
+	for _, c := range []struct {
+		name, keys string
+		zoomed     int // the pane zoomed before
+		zoom       int // after
+	}{
+		{"table from the zoomed console", "<C-p>@t_user<CR>", 2, 0},
+		{"table into the zoomed data pane", "<C-p>@t_user<CR>", 1, 1},
+		{"pane hidden by the zoom", "<C-p>%t_order<CR>", 2, 0},
+	} {
+		a := sized(160, 45, "nerd")
+		a.win().focus(c.zoomed)
+		feed(t, a, "<Space>z")
+		feed(t, a, c.keys)
+		if a.win().Focus != 1 || a.win().Zoom != c.zoom {
+			t.Errorf("%s: focus %d zoom %d, want focus 1 zoom %d", c.name, a.win().Focus, a.win().Zoom, c.zoom)
+		}
 	}
 }
