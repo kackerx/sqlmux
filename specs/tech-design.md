@@ -401,6 +401,7 @@ type Frame struct {
   - Bubble Tea v2 默认用 wcwidth，只有终端回报支持 mode 2027 时才改用字素簇。tmux 不回报，Terminal.app 连查询都不发，所以要在启动时主动切换。
   - Bubble Tea v2.0.9 没有公开的设置项。做法是在 `Init` 里返回一个 `tea.ModeReportMsg{Mode: ansi.ModeUnicodeCore, Value: ansi.ModeSet}`，它走的是终端回报 2027 时的同一条路径（`tea.go` 的 eventLoop）。这借用的是未公开的行为，所以配一个单测：终端不回报时，启动后渲染器已经切换（它会输出 `ansi.SetModeUnicodeCore`）。升级 Bubble Tea 后这条路径变了，测试就会失败；升级时也顺便看看是否有了正式的设置项。
   - 代价：只按 wcwidth 显示的老终端，遇到这类字符会错位。有人遇到时再加配置项。
+  - 已知上限：East Asian Width 为 Ambiguous 的字符一律按 1 列计算，与 tmux 默认一致。这类字符包括 Nerd Font 图标所在的私用区、`·`、截断用的 `…`、带圈数字 ①–⑳。终端把 Ambiguous 字符设成双宽时（iTerm2 等有这个选项，一些 CJK 用户会打开），它们会占 2 列，边框随之错位；⓪ 属于 Neutral，不受影响，所以还会和 ①–⑳ 表现不一致。有人遇到时，再加 `ambiguous_width = 2` 之类的配置项。
 
 ### 7.2 Block
 
@@ -546,6 +547,8 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
     - 提示行，如 `j/k move  ↵ open tab`，键名用 `focus` 色粗体，说明文字用 `dim` 色。
 - **pane 标题**：
   - 格式为 `⟨n⟩ <图标> 对象名`，ascii 图标下为 `⟨n⟩ <图标> 类型 · 对象名`（§7.7）。从左上角往右 1 列开始，两侧各留 1 个空格。
+  - 编号 `⟨n⟩` 在 Nerd Font 图标下显示为带圈数字 `⓪ ① ② … ⑳`，只占 1 列（M0 用户反馈）；超过 20 时仍写成 `⟨21⟩`。ascii 图标下照旧是 `⟨n⟩`。标题、侧栏标题、命令面板里 pane 那一行都照此显示。`SPC q` 在 pane 中央显示的编号仍是普通数字，因为那是要按的键。
+  - 带圈数字按 1 列计算，已知上限见 §7.1「宽度」。
   - 右侧提示离右上角 1 列。
   - console 标题的右侧是 `▶ run`（`focus` 底、`bg` 色字、粗体）加上 `↵`（`dim` 色）；schema 下拉框 `doraemon.public ▾` 放在 run 的左边。
   - **空间不够时，提示优先于标题的对象名**，因为提示都是可点击的按钮（§7.4）。按下面的顺序分配空间：
