@@ -318,7 +318,7 @@
 - [ ] 列表往下滚动之后，执行开关类命令（如 `pane.zoom`），选中项仍然在可视区域内。
 - [ ] `match.go` 的单测覆盖：排序结果、高亮位置、扩展语法。
 
-## F0.14 命令面板：表、pane、window 范围 · 状态：reviewing
+## F0.14 命令面板：表、pane、window 范围 · 状态：testing
 
 - **依赖**：F0.13
 - **涉及**：`internal/app`、`internal/ui`（palette）
@@ -334,20 +334,21 @@
 - [ ] `Tab` / `S-Tab` 在范围之间循环；输入 `@ord` 只在表里找，`%con` 只在窗口和 pane 里找。
 - [ ] 在表范围选中 `t_user`，按 ↵ 后当前 tab 变成 t_user；按 `C-t` 则新开一个 tab。
 - [ ] 焦点在 console 上时，从面板打开一张表：表打开到第一个 data pane，焦点也移到这个 data pane。
+- [ ] console 处于缩放状态时，从面板打开表，或者在面板里聚焦 data pane：先退出缩放，再聚焦 data pane。目标就是正在缩放的 pane 时，保持缩放。
 - [ ] 在 pane 范围选中 console，按 ↵ 后焦点移到 console。
 - [ ] 「所有」范围里同时有命令、表、pane 和 window，每一行都有类型标签。
 
-## F0.15 侧栏：拖动调宽、标题显示当前 schema · 状态：todo
+## F0.15 侧栏：拖动调宽、标题显示当前 schema · 状态：reviewing
 
 - **依赖**：F0.8
 - **涉及**：`internal/app`（layout）、`internal/ui`
 
 **开发**
-- [ ] 侧栏和右边 pane 之间的那 1 列间隔也是拖动柄（§7.4、§7.8）：
+- [x] 侧栏和右边 pane 之间的那 1 列间隔也是拖动柄（§7.4、§7.8）：
   - 拖动时实时改变侧栏宽度，最窄 16 列，最宽为窗口宽度的一半；
   - 宽度记在 window 上；
   - 侧栏折叠时不能拖。
-- [ ] 侧栏标题改为 `⟨0⟩ <schema 图标> public ▾`（M0 的假 schema）。整段登记为按钮，点击执行 `tree.schema`：M1 F1.2 实现下拉框，M0 里什么都不做。
+- [x] 侧栏标题改为 `⟨0⟩ <schema 图标> public ▾`（M0 的假 schema）。整段登记为按钮，点击执行 `tree.schema`：M1 F1.2 实现下拉框，M0 里什么都不做。
 
 **验收**
 - [ ] 拖动侧栏右边的间隔，侧栏宽度跟着变，停在 16 列和半宽；松开后不再变化。

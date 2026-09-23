@@ -24,6 +24,7 @@ const (
 	KindBorder                   // a split's drag handle (I: the split's index)
 	KindBackdrop                 // behind an overlay: a click closes it
 	KindRow                      // a palette candidate (I: its index): hover selects, click runs
+	KindTreeEdge                 // the gap right of the sidebar: drag to set its width
 )
 
 // Target is what a click on a hit region resolves to. Targets compare with

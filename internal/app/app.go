@@ -37,6 +37,7 @@ type App struct {
 	hits        []ui.Hit    // the last frame's hit table
 	mouse       uv.Position // pointer, for hover styles
 	drag        *handle     // the split border being dragged
+	dragTree    bool        // the sidebar's edge is being dragged
 	lastClick   ui.Target   // with lastClickAt, to spot a double click
 	lastClickAt time.Time
 }
@@ -89,11 +90,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.drag != nil { // the border follows the pointer
 			a.win().Root = a.win().Root.setRatio(a.drag.idx, a.drag.ratioAt(a.mouse))
 		}
+		if a.dragTree {
+			a.win().TreeW = treeWidth(a.mouse.X, a.w)
+		}
 		if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow && a.palette != nil { // hover selects (K-03)
 			a.palette.sel = t.I
 		}
 	case tea.MouseReleaseMsg:
-		a.drag = nil
+		a.drag, a.dragTree = nil, false
 	case tea.MouseClickMsg:
 		if m := msg.Mouse(); m.Button == tea.MouseLeft {
 			return a, a.click(uv.Pos(m.X, m.Y))
@@ -169,6 +173,8 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		return focus()
 	case ui.KindPane, ui.KindTab:
 		return focus()
+	case ui.KindTreeEdge:
+		a.dragTree = true
 	case ui.KindBorder:
 		for _, h := range a.win().Root.handles(a.mainArea()) {
 			if h.idx == t.I {
