@@ -26,7 +26,7 @@
 - [x] 按 `C-c` 不退出，出现提示
 - [x] 窗口调到 100×30 再调回原尺寸，重绘正确，没有残影，不 panic
 
-## F0.2 Frame、Block、主题与静态布局 · 状态：reviewing
+## F0.2 Frame、Block、主题与静态布局 · 状态：testing
 
 - **依赖**：F0.1
 - **涉及**：`internal/ui`（frame、block、theme、icons）、`internal/app`（组装 View）
