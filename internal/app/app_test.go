@@ -15,7 +15,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	toastTTL = time.Millisecond
+	toastTTL, whichKeyDelay = time.Millisecond, time.Millisecond
 	os.Exit(m.Run())
 }
 
@@ -338,5 +338,16 @@ func TestWhichKeyKeys(t *testing.T) {
 	feed(t, a, "<Esc>")
 	if a.whichKey || len(a.res.Pending()) != 0 {
 		t.Fatalf("esc: overlay %v, pending %v", a.whichKey, a.res.Pending())
+	}
+}
+
+// Every default binding's action has a title, so which-key and the palette
+// never show a raw ID.
+func TestEveryDefaultActionHasATitle(t *testing.T) {
+	keys, _ := keymap.New(config.Default())
+	for _, id := range keys.Actions() {
+		if actions[id].Title == "" {
+			t.Errorf("%s has no title", id)
+		}
 	}
 }

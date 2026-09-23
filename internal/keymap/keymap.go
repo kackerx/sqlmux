@@ -178,6 +178,19 @@ func (m *Map) Hint(action, scope string) string {
 	return ""
 }
 
+// Actions lists every bound action ID, args stripped, once each.
+func (m *Map) Actions() []string {
+	var ids []string
+	for _, t := range tables {
+		for _, b := range m.tables[t] {
+			if id, _, _ := strings.Cut(b.Action, " "); id != "" && !slices.Contains(ids, id) {
+				ids = append(ids, id)
+			}
+		}
+	}
+	return ids
+}
+
 // Markdown renders the effective keymap as a table (`sqlmux keys`).
 func (m *Map) Markdown() string {
 	var b strings.Builder

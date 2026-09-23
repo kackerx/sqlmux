@@ -6,7 +6,8 @@ import uv "github.com/charmbracelet/ultraviolet"
 type WhichKeyItem struct{ Key, Title string }
 
 // WhichKey is the overlay listing what can follow a pending prefix (§6.5):
-// full width, sitting on the row above bottom, items in columns top to bottom.
+// as wide as its area and resting on its bottom edge, items in columns top
+// to bottom.
 type WhichKey struct {
 	Prefix string // the pending keys, shown on the top border
 	Items  []WhichKeyItem
@@ -14,10 +15,9 @@ type WhichKey struct {
 
 const whichKeyGap = 3
 
-func (w WhichKey) Draw(f *Frame, bottom int) {
+func (w WhichKey) Draw(f *Frame, area uv.Rectangle) {
 	th := f.Theme
-	b := f.Bounds()
-	if len(w.Items) == 0 || b.Dx() < 4 || bottom < 3 {
+	if len(w.Items) == 0 || area.Dx() < 4 || area.Dy() < 3 {
 		return
 	}
 	kw, tw := 0, 0
@@ -25,10 +25,10 @@ func (w WhichKey) Draw(f *Frame, bottom int) {
 		kw, tw = max(kw, Width(it.Key)), max(tw, Width(it.Title))
 	}
 	colw := kw + Width(" → ") + tw + whichKeyGap
-	cols := max((b.Dx()-4+whichKeyGap)/colw, 1)
+	cols := max((area.Dx()-4+whichKeyGap)/colw, 1)
 	rows := (len(w.Items) + cols - 1) / cols
-	h := min(rows+2, bottom)
-	r := uv.Rect(b.Min.X, bottom-h, b.Dx(), h)
+	h := min(rows+2, area.Dy())
+	r := uv.Rect(area.Min.X, area.Max.Y-h, area.Dx(), h)
 	f.Fill(r, uv.Style{Bg: th.PaneBg})
 	border := uv.NormalBorder().Style(uv.Style{Fg: th.Border, Bg: th.PaneBg})
 	border.Draw(f.Buf, r)

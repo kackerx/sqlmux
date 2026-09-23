@@ -58,7 +58,7 @@ func (a *App) render() *ui.Frame {
 	y := a.h - 1
 	a.statusLine().Draw(f, uv.Rect(0, y, a.w, 1))
 	if a.whichKey {
-		a.whichKeyOverlay().Draw(f, y)
+		a.whichKeyOverlay().Draw(f, uv.Rect(0, 0, a.w, y))
 	}
 	if a.toast != "" && y > 0 {
 		t := " " + a.toast + " "
