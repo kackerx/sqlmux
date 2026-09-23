@@ -14,20 +14,22 @@ t() { tmux -L "$E2E_SOCK" "$@"; }
 
 e2e_build() { (cd "$E2E_ROOT" && go build -o "$E2E_BIN" ./cmd/sqlmux); }
 
-# e2e_start [-x W] [-y H] [-k] CMD — fresh server, session "t" (default 160x45).
+# e2e_start [-x W] [-y H] [-k] [-c FILE] CMD — fresh server, session "t" (default 160x45).
 # -k: turn on tmux extended-keys before CMD starts, so it can negotiate key enhancements.
+# -c: install FILE as $XDG_CONFIG_HOME/sqlmux/config.toml before CMD starts.
 # CMD runs under sh; when it exits the pane prints "[e2e-exit N]" and drops to
 # an sh prompt, so terminal restoration can be checked afterwards.
 # TERM=xterm-256color + COLORTERM: a detached tmux has no client to report RGB,
 # so colorprofile would drop to 256 colors and theme hex values couldn't be checked.
 e2e_start() {
-  local w=160 h=45 keys=off
-  while [[ $1 == -[xyk] ]]; do
-    case $1 in -x) w=$2; shift ;; -y) h=$2; shift ;; -k) keys=on ;; esac; shift
+  local w=160 h=45 keys=off conf=
+  while [[ $1 == -[xykc] ]]; do
+    case $1 in -x) w=$2; shift ;; -y) h=$2; shift ;; -c) conf=$2; shift ;; -k) keys=on ;; esac; shift
   done
   e2e_stop
   E2E_TMP=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e.XXXXXX")
-  mkdir -p "$E2E_TMP"/{config,state,data}
+  mkdir -p "$E2E_TMP"/{config/sqlmux,state,data}
+  [[ -n $conf ]] && cp "$conf" "$E2E_TMP/config/sqlmux/config.toml"
   t -f /dev/null set -s extended-keys "$keys" \; new-session -d -s t -x "$w" -y "$h" \
     -e XDG_CONFIG_HOME="$E2E_TMP/config" -e XDG_STATE_HOME="$E2E_TMP/state" \
     -e XDG_DATA_HOME="$E2E_TMP/data" -e COLORTERM=truecolor \
@@ -79,5 +81,7 @@ screen_has() { e2e_cap | grep -qF -- "$1"; }
 flag_is()    { [[ $(e2e_flag "$1") == "$2" ]]; }
 style_has()  { [[ " $(e2e_style "$1" "$2") " == *" $3 "* ]] || { echo "  ($1,$2): $(e2e_style "$1" "$2"), want $3"; false; }; }
 text_is()    { [[ $(e2e_text "$1" "$2" "$3") == "$4" ]] || { echo "  [$1..$2,$3]: '$(e2e_text "$1" "$2" "$3")', want '$4'"; false; }; }
+text_has()   { local got; got=$(e2e_text "$1" "$2" "$3"); [[ $got == *"$4"* ]] || { echo "  [$1..$2,$3] '$got' lacks '$4'"; false; }; }
+text_ends()  { local got; got=$(e2e_text "$1" "$2" "$3"); [[ $got == *"$4" ]] || { echo "  [$1..$2,$3] '$got' doesn't end with '$4'"; false; }; }
 
 e2e_done() { echo "== $E2E_PASS passed, $E2E_FAIL failed"; e2e_stop; ((E2E_FAIL == 0)); }
