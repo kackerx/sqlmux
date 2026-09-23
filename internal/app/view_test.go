@@ -121,23 +121,21 @@ func TestSidebarHintRow(t *testing.T) {
 		return string(line[r.Min.X : r.Min.X+r.Dx()])
 	}
 	for _, c := range []struct {
+		w    int
 		bind string
 		want string
 	}{
-		{"", "│ j/k move  ↵ open  t tab"},
-		{`"<CR>" = ""`, "│ j/k move  t tab"},
-		{`"j" = ""`, "│ ↵ open  t tab"},
+		{160, "", "│ j/k move  ↵ open  t tab"},
+		{160, `"<CR>" = ""`, "│ j/k move  t tab"},
+		{160, `"j" = ""`, "│ ↵ open  t tab"},
+		{80, "", "│ j/k move  ↵ open"}, // "t tab" doesn't fit whole
 	} {
-		cfg := config.Default()
-		if c.bind != "" {
-			k, v, _ := strings.Cut(c.bind, " = ")
-			cfg.Bindings = []config.Binding{{Table: "keys.tree", Key: strings.Trim(k, `"`), Value: strings.Trim(v, `"`)}}
+		cfg, err := config.Parse("[keys.tree]\n" + c.bind)
+		if err != nil {
+			t.Fatal(err)
 		}
-		if got := strings.TrimRight(row(sizedWith(160, 45, cfg)), " │"); got != c.want {
-			t.Errorf("%s: %q, want %q", c.bind, got, c.want)
+		if got := strings.TrimRight(row(sizedWith(c.w, 45, cfg)), " │"); got != c.want {
+			t.Errorf("w=%d %s: %q, want %q", c.w, c.bind, got, c.want)
 		}
-	}
-	if got := row(sized(80, 24, "nerd")); strings.Contains(got, " t ") || strings.HasSuffix(strings.TrimRight(got, " │"), "t") {
-		t.Errorf("80 wide: a cut-off item remains: %q", got)
 	}
 }

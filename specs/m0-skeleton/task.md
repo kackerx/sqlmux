@@ -46,7 +46,7 @@
 - [x] 80×24 下不 panic、不越界。标题栏空间不够时，按 §7.8 的顺序退让：先截短标题中的对象名，再从优先级最低的提示开始丢；160×45 下，console 标题栏的 `doraemon.public ▾` 和 `▶ run ↵` 都能完整显示
 - [x] 布局尺寸符合 §7.8：侧栏 32 列（窗口宽度小于 100 列时为 24 列）、data 与 console 为 5 : 4、横向间隔 1 列
 
-## F0.3 keymap 引擎与配置 · 状态：testing
+## F0.3 keymap 引擎与配置 · 状态：reviewing
 
 - **依赖**：F0.1。这一项是纯逻辑加命令行，不依赖 F0.2 的界面，可以和 F0.2 交错进行。
 - **涉及**：`internal/keymap`、`internal/config`、`cmd/sqlmux`（`keys` 子命令）
