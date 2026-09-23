@@ -18,6 +18,7 @@ import (
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/keymap"
+	"sqlmux/internal/ui"
 )
 
 func TestMain(m *testing.M) {
@@ -307,7 +308,7 @@ func TestWhichKeyShowsAfterDelay(t *testing.T) {
 		}
 	}
 	// §6.8's SPC keys, in default.toml order
-	if got := strings.Join(keys, " "); got != `s 0 1 2 3 4 5 6 7 8 9 c , & % " z x h j k l H J K L q b n` {
+	if got := strings.Join(keys, " "); got != `s c n p l % " z x q b` {
 		t.Errorf("SPC items: %s", got)
 	}
 	if row := strings.Split(a.render().String(), "\n")[a.h-2]; !strings.HasPrefix(row, "└") {
@@ -409,7 +410,7 @@ func TestFocusFollowsGeometry(t *testing.T) {
 		{"<C-l>", 2},
 		{"<C-h>", 1}, // back where it came from, not just the first candidate
 		{"<C-h>", 0}, // the sidebar
-		{"<Space>l", 1},
+		{"<C-l>", 1},
 		{"<C-j>", 3},
 		{"<C-j>", 3}, // nothing below: stays, no wrapping round
 		{"<C-l>", 2},
@@ -438,8 +439,31 @@ func TestZoom(t *testing.T) {
 	}
 }
 
+// Keys the defaults dropped come back through config.toml, which-key
+// included (§6.8).
+func TestUserLeaderKeys(t *testing.T) {
+	c, err := config.Parse("[keys.normal]\n\"<Leader>h\" = \"pane.focus.left\"")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := sizedWith(160, 45, c)
+	feed(t, a, "<Space>")
+	due(a)
+	if !slices.Contains(a.whichKeyOverlay().Items, ui.WhichKeyItem{Key: "h", Title: "焦点移到左边"}) {
+		t.Errorf("which-key lacks SPC h: %v", a.whichKeyOverlay().Items)
+	}
+	feed(t, a, "h")
+	if a.win().Focus != 0 {
+		t.Errorf("SPC h: focus %d, want the sidebar", a.win().Focus)
+	}
+}
+
 func TestResizeKeys(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	c, err := config.Parse("[keys.normal]\n\"<Leader>H\" = \"pane.resize.left\"\n\"<Leader>L\" = \"pane.resize.right\"")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := sizedWith(160, 45, c)
 	r0 := a.win().Root.Ratio
 	feed(t, a, "<Space>L")
 	if got := a.win().Root.Ratio; math.Abs(got-r0-resizeStep) > 1e-9 {

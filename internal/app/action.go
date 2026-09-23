@@ -83,8 +83,8 @@ func init() {
 	for id, title := range map[string]string{
 		"palette.open": "命令面板", "save": "保存",
 		"session.list": "session 列表", "session.new": "新建连接",
-		"window.select": "切换 window", "window.new": "新建 window",
-		"window.rename": "重命名 window", "window.close": "关闭 window",
+		"window.new": "新建 window", "window.rename": "重命名 window", "window.close": "关闭 window",
+		"window.next": "下一个 window", "window.prev": "上一个 window", "window.last": "上次用的 window",
 		"tab.next": "下一个 tab", "tab.prev": "上一个 tab",
 		"grid.left": "左移", "grid.down": "下移", "grid.up": "上移", "grid.right": "右移",
 		"grid.top": "第一行", "grid.bottom": "最后一行", "grid.first": "第一列", "grid.last": "最后一列",
@@ -109,7 +109,7 @@ func do(f func(*App, Args)) func(*App, Args) tea.Cmd {
 	return func(a *App, args Args) tea.Cmd { f(a, args); return nil }
 }
 
-// title names "id [arg]" for which-key and the palette: "切换 window 3".
+// title names "id [arg]" for which-key and the palette, the arg after the title.
 func title(action string) string {
 	id, arg, _ := strings.Cut(action, " ")
 	t := actions[id].Title

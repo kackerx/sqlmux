@@ -233,17 +233,17 @@
 
 以下 F0.11–F0.15 是用户体验 M0 之后提出的改进（2026-09-23），按编号顺序做。
 
-## F0.11 精简默认键位 · 状态：todo
+## F0.11 精简默认键位 · 状态：reviewing
 
 - **依赖**：F0.10
 - **涉及**：`internal/keymap`（default.toml）、`internal/app`（Action 注册表）
 
 **开发**
-- [ ] `default.toml` 的 NORMAL 键位按 §6.8 精简：
+- [x] `default.toml` 的 NORMAL 键位按 §6.8 精简：
   - 保留：`C-h/j/k/l`、`SPC s`、`SPC c`、`SPC %`、`SPC "`、`SPC z`、`SPC x`、`SPC q`、`SPC b`、`gt` / `gT`、`:`；
   - 新增：`SPC n` / `SPC p` / `SPC l` → `window.next` / `window.prev` / `window.last`，M5 之前什么都不做；
   - 去掉：`SPC 0-9`、`SPC h/j/k/l`、`SPC H/J/K/L`、`SPC ,`、`SPC &`，以及原来 `SPC n` 的新建连接。对应的 Action 都保留，F0.13 之后能在命令面板里执行，用户也可以在 `config.toml` 里自己绑定。
-- [ ] `window.select` 去掉标题：不再出现在 which-key 和命令面板里，只供点击状态栏上的 window 名时使用。
+- [x] `window.select` 去掉标题：不再出现在 which-key 和命令面板里，只供点击状态栏上的 window 名时使用。
 
 **验收**
 - [ ] 按 `SPC` 停半秒，which-key 只列出上面保留和新增的键。
