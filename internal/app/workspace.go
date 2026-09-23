@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"sqlmux/internal/keymap"
+	"sqlmux/internal/ui"
 )
 
 // PaneKind is what a pane shows.
@@ -25,9 +26,10 @@ type Pane struct {
 	ID        int // stable; the sidebar is 0
 	Kind      PaneKind
 	Tabs      []string
-	Cur, Prev int      // tab bar * and - (T-01)
-	Lines     []string // M0 placeholder content
-	Scroll    int      // first placeholder line shown; the mouse wheel moves it
+	Cur, Prev int        // tab bar * and - (T-01)
+	Lines     []string   // M0 placeholder content
+	Rows      [][]string // data pane: the placeholder table under Lines
+	Scroll    int        // first placeholder line (or row) shown; the mouse wheel moves it
 }
 
 // Object is the title's "· name" part: the current tab.
@@ -60,7 +62,8 @@ func (a *App) win() *Window { return a.sess.Windows[a.sess.Active] }
 
 // fakeSession is M0's stand-in workspace: no database behind it.
 func fakeSession() *Session {
-	data := &Pane{ID: 1, Kind: KindData, Tabs: []string{"t_order", "t_user"}, Prev: 1, Lines: fakeRows()}
+	data := &Pane{ID: 1, Kind: KindData, Tabs: []string{"t_order", "t_user"}, Prev: 1,
+		Lines: []string{"WHERE deleted_at is null"}, Rows: fakeGrid()}
 	cons := &Pane{ID: 2, Kind: KindConsole, Tabs: []string{"console_1"}, Prev: -1, Lines: fakeSQL}
 	main := &Window{
 		Name:     "data",
@@ -86,12 +89,17 @@ var fakeTables = []fakeTable{
 	{"t_user_address", "52k"}, {"t_user_profile", "38k"},
 }
 
-func fakeRows() []string {
-	rows := []string{"WHERE deleted_at is null", "id    biz_type   status     created_at"}
+// fakeCols and fakeGrid are the data pane's M0 stand-in table.
+var fakeCols = []ui.GridCol{
+	{Name: "id", PK: true, Numeric: true}, {Name: "biz_type"}, {Name: "status"}, {Name: "created_at"},
+}
+
+func fakeGrid() [][]string {
 	status := []string{"running", "done", "failed", "pending"}
 	biz := []string{"goal", "task", "report"}
+	var rows [][]string
 	for i := range 60 {
-		rows = append(rows, fmt.Sprintf("%-5d %-10s %-10s 2026-09-21 10:%02d", 689+i, biz[i%3], status[i%4], i))
+		rows = append(rows, []string{fmt.Sprint(689 + i), biz[i%3], status[i%4], fmt.Sprintf("2026-09-21 10:%02d:00", i)})
 	}
 	return rows
 }
@@ -235,8 +243,11 @@ func (a *App) scrollPane(id, notches int) {
 			continue
 		}
 		n := len(p.Lines)
-		if p.Kind == KindSchema {
+		switch p.Kind {
+		case KindSchema:
 			n = len(fakeTables)
+		case KindData:
+			n = len(p.Rows)
 		}
 		p.Scroll = min(max(p.Scroll+notches*wheelStep, 0), max(n-1, 0))
 	}

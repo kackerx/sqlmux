@@ -144,9 +144,10 @@ func TestWheelScrollsPaneUnderPointer(t *testing.T) {
 	if data.Scroll != wheelStep || cons.Scroll != 0 {
 		t.Fatalf("data scroll %d, console %d", data.Scroll, cons.Scroll)
 	}
-	body := strings.Split(a.render().String(), "\n")[r.Min.Y+1]
-	if !strings.Contains(body, fakeRows()[wheelStep]) {
-		t.Errorf("the data pane should start %d lines down: %q", wheelStep, body)
+	// inside the border: the WHERE line, the grid's header and rule, then rows
+	first := strings.Split(a.render().String(), "\n")[r.Min.Y+4]
+	if !strings.Contains(first, " "+data.Rows[wheelStep][0]+" ") {
+		t.Errorf("the data pane should start %d rows down: %q", wheelStep, first)
 	}
 	a.Update(tea.MouseWheelMsg{X: r.Min.X + 5, Y: r.Min.Y + 5, Button: tea.MouseWheelUp})
 	a.Update(tea.MouseWheelMsg{X: r.Min.X + 5, Y: r.Min.Y + 5, Button: tea.MouseWheelUp})

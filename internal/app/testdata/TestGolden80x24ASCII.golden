@@ -1,24 +1,24 @@
 ┌─ ⟨0⟩ # schema ───────┐ ┌─ ⟨1⟩ = data · t_order ─────┐ ┌─ ⟨2⟩ > console · c… ─┐
 │ ? / 14 tables        │ │ WHERE deleted_at is null   │ │ select * from mt_tas │
-│──────────────────────│ │ id    biz_type   status    │ │ where status = 'runn │
-│ + agent          124 │ │ 689   goal       running   │ │                      │
-│ + agent_version  530 │ │ 690   task       done      │ │ select id, biz_type, │
-│ + goal            57 │ │ 691   report     failed    │ │ from t_order         │
-│ + mt_task        812 │ │ 692   goal       pending   │ │ where deleted_at is  │
-│ + mt_task_log    96k │ │ 693   task       running   │ │ order by created_at  │
-│ + schema_migratio 88 │ │ 694   report     done      │ │                      │
-│ + t_order       1.2M │ │ 695   goal       failed    │ │                      │
-│ + t_order_item  3.4M │ │ 696   task       pending   │ │                      │
-│ + t_payment     410k │ │ 697   report     running   │ │                      │
-│ + t_refund       12k │ │ 698   goal       done      │ │                      │
-│ + t_sku         8.1k │ │ 699   task       failed    │ │                      │
-│ + t_user         38k │ │ 700   report     pending   │ │                      │
-│ + t_user_address 52k │ │ 701   goal       running   │ │                      │
-│ + t_user_profile 38k │ │ 702   task       done      │ │                      │
-│                      │ │ 703   report     failed    │ │                      │
-│                      │ │ 704   goal       pending   │ │                      │
-│                      │ │ 705   task       running   │ │                      │
-│──────────────────────│ │ 706   report     done      │ │                      │
+│──────────────────────│ │    │ * id │ biz_type │ stat│ │ where status = 'runn │
+│ + agent          124 │ │────┼──────┼──────────┼─────│ │                      │
+│ + agent_version  530 │ │  1 │  689 │ goal     │ runn│ │ select id, biz_type, │
+│ + goal            57 │ │  2 │  690 │ task     │ done│ │ from t_order         │
+│ + mt_task        812 │ │  3 │  691 │ report   │ fail│ │ where deleted_at is  │
+│ + mt_task_log    96k │ │  4 │  692 │ goal     │ pend│ │ order by created_at  │
+│ + schema_migratio 88 │ │  5 │  693 │ task     │ runn│ │                      │
+│ + t_order       1.2M │ │  6 │  694 │ report   │ done│ │                      │
+│ + t_order_item  3.4M │ │  7 │  695 │ goal     │ fail│ │                      │
+│ + t_payment     410k │ │  8 │  696 │ task     │ pend│ │                      │
+│ + t_refund       12k │ │  9 │  697 │ report   │ runn│ │                      │
+│ + t_sku         8.1k │ │ 10 │  698 │ goal     │ done│ │                      │
+│ + t_user         38k │ │ 11 │  699 │ task     │ fail│ │                      │
+│ + t_user_address 52k │ │ 12 │  700 │ report   │ pend│ │                      │
+│ + t_user_profile 38k │ │ 13 │  701 │ goal     │ runn│ │                      │
+│                      │ │ 14 │  702 │ task     │ done│ │                      │
+│                      │ │ 15 │  703 │ report   │ fail│ │                      │
+│                      │ │ 16 │  704 │ goal     │ pend│ │                      │
+│──────────────────────│ │ 17 │  705 │ task     │ runn│ │                      │
 │ j/k move  ↵ open     │ │ 1:t_order* │ 2:t_user- │ + │ │ 1:console_1* │ +     │
 └──────────────────────┘ └────────────────────────────┘ └──────────────────────┘
  pg doraemon ▾  0: data*  1: report                  ~ C-p  kb ·    1,1  NORMAL 

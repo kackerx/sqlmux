@@ -150,6 +150,17 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	ui.Tabs{Names: p.Tabs, Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}.
 		Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
 	st := uv.Style{Fg: th.FgMuted, Bg: th.PaneBg}
+	if p.Kind == KindData { // the WHERE line, then the table
+		if body.Dy() > 0 && len(p.Lines) > 0 {
+			f.Text(body.Min.X+1, body.Min.Y, body.Max.X-1, p.Lines[0], st)
+		}
+		body.Min.Y++
+		ui.Grid{
+			Cols: fakeCols, Rows: p.Rows, Top: p.Scroll, Row: 0, Col: 0, // ponytail: M0 has no cell cursor to move
+			Focused: a.win().Focus == p.ID, Key: a.icons.Key,
+		}.Draw(f, body)
+		return
+	}
 	for i := 0; i < body.Dy() && p.Scroll+i < len(p.Lines); i++ {
 		f.Text(body.Min.X+1, body.Min.Y+i, body.Max.X-1, p.Lines[p.Scroll+i], st)
 	}
