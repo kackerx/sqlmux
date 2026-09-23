@@ -279,7 +279,7 @@
 - [x] 主题文件里写 `[icon] console = { text = "C", fg = "#ff0000" }`：console 标题的图标变成红色的 `C`。只写 `fg` 时字形不变、只改颜色。`icons = "ascii"` 时覆盖照样生效。
 - [x] `[icon]` 里写了不存在的名字，或者颜色写错：启动报错并指出是哪一项。
 
-## F0.13 命令面板：框架与命令范围 · 状态：reviewing
+## F0.13 命令面板：框架与命令范围 · 状态：testing
 
 - **依赖**：F0.11
 - **涉及**：`internal/ui`（palette、遮罩、`match.go`、单行输入）、`internal/app`、`internal/keymap`
