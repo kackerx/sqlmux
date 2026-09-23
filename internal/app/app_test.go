@@ -50,6 +50,10 @@ func teaKey(k keymap.Key) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyBackspace}
 	case "<Space>":
 		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	case "<Tab>":
+		return tea.KeyPressMsg{Code: tea.KeyTab}
+	case "<S-Tab>":
+		return tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 	case "<Up>":
 		return tea.KeyPressMsg{Code: tea.KeyUp}
 	case "<Down>":

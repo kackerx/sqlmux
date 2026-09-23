@@ -1,27 +1,32 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	uv "github.com/charmbracelet/ultraviolet"
 )
 
-// PaletteRow is one candidate (K-03): its name, then where it lives in dim.
-// Pos are match positions in the string Name + " " + Where.
+// PaletteRow is one candidate (K-03): icon, name, where it lives in dim, its
+// key or ON / OFF, and what kind of thing it is. Pos are match positions in
+// the string Name + " " + Where.
 type PaletteRow struct {
+	Icon        Icon
 	Name, Where string
 	Pos         []int
-	Right       string // its key, or ON / OFF
+	Right, Tag  string
 }
 
 // Palette is the command palette box (§12). Rows are all the candidates;
 // Top is the first one the list shows.
 type Palette struct {
 	Input    Input
+	Scopes   []string // the scope tabs; Scope is the current one
+	Scope    int
 	Rows     []PaletteRow
 	Sel, Top int
-	Footer   []Hint // left: moving and closing
-	Enter    Hint   // right: what ↵ does
+	Footer   []Hint // left: moving, scopes, closing
+	Enter    []Hint // right: what ↵ (and C-t) do
 }
 
 const paletteRows = 10
@@ -32,9 +37,9 @@ const paletteRows = 10
 func PaletteBox(screen uv.Rectangle, n int) (box uv.Rectangle, rows int) {
 	w := min(80, screen.Dx()-4)
 	top := screen.Min.Y + screen.Dy()/4
-	// border, input, rule | list | rule, footer, border
-	rows = max(min(n, paletteRows, screen.Max.Y-top-6), 0)
-	return uv.Rect(screen.Min.X+(screen.Dx()-w)/2, top, w, rows+6), rows
+	// border, input, scopes, rule | list | rule, footer, border
+	rows = max(min(n, paletteRows, screen.Max.Y-top-7), 0)
+	return uv.Rect(screen.Min.X+(screen.Dx()-w)/2, top, w, rows+7), rows
 }
 
 // Draw dims what is behind (§7.5), paints the box over it and returns where
@@ -49,6 +54,7 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 	}
 	f.Region(box, Target{}) // inside, a click is not outside
 	bg := uv.Style{Fg: th.Fg, Bg: th.PaneBg}
+	dim := uv.Style{Fg: th.Dim, Bg: th.PaneBg}
 	f.Fill(box, bg)
 	border := uv.NormalBorder().Style(uv.Style{Fg: th.Focus, Bg: th.PaneBg})
 	border.Draw(f.Buf, box)
@@ -57,6 +63,19 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 	x0, x1 := box.Min.X+2, box.Max.X-2 // one column of padding inside the border
 	y := box.Min.Y + 1
 	cursor := p.Input.Draw(f, uv.Rect(x0, y, x1-x0, 1), bg)
+	y++
+	x := x0
+	for i, s := range p.Scopes {
+		st := dim
+		if i == p.Scope {
+			st = uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
+		}
+		t := " " + s + " "
+		if f.Region(uv.Rect(x, y, min(Width(t), x1-x), 1), Target{Kind: KindButton, Action: fmt.Sprintf("palette.scope %d", i)}) && i != p.Scope {
+			st.Bg = th.Select
+		}
+		x = f.Text(x, y, x1, t, st) + 1
+	}
 	rule := func(y int) {
 		f.Text(box.Min.X+1, y, box.Max.X-1, strings.Repeat("─", box.Dx()-2), uv.Style{Fg: th.Sep, Bg: th.PaneBg})
 	}
@@ -71,37 +90,48 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 			f.Fill(uv.Rect(box.Min.X+1, y, box.Dx()-2, 1), st)
 		}
 		f.Region(uv.Rect(box.Min.X+1, y, box.Dx()-2, 1), Target{Kind: KindRow, I: i})
-		right := x1 - Width(r.Right)
-		f.Text(right, y, x1, r.Right, uv.Style{Fg: th.Dim, Bg: st.Bg})
-		nameEnd := len([]rune(r.Name)) // Where's positions come after Name and the space
-		x := f.TextMatch(x0, y, right-1, r.Name, r.Pos, st, hl)
+		faint := uv.Style{Fg: th.Dim, Bg: st.Bg}
+		// right to left: the tag in a column of its own, then the key
+		tag := x1 - 4
+		f.Text(tag+4-Width(r.Tag), y, x1, r.Tag, faint)
+		right := tag - 2 - Width(r.Right)
+		f.Text(right, y, tag, r.Right, faint)
+		x := f.Text(x0, y, right-1, r.Icon.Text, r.Icon.On(st))
+		x = f.Text(x, y, right-1, " ", st)
+		x = f.TextMatch(x, y, right-1, r.Name, r.Pos, st, hl)
 		x = f.Text(x, y, right-1, "  ", st)
+		nameEnd := len([]rune(r.Name)) // Where's positions come after Name and the space
 		var where []int
 		for _, i := range r.Pos {
 			if i > nameEnd {
 				where = append(where, i-nameEnd-1)
 			}
 		}
-		f.TextMatch(x, y, right-1, r.Where, where, uv.Style{Fg: th.Dim, Bg: st.Bg}, hl)
+		f.TextMatch(x, y, right-1, r.Where, where, faint, hl)
 	}
 	rule(y)
 	y++
-	x := x0
-	for i, h := range p.Footer {
-		if i > 0 {
-			x = f.Text(x, y, x1, " · ", uv.Style{Fg: th.Dim, Bg: th.PaneBg})
-		}
-		x = footerHint(f, x, y, x1, h)
+	footerHints(f, x0, y, x1, p.Footer)
+	w := -3
+	for _, h := range p.Enter {
+		w += Width(h.tabText()) + 3
 	}
-	footerHint(f, x1-Width(p.Enter.tabText()), y, x1, p.Enter)
+	footerHints(f, x1-w, y, x1, p.Enter)
 	return cursor
 }
 
-// footerHint draws "key label" as the tab bar does, clickable as its action.
-func footerHint(f *Frame, x, y, right int, h Hint) int {
-	st := uv.Style{Fg: f.Theme.Dim, Bg: f.Theme.PaneBg}
-	if f.Region(uv.Rect(x, y, min(Width(h.tabText()), right-x), 1), Target{Kind: KindButton, Action: h.Action}) {
-		st.Bg = f.Theme.Select
+// footerHints draws "key label" items as the tab bar does, " · " between
+// them, each clickable as its action.
+func footerHints(f *Frame, x, y, right int, hs []Hint) {
+	dim := uv.Style{Fg: f.Theme.Dim, Bg: f.Theme.PaneBg}
+	for i, h := range hs {
+		if i > 0 {
+			x = f.Text(x, y, right, " · ", dim)
+		}
+		st := dim
+		if h.Action != "" && f.Region(uv.Rect(x, y, min(Width(h.tabText()), right-x), 1), Target{Kind: KindButton, Action: h.Action}) {
+			st.Bg = f.Theme.Select
+		}
+		x = f.Text(x, y, right, h.tabText(), st)
 	}
-	return f.Text(x, y, right, h.tabText(), st)
 }

@@ -128,6 +128,32 @@ var fakeSQL = []string{
 	"order by created_at desc;",
 }
 
+// openTable shows table t in the focused data pane, else the window's first
+// one, and focuses it (§12): in place of its current tab, or in a new tab it
+// switches to.
+// ponytail: M0 only renames the tab; M1 opens the table's data.
+func (a *App) openTable(t string, newTab bool) {
+	p := a.focused()
+	if p.Kind != KindData {
+		i := slices.IndexFunc(a.win().Root.Leaves(), func(p *Pane) bool { return p.Kind == KindData })
+		if i < 0 {
+			return
+		}
+		p = a.win().Root.Leaves()[i]
+	}
+	a.showPane(p.ID)
+	if !newTab && len(p.Tabs) > 0 {
+		p.Tabs[p.Cur] = t
+		return
+	}
+	p.Prev = p.Cur
+	if len(p.Tabs) == 0 { // an empty pane: there is no tab to go back to
+		p.Prev = -1
+	}
+	p.Tabs = append(p.Tabs, t)
+	p.Cur = len(p.Tabs) - 1
+}
+
 // closeTab closes the focused pane's current tab (:q). Closing the last tab
 // closes the pane too, except the sidebar and the window's only pane.
 func (a *App) closeTab() {
@@ -255,6 +281,16 @@ func (a *App) jumpToPane(k keymap.Key) {
 }
 
 // focusPane gives focus to pane id if it is on screen (a click).
+// showPane focuses pane id where the palette sends the user (§12). A zoom on
+// another pane ends first, as a jump by number ends it (§5): the pane is on
+// screen once it has focus.
+func (a *App) showPane(id int) {
+	if a.win().Zoom != id {
+		a.win().Zoom = 0
+	}
+	a.focusPane(id)
+}
+
 func (a *App) focusPane(id int) {
 	if _, ok := a.layout()[id]; ok && (id != a.win().Tree.ID || a.win().TreeOpen) {
 		a.win().focus(id)

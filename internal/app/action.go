@@ -41,10 +41,20 @@ func init() {
 		// Keys inside the palette. Like every overlay's own actions they have
 		// no title, so the palette does not list them (§12); bound elsewhere
 		// in config, they do nothing.
-		"palette.up":    {Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
-		"palette.down":  {Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
-		"palette.run":   {Run: inPalette(func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel) })},
-		"palette.close": {Run: inPalette(func(a *App) tea.Cmd { a.palette = nil; return nil })},
+		"palette.up":         {Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
+		"palette.down":       {Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
+		"palette.run":        {Run: inPalette(func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, false) })},
+		"palette.open.tab":   {Run: inPalette(func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, true) })},
+		"palette.close":      {Run: inPalette(func(a *App) tea.Cmd { a.palette = nil; return nil })},
+		"palette.scope.next": {Run: inPalette(func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s + 1); return nil })},
+		"palette.scope.prev": {Run: inPalette(func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s - 1); return nil })},
+		// "palette.scope <i>" is a click on a scope tab.
+		"palette.scope": {Run: func(a *App, args Args) tea.Cmd {
+			if i, err := strconv.Atoi(args.Arg); err == nil && a.palette != nil {
+				a.paletteScopeTo(i)
+			}
+			return nil
+		}},
 		"cancel": {Title: "取消 / 连按两次退出", Run: func(a *App, _ Args) tea.Cmd {
 			if a.mode() != keymap.Normal { // in any input C-c is esc, as in vim (§6.8)
 				return a.press(keymap.Esc)
