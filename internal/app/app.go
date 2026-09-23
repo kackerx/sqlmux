@@ -23,9 +23,9 @@ type App struct {
 	res   *keymap.Resolver
 	sess  *Session
 
-	palette  *palette // non-nil while the command palette is open (COMMAND mode)
-	recent   []string // actions run from the palette, most recent first (§12)
-	whichKey bool     // the which-key overlay is up (§6.5)
+	palette  *palette  // non-nil while the command palette is open (COMMAND mode)
+	recent   []itemKey // what was run from the palette, most recent first (§12)
+	whichKey bool      // the which-key overlay is up (§6.5)
 	// paneNumbers is SPC q's overlay: the next key picks a pane by its ⟨n⟩.
 	paneNumbers bool
 
@@ -153,7 +153,7 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		a.whichKey, a.paneNumbers, a.palette = false, false, nil
 		a.res.Reset()
 	case ui.KindRow:
-		return a.paletteRun(t.I)
+		return a.paletteRun(t.I, false)
 	case ui.KindItem:
 		if next := a.res.Next(); t.I < len(next) {
 			return a.press(next[t.I].Key)

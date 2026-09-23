@@ -128,6 +128,26 @@ var fakeSQL = []string{
 	"order by created_at desc;",
 }
 
+// openTable shows table t in the focused data pane, else the window's first
+// one (F0.14): in place of its current tab, or in a new tab it switches to.
+// ponytail: M0 only renames the tab; M1 opens the table's data.
+func (a *App) openTable(t string, newTab bool) {
+	p := a.focused()
+	if p.Kind != KindData {
+		i := slices.IndexFunc(a.win().Root.Leaves(), func(p *Pane) bool { return p.Kind == KindData })
+		if i < 0 {
+			return
+		}
+		p = a.win().Root.Leaves()[i]
+	}
+	if !newTab && len(p.Tabs) > 0 {
+		p.Tabs[p.Cur] = t
+		return
+	}
+	p.Tabs = append(p.Tabs, t)
+	p.Prev, p.Cur = p.Cur, len(p.Tabs)-1
+}
+
 // closeTab closes the focused pane's current tab (:q). Closing the last tab
 // closes the pane too, except the sidebar and the window's only pane.
 func (a *App) closeTab() {
