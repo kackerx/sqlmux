@@ -5,6 +5,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/keymap"
@@ -136,16 +137,26 @@ func (a *App) cmdlineKey(k keymap.Key) tea.Cmd {
 		a.cmdline = nil
 		return a.exec(cmd)
 	case "<BS>":
-		r := []rune(*a.cmdline)
-		if len(r) == 0 {
+		if *a.cmdline == "" {
 			a.cmdline = nil
 		} else {
-			*a.cmdline = string(r[:len(r)-1])
+			*a.cmdline = dropLastGrapheme(*a.cmdline)
 		}
 	default:
 		*a.cmdline += keymap.Text(k)
 	}
 	return nil
+}
+
+// dropLastGrapheme removes the last grapheme cluster, as backspace does in
+// nvim: é typed as e + U+0301 or 👍🏽 goes whole, not a code point at a time.
+func dropLastGrapheme(s string) string {
+	last := 0
+	for i := 0; i < len(s); {
+		gr, _ := ansi.FirstGraphemeCluster(s[i:], ansi.GraphemeWidth)
+		last, i = i, i+len(gr)
+	}
+	return s[:last]
 }
 
 func (a *App) showToast(s string) tea.Cmd {

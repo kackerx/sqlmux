@@ -231,6 +231,12 @@ func TestCmdlineTakesGraphemes(t *testing.T) {
 	if *a.cmdline != "e\u0301👍🏽🇨🇳" {
 		t.Fatalf("cmdline = %q", *a.cmdline)
 	}
+	for _, want := range []string{"e\u0301👍🏽", "e\u0301", ""} { // backspace takes whole clusters, as in nvim
+		feed(t, a, "<BS>")
+		if a.cmdline == nil || *a.cmdline != want {
+			t.Fatalf("after <BS>: %v, want %q", a.cmdline, want)
+		}
+	}
 }
 
 // The quit toast names whatever key cancel is bound to (§6.7).
