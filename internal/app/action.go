@@ -24,8 +24,9 @@ type Action struct {
 	Run   func(*App, Args) tea.Cmd
 }
 
-// quitWindow is how soon a second C-c must follow the first to quit (§6.8).
-const quitWindow = 2 * time.Second
+// quitWindow is how long the "press C-c again" toast stays; a second press
+// quits only while it is up (§6.8).
+var quitWindow = 2 * time.Second
 
 // actions is the registry, keyed by action ID. Bound IDs that are not here
 // yet belong to later features and do nothing. It is filled in init because
@@ -43,12 +44,12 @@ func init() {
 			if a.mode() != keymap.Normal { // in any input C-c is esc, as in vim (§6.8)
 				return a.dispatch([]keymap.Result{{Keys: []keymap.Key{keymap.Esc}}})
 			}
-			now := time.Now()
-			if now.Sub(a.quitArmed) <= quitWindow {
+			if a.toast != "" && a.toastSeq == a.quitToast { // the first press's toast is still up
 				return tea.Quit
 			}
-			a.quitArmed = now
-			return a.showToast(fmt.Sprintf("再按一次 %s 退出", a.keys.Hint("cancel", "global")))
+			cmd := a.showToastFor(fmt.Sprintf("再按一次 %s 退出", a.keys.Hint("cancel", "global")), quitWindow)
+			a.quitToast = a.toastSeq
+			return cmd
 		}},
 		"quit":      {"退出", func(*App, Args) tea.Cmd { return tea.Quit }},
 		"tab.close": {"关闭 tab", func(a *App, _ Args) tea.Cmd { a.closeTab(); return nil }},

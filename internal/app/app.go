@@ -28,7 +28,7 @@ type App struct {
 
 	toast     string
 	toastSeq  int
-	quitArmed time.Time // first C-c of a quitting pair
+	quitToast int // toastSeq of the "press C-c again" toast
 }
 
 type (
@@ -155,11 +155,13 @@ func (a *App) cmdlineKey(k keymap.Key) tea.Cmd {
 	return nil
 }
 
-func (a *App) showToast(s string) tea.Cmd {
+func (a *App) showToast(s string) tea.Cmd { return a.showToastFor(s, toastTTL) }
+
+func (a *App) showToastFor(s string, ttl time.Duration) tea.Cmd {
 	a.toast = s
 	a.toastSeq++
 	seq := a.toastSeq
-	return tea.Tick(toastTTL, func(time.Time) tea.Msg { return toastExpired{seq} })
+	return tea.Tick(ttl, func(time.Time) tea.Msg { return toastExpired{seq} })
 }
 
 func (a *App) View() tea.View {

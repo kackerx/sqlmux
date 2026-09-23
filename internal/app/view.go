@@ -94,8 +94,11 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		Pane:    p.ID,
 	}
 	var tabHints []ui.Hint
-	switch p.Kind {
-	case KindConsole:
+	switch {
+	case len(p.Tabs) == 0:
+		// An empty pane: ▶ run and the schema dropdown act on the current tab,
+		// and there is none (§7.8).
+	case p.Kind == KindConsole:
 		// Drawn left to right; Prio says what goes first when space runs out (§7.8).
 		b.Hints = append([]ui.Hint{
 			{Label: "doraemon.public ▾", Action: "console.schema", Color: th.PK, Prio: 1},
@@ -105,7 +108,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 			ui.Hint{Key: a.keys.Hint("console.format", "console"), Label: "format", Action: "console.format"},
 			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},
 		)
-	case KindData:
+	case p.Kind == KindData:
 		tabHints = bound(
 			ui.Hint{Key: a.hints("grid", "", "grid.left", "grid.down", "grid.up", "grid.right")},
 			ui.Hint{Key: a.keys.Hint("grid.edit", "grid"), Label: "edit", Action: "grid.edit"},

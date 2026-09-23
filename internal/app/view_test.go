@@ -153,8 +153,8 @@ func TestEmptyPane(t *testing.T) {
 	f, r := a.render(), a.layout()[p.ID]
 	lines := strings.Split(f.String(), "\n")
 	cells := func(y int) string { return strings.TrimSpace(string([]rune(lines[y])[r.Min.X+1 : r.Max.X-1])) }
-	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ⟨1⟩ "+ui.NerdIcons.Console+" console ─") {
-		t.Errorf("title: %q", top)
+	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ⟨1⟩ "+ui.NerdIcons.Console+" console ─") || strings.Contains(top, "run") || strings.Contains(top, "▾") {
+		t.Errorf("title, with no hints: %q", top)
 	}
 	for y := r.Min.Y + 1; y < r.Max.Y-2; y++ {
 		if got := cells(y); got != "" {

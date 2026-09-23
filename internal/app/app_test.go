@@ -18,7 +18,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	toastTTL, whichKeyDelay = time.Millisecond, time.Millisecond
+	toastTTL, whichKeyDelay, quitWindow = time.Millisecond, time.Millisecond, time.Millisecond
 	os.Exit(m.Run())
 }
 
@@ -121,13 +121,16 @@ func TestDoubleCtrlCQuits(t *testing.T) {
 	}
 
 	a = sized(160, 45, "nerd")
-	feed(t, a, "<C-c>")
-	a.quitArmed = a.quitArmed.Add(-quitWindow - time.Millisecond)
-	if feed(t, a, "<C-c>") {
-		t.Fatal("C-c after more than 2s quit")
+	_, cmd := a.Update(teaKey("<C-c>"))
+	a.Update(cmd()) // quitWindow passes: the toast goes
+	if a.toast != "" {
+		t.Fatal("the quit toast should last quitWindow")
+	}
+	if feed(t, a, "<C-c>") || a.toast == "" {
+		t.Fatal("C-c after the toast is gone must count as a new first press")
 	}
 	if !feed(t, a, "<C-c>") {
-		t.Fatal("the late C-c should count as a new first press")
+		t.Fatal("…and the next one quits")
 	}
 }
 
