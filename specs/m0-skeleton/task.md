@@ -46,7 +46,7 @@
 - [x] 80×24 下不 panic、不越界。标题栏空间不够时，按 §7.8 的顺序退让：先截短标题中的对象名，再从优先级最低的提示开始丢；160×45 下，console 标题栏的 `doraemon.public ▾` 和 `▶ run ↵` 都能完整显示
 - [x] 布局尺寸符合 §7.8：侧栏 32 列（窗口宽度小于 100 列时为 24 列）、data 与 console 为 5 : 4、横向间隔 1 列
 
-## F0.3 keymap 引擎与配置 · 状态：testing
+## F0.3 keymap 引擎与配置 · 状态：passed（53524cd；e2e 7523980）
 
 - **依赖**：F0.1。这一项是纯逻辑加命令行，不依赖 F0.2 的界面，可以和 F0.2 交错进行。
 - **涉及**：`internal/keymap`、`internal/config`、`cmd/sqlmux`（`keys` 子命令）
@@ -64,15 +64,15 @@
 - [x] 命令行：`sqlmux keys`（输出 markdown 表）、`--format toml`、`--check`
 
 **验收**
-- [ ] 单测覆盖以下几项：
+- [x] 单测覆盖以下几项：
   - 纯前缀节点一直等待；歧义节点超时后执行；
   - 次数能传给 Action；
   - 映射优先级；
   - leader 配成 `<C-a>` 后，在 INSERT 下也生效。
-- [ ] 默认键位兼容性单测：`default.toml` 中没有 Alt 组合，也没有只能在 kitty 协议下用的键
-- [ ] `sqlmux keys` 输出当前生效的键位表；`--format toml` 的输出能被重新加载
-- [ ] 在配置中写入重复绑定后，`sqlmux keys --check` 以非零状态码退出，并指出冲突的作用域和键
-- [ ] 把 `XDG_CONFIG_HOME` 指向临时目录后，写入的配置能生效（例如 `icons = "ascii"`）
+- [x] 默认键位兼容性单测：`default.toml` 中没有 Alt 组合，也没有只能在 kitty 协议下用的键
+- [x] `sqlmux keys` 输出当前生效的键位表；`--format toml` 的输出能被重新加载
+- [x] 在配置中写入重复绑定后，`sqlmux keys --check` 以非零状态码退出，并指出冲突的作用域和键
+- [x] 把 `XDG_CONFIG_HOME` 指向临时目录后，写入的配置能生效（例如 `icons = "ascii"`）
 
 ## F0.4 Action 注册表与命令行 · 状态：testing
 
