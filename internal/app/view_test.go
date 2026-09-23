@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/exp/golden"
 
+	"sqlmux/internal/config"
 	"sqlmux/internal/ui"
 )
 
@@ -107,6 +108,34 @@ func TestLayoutSizes(t *testing.T) {
 		}
 		if side.Dy() != 44 || data.Dy() != 44 || cons.Dy() != 44 {
 			t.Errorf("w=%d: panes must fill every row above the status bar", c.w)
+		}
+	}
+}
+
+// The sidebar's hint row drops unbound actions and items that don't fit
+// whole (§6.7): no key-less "open", no dangling "t".
+func TestSidebarHintRow(t *testing.T) {
+	row := func(a *App) string {
+		r := a.layout()[0]
+		line := []rune(strings.Split(a.render().String(), "\n")[r.Max.Y-2]) // all 1-cell runes here
+		return string(line[r.Min.X : r.Min.X+r.Dx()])
+	}
+	for _, c := range []struct {
+		w    int
+		bind string
+		want string
+	}{
+		{160, "", "│ j/k move  ↵ open  t tab"},
+		{160, `"<CR>" = ""`, "│ j/k move  t tab"},
+		{160, `"j" = ""`, "│ ↵ open  t tab"},
+		{80, "", "│ j/k move  ↵ open"}, // "t tab" doesn't fit whole
+	} {
+		cfg, err := config.Parse("[keys.tree]\n" + c.bind)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.TrimRight(row(sizedWith(c.w, 45, cfg)), " │"); got != c.want {
+			t.Errorf("w=%d %s: %q, want %q", c.w, c.bind, got, c.want)
 		}
 	}
 }

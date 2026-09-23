@@ -90,6 +90,8 @@ func TestSequences(t *testing.T) {
 		{input, "j", []string{"keys j"}},
 		{input, "<Space>", []string{"keys <Space>"}}, // SPC leader is NORMAL only
 		{input, "<C-p>", []string{"palette.open"}},
+		{Context{Focus: []string{"console"}, Pane: "console", Mode: Insert}, "<CR>gq", []string{"keys <CR>", "keys g", "keys q"}},
+		{Context{Focus: []string{"cell"}, Mode: Insert}, "<Tab>", []string{"cell.segment.next"}},
 	} {
 		got, _ := press(t, NewResolver(m), c.ctx, c.in)
 		if !reflect.DeepEqual(actions(got), c.want) {

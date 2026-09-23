@@ -18,18 +18,26 @@ type App struct {
 	theme *ui.Theme
 	icons *ui.Icons
 	keys  *keymap.Map
+	res   *keymap.Resolver
 	win   *Window
 
 	cmdline *string // non-nil while the : command line is open (COMMAND mode)
 
-	toast    string
-	toastSeq int
+	toast     string
+	toastSeq  int
+	quitArmed time.Time // first C-c of a quitting pair
 }
 
-type toastExpired struct{ seq int }
+type (
+	toastExpired struct{ seq int }
+	keyTimeout   struct{ seq int }
+)
 
 func New(cfg *config.Config, keys *keymap.Map) *App {
-	return &App{theme: ui.TokyonightStorm, icons: ui.IconSet(cfg.Icons), keys: keys, win: fakeWindow()}
+	return &App{
+		theme: ui.TokyonightStorm, icons: ui.IconSet(cfg.Icons),
+		keys: keys, res: keymap.NewResolver(keys), win: fakeWindow(),
+	}
 }
 
 func (a *App) Init() tea.Cmd { return nil }
@@ -43,35 +51,86 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.toast = ""
 		}
 	case tea.KeyPressMsg:
-		return a, a.key(msg)
+		out, wait := a.res.Feed(a.context(), keymap.FromTea(msg.Key()))
+		cmd := a.dispatch(out)
+		if wait {
+			seq := a.res.Seq()
+			cmd = tea.Batch(cmd, tea.Tick(a.keys.Timeout, func(time.Time) tea.Msg { return keyTimeout{seq} }))
+		}
+		return a, cmd
+	case keyTimeout:
+		return a, a.dispatch(a.res.Timeout(a.context(), msg.seq))
 	}
 	return a, nil
 }
 
-func (a *App) key(k tea.KeyPressMsg) tea.Cmd {
-	if k.String() == "ctrl+c" {
-		a.cmdline = nil
-		return a.showToast("输入 :qa 退出")
+// dispatch runs what the keymap resolved: actions through the registry, and
+// unclaimed keys to the focused widget.
+func (a *App) dispatch(out []keymap.Result) tea.Cmd {
+	var cmds []tea.Cmd
+	for _, r := range out {
+		if r.Action != "" {
+			cmds = append(cmds, a.run(r.Action, r.Count))
+		} else if a.cmdline != nil {
+			for _, k := range r.Keys {
+				cmds = append(cmds, a.cmdlineKey(k))
+			}
+		}
 	}
-	if a.cmdline != nil {
-		return a.cmdlineKey(k)
-	}
-	if k.String() == ":" {
-		s := ""
-		a.cmdline = &s
-	}
-	return nil
+	return tea.Batch(cmds...)
 }
 
-func (a *App) cmdlineKey(k tea.KeyPressMsg) tea.Cmd {
-	switch k.Code {
-	case tea.KeyEscape:
+// Mode is derived from state, never stored (§3 principle 3).
+type Mode uint8
+
+const (
+	ModeNormal Mode = iota
+	ModeInsert
+	ModeVisual
+	ModeCommand
+)
+
+// ponytail: only NORMAL and COMMAND exist until inputs (M1) and the console
+// editor (M3) arrive.
+func (a *App) mode() Mode {
+	if a.cmdline != nil {
+		return ModeCommand
+	}
+	return ModeNormal
+}
+
+// context tells the keymap which scopes apply to the next key (§6.4).
+func (a *App) context() keymap.Context {
+	if a.mode() == ModeCommand {
+		return keymap.Context{Overlay: "cmdline", Mode: keymap.Insert}
+	}
+	scope := [...]string{KindSchema: "tree", KindData: "grid", KindConsole: "console"}[a.focused().Kind]
+	return keymap.Context{Focus: []string{scope}, Pane: scope}
+}
+
+func (a *App) focused() *Pane {
+	if a.win.Focus == a.win.Tree.ID {
+		return a.win.Tree
+	}
+	for _, p := range a.win.Root.Leaves() {
+		if p.ID == a.win.Focus {
+			return p
+		}
+	}
+	return a.win.Tree
+}
+
+// cmdlineKey edits the : command line; it is a plain input, so its own
+// editing keys are not bindings.
+func (a *App) cmdlineKey(k keymap.Key) tea.Cmd {
+	switch k {
+	case keymap.Esc:
 		a.cmdline = nil
-	case tea.KeyEnter:
+	case "<CR>":
 		cmd := *a.cmdline
 		a.cmdline = nil
 		return a.exec(cmd)
-	case tea.KeyBackspace:
+	case "<BS>":
 		r := []rune(*a.cmdline)
 		if len(r) == 0 {
 			a.cmdline = nil
@@ -79,19 +138,9 @@ func (a *App) cmdlineKey(k tea.KeyPressMsg) tea.Cmd {
 			*a.cmdline = string(r[:len(r)-1])
 		}
 	default:
-		*a.cmdline += k.Text
+		*a.cmdline += keymap.Text(k)
 	}
 	return nil
-}
-
-func (a *App) exec(cmd string) tea.Cmd {
-	switch cmd {
-	case "":
-		return nil
-	case "qa":
-		return tea.Quit
-	}
-	return a.showToast("未知命令: " + cmd)
 }
 
 func (a *App) showToast(s string) tea.Cmd {
