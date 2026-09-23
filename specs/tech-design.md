@@ -1023,7 +1023,10 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
 - **打开**：`C-p`（`palette.open`）打开，范围为「所有」；NORMAL 下按 `:`（`palette.command`）打开并直接进入命令范围，相当于输入了 `>`。
 - **ex 别名**：命令可以带别名，如 `q`（关闭 tab）、`qa`（退出）、`w`（保存）。在命令范围里，输入与某个别名完全相同时，这条命令排第一，所以 `:q↵`、`:qa↵` 的用法不变。
 - **数据来源**：session、window、pane 取自工作现场；表取自 catalog；命令取自 Action 注册表（带标题的 Action）；SQL 取自快速查询的历史。
-  - 只在浮层里用的 Action 不作为候选，比如面板自己的 `palette.up` / `palette.down` / `palette.run` / `palette.close`，以及以后的 `where.*`、`cols.*`：离开那个浮层，执行它们没有意义。判断方法可以是「只在浮层作用域里有绑定」。
+  - 只在浮层或输入状态里用的 Action 不作为候选：离开那个上下文，执行它们没有意义，标题单独看也看不懂。包括：
+    - 浮层作用域里的，比如面板自己的 `palette.up` / `palette.down` / `palette.run` / `palette.close`，以及以后的 `where.*`、`cols.*`；
+    - `cell`、`input` 作用域里的，比如 `cell.accept`「确定」、`cell.up`「加一」。
+  - 判断方法是「只在这些作用域里有绑定」。
 - **范围与前缀**：按 PRD K-02，范围标签为 所有 / 会话 / 窗口·Pane / 表 / 命令 / SQL，M0 先有 所有、窗口·Pane、表、命令。`Tab` / `S-Tab` 切换范围标签；输入前缀直接限定范围：`>` 命令、`@` 表、`%` 窗口·Pane、`$` 会话、`;` SQL。
   - 范围只由输入里的前缀决定，不另存状态：`Tab` / `S-Tab` 就是改写前缀（「命令」→ `>`、「表」→ `@`、「窗口·Pane」→ `%`，「所有」去掉前缀），输入的其余内容保留；范围标签按当前前缀高亮。`:` 相当于输入了 `>`，也是同一套机制。
 - **每一行**（K-03）：图标、名称、所在位置（`dim` 色）、右侧的键位或 ON / OFF、类型标签（命令 / 表 / Pane / 窗口）。图标都放在最左列对齐。
@@ -1031,7 +1034,7 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
   - window 的名称是 `0: data`，所在位置是 session 名。
   - 命令的名称是中文标题，所在位置显示它的 action id，如 `左右分割  pane.split.right`。匹配的对象是「名称 + 空格 + 所在位置」这一整串，两部分都能高亮，所以输入 `split` 也能找到；action id 也正是在 config.toml 里绑键时要写的名字。
   - 表的所在位置是 `session.schema`，如 `doraemon.public`。
-- **布局**：宽度 min(80, 窗口宽 − 4)，水平居中；上边缘固定在窗口高度的 1/4 处，列表变长变短时输入行不动。单线边框、`focus` 色，标题「命令面板」。从上到下：
+- **布局**：宽度 min(80, 窗口宽 − 4)，水平居中；上边缘固定在状态栏以上区域高度的 1/4 处，即 (H−1)/4，列表变长变短时输入行不动。单线边框、`focus` 色，标题「命令面板」。从上到下：
   - 输入行，`>` 等前缀照常显示在输入里；
   - 范围标签；
   - 分隔线、列表（最多 10 行，放不下时滚动）、分隔线；
