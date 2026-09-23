@@ -5,14 +5,9 @@ e2e_build || exit 1
 
 exited()  { screen_has '[e2e-exit'; }
 running() { flag_is alternate_on 1 && ! exited; }
-no_toast() { ! screen_has '输入 :qa 退出'; }
+no_toast() { ! screen_has '再按一次 C-c 退出'; }
 same_as() { [[ $(e2e_plain) == "$1" ]] || { diff <(echo "$1") <(e2e_plain); false; }; }
 colored() { e2e_cap -e | grep -qF -- "$1"; }
-# §7.8：warn 字、#292e42 底、左右各 1 列内边距（文字宽 13 列）
-toast_ok() {
-  local c; c=$(e2e_find '输入 :qa 退出' 44); [[ -n $c ]] && ((c > 80)) || return 1
-  style_has "$c" 44 fg=#e0af68 && style_has $((c - 1)) 44 bg=#292e42 && style_has $((c + 13)) 44 bg=#292e42
-}
 
 e2e_start "$E2E_BIN"
 check "进入全屏" wait_for 5 flag_is alternate_on 1
@@ -27,9 +22,10 @@ e2e_resize 160 45; sleep 0.5
 check "调回 160x45 无残影（与调整前一致）" same_as "$big"
 
 e2e_keys C-c
-check "C-c 弹出 toast「输入 :qa 退出」" wait_for 2 screen_has '输入 :qa 退出'
-check "toast 在状态栏上一行右侧，warn 字、#292e42 底、1 列内边距（§7.8）" toast_ok
-check "C-c 后程序仍在运行" running
+# F0.4 起空闲时连按两次 C-c 退出（§6.8）；这里只验证按一次不退出，其余见 f0.4.sh
+check "C-c 一次：弹出「再按一次 C-c 退出」" wait_for 2 screen_has '再按一次 C-c 退出'
+check "toast 在状态栏上一行右侧，warn 字、#292e42 底、1 列内边距（§7.8）" toast_is '再按一次 C-c 退出'
+check "C-c 一次后程序仍在运行" running
 check "toast 约 3 秒后消失" wait_for 5 no_toast
 
 e2e_type ':qa'; e2e_keys Enter
@@ -48,7 +44,7 @@ check "100x30 无残影（与同尺寸冷启动一致）" same_as "$small"
 e2e_start -k "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3
 check "开启键盘增强协议" eval '[[ $(e2e_flag pane_key_mode) != VT10x ]]'
 e2e_keys C-c
-check "增强模式下 C-c 仍弹 toast" wait_for 2 screen_has '输入 :qa 退出'
+check "增强模式下 C-c 仍弹 toast" wait_for 2 screen_has '再按一次 C-c 退出'
 e2e_type ':qa'; e2e_keys Enter
 check "增强模式下 :qa 退出" wait_for 3 screen_has '[e2e-exit 0]'
 check "退出后键盘模式复原" flag_is pane_key_mode VT10x
