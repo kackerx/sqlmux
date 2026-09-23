@@ -15,11 +15,17 @@ func seg(drop int, runs ...string) Segment {
 	return s
 }
 
+func shrinkable(runs ...string) Segment {
+	s := seg(0, runs...)
+	s.Runs[1].Shrink = true
+	return s
+}
+
 // §7.8's order: info, then the connection, then other windows right to left,
 // then the cursor position, and finally the session name is cut.
 func TestStatusLineNarrowing(t *testing.T) {
 	s := StatusLine{
-		Left:  []Segment{seg(0, " ", "doraemon", " ▾ "), seg(0, " 0: a* "), seg(2, " 1: b "), seg(2, " 2: c ")},
+		Left:  []Segment{shrinkable(" ", "doraemon", " ▾ "), seg(0, " 0: a* "), seg(2, " 1: b "), seg(2, " 2: c ")},
 		Info:  "some extra info",
 		Right: []Segment{seg(0, " C-p "), seg(0, " · "), seg(3, " 1,1 "), seg(1, " pg@host "), seg(0, " NORMAL ")},
 	}

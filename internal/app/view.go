@@ -206,7 +206,12 @@ func (a *App) statusLine() ui.StatusLine {
 		s.Info = strings.Join(matchCommands(*a.cmdline), " | ")
 	} else {
 		sess := uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
-		s.Left = []ui.Segment{{Runs: []ui.Run{{Text: " " + ic.Postgres + " ", Style: sess}, {Text: a.sess.Name, Style: sess}, {Text: " ▾ ", Style: sess}}}}
+		// ponytail: postgres only; pick the icon by a.sess.Engine when MySQL lands (M5).
+		s.Left = []ui.Segment{{Runs: []ui.Run{
+			{Text: " " + ic.Postgres + " ", Style: sess},
+			{Text: a.sess.Name, Style: sess, Shrink: true},
+			{Text: " ▾ ", Style: sess},
+		}}}
 		for i, w := range a.sess.Windows {
 			seg := ui.Segment{Runs: []ui.Run{{Text: fmt.Sprintf(" %d: %s ", i, w.Name), Style: bar(th.Dim)}}, Drop: dropWindow}
 			if i == a.sess.Active {

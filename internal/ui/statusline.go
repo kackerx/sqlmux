@@ -8,8 +8,9 @@ import (
 
 // Run is a stretch of text in one style.
 type Run struct {
-	Text  string
-	Style uv.Style
+	Text   string
+	Style  uv.Style
+	Shrink bool // cut last, when nothing else can go (the session name)
 }
 
 // Segment is one flat block of the status bar; its runs carry their own
@@ -30,8 +31,7 @@ func (s Segment) width() int {
 
 // StatusLine is the one-row bar at the bottom (B-01~B-03, §7.8): Left from
 // the left edge, Info then Right against the right edge. When space runs out,
-// Info goes first, then droppable segments, and last the name in Left[0]'s
-// second run (the session name) is cut.
+// Info goes first, then droppable segments, and last the Shrink run is cut.
 type StatusLine struct {
 	Left  []Segment
 	Info  string // mode extra info, ellipsized
@@ -39,16 +39,16 @@ type StatusLine struct {
 }
 
 // minInfo is the narrowest the extra info is still worth showing.
+// ponytail: fixed guess (about ":q | :qa" plus padding); make it relative to
+// the info's own width if longer infos read badly when cut.
 const minInfo = 12
 
 func (s StatusLine) Draw(f *Frame, r uv.Rectangle) {
 	th := f.Theme
 	f.Fill(r, uv.Style{Bg: th.Row})
 	left, right := dropToFit(s.Left, s.Right, r.Dx())
-	if over := segsWidth(left) + segsWidth(right) - r.Dx(); over > 0 && len(left) > 0 && len(left[0].Runs) > 1 {
-		left[0].Runs = slices.Clone(left[0].Runs)
-		name := &left[0].Runs[1]
-		name.Text = Truncate(name.Text, Width(name.Text)-over)
+	if over := segsWidth(left) + segsWidth(right) - r.Dx(); over > 0 {
+		shrink(left, over)
 	}
 	x := r.Min.X
 	for _, seg := range left {
@@ -89,6 +89,19 @@ func dropToFit(left, right []Segment, w int) ([]Segment, []Segment) {
 		}
 	}
 	return left, right
+}
+
+// shrink cuts the first Shrink run in ss by over cells, on a copy of its runs.
+func shrink(ss []Segment, over int) {
+	for i := range ss {
+		for j, run := range ss[i].Runs {
+			if run.Shrink {
+				ss[i].Runs = slices.Clone(ss[i].Runs)
+				ss[i].Runs[j].Text = Truncate(run.Text, Width(run.Text)-over)
+				return
+			}
+		}
+	}
 }
 
 func segsWidth(ss []Segment) int {
