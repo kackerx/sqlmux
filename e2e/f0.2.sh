@@ -28,12 +28,12 @@ check "pane 内容区为 pane_bg" eval 'style_has 130 20 bg=$PANE_BG && style_ha
 # ---- 聚焦色（§7.2）
 check "⟨1⟩ data 聚焦：边框 focus" eval 'style_has 34 1 fg=$FOCUS && style_has 34 20 fg=$FOCUS && style_has 103 44 fg=$FOCUS && style_has 60 44 fg=$FOCUS'
 check "⟨1⟩ data 聚焦：标题 focus" eval 'at "⟨1⟩" 1 fg=$FOCUS && at "t_order" 1 fg=$FOCUS'
-check "⟨0⟩ 侧栏未聚焦：边框 border、标题 dim" eval 'style_has 1 1 fg=$BORDER && style_has 32 20 fg=$BORDER && at "⟨0⟩" 1 fg=$DIM && at "schema" 1 fg=$DIM'
+check "⟨0⟩ 侧栏未聚焦：边框 border、标题 dim" eval 'style_has 1 1 fg=$BORDER && style_has 32 20 fg=$BORDER && at "⟨0⟩" 1 fg=$DIM && at "public ▾" 1 fg=$DIM'
 check "⟨2⟩ console 未聚焦：边框 border、标题 dim" eval 'style_has 105 1 fg=$BORDER && style_has 160 44 fg=$BORDER && at "⟨2⟩" 1 fg=$DIM && at "console" 1 fg=$DIM'
 
 # ---- 标题与提示（§7.2 §7.8）
 check "标题从左上角右 1 列起、前留 1 空格" eval 'text_is 1 4 1 "┌─ ⟨" && text_is 34 37 1 "┌─ ⟨" && text_is 105 108 1 "┌─ ⟨"'
-check "标题文字：schema / data · t_order / console" eval 'text_has 1 32 1 schema && text_has 34 103 1 "data · t_order" && text_has 105 160 1 "⟨2⟩ $NF_CONSOLE console"'
+check "标题文字：public ▾（F0.15）/ data · t_order / console" eval 'text_has 1 32 1 "public ▾" && text_has 34 103 1 "data · t_order" && text_has 105 160 1 "⟨2⟩ $NF_CONSOLE console"'
 check "侧栏提示 SPC b，离右上角 1 列" text_ends 1 32 1 " SPC b ─┐"
 check "160 宽 console 先截对象名，下拉框与 ▶ run ↵ 完整（§7.8 退让）" text_ends 105 160 1 "console · cons…  doraemon.public ▾  ▶ run  ↵ ─┐"
 check "▶ run：focus 底、bg 字、粗体" eval 'at "▶ run" 1 "fg=$BG" && at "▶ run" 1 "bg=$FOCUS" && at "▶ run" 1 bold && at "▶ run" 1 bold 3'
