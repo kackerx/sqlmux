@@ -4,10 +4,12 @@
   cells.py text X1 X2 Y   -> text of columns X1..X2 on row Y
   cells.py width          -> display width of every row, one per line
   cells.py plain          -> the screen as plain text, tabs expanded
+  cells.py strwidth TEXT  -> display width of TEXT (no screen needed)
   cells.py find TEXT Y    -> start columns of TEXT on row Y, space-separated
 
-Widths follow tmux: East Asian W/F = 2 columns, everything else (incl. the
-Nerd Font private-use area) = 1. Tabs expand to 8-column stops.
+Widths follow tmux: East Asian W/F = 2 columns, combining marks / ZWJ / VS16 /
+skin tones = 0 (they join the previous cell), everything else (incl. the Nerd
+Font private-use area) = 1. Tabs expand to 8-column stops.
 """
 import os
 import re
@@ -20,6 +22,8 @@ BASIC = ["000000", "cd0000", "00cd00", "cdcd00", "0000ee", "cd00cd", "00cdcd", "
 
 
 def width(ch):
+    if unicodedata.combining(ch) or ch in "\u200d\ufe0f" or "\U0001f3fb" <= ch <= "\U0001f3ff":
+        return 0  # joins the previous cell: combining mark, ZWJ, VS16, emoji skin tone
     return 2 if unicodedata.east_asian_width(ch) in "WF" else 1
 
 
@@ -69,6 +73,9 @@ def grid(dump):
                 cell = (ch, st["fg"], st["bg"], frozenset(st["attrs"]))
                 if ch == "\t":  # tmux keeps HT the renderer used to skip blanks; stops every 8, last column caps
                     row += [(" ", *cell[1:])] * (min(len(row) // 8 * 8 + 8, WIDTH - 1) - len(row))
+                elif width(ch) == 0 and row:
+                    i = len(row) - (2 if row[-1][0] == "" else 1)
+                    row[i] = (row[i][0] + ch, *row[i][1:])
                 else:
                     row += [cell, ("", *cell[1:])] if width(ch) == 2 else [cell]
             if m:
@@ -80,6 +87,8 @@ def grid(dump):
 
 
 def main():
+    if sys.argv[1] == "strwidth":
+        return print(sum(width(c) for c in sys.argv[2]))
     g = grid(sys.stdin.read())
     cmd, args = sys.argv[1], [int(a) for a in sys.argv[2:] if a.isdigit()]
     if cmd == "style":

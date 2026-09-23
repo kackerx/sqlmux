@@ -77,6 +77,13 @@ check() {
   if "$@"; then E2E_PASS=$((E2E_PASS + 1)); echo "PASS $_desc"
   else E2E_FAIL=$((E2E_FAIL + 1)); echo "FAIL $_desc"; e2e_cap | sed 's/^/  | /'; fi
 }
+strwidth()   { python3 "$E2E_ROOT/e2e/cells.py" strwidth "$1"; }
+# toast_is TEXT — §7.8：状态栏上一行、靠右，warn 字、#292e42 底、左右各 1 列内边距
+toast_is() {
+  local y=$(($(e2e_flag pane_height) - 1)) c; c=$(e2e_find "$1" "$y")
+  [[ -n $c ]] && ((c > $(e2e_flag pane_width) / 2)) || { echo "  no toast '$1' on row $y: $(e2e_text 1 "$(e2e_flag pane_width)" "$y")"; return 1; }
+  style_has "$c" "$y" fg=#e0af68 && style_has $((c - 1)) "$y" bg=#292e42 && style_has $((c + $(strwidth "$1"))) "$y" bg=#292e42
+}
 screen_has() { e2e_cap | grep -qF -- "$1"; }
 flag_is()    { [[ $(e2e_flag "$1") == "$2" ]]; }
 style_has()  { [[ " $(e2e_style "$1" "$2") " == *" $3 "* ]] || { echo "  ($1,$2): $(e2e_style "$1" "$2"), want $3"; false; }; }
