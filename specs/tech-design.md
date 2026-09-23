@@ -1042,7 +1042,7 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
   - 最近使用 M0 只记在内存里，M1 有了 state.json 之后持久化。
 - **执行**：按 K-04。底栏右侧显示当前项按回车会做什么。
   - 命令：执行；开关类命令只切换状态，不关闭面板。
-  - 表：打开到焦点所在的 data pane；焦点不在 data pane 上时，用这个 window 里的第一个 data pane；一个都没有时什么都不做。`↵` 在当前 tab 打开，`C-t` 在那个 pane 新开一个 tab 并切过去；底栏显示 `↵ 打开 · C-t 新 tab`。选中的不是表时，`C-t` 不起作用。
+  - 表：打开到焦点所在的 data pane；焦点不在 data pane 上时，用这个 window 里的第一个 data pane；一个都没有时什么都不做。打开后焦点移到那个 data pane，因为打开表就是为了接着看数据。`↵` 在当前 tab 打开，`C-t` 在那个 pane 新开一个 tab 并切过去；底栏显示 `↵ 打开 · C-t 新 tab`。选中的不是表时，`C-t` 不起作用。
   - pane：聚焦。
   - window：切换。M5 之前只列出，`↵` 只关闭面板。
 - **预览（K-05）**：光标在某张表上停留 150ms 后，从 `Meta` 获取 DDL，获取后缓存。窗口高度不够时，列表至少保留 3 行，底部提示始终显示，先压缩预览区。

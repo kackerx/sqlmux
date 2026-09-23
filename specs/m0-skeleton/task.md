@@ -333,6 +333,7 @@
 **验收**
 - [ ] `Tab` / `S-Tab` 在范围之间循环；输入 `@ord` 只在表里找，`%con` 只在窗口和 pane 里找。
 - [ ] 在表范围选中 `t_user`，按 ↵ 后当前 tab 变成 t_user；按 `C-t` 则新开一个 tab。
+- [ ] 焦点在 console 上时，从面板打开一张表：表打开到第一个 data pane，焦点也移到这个 data pane。
 - [ ] 在 pane 范围选中 console，按 ↵ 后焦点移到 console。
 - [ ] 「所有」范围里同时有命令、表、pane 和 window，每一行都有类型标签。
 
