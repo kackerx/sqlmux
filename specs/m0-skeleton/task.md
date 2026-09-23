@@ -338,7 +338,7 @@
 - [ ] 在 pane 范围选中 console，按 ↵ 后焦点移到 console。
 - [ ] 「所有」范围里同时有命令、表、pane 和 window，每一行都有类型标签。
 
-## F0.15 侧栏：拖动调宽、标题显示当前 schema · 状态：reviewing
+## F0.15 侧栏：拖动调宽、标题显示当前 schema · 状态：testing
 
 - **依赖**：F0.8
 - **涉及**：`internal/app`（layout）、`internal/ui`
