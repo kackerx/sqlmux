@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"sqlmux/internal/keymap"
+	"sqlmux/internal/ui"
 )
 
 // PaneKind is what a pane shows.
@@ -25,9 +26,10 @@ type Pane struct {
 	ID        int // stable; the sidebar is 0
 	Kind      PaneKind
 	Tabs      []string
-	Cur, Prev int      // tab bar * and - (T-01)
-	Lines     []string // M0 placeholder content
-	Scroll    int      // first placeholder line shown; the mouse wheel moves it
+	Cur, Prev int        // tab bar * and - (T-01)
+	Lines     []string   // M0 placeholder content
+	Rows      [][]string // data pane: the placeholder table under Lines
+	Scroll    int        // first placeholder line (or row) shown; the mouse wheel moves it
 }
 
 // Object is the title's "· name" part: the current tab.
@@ -46,6 +48,19 @@ type Window struct {
 	Focus    int // pane ID
 	Zoom     int // zoomed pane ID; 0 = none (P-03)
 	lastID   int // highest pane ID handed out
+
+	focusTick int
+	focusedAt map[int]int // pane ID → focusTick when it last got focus
+}
+
+// focus moves focus to pane id, remembering when: moving by direction
+// prefers the neighbour focused most recently (§5).
+func (w *Window) focus(id int) {
+	if w.focusedAt == nil {
+		w.focusedAt = map[int]int{}
+	}
+	w.focusTick++
+	w.Focus, w.focusedAt[id] = id, w.focusTick
 }
 
 // Session is one connection (tech-design §5).
@@ -60,7 +75,8 @@ func (a *App) win() *Window { return a.sess.Windows[a.sess.Active] }
 
 // fakeSession is M0's stand-in workspace: no database behind it.
 func fakeSession() *Session {
-	data := &Pane{ID: 1, Kind: KindData, Tabs: []string{"t_order", "t_user"}, Prev: 1, Lines: fakeRows()}
+	data := &Pane{ID: 1, Kind: KindData, Tabs: []string{"t_order", "t_user"}, Prev: 1,
+		Lines: []string{"WHERE deleted_at is null"}, Rows: fakeGrid()}
 	cons := &Pane{ID: 2, Kind: KindConsole, Tabs: []string{"console_1"}, Prev: -1, Lines: fakeSQL}
 	main := &Window{
 		Name:     "data",
@@ -86,12 +102,17 @@ var fakeTables = []fakeTable{
 	{"t_user_address", "52k"}, {"t_user_profile", "38k"},
 }
 
-func fakeRows() []string {
-	rows := []string{"WHERE deleted_at is null", "id    biz_type   status     created_at"}
+// fakeCols and fakeGrid are the data pane's M0 stand-in table.
+var fakeCols = []ui.GridCol{
+	{Name: "id", PK: true, Numeric: true}, {Name: "biz_type"}, {Name: "status"}, {Name: "created_at"},
+}
+
+func fakeGrid() [][]string {
 	status := []string{"running", "done", "failed", "pending"}
 	biz := []string{"goal", "task", "report"}
+	var rows [][]string
 	for i := range 60 {
-		rows = append(rows, fmt.Sprintf("%-5d %-10s %-10s 2026-09-21 10:%02d", 689+i, biz[i%3], status[i%4], i))
+		rows = append(rows, []string{fmt.Sprint(689 + i), biz[i%3], status[i%4], fmt.Sprintf("2026-09-21 10:%02d:00", i)})
 	}
 	return rows
 }
@@ -134,7 +155,8 @@ func (a *App) closeTab() {
 func (a *App) removePane(id int) {
 	win := a.win()
 	if root, heir := win.Root.remove(id); root != nil {
-		win.Root, win.Focus, win.Zoom = root, heir.ID, 0
+		win.Root, win.Zoom = root, 0
+		win.focus(heir.ID)
 	}
 }
 
@@ -151,8 +173,19 @@ func (a *App) focusSide(side string) {
 	if !win.TreeOpen {
 		delete(rects, win.Tree.ID)
 	}
-	if id, ok := neighbor(rects, win.Focus, side); ok {
-		win.Focus = id
+	order := map[int]int{}
+	for n, p := range a.panesByNumber() {
+		order[p.ID] = n
+	}
+	// most recently focused first; never focused, then the one first in ⟨n⟩ order (up / left)
+	prefer := func(x, y int) bool {
+		if win.focusedAt[x] != win.focusedAt[y] {
+			return win.focusedAt[x] > win.focusedAt[y]
+		}
+		return order[x] < order[y]
+	}
+	if id, ok := neighbor(rects, win.Focus, side, prefer); ok {
+		win.focus(id)
 	}
 }
 
@@ -165,7 +198,8 @@ func (a *App) splitPane(d Dir) {
 	}
 	win.lastID++ // never reused, so pane IDs stay stable (§5)
 	np := &Pane{ID: win.lastID, Kind: p.Kind, Prev: -1}
-	win.Root, win.Focus, win.Zoom = win.Root.split(p.ID, d, np), np.ID, 0
+	win.Root, win.Zoom = win.Root.split(p.ID, d, np), 0
+	win.focus(np.ID)
 }
 
 // closePane closes the focused pane; its sibling takes the space. The
@@ -202,7 +236,7 @@ func (a *App) toggleTree() {
 	win := a.win()
 	win.TreeOpen = !win.TreeOpen
 	if !win.TreeOpen && win.Focus == win.Tree.ID {
-		win.Focus = win.Root.Leaves()[0].ID
+		win.focus(win.Root.Leaves()[0].ID)
 	}
 }
 
@@ -215,13 +249,14 @@ func (a *App) jumpToPane(k keymap.Key) {
 	if err != nil || n < 0 || n >= len(ps) || n == 0 && !a.win().TreeOpen {
 		return
 	}
-	a.win().Focus, a.win().Zoom = ps[n].ID, 0
+	a.win().Zoom = 0
+	a.win().focus(ps[n].ID)
 }
 
 // focusPane gives focus to pane id if it is on screen (a click).
 func (a *App) focusPane(id int) {
 	if _, ok := a.layout()[id]; ok && (id != a.win().Tree.ID || a.win().TreeOpen) {
-		a.win().Focus = id
+		a.win().focus(id)
 	}
 }
 
@@ -235,8 +270,11 @@ func (a *App) scrollPane(id, notches int) {
 			continue
 		}
 		n := len(p.Lines)
-		if p.Kind == KindSchema {
+		switch p.Kind {
+		case KindSchema:
 			n = len(fakeTables)
+		case KindData:
+			n = len(p.Rows)
 		}
 		p.Scroll = min(max(p.Scroll+notches*wheelStep, 0), max(n-1, 0))
 	}

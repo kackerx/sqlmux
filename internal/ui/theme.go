@@ -12,7 +12,7 @@ type Theme struct {
 	Fg, FgMuted, Dim    color.Color
 	Border, Focus, Warn color.Color
 	Cursor, CursorBlur  color.Color
-	Select, Row         color.Color
+	Select, Row, RowAlt color.Color // RowAlt: the grid's zebra rows (§7.6)
 	EditedBg            color.Color
 	Keyword, Info       color.Color
 	Error               color.Color
@@ -25,7 +25,7 @@ var TokyonightStorm = &Theme{
 	Fg: c("#c0caf5"), FgMuted: c("#a9b1d6"), Dim: c("#565f89"),
 	Border: c("#3b4261"), Focus: c("#9ece6a"), Warn: c("#e0af68"),
 	Cursor: c("#3d59a1"), CursorBlur: c("#2f3549"),
-	Select: c("#364a82"), Row: c("#292e42"),
+	Select: c("#364a82"), Row: c("#292e42"), RowAlt: c("#1f2335"),
 	EditedBg: c("#2d2a24"),
 	Keyword:  c("#bb9af7"), Info: c("#7dcfff"),
 	Error:  c("#f7768e"),

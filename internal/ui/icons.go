@@ -8,6 +8,7 @@ type Icons struct {
 	Postgres      string
 	Search, Keys  string // status bar: palette entry, pending keys
 	Conn          string
+	Key           string // primary key columns
 }
 
 // Nerd Font glyphs, all from the BMP private use area.
@@ -21,6 +22,7 @@ var NerdIcons = &Icons{
 	Search:   "\uf002", // nf-fa-search
 	Keys:     "\uf11c", // nf-fa-keyboard_o
 	Conn:     "\uf1e6", // nf-fa-plug
+	Key:      "\uf084", // nf-fa-key
 }
 
 var ASCIIIcons = &Icons{
@@ -31,6 +33,7 @@ var ASCIIIcons = &Icons{
 	Search:   "~",
 	Keys:     "kb",
 	Conn:     "@",
+	Key:      "*",
 }
 
 // IconSet maps the config value `icons = "nerd" | "ascii"`.
