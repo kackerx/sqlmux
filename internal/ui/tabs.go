@@ -36,7 +36,9 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		x = f.Text(x, y, r.Max.X, fmt.Sprintf(" %d:%s%s ", i+1, n, mark), st)
 		f.Region(uv.Rect(start, y, x-start, 1), Target{Kind: KindTab, Pane: t.Pane, I: i})
 	}
-	x = f.Text(x, y, r.Max.X, "│", uv.Style{Fg: th.Sep, Bg: th.Bg})
+	if len(t.Names) > 0 {
+		x = f.Text(x, y, r.Max.X, "│", uv.Style{Fg: th.Sep, Bg: th.Bg})
+	}
 	start := x
 	x = f.Text(x, y, r.Max.X, " + ", base)
 	f.Region(uv.Rect(start, y, x-start, 1), Target{Kind: KindTab, Pane: t.Pane, I: -1})

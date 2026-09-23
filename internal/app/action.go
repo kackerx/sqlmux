@@ -1,10 +1,13 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"sqlmux/internal/keymap"
 )
 
 // Args is what an action gets from the key press or command that ran it.
@@ -24,27 +27,31 @@ type Action struct {
 const quitWindow = 2 * time.Second
 
 // actions is the registry, keyed by action ID. Bound IDs that are not here
-// yet belong to later features and do nothing.
-var actions = map[string]Action{
-	"cmdline.open": {"命令行", func(a *App, _ Args) tea.Cmd {
-		s := ""
-		a.cmdline = &s
-		return nil
-	}},
-	"cancel": {"取消 / 连按两次退出", func(a *App, _ Args) tea.Cmd {
-		if a.cmdline != nil { // like vim: C-c leaves the command line
-			a.cmdline = nil
+// yet belong to later features and do nothing. It is filled in init because
+// actions run keys through the registry themselves.
+var actions map[string]Action
+
+func init() {
+	actions = map[string]Action{
+		"cmdline.open": {"命令行", func(a *App, _ Args) tea.Cmd {
+			s := ""
+			a.cmdline = &s
 			return nil
-		}
-		now := time.Now()
-		if now.Sub(a.quitArmed) <= quitWindow {
-			return tea.Quit
-		}
-		a.quitArmed = now
-		return a.showToast("再按一次 C-c 退出")
-	}},
-	"quit":      {"退出", func(*App, Args) tea.Cmd { return tea.Quit }},
-	"tab.close": {"关闭 tab", func(a *App, _ Args) tea.Cmd { a.closeTab(); return nil }},
+		}},
+		"cancel": {"取消 / 连按两次退出", func(a *App, _ Args) tea.Cmd {
+			if a.mode() != ModeNormal { // in any input C-c is esc, as in vim (§6.8)
+				return a.dispatch([]keymap.Result{{Keys: []keymap.Key{keymap.Esc}}})
+			}
+			now := time.Now()
+			if now.Sub(a.quitArmed) <= quitWindow {
+				return tea.Quit
+			}
+			a.quitArmed = now
+			return a.showToast(fmt.Sprintf("再按一次 %s 退出", a.keys.Hint("cancel", "global")))
+		}},
+		"quit":      {"退出", func(*App, Args) tea.Cmd { return tea.Quit }},
+		"tab.close": {"关闭 tab", func(a *App, _ Args) tea.Cmd { a.closeTab(); return nil }},
+	}
 }
 
 // run executes "id [arg]" from the registry.

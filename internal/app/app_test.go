@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -216,5 +217,55 @@ func TestResizeNoPanic(t *testing.T) {
 	for _, s := range [][2]int{{100, 30}, {160, 45}, {80, 24}, {1, 1}, {0, 0}} {
 		a.Update(tea.WindowSizeMsg{Width: s[0], Height: s[1]})
 		a.View()
+	}
+}
+
+// Typed text reaches the command line whole: multi-rune clusters are one key.
+func TestCmdlineTakesGraphemes(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, ":")
+	for _, s := range []string{"e\u0301", "👍🏽", "🇨🇳"} {
+		a.Update(tea.KeyPressMsg{Code: tea.KeyExtended, Text: s})
+	}
+	if *a.cmdline != "e\u0301👍🏽🇨🇳" {
+		t.Fatalf("cmdline = %q", *a.cmdline)
+	}
+}
+
+// The quit toast names whatever key cancel is bound to (§6.7).
+func TestQuitToastFollowsKeymap(t *testing.T) {
+	c, err := config.Parse("[keys.global]\n\"<C-c>\" = \"\"\n\"<C-q>\" = \"cancel\"")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := sizedWith(160, 45, c)
+	if feed(t, a, "<C-q>") || a.toast != "再按一次 C-q 退出" {
+		t.Fatalf("toast %q", a.toast)
+	}
+	if !feed(t, a, "<C-q>") {
+		t.Fatal("second C-q did not quit")
+	}
+}
+
+func TestCloseTabPicksNext(t *testing.T) {
+	for _, c := range []struct {
+		tabs      []string
+		cur, prev int
+		want      []string
+		wantCur   int
+	}{
+		{[]string{"a", "b", "c"}, 0, 2, []string{"b", "c"}, 1},  // prev after closed shifts left
+		{[]string{"a", "b", "c"}, 2, 0, []string{"a", "b"}, 0},  // prev before closed stays
+		{[]string{"a", "b", "c"}, 1, -1, []string{"a", "c"}, 1}, // no prev: the tab that slid in
+		{[]string{"a", "b", "c"}, 2, -1, []string{"a", "b"}, 1}, // no prev, last one: its left neighbour
+		{[]string{"a", "b"}, 1, 1, []string{"a"}, 0},            // prev == closed counts as none
+	} {
+		a := sized(160, 45, "nerd")
+		p := a.focused()
+		p.Tabs, p.Cur, p.Prev = slices.Clone(c.tabs), c.cur, c.prev
+		a.closeTab()
+		if !slices.Equal(p.Tabs, c.want) || p.Cur != c.wantCur || p.Prev != -1 {
+			t.Errorf("%v cur %d prev %d: got %v cur %d prev %d; want %v cur %d", c.tabs, c.cur, c.prev, p.Tabs, p.Cur, p.Prev, c.want, c.wantCur)
+		}
 	}
 }

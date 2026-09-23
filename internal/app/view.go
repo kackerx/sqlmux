@@ -97,12 +97,14 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	if in.Empty() {
 		return
 	}
-	body := in
-	if len(p.Tabs) > 0 {
-		body.Max.Y--
-		ui.Tabs{Names: p.Tabs, Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}.
-			Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
+	if len(p.Tabs) == 0 { // an empty pane: nothing but the + to open a tab
+		ui.Tabs{Pane: p.ID}.Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
+		return
 	}
+	body := in
+	body.Max.Y--
+	ui.Tabs{Names: p.Tabs, Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}.
+		Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
 	st := uv.Style{Fg: th.FgMuted, Bg: th.PaneBg}
 	for i := 0; i < body.Dy() && i < len(p.Lines); i++ {
 		f.Text(body.Min.X+1, body.Min.Y+i, body.Max.X-1, p.Lines[i], st)

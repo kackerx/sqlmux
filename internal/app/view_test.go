@@ -139,3 +139,36 @@ func TestSidebarHintRow(t *testing.T) {
 		}
 	}
 }
+
+// §F0.4: the window's only pane, once its last tab is closed, is empty: no
+// placeholder text, title "⟨n⟩ <icon> type", and a tab bar holding just a
+// clickable +.
+func TestEmptyPane(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, ":q<CR>:q<CR>:q<CR>") // both data tabs, then the console's
+	p := a.win.Root.Leaves()[0]
+	if len(a.win.Root.Leaves()) != 1 || len(p.Tabs) != 0 {
+		t.Fatalf("expected one empty pane, got %v", a.win.Root.Leaves())
+	}
+	f, r := a.render(), a.layout()[p.ID]
+	lines := strings.Split(f.String(), "\n")
+	cells := func(y int) string { return strings.TrimSpace(string([]rune(lines[y])[r.Min.X+1 : r.Max.X-1])) }
+	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ⟨1⟩ "+ui.NerdIcons.Console+" console ─") {
+		t.Errorf("title: %q", top)
+	}
+	for y := r.Min.Y + 1; y < r.Max.Y-2; y++ {
+		if got := cells(y); got != "" {
+			t.Fatalf("row %d is not empty: %q", y, got)
+		}
+	}
+	if got := cells(r.Max.Y - 2); got != "+" {
+		t.Errorf("tab bar: %q, want just +", got)
+	}
+	plus := false
+	for _, h := range f.Hits {
+		plus = plus || h.Target.Kind == ui.KindTab && h.Target.Pane == p.ID && h.Target.I == -1
+	}
+	if !plus {
+		t.Error("the + has no hit region")
+	}
+}

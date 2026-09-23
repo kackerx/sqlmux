@@ -139,6 +139,7 @@ sqlmux/
 - **提交**：
   - 只有 worker 在主工作区（本目录）改代码，并提交到 `main`。只提交到本地，不 push。
   - feature commit 里不包含 `specs/` 和 `AGENTS.md` 的改动（自己改的任务状态除外）。决策者通知文档有更新时，单独提交一个 `docs:` commit。
+  - 不要对整个工作区执行 stash、checkout 或 reset。决策者可能正在修改 `specs/` 和 `AGENTS.md`，所有 worktree 也共用同一个 stash 栈。需要把工作暂时放到一边时，只处理自己的代码路径，例如 `git stash push -u -m "<唯一标签>" -- internal/ cmd/`，或者提交一个临时的 WIP commit。
 - **每完成一个可测试的 feature**，依次：
   1. 确认所有测试通过：单测、golden，以及合入 `e2e` 分支后的 e2e 回归；
   2. 提交 commit，说明以 feature ID 开头，例如 `F0.3: keymap 引擎与配置`；
