@@ -21,9 +21,10 @@ const (
 	KindButton                   // a clickable outside any pane (status bar): run Action
 	KindItem                     // a which-key item (I: its index)
 	KindNumber                   // a pane under SPC q's numbers (I: its ⟨n⟩)
-	KindBorder                   // a split's drag handle (I: the split's index; -1 the sidebar's edge)
+	KindBorder                   // a split's drag handle (I: the split's index)
 	KindBackdrop                 // behind an overlay: a click closes it
 	KindRow                      // a palette candidate (I: its index): hover selects, click runs
+	KindTreeEdge                 // the gap right of the sidebar: drag to set its width
 )
 
 // Target is what a click on a hit region resolves to. Targets compare with

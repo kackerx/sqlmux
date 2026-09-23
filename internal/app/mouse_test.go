@@ -186,7 +186,7 @@ func TestClickUnderPaneNumbers(t *testing.T) {
 // (§7.8).
 func TestDragSidebarEdge(t *testing.T) {
 	a := sized(160, 45, "nerd")
-	edge := find(t, a, ui.Target{Kind: ui.KindBorder, I: -1})
+	edge := find(t, a, ui.Target{Kind: ui.KindTreeEdge})
 	if edge.Min.X != 32 {
 		t.Fatalf("the edge is at column %d, want right of the 32-column sidebar", edge.Min.X)
 	}
@@ -210,10 +210,19 @@ func TestDragSidebarEdge(t *testing.T) {
 		t.Errorf("after split, zoom and fold: %d wide, want 40", got)
 	}
 
+	// the limits hold for the window as it is now; the dragged width comes back
+	a.win().TreeW = 80
+	for _, c := range [][2]int{{100, 50}, {160, 80}} {
+		a.Update(tea.WindowSizeMsg{Width: c[0], Height: 45})
+		if got := a.sidebarRect().Dx(); got != c[1] || a.win().TreeW != 80 {
+			t.Errorf("window %d wide: sidebar %d, want %d (dragged %d)", c[0], got, c[1], a.win().TreeW)
+		}
+	}
+
 	feed(t, a, "<Space>b")
 	a.View()
 	for _, h := range a.hits {
-		if h.Target.Kind == ui.KindBorder && h.Target.I == -1 {
+		if h.Target.Kind == ui.KindTreeEdge {
 			t.Fatal("a folded sidebar has no edge to drag")
 		}
 	}

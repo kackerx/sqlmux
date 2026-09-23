@@ -91,7 +91,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.win().Root = a.win().Root.setRatio(a.drag.idx, a.drag.ratioAt(a.mouse))
 		}
 		if a.dragTree {
-			a.win().TreeW = min(max(a.mouse.X, minTreeW), a.w/2)
+			a.win().TreeW = treeWidth(a.mouse.X, a.w)
 		}
 		if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow && a.palette != nil { // hover selects (K-03)
 			a.palette.sel = t.I
@@ -173,8 +173,9 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		return focus()
 	case ui.KindPane, ui.KindTab:
 		return focus()
+	case ui.KindTreeEdge:
+		a.dragTree = true
 	case ui.KindBorder:
-		a.dragTree = t.I == -1
 		for _, h := range a.win().Root.handles(a.mainArea()) {
 			if h.idx == t.I {
 				a.drag = &h

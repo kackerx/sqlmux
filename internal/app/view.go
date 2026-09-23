@@ -1,7 +1,6 @@
 package app
 
 import (
-	"cmp"
 	"fmt"
 	"image/color"
 	"strings"
@@ -20,9 +19,10 @@ func sidebarWidth(w int) int {
 	return 32
 }
 
-// minTreeW is as narrow as dragging makes the sidebar; the widest is half
-// the window (§7.8).
-const minTreeW = 16
+// treeWidth is the width a dragged sidebar gets in a window w wide: 16
+// columns at least, half the window at most (§7.8). The dragged width itself
+// is kept, so a window that widens again gets it back.
+func treeWidth(want, w int) int { return min(max(want, 16), w/2) }
 
 // hints joins several actions' keys, e.g. "hjkl" or "gt/gT"; "" if any is unbound.
 func (a *App) hints(scope, sep string, actions ...string) string {
@@ -44,7 +44,10 @@ func (a *App) window() uv.Rectangle { return uv.Rect(0, 0, max(a.w, 0), max(a.h-
 // sidebarRect is where the ⟨0⟩ sidebar, open or folded, goes.
 func (a *App) sidebarRect() uv.Rectangle {
 	side := a.window()
-	w := cmp.Or(a.win().TreeW, sidebarWidth(a.w))
+	w := sidebarWidth(a.w)
+	if a.win().TreeW != 0 {
+		w = treeWidth(a.win().TreeW, a.w)
+	}
 	if !a.win().TreeOpen {
 		w = thinBarWidth
 	}
@@ -93,7 +96,7 @@ func (a *App) render() *ui.Frame {
 			f.Region(h.rect, ui.Target{Kind: ui.KindBorder, I: h.idx})
 		}
 		if a.win().TreeOpen { // the gap right of the sidebar sets its width
-			f.Region(uv.Rect(a.sidebarRect().Max.X, 0, 1, a.window().Dy()), ui.Target{Kind: ui.KindBorder, I: -1})
+			f.Region(uv.Rect(a.sidebarRect().Max.X, 0, 1, a.window().Dy()), ui.Target{Kind: ui.KindTreeEdge})
 		}
 	}
 	if a.paneNumbers {
