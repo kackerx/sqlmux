@@ -26,7 +26,7 @@
 - [x] 按 `C-c` 不退出，出现提示
 - [x] 窗口调到 100×30 再调回原尺寸，重绘正确，没有残影，不 panic
 
-## F0.2 Frame、Block、主题与静态布局 · 状态：testing
+## F0.2 Frame、Block、主题与静态布局 · 状态：verifying（275701a；e2e 834b0ae）
 
 - **依赖**：F0.1
 - **涉及**：`internal/ui`（frame、block、theme、icons）、`internal/app`（组装 View）
@@ -40,11 +40,11 @@
 - [x] golden 测试框架，覆盖 160×45 和 80×24 两个尺寸
 
 **验收**
-- [ ] 160×45 与 80×24 的 golden 测试通过
-- [ ] 聚焦 pane 的边框和标题为 `focus` 色（#9ece6a），其余 pane 为暗色
-- [ ] `icons = "ascii"` 时，画面中不出现私有区码点（U+E000–U+F8FF）
-- [ ] 80×24 下不 panic、不越界。标题栏空间不够时，按 §7.8 的顺序退让：先截短标题中的对象名，再从优先级最低的提示开始丢；160×45 下，console 标题栏的 `doraemon.public ▾` 和 `▶ run ↵` 都能完整显示
-- [ ] 布局尺寸符合 §7.8：侧栏 32 列（窗口宽度小于 100 列时为 24 列）、data 与 console 为 5 : 4、横向间隔 1 列
+- [x] 160×45 与 80×24 的 golden 测试通过
+- [x] 聚焦 pane 的边框和标题为 `focus` 色（#9ece6a），其余 pane 为暗色
+- [x] `icons = "ascii"` 时，画面中不出现私有区码点（U+E000–U+F8FF）
+- [x] 80×24 下不 panic、不越界。标题栏空间不够时，按 §7.8 的顺序退让：先截短标题中的对象名，再从优先级最低的提示开始丢；160×45 下，console 标题栏的 `doraemon.public ▾` 和 `▶ run ↵` 都能完整显示
+- [x] 布局尺寸符合 §7.8：侧栏 32 列（窗口宽度小于 100 列时为 24 列）、data 与 console 为 5 : 4、横向间隔 1 列
 
 ## F0.3 keymap 引擎与配置 · 状态：reviewing
 
