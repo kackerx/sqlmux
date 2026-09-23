@@ -8,7 +8,11 @@ running() { flag_is alternate_on 1 && ! exited; }
 no_toast() { ! screen_has '输入 :qa 退出'; }
 same_as() { [[ $(e2e_plain) == "$1" ]] || { diff <(echo "$1") <(e2e_plain); false; }; }
 colored() { e2e_cap -e | grep -qF -- "$1"; }
-toast_ok() { local c; c=$(e2e_find '输入 :qa 退出' 44); [[ -n $c ]] && ((c > 80)) && style_has "$c" 44 fg=#e0af68; }
+# §7.8：warn 字、#292e42 底、左右各 1 列内边距（文字宽 13 列）
+toast_ok() {
+  local c; c=$(e2e_find '输入 :qa 退出' 44); [[ -n $c ]] && ((c > 80)) || return 1
+  style_has "$c" 44 fg=#e0af68 && style_has $((c - 1)) 44 bg=#292e42 && style_has $((c + 13)) 44 bg=#292e42
+}
 
 e2e_start "$E2E_BIN"
 check "进入全屏" wait_for 5 flag_is alternate_on 1
@@ -24,7 +28,7 @@ check "调回 160x45 无残影（与调整前一致）" same_as "$big"
 
 e2e_keys C-c
 check "C-c 弹出 toast「输入 :qa 退出」" wait_for 2 screen_has '输入 :qa 退出'
-check "toast 在状态栏上一行右侧、warn 色（§7.8）" toast_ok
+check "toast 在状态栏上一行右侧，warn 字、#292e42 底、1 列内边距（§7.8）" toast_ok
 check "C-c 后程序仍在运行" running
 check "toast 约 3 秒后消失" wait_for 5 no_toast
 
