@@ -137,19 +137,27 @@ func hintsWidth(hs []Hint) int {
 	return w
 }
 
-// drawTitleHint draws h at x and registers what it drew as h's hit region.
+// drawTitleHint draws h at x as a button: its hit region is what it covers,
+// and it lights up under the pointer.
 func drawTitleHint(f *Frame, x, y, right int, h Hint, pane int) int {
-	start := x
-	x = titleHintText(f, x, y, right, h)
-	f.Region(uv.Rect(start, y, x-start, 1), Target{Kind: KindHint, Pane: pane, Action: h.Action})
-	return x
+	r := uv.Rect(x, y, min(Width(h.titleText()), right-x), 1)
+	hover := f.Region(r, Target{Kind: KindHint, Pane: pane, Action: h.Action})
+	return titleHintText(f, x, y, right, h, hover)
 }
 
-func titleHintText(f *Frame, x, y, right int, h Hint) int {
+func titleHintText(f *Frame, x, y, right int, h Hint, hover bool) int {
 	th := f.Theme
-	dim := uv.Style{Fg: th.Dim, Bg: th.PaneBg}
+	bg := th.PaneBg
+	if hover {
+		bg = th.Select
+	}
+	dim := uv.Style{Fg: th.Dim, Bg: bg}
 	if h.Button {
-		return f.Text(x, y, right, " "+h.Label+" ", uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold})
+		st := uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
+		if hover {
+			st.Bg = th.Warn
+		}
+		return f.Text(x, y, right, " "+h.Label+" ", st)
 	}
 	if h.Label != "" {
 		lc := dim

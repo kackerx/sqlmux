@@ -2,9 +2,11 @@
 package app
 
 import (
+	"fmt"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
 	"sqlmux/internal/config"
@@ -30,7 +32,17 @@ type App struct {
 	toast     string
 	toastSeq  int
 	quitToast int // toastSeq of the "press C-c again" toast
+
+	// Mouse (§7.4).
+	hits        []ui.Hit    // the last frame's hit table
+	mouse       uv.Position // pointer, for hover styles
+	drag        *handle     // the split border being dragged
+	lastClick   ui.Target   // with lastClickAt, to spot a double click
+	lastClickAt time.Time
 }
+
+// doubleClick is how soon a second click on the same target makes a double (§7.4).
+const doubleClick = 400 * time.Millisecond
 
 type (
 	toastExpired struct{ seq int }
@@ -45,6 +57,7 @@ func New(cfg *config.Config, keys *keymap.Map) *App {
 	return &App{
 		theme: ui.TokyonightStorm, icons: ui.IconSet(cfg.Icons),
 		keys: keys, res: keymap.NewResolver(keys), sess: fakeSession(),
+		mouse: uv.Pos(-1, -1),
 	}
 }
 
@@ -69,22 +82,21 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.toast = ""
 		}
 	case tea.KeyPressMsg:
-		if a.paneNumbers {
-			a.jumpToPane(keymap.FromTea(msg.Key()))
-			return a, nil
+		return a, a.press(keymap.FromTea(msg.Key()))
+	case tea.MouseMotionMsg:
+		m := msg.Mouse()
+		a.mouse = uv.Pos(m.X, m.Y)
+		if a.drag != nil { // the border follows the pointer
+			a.win().Root = a.win().Root.setRatio(a.drag.idx, a.drag.ratioAt(a.mouse))
 		}
-		out, wait := a.res.Feed(a.context(), keymap.FromTea(msg.Key()))
-		cmd := a.dispatch(out)
-		seq := a.res.Seq()
-		switch {
-		case wait: // ambiguous: the shorter binding fires after timeoutlen
-			cmd = tea.Batch(cmd, tea.Tick(a.keys.Timeout, func(time.Time) tea.Msg { return keyTimeout{seq} }))
-		case len(a.res.Next()) == 0:
-			a.whichKey = false
-		case !a.whichKey: // a pure prefix: which-key shows if nothing follows soon
-			cmd = tea.Batch(cmd, tea.Tick(whichKeyDelay, func(time.Time) tea.Msg { return whichKeyDue{seq} }))
+	case tea.MouseReleaseMsg:
+		a.drag = nil
+	case tea.MouseClickMsg:
+		if m := msg.Mouse(); m.Button == tea.MouseLeft {
+			return a, a.click(uv.Pos(m.X, m.Y))
 		}
-		return a, cmd
+	case tea.MouseWheelMsg:
+		a.wheel(msg.Mouse())
 	case keyTimeout:
 		cmd := a.dispatch(a.res.Timeout(a.context(), msg.seq))
 		a.whichKey = a.whichKey && len(a.res.Next()) > 0
@@ -95,6 +107,79 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return a, nil
+}
+
+// press handles one key, typed or clicked (a which-key item).
+func (a *App) press(k keymap.Key) tea.Cmd {
+	if a.paneNumbers {
+		a.jumpToPane(k)
+		return nil
+	}
+	out, wait := a.res.Feed(a.context(), k)
+	cmd := a.dispatch(out)
+	seq := a.res.Seq()
+	switch {
+	case wait: // ambiguous: the shorter binding fires after timeoutlen
+		cmd = tea.Batch(cmd, tea.Tick(a.keys.Timeout, func(time.Time) tea.Msg { return keyTimeout{seq} }))
+	case len(a.res.Next()) == 0:
+		a.whichKey = false
+	case !a.whichKey: // a pure prefix: which-key shows if nothing follows soon
+		cmd = tea.Batch(cmd, tea.Tick(whichKeyDelay, func(time.Time) tea.Msg { return whichKeyDue{seq} }))
+	}
+	return cmd
+}
+
+// click turns a left click into what its target stands for (§7.4): the
+// same actions keys run.
+func (a *App) click(p uv.Position) tea.Cmd {
+	t, ok := ui.HitAt(a.hits, p)
+	if !ok {
+		return nil
+	}
+	now := time.Now()
+	double := t == a.lastClick && now.Sub(a.lastClickAt) <= doubleClick
+	a.lastClick, a.lastClickAt = t, now
+	if double {
+		a.lastClick = ui.Target{} // a third click starts over
+	}
+	focus := func() tea.Cmd { return a.run(fmt.Sprintf("pane.focus %d", t.Pane), 0) }
+	switch t.Kind {
+	case ui.KindBackdrop:
+		a.whichKey = false
+		a.res.Reset()
+	case ui.KindItem:
+		if next := a.res.Next(); t.I < len(next) {
+			return a.press(next[t.I].Key)
+		}
+	case ui.KindButton:
+		return a.run(t.Action, 0)
+	case ui.KindHint:
+		return tea.Batch(focus(), a.run(t.Action, 0))
+	case ui.KindTitle:
+		if double {
+			return tea.Batch(focus(), a.run("pane.zoom", 0))
+		}
+		return focus()
+	case ui.KindPane, ui.KindTab:
+		return focus()
+	case ui.KindBorder:
+		for _, h := range a.win().Root.handles(a.mainArea()) {
+			if h.idx == t.I {
+				a.drag = &h
+			}
+		}
+	}
+	return nil
+}
+
+// wheel scrolls the pane under the pointer, not the focused one (§7.4).
+func (a *App) wheel(m tea.Mouse) {
+	notches := map[tea.MouseButton]int{tea.MouseWheelUp: -1, tea.MouseWheelDown: 1}[m.Button]
+	for id, r := range a.layout() {
+		if notches != 0 && uv.Pos(m.X, m.Y).In(r) {
+			a.scrollPane(id, notches)
+		}
+	}
 }
 
 // dispatch runs what the keymap resolved: actions through the registry, and
@@ -176,7 +261,9 @@ func (a *App) showToastFor(s string, ttl time.Duration) tea.Cmd {
 }
 
 func (a *App) View() tea.View {
-	v := tea.NewView(a.render().Render())
+	f := a.render()
+	a.hits = f.Hits // clicks are looked up in what was drawn
+	v := tea.NewView(f.Render())
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion
 	return v

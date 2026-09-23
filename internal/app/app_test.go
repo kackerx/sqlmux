@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -521,18 +522,27 @@ func TestSplitIDsStayUnique(t *testing.T) {
 	}
 }
 
+// quitOnMode stops the program once the mode report Init sends comes back.
+type quitOnMode struct{ *App }
+
+func (q quitOnMode) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(tea.ModeReportMsg); ok {
+		return q, tea.Quit
+	}
+	q.App.Update(msg)
+	return q, nil
+}
+
 // Init's borrowed mode report must reach the renderer: with no terminal
 // answering 2027, the output still switches to grapheme widths (§7.1).
 func TestRendererUsesGraphemeWidths(t *testing.T) {
 	var out bytes.Buffer
 	c := config.Default()
 	keys, _ := keymap.New(c)
-	p := tea.NewProgram(New(c, keys), tea.WithInput(nil), tea.WithOutput(&out),
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // Init stopped sending it
+	defer cancel()
+	p := tea.NewProgram(quitOnMode{New(c, keys)}, tea.WithContext(ctx), tea.WithInput(nil), tea.WithOutput(&out),
 		tea.WithWindowSize(80, 24), tea.WithEnvironment([]string{"TERM=xterm-256color"}))
-	go func() {
-		time.Sleep(200 * time.Millisecond)
-		p.Quit()
-	}()
 	if _, err := p.Run(); err != nil {
 		t.Fatal(err)
 	}

@@ -113,12 +113,13 @@ func segsWidth(ss []Segment) int {
 }
 
 func drawSegment(f *Frame, x, y, right int, s Segment) int {
-	start := x
+	hover := s.Action != "" && f.Region(uv.Rect(x, y, min(s.width(), right-x), 1), Target{Kind: KindButton, Action: s.Action})
 	for _, r := range s.Runs {
-		x = f.Text(x, y, right, r.Text, r.Style)
-	}
-	if s.Action != "" {
-		f.Region(uv.Rect(start, y, x-start, 1), Target{Kind: KindHint, Action: s.Action})
+		st := r.Style
+		if hover {
+			st.Bg = f.Theme.Select
+		}
+		x = f.Text(x, y, right, r.Text, st)
 	}
 	return x
 }

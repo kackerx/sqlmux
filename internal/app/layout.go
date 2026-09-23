@@ -165,3 +165,67 @@ func neighbor(rects map[int]uv.Rectangle, from int, side string) (int, bool) {
 }
 
 func overlap(a0, a1, b0, b1 int) int { return min(a1, b1) - max(a0, b0) }
+
+// handle is a split's drag handle (§7.4): the gap column between side-by-side
+// halves, or the bottom border row of the top half of a stacked split.
+type handle struct {
+	idx  int // the split's pre-order index among splits
+	d    Dir
+	rect uv.Rectangle // where to grab it
+	area uv.Rectangle // the split's whole area, to turn a pointer into a ratio
+}
+
+// handles lists the splits' drag handles laid out over r.
+func (n *Node) handles(r uv.Rectangle) []handle {
+	var out []handle
+	idx := 0
+	var walk func(n *Node, r uv.Rectangle)
+	walk = func(n *Node, r uv.Rectangle) {
+		if n.Split == Leaf {
+			return
+		}
+		h := handle{idx: idx, d: n.Split, area: r}
+		idx++
+		a, b := splitRect(r, n.Split, n.Ratio)
+		if n.Split == Horiz {
+			h.rect = uv.Rect(a.Max.X, r.Min.Y, b.Min.X-a.Max.X, r.Dy())
+		} else {
+			h.rect = uv.Rect(r.Min.X, a.Max.Y-1, r.Dx(), 1)
+		}
+		out = append(out, h)
+		walk(n.A, a)
+		walk(n.B, b)
+	}
+	walk(n, r)
+	return out
+}
+
+// ratioAt turns a pointer on h into the ratio that puts the border there.
+func (h handle) ratioAt(p uv.Position) float64 {
+	var r float64
+	if h.d == Horiz {
+		r = float64(p.X-h.area.Min.X) / float64(max(h.area.Dx()-1, 1))
+	} else {
+		r = float64(p.Y+1-h.area.Min.Y) / float64(max(h.area.Dy(), 1))
+	}
+	return min(max(r, minRatio), maxRatio)
+}
+
+// setRatio returns the tree with the idx-th split (pre-order) set to ratio.
+func (n *Node) setRatio(idx int, ratio float64) *Node {
+	i := 0
+	var walk func(n *Node) *Node
+	walk = func(n *Node) *Node {
+		if n.Split == Leaf {
+			return n
+		}
+		out := &Node{Split: n.Split, Ratio: n.Ratio}
+		if i == idx {
+			out.Ratio = ratio
+		}
+		i++
+		out.A, out.B = walk(n.A), walk(n.B)
+		return out
+	}
+	return walk(n)
+}

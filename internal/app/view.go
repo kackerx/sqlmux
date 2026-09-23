@@ -33,22 +33,36 @@ func (a *App) hints(scope, sep string, actions ...string) string {
 // thinBarWidth is the folded sidebar: two borders around one column (§7.8).
 const thinBarWidth = 3
 
+// window is everything above the status bar.
+func (a *App) window() uv.Rectangle { return uv.Rect(0, 0, max(a.w, 0), max(a.h-1, 0)) }
+
+// sidebarRect is where the ⟨0⟩ sidebar, open or folded, goes.
+func (a *App) sidebarRect() uv.Rectangle {
+	side := a.window()
+	w := sidebarWidth(a.w)
+	if !a.win().TreeOpen {
+		w = thinBarWidth
+	}
+	side.Max.X = min(side.Min.X+w, side.Max.X)
+	return side
+}
+
+// mainArea is what the split tree lays out over: right of the sidebar.
+func (a *App) mainArea() uv.Rectangle {
+	main := a.window()
+	main.Min.X = min(a.sidebarRect().Max.X+1, main.Max.X)
+	return main
+}
+
 // layout places the sidebar and every pane of the current window, keyed by
 // pane ID. The last row is the status bar.
 func (a *App) layout() map[int]uv.Rectangle {
 	win := a.win()
-	main := uv.Rect(0, 0, max(a.w, 0), max(a.h-1, 0))
 	if win.Zoom != 0 { // the zoomed pane takes the whole window, sidebar included
-		return map[int]uv.Rectangle{win.Zoom: main}
+		return map[int]uv.Rectangle{win.Zoom: a.window()}
 	}
-	side := main
-	side.Max.X = min(main.Min.X+sidebarWidth(a.w), main.Max.X)
-	if !win.TreeOpen {
-		side.Max.X = min(main.Min.X+thinBarWidth, main.Max.X)
-	}
-	main.Min.X = min(side.Max.X+1, main.Max.X)
-	rects := map[int]uv.Rectangle{win.Tree.ID: side}
-	win.Root.Rects(main, rects)
+	rects := map[int]uv.Rectangle{win.Tree.ID: a.sidebarRect()}
+	win.Root.Rects(a.mainArea(), rects)
 	return rects
 }
 
@@ -59,6 +73,7 @@ func (a *App) render() *ui.Frame {
 	if a.w <= 0 || a.h <= 0 {
 		return f
 	}
+	f.Mouse = a.mouse
 	rects := a.layout()
 	if r, ok := rects[a.win().Tree.ID]; ok {
 		a.drawSidebar(f, r)
@@ -66,6 +81,11 @@ func (a *App) render() *ui.Frame {
 	for i, p := range a.win().Root.Leaves() {
 		if r, ok := rects[p.ID]; ok {
 			a.drawPane(f, p, i+1, r)
+		}
+	}
+	if a.win().Zoom == 0 {
+		for _, h := range a.win().Root.handles(a.mainArea()) {
+			f.Region(h.rect, ui.Target{Kind: ui.KindBorder, I: h.idx})
 		}
 	}
 	if a.paneNumbers {
@@ -116,6 +136,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},
 		)
 	}
+	paneRegions(f, p.ID, r)
 	in := b.Draw(f, r)
 	if in.Empty() {
 		return
@@ -129,8 +150,8 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	ui.Tabs{Names: p.Tabs, Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}.
 		Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
 	st := uv.Style{Fg: th.FgMuted, Bg: th.PaneBg}
-	for i := 0; i < body.Dy() && i < len(p.Lines); i++ {
-		f.Text(body.Min.X+1, body.Min.Y+i, body.Max.X-1, p.Lines[i], st)
+	for i := 0; i < body.Dy() && p.Scroll+i < len(p.Lines); i++ {
+		f.Text(body.Min.X+1, body.Min.Y+i, body.Max.X-1, p.Lines[p.Scroll+i], st)
 	}
 }
 
@@ -142,6 +163,7 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 		a.drawThinBar(f, r)
 		return
 	}
+	paneRegions(f, p.ID, r)
 	b := ui.Block{
 		Title:   a.icons.Schema + " schema",
 		Hints:   bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
@@ -162,8 +184,8 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	}
 	sep(y + 1)
 	list := uv.Rect(in.Min.X, y+2, in.Dx(), max(in.Dy()-4, 0))
-	for i := 0; i < list.Dy() && i < len(fakeTables); i++ {
-		t := fakeTables[i]
+	for i := 0; i < list.Dy() && p.Scroll+i < len(fakeTables); i++ {
+		t := fakeTables[p.Scroll+i]
 		row := list.Min.Y + i
 		bg, icon := th.PaneBg, th.Func
 		if t.name == "t_order" { // the table open in ⟨1⟩
@@ -286,6 +308,7 @@ func (a *App) whichKeyOverlay() ui.WhichKey {
 // down the middle column, one character per row.
 func (a *App) drawThinBar(f *ui.Frame, r uv.Rectangle) {
 	th := f.Theme
+	f.Region(r, ui.Target{Kind: ui.KindButton, Action: "tree.toggle"}) // a click unfolds it
 	in := ui.Block{Pane: a.win().Tree.ID}.Draw(f, r)
 	if in.Empty() {
 		return
@@ -320,4 +343,11 @@ func (a *App) drawPaneNumbers(f *ui.Frame, rects map[int]uv.Rectangle) {
 		x, y := r.Min.X+(r.Dx()-ui.Width(label))/2, r.Min.Y+r.Dy()/2
 		f.Text(x, y, r.Max.X, label, uv.Style{Fg: th.Bg, Bg: th.Warn, Attrs: uv.AttrBold})
 	}
+}
+
+// paneRegions makes a pane clickable (focus, wheel) and its title row
+// double-clickable (zoom); hints drawn after it sit on top.
+func paneRegions(f *ui.Frame, id int, r uv.Rectangle) {
+	f.Region(r, ui.Target{Kind: ui.KindPane, Pane: id})
+	f.Region(uv.Rect(r.Min.X, r.Min.Y, r.Dx(), 1), ui.Target{Kind: ui.KindTitle, Pane: id})
 }
