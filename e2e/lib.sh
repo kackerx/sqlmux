@@ -46,6 +46,7 @@ e2e_keys() { t send-keys -t t "$@"; }          # tmux key names: C-c Escape Ente
 e2e_type() { t send-keys -t t -l "$1"; }       # literal text
 e2e_cap()  { t capture-pane -p -t t "$@"; }    # add -e for SGR colors
 e2e_flag() { t display -p -t t "#{$1}"; }      # e.g. alternate_on cursor_flag mouse_all_flag
+e2e_record() { t pipe-pane -t t -o "cat >> '$1'"; }   # FILE — append everything the program writes to the pane
 e2e_resize() { t resize-window -t t -x "$1" -y "$2"; }
 
 # Raw SGR mouse reports (DECSET 1006), injected as literal bytes.
