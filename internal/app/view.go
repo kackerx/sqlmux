@@ -252,6 +252,8 @@ func (a *App) statusLine() ui.StatusLine {
 	if ks := a.res.Pending(); len(ks) > 0 {
 		pending = ui.Run{Text: keymap.Display(ks), Style: uv.Style{Fg: th.Warn, Bg: th.Row, Attrs: uv.AttrBold}}
 	}
+	// At least 3 columns, left-aligned: SPC, g or a count don't shift the bar (§7.8).
+	pending.Text += strings.Repeat(" ", max(3-ui.Width(pending.Text), 0))
 	modeColor := [...]color.Color{keymap.Normal: th.Focus, keymap.Visual: th.Keyword, keymap.Insert: th.Warn, keymap.Command: th.Info}[mode]
 	palette := strings.TrimRight(" "+ic.Search+" "+a.keys.Hint("palette.open", "global"), " ") + " "
 	s.Right = []ui.Segment{
