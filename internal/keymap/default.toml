@@ -1,0 +1,107 @@
+# Default key bindings (tech-design §6.8). Same format as the user's
+# config.toml, which is loaded on top. Only keys every terminal can tell apart
+# (§6.2): no Alt, no Ctrl+Shift, no modified Enter, no Ctrl+digit, no C-i/C-m/C-[.
+
+[keys]
+leader = "<Space>"
+
+[keys.global]
+"<C-p>" = "palette.open"
+"<C-s>" = "save"
+"<C-c>" = "cancel"
+
+[keys.normal]
+"<C-h>" = "pane.focus.left" # C-h is Backspace in a few terminals: NORMAL only
+"<C-j>" = "pane.focus.down"
+"<C-k>" = "pane.focus.up"
+"<C-l>" = "pane.focus.right"
+"<Leader>s" = "session.list"
+"<Leader>0" = "window.select 0"
+"<Leader>1" = "window.select 1"
+"<Leader>2" = "window.select 2"
+"<Leader>3" = "window.select 3"
+"<Leader>4" = "window.select 4"
+"<Leader>5" = "window.select 5"
+"<Leader>6" = "window.select 6"
+"<Leader>7" = "window.select 7"
+"<Leader>8" = "window.select 8"
+"<Leader>9" = "window.select 9"
+"<Leader>c" = "window.new"
+"<Leader>," = "window.rename"
+"<Leader>&" = "window.close"
+"<Leader>%" = "pane.split.right"
+'<Leader>"' = "pane.split.below"
+"<Leader>z" = "pane.zoom"
+"<Leader>x" = "pane.close"
+"<Leader>h" = "pane.focus.left"
+"<Leader>j" = "pane.focus.down"
+"<Leader>k" = "pane.focus.up"
+"<Leader>l" = "pane.focus.right"
+"<Leader>H" = "pane.resize.left"
+"<Leader>J" = "pane.resize.down"
+"<Leader>K" = "pane.resize.up"
+"<Leader>L" = "pane.resize.right"
+"<Leader>q" = "pane.number"
+"<Leader>b" = "tree.toggle"
+"<Leader>n" = "session.new"
+"gt" = "tab.next"
+"gT" = "tab.prev"
+":" = "cmdline.open"
+
+[keys.grid]
+"h" = "grid.left"
+"j" = "grid.down"
+"k" = "grid.up"
+"l" = "grid.right"
+"gg" = "grid.top"
+"G" = "grid.bottom"
+"0" = "grid.first"
+"$" = "grid.last"
+"<CR>" = "grid.edit"
+"i" = "grid.edit"
+"R" = "grid.refresh"
+"T" = "grid.transpose"
+"x" = "tab.close"
+"/" = "grid.where"
+"go" = "grid.order"
+"gl" = "grid.limit"
+"gp" = "grid.page"
+"gc" = "grid.cols"
+"]" = "grid.page.next"
+"[" = "grid.page.prev"
+"yy" = "grid.yank"
+"yi" = "grid.yank.insert"
+
+[keys.result] # stacked above grid
+"P" = "result.pin"
+"q" = "result.close"
+
+[keys.tree]
+"j" = "tree.down"
+"k" = "tree.up"
+"gg" = "tree.top"
+"G" = "tree.bottom"
+"<CR>" = "tree.open"
+"t" = "tree.open.tab"
+"/" = "tree.filter"
+"gs" = "tree.schema"
+
+[keys.console] # NORMAL / VISUAL; everything else goes to the vim engine
+"<CR>" = "console.run"
+"gq" = "console.format"
+"gs" = "console.schema"
+
+[keys.palette] # quick SQL lives in the palette's SQL mode
+"<C-t>" = "palette.open.tab"
+"<C-y>" = "quicksql.copy"
+"<C-e>" = "quicksql.edit"
+
+[keys.cell] # §10.2
+"<Tab>" = "cell.segment.next"
+"<S-Tab>" = "cell.segment.prev"
+"<Up>" = "cell.up"
+"<Down>" = "cell.down"
+"<C-n>" = "cell.option.next"
+"<C-p>" = "cell.option.prev"
+"<CR>" = "cell.accept"
+"<Esc>" = "cell.done"

@@ -6,6 +6,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"sqlmux/internal/config"
+	"sqlmux/internal/keymap"
 )
 
 // keys turns "a", "<CR>", "<Esc>", "<C-c>", "<BS>" into key presses.
@@ -44,7 +47,10 @@ func feed(a *App, ss ...string) (quit bool) {
 }
 
 func sized(w, h int, icons string) *App {
-	a := New(icons)
+	c := config.Default()
+	c.Icons = icons
+	keys, _ := keymap.New(c)
+	a := New(c, keys)
 	a.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return a
 }

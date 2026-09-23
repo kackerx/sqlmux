@@ -6,6 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"sqlmux/internal/config"
+	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
 
@@ -15,6 +17,7 @@ type App struct {
 	w, h  int
 	theme *ui.Theme
 	icons *ui.Icons
+	keys  *keymap.Map
 	win   *Window
 
 	cmdline *string // non-nil while the : command line is open (COMMAND mode)
@@ -25,9 +28,8 @@ type App struct {
 
 type toastExpired struct{ seq int }
 
-// New builds the app; icons is "nerd" or "ascii" (§7.7).
-func New(icons string) *App {
-	return &App{theme: ui.TokyonightStorm, icons: ui.IconSet(icons), win: fakeWindow()}
+func New(cfg *config.Config, keys *keymap.Map) *App {
+	return &App{theme: ui.TokyonightStorm, icons: ui.IconSet(cfg.Icons), keys: keys, win: fakeWindow()}
 }
 
 func (a *App) Init() tea.Cmd { return nil }

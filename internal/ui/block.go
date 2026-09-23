@@ -14,7 +14,8 @@ type Hint struct {
 	Action     string
 	Button     bool        // Label drawn as a filled button, e.g. "▶ run" (§7.8); Key unused
 	Color      color.Color // Label color when not a button; default dim
-	Prio       int         // title hints: higher is dropped first when space runs out
+	Prio       int         // title hints: lower is placed first when space runs out
+	Attached   bool        // key text of the hint before it: shown only with it (§7.8)
 }
 
 // titleText is how a hint reads on a border: "Label Key".
@@ -77,44 +78,55 @@ func (b Block) Draw(f *Frame, r uv.Rectangle) uv.Rectangle {
 	return uv.Rect(x0+1, y0+1, x1-x0-1, y1-y0-1)
 }
 
-// fit applies §7.8's fallback when the top border is too narrow: first cut
-// the object name down to "⟨n⟩ <icon> type", then drop hints lowest priority
-// first, and finally show only "⟨n⟩".
+// fit shares the top border per §7.8: reserve the shortest title
+// "⟨n⟩ <icon> type", place hints greedily from the highest priority (one that
+// doesn't fit is skipped, the next is still tried), give what's left to the
+// object name, and fall back to "⟨n⟩" alone.
 func (b Block) fit(room int) (string, []Hint) {
-	head := fmt.Sprintf("⟨%d⟩", b.N)
+	n := fmt.Sprintf("⟨%d⟩", b.N)
+	head := n
 	if b.Title != "" {
 		head += " " + b.Title
 	}
-	full := head
-	if b.Object != "" {
-		full += " · " + b.Object
+	if Width(head) > room {
+		return Truncate(n, room), nil
 	}
-	hints := slices.Clone(b.Hints)
-	for {
-		avail := room
-		if len(hints) > 0 {
-			avail -= hintsWidth(hints) + 1
-		}
-		if avail >= Width(head) {
-			if Width(full) <= avail || b.Object == "" {
-				return full, hints
-			}
-			if obj := avail - Width(head+" · "); obj >= 2 { // at least "x…"
-				return head + " · " + Truncate(b.Object, obj), hints
-			}
-			return head, hints
-		}
-		if len(hints) == 0 {
-			return Truncate(fmt.Sprintf("⟨%d⟩", b.N), room), nil
-		}
-		drop := 0
-		for i, h := range hints {
-			if h.Prio > hints[drop].Prio {
-				drop = i
-			}
-		}
-		hints = slices.Delete(hints, drop, drop+1)
+	order := make([]int, len(b.Hints))
+	for i := range order {
+		order[i] = i
 	}
+	slices.SortStableFunc(order, func(i, j int) int { return b.Hints[i].Prio - b.Hints[j].Prio })
+	keep := make([]bool, len(b.Hints))
+	used := 0
+	for _, i := range order {
+		if b.Hints[i].Attached && (i == 0 || !keep[i-1]) {
+			continue
+		}
+		// +1: the space between the title and the first hint.
+		if w := 1 + Width(b.Hints[i].titleText()); Width(head)+1+used+w <= room {
+			keep[i], used = true, used+w
+		}
+	}
+	var hints []Hint
+	for i, h := range b.Hints {
+		if keep[i] {
+			hints = append(hints, h)
+		}
+	}
+	avail := room
+	if len(hints) > 0 {
+		avail -= used + 1
+	}
+	full := head + " · " + b.Object
+	switch obj := avail - Width(head+" · "); {
+	case b.Object == "":
+		return head, hints
+	case Width(full) <= avail:
+		return full, hints
+	case obj >= 2: // at least "x…"
+		return head + " · " + Truncate(b.Object, obj), hints
+	}
+	return head, hints
 }
 
 func hintsWidth(hs []Hint) int {
