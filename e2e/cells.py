@@ -5,6 +5,7 @@
   cells.py width          -> display width of every row, one per line
   cells.py plain          -> the screen as plain text, tabs expanded
   cells.py strwidth TEXT  -> display width of TEXT (no screen needed)
+  cells.py panes          -> one line per pane box: "N X Y W H focused" (1-based; N from ⟨N⟩, - if none)
   cells.py find TEXT Y    -> start columns of TEXT on row Y, space-separated
 
 Widths follow tmux: East Asian W/F = 2 columns, combining marks / ZWJ / VS16 /
@@ -107,6 +108,18 @@ def main():
     elif cmd == "plain":
         for row in g:
             print("".join(c[0] for c in row))
+    elif cmd == "panes":
+        for y, row in enumerate(g):
+            for x, c in enumerate(row):
+                if c[0] != "┌":
+                    continue
+                x2 = next((i for i in range(x + 1, len(row)) if row[i][0] == "┐"), None)
+                y2 = next((j for j in range(y + 1, len(g)) if x < len(g[j]) and g[j][x][0] == "└"), None)
+                if x2 is None or y2 is None:
+                    continue
+                title = "".join(ch[0] for ch in row[x:x2])
+                m = re.search(r"⟨(\d+)⟩", title)
+                print(m[1] if m else "-", x + 1, y + 1, x2 - x + 1, y2 - y + 1, int(c[1] == "#9ece6a"))
     elif cmd == "width":
         for row in g:
             print(len(row))
