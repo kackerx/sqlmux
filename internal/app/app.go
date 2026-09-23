@@ -3,6 +3,7 @@ package app
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -144,6 +145,8 @@ func (a *App) click(p uv.Position) tea.Cmd {
 	}
 	focus := func() tea.Cmd { return a.run(fmt.Sprintf("pane.focus %d", t.Pane), 0) }
 	switch t.Kind {
+	case ui.KindNumber:
+		a.jumpToPane(keymap.Key(strconv.Itoa(t.I)))
 	case ui.KindBackdrop: // outside an overlay: close it
 		a.whichKey, a.paneNumbers = false, false
 		a.res.Reset()

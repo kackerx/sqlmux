@@ -155,18 +155,27 @@ func TestWheelScrollsPaneUnderPointer(t *testing.T) {
 	}
 }
 
-// SPC q's numbers are an overlay too: a click closes them, and the next key
-// is a key again.
-func TestClickClosesPaneNumbers(t *testing.T) {
-	a := sized(160, 45, "nerd")
-	feed(t, a, "<Space>q")
-	r := a.layout()[2]
-	click(a, uv.Pos(r.Min.X+5, r.Min.Y+5))
-	if a.paneNumbers {
-		t.Fatal("clicking should close the pane numbers")
-	}
-	feed(t, a, ":")
-	if a.cmdline == nil {
-		t.Fatal("the key after the click must not be swallowed")
+// Under SPC q's numbers a click on a pane is pressing its number; anywhere
+// else it only closes them. Either way the next key is a key again (§5).
+func TestClickUnderPaneNumbers(t *testing.T) {
+	statusBar := uv.Pos(80, 44)
+	for _, c := range []struct {
+		name  string
+		at    func(a *App) uv.Position
+		focus int
+	}{
+		{"console", func(a *App) uv.Position { r := a.layout()[2]; return uv.Pos(r.Min.X+5, r.Min.Y+5) }, 2},
+		{"sidebar", func(a *App) uv.Position { return uv.Pos(5, 10) }, 0},
+		{"status bar", func(*App) uv.Position { return statusBar }, 1},
+	} {
+		a := sized(160, 45, "nerd")
+		feed(t, a, "<Space>q")
+		click(a, c.at(a))
+		if a.paneNumbers || a.win().Focus != c.focus {
+			t.Errorf("%s: numbers %v, focus %d, want %d", c.name, a.paneNumbers, a.win().Focus, c.focus)
+		}
+		if feed(t, a, ":"); a.cmdline == nil {
+			t.Errorf("%s: the key after the click was swallowed", c.name)
+		}
 	}
 }

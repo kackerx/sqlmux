@@ -16,6 +16,7 @@ const (
 	KindHint                     // a key hint inside a pane: focus it, then run Action
 	KindButton                   // a clickable outside any pane (status bar): run Action
 	KindItem                     // a which-key item (I: its index)
+	KindNumber                   // a pane under SPC q's numbers (I: its ⟨n⟩)
 	KindBorder                   // a split's drag handle (I: the split's index)
 	KindBackdrop                 // behind an overlay: a click closes it
 )
