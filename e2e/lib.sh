@@ -68,6 +68,7 @@ e2e_style() { _cells style "$1" "$2"; }           # X Y -> "fg=#rrggbb bg=#rrggb
 e2e_text()  { _cells text "$1" "$2" "$3"; }       # X1 X2 Y -> text of those columns
 e2e_widths() { _cells width; }                     # display width of each row
 e2e_plain() { _cells plain; }                      # screen text with tabs expanded
+e2e_rows()  { _cells rows "$@"; }                  # X1 X2 Y1 Y2 BX -> "text|bg" per row
 e2e_panes() { _cells panes; }                      # "N X Y W H focused" per pane box
 e2e_find()  { _cells find "$1" "$2"; }            # TEXT Y -> start columns
 

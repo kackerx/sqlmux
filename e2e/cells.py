@@ -5,6 +5,7 @@
   cells.py width          -> display width of every row, one per line
   cells.py plain          -> the screen as plain text, tabs expanded
   cells.py strwidth TEXT  -> display width of TEXT (no screen needed)
+  cells.py rows X1 X2 Y1 Y2 BX -> per row Y1..Y2: "<text of X1..X2>|<bg at column BX>"
   cells.py panes          -> one line per pane box: "N X Y W H focused" (1-based; N from ⟨N⟩, - if none)
   cells.py find TEXT Y    -> start columns of TEXT on row Y, space-separated
 
@@ -123,6 +124,11 @@ def main():
     elif cmd == "plain":
         for row in g:
             print("".join(c[0] for c in row))
+    elif cmd == "rows":
+        x1, x2, y1, y2, bx = args
+        for y in range(y1, y2 + 1):
+            r = g[y - 1] if y <= len(g) else []
+            print("".join(c[0] for c in r[x1 - 1 : x2]) + "|" + (r[bx - 1][2] if bx <= len(r) else "-"))
     elif cmd == "panes":
         for y, row in enumerate(g):
             for x, c in enumerate(row):

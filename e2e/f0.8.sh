@@ -17,7 +17,7 @@ at() { local c; c=$(e2e_find "$1" "$2"); echo "${c%% *} $2"; }   # TEXT Y → "X
 SELECT=#364a82 WARN=#e0af68
 wk_open() { e2e_plain | grep -q '^┌─ SPC '; }
 pending_idle() { local c; c=$(e2e_find "C-p" 45); [[ $(e2e_text $((c + 7)) $((c + 7)) 45) == "·" ]]; }
-cmdline_open() { [[ $(e2e_text 1 160 45) == *" COMMAND " ]]; }
+palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }   # F0.13: : opens the command palette
 numbers_shown() { [[ $(e2e_text 16 16 23) == 0 ]]; }
 
 # ---- 点击获得焦点；双击标题缩放 / 还原
@@ -115,10 +115,12 @@ check "SPC q 时点击侧栏：跳到 ⟨0⟩" eval 'focus_is 0 && ! numbers_sho
 L q; e2e_click 80 45; sleep 0.3
 check "SPC q 时点击状态栏：只关闭编号" eval 'focus_is 0 && ! numbers_shown'
 e2e_type ':'; sleep 0.3
-check "之后的按键不被吞：: 打开命令行" cmdline_open
+check "之后的按键不被吞：: 打开命令面板" palette_open
 e2e_keys Escape; sleep 0.2
-L q; e2e_click 33 20; sleep 0.3; e2e_type ':'; sleep 0.3
-check "SPC q 时点击间隔：只关闭编号，随后 : 照常生效" eval 'focus_is 0 && cmdline_open'
+L q; e2e_click 33 20; sleep 0.3
+check "SPC q 时点击间隔：只关闭编号" eval 'focus_is 0 && ! numbers_shown'
+e2e_type ':'; sleep 0.3
+check "随后 : 照常生效（打开命令面板）" palette_open
 e2e_keys Escape; sleep 0.2
 
 e2e_done
