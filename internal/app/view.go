@@ -248,9 +248,9 @@ func (a *App) kindIcon(k PaneKind) ui.Icon {
 	return [...]ui.Icon{ic.Schema, ic.Data, ic.Console}[k]
 }
 
-// icon is " <icon>" and then tail as status bar runs, the icon in its own
+// iconRuns is " <icon>" and then tail as status bar runs, the icon in its own
 // color if it has one (§7.7).
-func icon(i ui.Icon, st uv.Style, tail string) []ui.Run {
+func iconRuns(i ui.Icon, st uv.Style, tail string) []ui.Run {
 	return []ui.Run{{Text: " ", Style: st}, {Text: i.Text, Style: i.On(st)}, {Text: tail, Style: st}}
 }
 
@@ -279,7 +279,7 @@ func (a *App) statusLine() ui.StatusLine {
 	} else {
 		sess := uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
 		// ponytail: postgres only; pick the icon by a.sess.Engine when MySQL lands (M5).
-		s.Left = []ui.Segment{{Runs: append(icon(ic.Postgres, sess, " "),
+		s.Left = []ui.Segment{{Runs: append(iconRuns(ic.Postgres, sess, " "),
 			ui.Run{Text: a.sess.Name, Style: sess, Shrink: true},
 			ui.Run{Text: " ▾ ", Style: sess},
 		)}}
@@ -301,10 +301,10 @@ func (a *App) statusLine() ui.StatusLine {
 	modeColor := [...]color.Color{keymap.Normal: th.Focus, keymap.Visual: th.Keyword, keymap.Insert: th.Warn, keymap.Command: th.Info}[mode]
 	conn := uv.Style{Fg: th.Info, Bg: th.Sep}
 	s.Right = []ui.Segment{
-		{Runs: icon(ic.Search, bar(th.Info), strings.TrimRight(" "+a.keys.Hint("palette.open", "global"), " ")+" "), Action: "palette.open"},
-		{Runs: append(icon(ic.Keys, bar(th.FgMuted), " "), pending, ui.Run{Text: " ", Style: bar(th.FgMuted)})},
+		{Runs: iconRuns(ic.Search, bar(th.Info), strings.TrimRight(" "+a.keys.Hint("palette.open", "global"), " ")+" "), Action: "palette.open"},
+		{Runs: append(iconRuns(ic.Keys, bar(th.FgMuted), " "), pending, ui.Run{Text: " ", Style: bar(th.FgMuted)})},
 		{Runs: []ui.Run{{Text: " 1,1 ", Style: bar(th.FgMuted)}}, Drop: dropCursor}, // ponytail: M0 has no cursor yet
-		{Runs: icon(ic.Conn, conn, " "+a.sess.Addr+" "), Drop: dropConn},
+		{Runs: iconRuns(ic.Conn, conn, " "+a.sess.Addr+" "), Drop: dropConn},
 		{Runs: []ui.Run{{Text: " " + strings.ToUpper(mode.String()) + " ", Style: uv.Style{Fg: th.Bg, Bg: modeColor, Attrs: uv.AttrBold}}}},
 	}
 	return s

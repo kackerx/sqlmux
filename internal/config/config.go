@@ -15,9 +15,10 @@ import (
 )
 
 type Config struct {
-	Theme      *ui.Theme // `theme = "<name>"` (§7.3)
+	Theme      *ui.Theme // `theme = "<name>"` (§7.3), resolved by Load
 	Icons      *ui.Icons // `icons = "nerd" | "ascii"`, with the theme file's [icon] on top (§7.7)
 	Timeoutlen int       // ms to wait on an ambiguous key sequence
+	theme      string    // the name Parse read; Load finds the theme, as it touches the disk
 
 	// Leader and Bindings are the raw [keys] and [map.*] entries; the keymap
 	// package gives them meaning.
@@ -57,15 +58,20 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 	c, err := Parse(string(data))
+	if err == nil && c.theme != "" {
+		if c.Theme, c.Icons, err = loadTheme(c.theme, c.Icons); err != nil {
+			err = fmt.Errorf("theme = %q: %w", c.theme, err)
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return c, nil
 }
 
-// Parse reads config TOML over the defaults, and the theme file it names.
-// Binding order follows the file, so "first binding" questions have a stable
-// answer.
+// Parse reads config TOML over the defaults. It reads no other file: Load
+// finds the theme it names. Binding order follows the file, so "first
+// binding" questions have a stable answer.
 func Parse(data string) (*Config, error) {
 	c := Default()
 	raw := struct {
@@ -86,9 +92,7 @@ func Parse(data string) (*Config, error) {
 		c.Icons = ui.IconSet(*raw.Icons)
 	}
 	if raw.Theme != nil {
-		if c.Theme, c.Icons, err = loadTheme(*raw.Theme, c.Icons); err != nil {
-			return nil, fmt.Errorf("theme = %q：%w", *raw.Theme, err)
-		}
+		c.theme = *raw.Theme
 	}
 	if raw.Timeoutlen != nil {
 		if *raw.Timeoutlen <= 0 {
@@ -133,7 +137,7 @@ func loadTheme(name string, icons *ui.Icons) (*ui.Theme, *ui.Icons, error) {
 	}
 	th, icons, err := ui.ParseTheme(string(data), icons)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%s：%w", path, err)
+		return nil, nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return th, icons, nil
 }

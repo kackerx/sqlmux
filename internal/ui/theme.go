@@ -67,7 +67,7 @@ func ParseTheme(data string, icons *Icons) (*Theme, *Icons, error) {
 				Fg   *string `toml:"fg"`
 			}
 			if err := md.PrimitiveDecode(raw[key], &specs); err != nil {
-				return nil, nil, fmt.Errorf("[icon]：%w", err)
+				return nil, nil, fmt.Errorf("[icon]: %w", err)
 			}
 			for _, name := range slices.Sorted(maps.Keys(specs)) {
 				icon, ok := glyphs[name]
