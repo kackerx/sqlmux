@@ -85,3 +85,83 @@ func (n *Node) remove(id int) (root *Node, heir *Pane) {
 	}
 	return &Node{Split: n.Split, Ratio: n.Ratio, A: a, B: b}, hb
 }
+
+// split returns the tree with pane id's leaf divided along d: the old pane
+// keeps the left / top half, p takes the other.
+func (n *Node) split(id int, d Dir, p *Pane) *Node {
+	if n.Split == Leaf {
+		if n.Pane.ID == id {
+			return &Node{Split: d, Ratio: 0.5, A: n, B: leaf(p)}
+		}
+		return n
+	}
+	return &Node{Split: n.Split, Ratio: n.Ratio, A: n.A.split(id, d, p), B: n.B.split(id, d, p)}
+}
+
+// Ratio bounds keep a resized pane from vanishing.
+const minRatio, maxRatio = 0.1, 0.9
+
+// resize moves the border of the nearest split along d around pane id by
+// delta: negative moves it left / up, as tmux's resize-pane -L / -U.
+func (n *Node) resize(id int, d Dir, delta float64) *Node {
+	out, _ := n.resized(id, d, delta)
+	return out
+}
+
+func (n *Node) resized(id int, d Dir, delta float64) (*Node, bool) {
+	if n.Split == Leaf {
+		return n, false
+	}
+	a, doneA := n.A.resized(id, d, delta)
+	b, doneB := n.B.resized(id, d, delta)
+	out := &Node{Split: n.Split, Ratio: n.Ratio, A: a, B: b}
+	if doneA || doneB {
+		return out, true
+	}
+	if n.Split == d && n.has(id) {
+		out.Ratio = min(max(n.Ratio+delta, minRatio), maxRatio)
+		return out, true
+	}
+	return out, false
+}
+
+func (n *Node) has(id int) bool {
+	for _, p := range n.Leaves() {
+		if p.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// neighbor finds the pane next to from on side (left / down / up / right),
+// like tmux: the nearest one on that side that overlaps it along the other
+// axis, the longest overlap winning a tie.
+func neighbor(rects map[int]uv.Rectangle, from int, side string) (int, bool) {
+	f := rects[from]
+	best, bestDist, bestOver := 0, 0, 0
+	found := false
+	for id, r := range rects {
+		var dist, over int
+		switch side {
+		case "left":
+			dist, over = f.Min.X-r.Max.X, overlap(f.Min.Y, f.Max.Y, r.Min.Y, r.Max.Y)
+		case "right":
+			dist, over = r.Min.X-f.Max.X, overlap(f.Min.Y, f.Max.Y, r.Min.Y, r.Max.Y)
+		case "up":
+			dist, over = f.Min.Y-r.Max.Y, overlap(f.Min.X, f.Max.X, r.Min.X, r.Max.X)
+		case "down":
+			dist, over = r.Min.Y-f.Max.Y, overlap(f.Min.X, f.Max.X, r.Min.X, r.Max.X)
+		}
+		if id == from || dist < 0 || over <= 0 {
+			continue
+		}
+		better := !found || dist < bestDist || dist == bestDist && (over > bestOver || over == bestOver && id < best)
+		if better {
+			best, bestDist, bestOver, found = id, dist, over, true
+		}
+	}
+	return best, found
+}
+
+func overlap(a0, a1, b0, b1 int) int { return min(a1, b1) - max(a0, b0) }

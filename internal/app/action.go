@@ -24,8 +24,9 @@ type Action struct {
 	Run   func(*App, Args) tea.Cmd
 }
 
-// quitWindow is how soon a second C-c must follow the first to quit (§6.8).
-const quitWindow = 2 * time.Second
+// quitWindow is how long the "press C-c again" toast stays; a second press
+// quits only while it is up (§6.8).
+var quitWindow = 2 * time.Second
 
 // actions is the registry, keyed by action ID. Bound IDs that are not here
 // yet belong to later features and do nothing. It is filled in init because
@@ -43,30 +44,41 @@ func init() {
 			if a.mode() != keymap.Normal { // in any input C-c is esc, as in vim (§6.8)
 				return a.dispatch([]keymap.Result{{Keys: []keymap.Key{keymap.Esc}}})
 			}
-			now := time.Now()
-			if now.Sub(a.quitArmed) <= quitWindow {
+			if a.toast != "" && a.toastSeq == a.quitToast { // the first press's toast is still up
 				return tea.Quit
 			}
-			a.quitArmed = now
-			return a.showToast(fmt.Sprintf("再按一次 %s 退出", a.keys.Hint("cancel", "global")))
+			cmd := a.showToastFor(fmt.Sprintf("再按一次 %s 退出", a.keys.Hint("cancel", "global")), quitWindow)
+			a.quitToast = a.toastSeq
+			return cmd
 		}},
 		"quit":      {"退出", func(*App, Args) tea.Cmd { return tea.Quit }},
 		"tab.close": {"关闭 tab", func(a *App, _ Args) tea.Cmd { a.closeTab(); return nil }},
+
+		"pane.split.right": {"左右分割", do(func(a *App, _ Args) { a.splitPane(Horiz) })},
+		"pane.split.below": {"上下分割", do(func(a *App, _ Args) { a.splitPane(Vert) })},
+		"pane.close":       {"关闭 pane", do(func(a *App, _ Args) { a.closePane() })},
+		"pane.zoom":        {"缩放 / 还原", do(func(a *App, _ Args) { a.toggleZoom() })},
+		"pane.number":      {"按编号跳转", do(func(a *App, _ Args) { a.paneNumbers = true })},
+		"tree.toggle":      {"折叠 / 展开 schema 树", do(func(a *App, _ Args) { a.toggleTree() })},
+
+		"pane.focus.left":  {"焦点移到左边", do(func(a *App, _ Args) { a.focusSide("left") })},
+		"pane.focus.down":  {"焦点移到下边", do(func(a *App, _ Args) { a.focusSide("down") })},
+		"pane.focus.up":    {"焦点移到上边", do(func(a *App, _ Args) { a.focusSide("up") })},
+		"pane.focus.right": {"焦点移到右边", do(func(a *App, _ Args) { a.focusSide("right") })},
+
+		"pane.resize.left":  {"向左调整大小", do(func(a *App, args Args) { a.resizePane(Horiz, -1, args.Count) })},
+		"pane.resize.down":  {"向下调整大小", do(func(a *App, args Args) { a.resizePane(Vert, 1, args.Count) })},
+		"pane.resize.up":    {"向上调整大小", do(func(a *App, args Args) { a.resizePane(Vert, -1, args.Count) })},
+		"pane.resize.right": {"向右调整大小", do(func(a *App, args Args) { a.resizePane(Horiz, 1, args.Count) })},
 	}
 	// Bound by default.toml but built by later features: titled already, so
 	// which-key can name them; running them does nothing yet.
 	for id, title := range map[string]string{
 		"palette.open": "命令面板", "save": "保存",
-		"pane.focus.left": "焦点移到左边", "pane.focus.down": "焦点移到下边",
-		"pane.focus.up": "焦点移到上边", "pane.focus.right": "焦点移到右边",
 		"session.list": "session 列表", "session.new": "新建连接",
 		"window.select": "切换 window", "window.new": "新建 window",
 		"window.rename": "重命名 window", "window.close": "关闭 window",
-		"pane.split.right": "左右分割", "pane.split.below": "上下分割",
-		"pane.zoom": "缩放 / 还原", "pane.close": "关闭 pane", "pane.number": "按编号跳转",
-		"pane.resize.left": "向左调整大小", "pane.resize.down": "向下调整大小",
-		"pane.resize.up": "向上调整大小", "pane.resize.right": "向右调整大小",
-		"tree.toggle": "折叠 / 展开 schema 树", "tab.next": "下一个 tab", "tab.prev": "上一个 tab",
+		"tab.next": "下一个 tab", "tab.prev": "上一个 tab",
 		"grid.left": "左移", "grid.down": "下移", "grid.up": "上移", "grid.right": "右移",
 		"grid.top": "第一行", "grid.bottom": "最后一行", "grid.first": "第一列", "grid.last": "最后一列",
 		"grid.edit": "编辑单元格", "grid.refresh": "刷新", "grid.transpose": "转置",
@@ -83,6 +95,11 @@ func init() {
 	} {
 		actions[id] = Action{Title: title}
 	}
+}
+
+// do adapts an action that only changes state.
+func do(f func(*App, Args)) func(*App, Args) tea.Cmd {
+	return func(a *App, args Args) tea.Cmd { f(a, args); return nil }
 }
 
 // title names "id [arg]" for which-key and the palette: "切换 window 3".

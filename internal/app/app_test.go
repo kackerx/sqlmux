@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"slices"
@@ -9,13 +11,14 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/keymap"
 )
 
 func TestMain(m *testing.M) {
-	toastTTL, whichKeyDelay = time.Millisecond, time.Millisecond
+	toastTTL, whichKeyDelay, quitWindow = time.Millisecond, time.Millisecond, time.Millisecond
 	os.Exit(m.Run())
 }
 
@@ -118,13 +121,16 @@ func TestDoubleCtrlCQuits(t *testing.T) {
 	}
 
 	a = sized(160, 45, "nerd")
-	feed(t, a, "<C-c>")
-	a.quitArmed = a.quitArmed.Add(-quitWindow - time.Millisecond)
-	if feed(t, a, "<C-c>") {
-		t.Fatal("C-c after more than 2s quit")
+	_, cmd := a.Update(teaKey("<C-c>"))
+	a.Update(cmd()) // quitWindow passes: the toast goes
+	if a.toast != "" {
+		t.Fatal("the quit toast should last quitWindow")
+	}
+	if feed(t, a, "<C-c>") || a.toast == "" {
+		t.Fatal("C-c after the toast is gone must count as a new first press")
 	}
 	if !feed(t, a, "<C-c>") {
-		t.Fatal("the late C-c should count as a new first press")
+		t.Fatal("…and the next one quits")
 	}
 }
 
@@ -349,5 +355,166 @@ func TestEveryDefaultActionHasATitle(t *testing.T) {
 		if actions[id].Title == "" {
 			t.Errorf("%s has no title", id)
 		}
+	}
+}
+
+func titles(a *App) []string {
+	var out []string
+	for i, p := range a.win().Root.Leaves() {
+		out = append(out, fmt.Sprintf("⟨%d⟩%s", i+1, p.Kind))
+	}
+	return out
+}
+
+func TestSplitAndClosePanes(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, `<Space>"`) // split ⟨1⟩ data below
+	if got := strings.Join(titles(a), " "); got != "⟨1⟩data ⟨2⟩data ⟨3⟩console" {
+		t.Fatalf("after SPC \": %s", got)
+	}
+	if p := a.focused(); len(p.Tabs) != 0 || a.win().Focus != 3 {
+		t.Fatalf("the new, empty pane should have focus: %+v", p)
+	}
+	rects := a.layout()
+	if top, bot := rects[1], rects[3]; top.Max.Y != bot.Min.Y || top.Dx() != bot.Dx() {
+		t.Errorf("stacked halves: %v %v", top, bot)
+	}
+	feed(t, a, "<Space>%") // and the new one right
+	if got := strings.Join(titles(a), " "); got != "⟨1⟩data ⟨2⟩data ⟨3⟩data ⟨4⟩console" {
+		t.Fatalf("after SPC %%: %s", got)
+	}
+
+	feed(t, a, "<Space>x") // close the focused (newest) pane
+	after := a.layout()
+	if len(a.win().Root.Leaves()) != 3 || after[3] != rects[3] {
+		t.Errorf("closing should give its sibling the whole space back: %v vs %v", after[3], rects[3])
+	}
+	feed(t, a, "<Space>x<Space>x<Space>x") // down to one pane, which stays
+	if n := len(a.win().Root.Leaves()); n != 1 {
+		t.Errorf("the last pane must stay, have %d", n)
+	}
+}
+
+func TestFocusFollowsGeometry(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, `<Space>"`) // 1 over 3, console 2 on the right
+	for _, c := range []struct {
+		keys string
+		want int
+	}{
+		{"<C-k>", 1},
+		{"<C-l>", 2},
+		{"<C-h>", 1}, // the closest on the left; ties go to the larger overlap
+		{"<C-h>", 0}, // the sidebar
+		{"<Space>l", 1},
+		{"<C-j>", 3},
+		{"<C-j>", 3}, // nothing below: stays
+	} {
+		feed(t, a, c.keys)
+		if a.win().Focus != c.want {
+			t.Fatalf("%s: focus %d, want %d", c.keys, a.win().Focus, c.want)
+		}
+	}
+}
+
+func TestZoom(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	before := a.layout()
+	feed(t, a, "<Space>z")
+	if r := a.layout(); len(r) != 1 || r[1] != uv.Rect(0, 0, 160, 44) {
+		t.Fatalf("zoomed layout: %v", r)
+	}
+	if strings.Contains(a.render().String(), "console") {
+		t.Error("other panes must not be drawn while zoomed")
+	}
+	feed(t, a, "<Space>z")
+	if !reflect.DeepEqual(a.layout(), before) {
+		t.Error("SPC z again should restore the layout")
+	}
+}
+
+func TestResizeKeys(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	r0 := a.win().Root.Ratio
+	feed(t, a, "<Space>L")
+	if got := a.win().Root.Ratio; math.Abs(got-r0-resizeStep) > 1e-9 {
+		t.Fatalf("SPC L: ratio %v, want %v", got, r0+resizeStep)
+	}
+	feed(t, a, "3<Space>H") // the count scales the step
+	if got := a.win().Root.Ratio; math.Abs(got-r0+2*resizeStep) > 1e-9 {
+		t.Fatalf("3 SPC H: ratio %v", got)
+	}
+	if a.layout()[1].Dx() >= sized(160, 45, "nerd").layout()[1].Dx() {
+		t.Error("the data pane should have narrowed")
+	}
+}
+
+func TestPaneNumbers(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<Space>q")
+	if !a.paneNumbers || !strings.Contains(a.render().String(), " 2 ") {
+		t.Fatal("SPC q should show the numbers")
+	}
+	feed(t, a, "2")
+	if a.paneNumbers || a.win().Focus != 2 {
+		t.Fatalf("2 should jump to ⟨2⟩: focus %d", a.win().Focus)
+	}
+	feed(t, a, "<Space>q0")
+	if a.win().Focus != 0 {
+		t.Fatal("0 is the sidebar")
+	}
+	feed(t, a, "<Space>qj")
+	if a.paneNumbers || a.win().Focus != 0 {
+		t.Fatal("a non-digit just closes the numbers")
+	}
+	feed(t, a, "<Space>q9")
+	if a.win().Focus != 0 {
+		t.Fatal("no ⟨9⟩: nothing moves")
+	}
+}
+
+func TestFoldSidebar(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	a.win().Focus = 0
+	feed(t, a, "<Space>b")
+	if r := a.layout()[0]; r.Dx() != 3 || a.win().Focus == 0 {
+		t.Fatalf("folded: bar %v, focus %d", r, a.win().Focus)
+	}
+	col := func(y int) string { return string([]rune(strings.Split(a.render().String(), "\n")[y])[1]) }
+	var down string
+	for y := 1; y <= 15; y++ {
+		down += col(y)
+	}
+	if down != "»schema · SPC b" {
+		t.Errorf("thin bar reads %q", down)
+	}
+	feed(t, a, "<C-h><C-h>")
+	if a.win().Focus == 0 {
+		t.Error("a folded sidebar takes no focus")
+	}
+	feed(t, a, "<Space>b")
+	if r := a.layout()[0]; r.Dx() != 32 {
+		t.Errorf("unfolded width %d", r.Dx())
+	}
+}
+
+// Closing a zoomed pane (here with :q) ends the zoom: the zoom must never
+// point at a pane that is gone.
+func TestCloseZoomedPane(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<Space>z:q<CR>:q<CR>")
+	if a.win().Zoom != 0 || len(a.layout()) != 2 || !strings.Contains(a.render().String(), "console") {
+		t.Fatalf("zoom %d, layout %v", a.win().Zoom, a.layout())
+	}
+}
+
+// Split IDs are never handed out twice, even after the highest is closed.
+func TestSplitIDsStayUnique(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<Space>%")
+	first := a.win().Focus
+	feed(t, a, "<Space>x<Space>%")
+	if a.win().Focus == first {
+		t.Fatalf("pane ID %d reused", first)
 	}
 }

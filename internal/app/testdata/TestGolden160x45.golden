@@ -42,4 +42,4 @@
 │──────────────────────────────│ │ 727   report     failed     2026-09-21 10:38                       │ │                                                      │
 │ j/k move  ↵ open  t tab      │ │ 1:t_order* │ 2:t_user- │ +          hjkl · ↵ edit · T 转置 · gt/gT │ │ 1:console_1* │ +                   gq format · gt/gT │
 └──────────────────────────────┘ └────────────────────────────────────────────────────────────────────┘ └──────────────────────────────────────────────────────┘
-  doraemon ▾  0: data*  1: report                                                                                  C-p   ·  1,1   pg@localhost:5432  NORMAL 
+  doraemon ▾  0: data*  1: report                                                                                C-p   ·    1,1   pg@localhost:5432  NORMAL 

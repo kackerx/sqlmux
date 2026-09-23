@@ -23,10 +23,12 @@ type App struct {
 
 	cmdline  *string // non-nil while the : command line is open (COMMAND mode)
 	whichKey bool    // the which-key overlay is up (§6.5)
+	// paneNumbers is SPC q's overlay: the next key picks a pane by its ⟨n⟩.
+	paneNumbers bool
 
 	toast     string
 	toastSeq  int
-	quitArmed time.Time // first C-c of a quitting pair
+	quitToast int // toastSeq of the "press C-c again" toast
 }
 
 type (
@@ -56,6 +58,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.toast = ""
 		}
 	case tea.KeyPressMsg:
+		if a.paneNumbers {
+			a.jumpToPane(keymap.FromTea(msg.Key()))
+			return a, nil
+		}
 		out, wait := a.res.Feed(a.context(), keymap.FromTea(msg.Key()))
 		cmd := a.dispatch(out)
 		seq := a.res.Seq()
@@ -149,11 +155,13 @@ func (a *App) cmdlineKey(k keymap.Key) tea.Cmd {
 	return nil
 }
 
-func (a *App) showToast(s string) tea.Cmd {
+func (a *App) showToast(s string) tea.Cmd { return a.showToastFor(s, toastTTL) }
+
+func (a *App) showToastFor(s string, ttl time.Duration) tea.Cmd {
 	a.toast = s
 	a.toastSeq++
 	seq := a.toastSeq
-	return tea.Tick(toastTTL, func(time.Time) tea.Msg { return toastExpired{seq} })
+	return tea.Tick(ttl, func(time.Time) tea.Msg { return toastExpired{seq} })
 }
 
 func (a *App) View() tea.View {

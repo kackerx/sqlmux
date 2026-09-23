@@ -153,8 +153,8 @@ func TestEmptyPane(t *testing.T) {
 	f, r := a.render(), a.layout()[p.ID]
 	lines := strings.Split(f.String(), "\n")
 	cells := func(y int) string { return strings.TrimSpace(string([]rune(lines[y])[r.Min.X+1 : r.Max.X-1])) }
-	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ⟨1⟩ "+ui.NerdIcons.Console+" console ─") {
-		t.Errorf("title: %q", top)
+	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ⟨1⟩ "+ui.NerdIcons.Console+" console ─") || strings.Contains(top, "run") || strings.Contains(top, "▾") {
+		t.Errorf("title, with no hints: %q", top)
 	}
 	for y := r.Min.Y + 1; y < r.Max.Y-2; y++ {
 		if got := cells(y); got != "" {
@@ -215,6 +215,23 @@ func TestStatusPendingKeys(t *testing.T) {
 	}
 }
 
+// The pending-keys block is at least 3 columns: typing SPC, g or a count
+// leaves the C-p entry where it was (§7.8).
+func TestStatusPendingKeepsPlace(t *testing.T) {
+	cp := func(a *App) int {
+		row := statusRow(a)
+		return ui.Width(row[:strings.Index(row, ui.NerdIcons.Search)])
+	}
+	idle := cp(sized(160, 45, "nerd"))
+	for _, in := range []string{"<Space>", "g", "5", "12"} {
+		a := sized(160, 45, "nerd")
+		feed(t, a, in)
+		if got := cp(a); got != idle {
+			t.Errorf("%s: C-p at %d, idle at %d", in, got, idle)
+		}
+	}
+}
+
 // The command line gets at least half the bar; the matching commands go
 // first, then the connection, as the bar or the input grows tight (§7.8).
 func TestStatusCommandLine(t *testing.T) {
@@ -240,9 +257,9 @@ func TestStatusCommandLine(t *testing.T) {
 	if !strings.Contains(row, " 1,1 ") {
 		t.Errorf("the cursor goes only once the input is long: %q", row)
 	}
-	feed(t, a, strings.Repeat("x", 55))
+	feed(t, a, strings.Repeat("x", 53))
 	row = statusRow(a)
-	if strings.Contains(row, " 1,1 ") || !strings.Contains(row, ":q"+strings.Repeat("x", 55)) || !strings.HasSuffix(row, " COMMAND ") {
+	if strings.Contains(row, " 1,1 ") || !strings.Contains(row, ":q"+strings.Repeat("x", 53)) || !strings.HasSuffix(row, " COMMAND ") {
 		t.Errorf("a long input pushes the cursor out: %q", row)
 	}
 }
