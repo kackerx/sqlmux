@@ -280,7 +280,7 @@ L = "5l"
 // modified Enter, no Ctrl+digit, and no C-i/C-m/C-[ (they are Tab/CR/Esc).
 func TestDefaultsArePortable(t *testing.T) {
 	ctrl := regexp.MustCompile(`^<C-([a-z])>$`)
-	named := regexp.MustCompile(`^<(S-Tab|Space|CR|Esc|Tab|BS|Del|Up|Down|Left|Right|Home|End|PageUp|PageDown|F[0-9]+|lt|Leader)>$`)
+	named := regexp.MustCompile(`^<(S-Tab|Space|CR|Esc|Tab|BS|Up|Down|Left|Right|lt|Leader)>$`)
 	m := mustLoad(t, "")
 	for table, bs := range m.tables {
 		for _, b := range bs {
@@ -297,5 +297,40 @@ func TestDefaultsArePortable(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// The UI shows "SPC s", so users write "<Space>s": that must rebind and
+// unbind the default "<Leader>s" like any other key.
+func TestLeaderSpelledOut(t *testing.T) {
+	m := mustLoad(t, "[keys.normal]\n\"<Space>s\" = \"foo\"\n\"<Space>b\" = \"\"")
+	for in, want := range map[string][]string{"<Space>s": {"foo"}, "<Space>b": {"keys <Space>b"}} {
+		if got, _ := press(t, NewResolver(m), grid, in); !reflect.DeepEqual(actions(got), want) {
+			t.Errorf("%s: got %v, want %v", in, actions(got), want)
+		}
+	}
+	if h := m.Hint("session.list", "normal"); h != "" {
+		t.Errorf("rebound session.list still hints %q", h)
+	}
+	again := mustLoad(t, m.TOML())
+	if !reflect.DeepEqual(again.tables, m.tables) {
+		t.Errorf("round trip lost the rebinding:\n%s", m.TOML())
+	}
+	if _, ps := load(t, "[keys.normal]\n\"<Leader>s\" = \"a\"\n\"<Space>s\" = \"b\""); len(ps) != 1 {
+		t.Errorf("<Leader>s and <Space>s are the same key: %v", ps)
+	}
+}
+
+func TestLiteralSpaceLeader(t *testing.T) {
+	m := mustLoad(t, "[keys]\nleader = \" \"")
+	if got, _ := press(t, NewResolver(m), grid, "<Space>s"); !reflect.DeepEqual(actions(got), []string{"session.list"}) {
+		t.Errorf("got %v", actions(got))
+	}
+}
+
+func TestMappingExpandsLeader(t *testing.T) {
+	m := mustLoad(t, "[map.normal]\nx = \"<Leader>s\"")
+	if got, _ := press(t, NewResolver(m), grid, "x"); !reflect.DeepEqual(actions(got), []string{"session.list"}) {
+		t.Errorf("got %v", actions(got))
 	}
 }

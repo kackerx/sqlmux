@@ -17,14 +17,11 @@ func sidebarWidth(w int) int {
 	return 32
 }
 
-// hint is the key text for action in scope; "" when unbound (§6.7).
-func (a *App) hint(scope, action string) string { return a.keys.Hint(action, scope) }
-
 // hints joins several actions' keys, e.g. "hjkl" or "gt/gT"; "" if any is unbound.
 func (a *App) hints(scope, sep string, actions ...string) string {
 	ks := make([]string, len(actions))
 	for i, act := range actions {
-		if ks[i] = a.hint(scope, act); ks[i] == "" {
+		if ks[i] = a.keys.Hint(act, scope); ks[i] == "" {
 			return ""
 		}
 	}
@@ -83,16 +80,16 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		b.Hints = append([]ui.Hint{
 			{Label: "doraemon.public ▾", Action: "console.schema", Color: th.PK, Prio: 1},
 			{Label: "▶ run", Action: "console.run", Button: true},
-		}, bound(ui.Hint{Key: a.hint("console", "console.run"), Action: "console.run", Prio: 2, Attached: true})...)
+		}, bound(ui.Hint{Key: a.keys.Hint("console.run", "console"), Action: "console.run", Prio: 2, Attached: true})...)
 		tabHints = bound(
-			ui.Hint{Key: a.hint("console", "console.format"), Label: "format", Action: "console.format"},
+			ui.Hint{Key: a.keys.Hint("console.format", "console"), Label: "format", Action: "console.format"},
 			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},
 		)
 	case KindData:
 		tabHints = bound(
 			ui.Hint{Key: a.hints("grid", "", "grid.left", "grid.down", "grid.up", "grid.right")},
-			ui.Hint{Key: a.hint("grid", "grid.edit"), Label: "edit", Action: "grid.edit"},
-			ui.Hint{Key: a.hint("grid", "grid.transpose"), Label: "转置", Action: "grid.transpose"},
+			ui.Hint{Key: a.keys.Hint("grid.edit", "grid"), Label: "edit", Action: "grid.edit"},
+			ui.Hint{Key: a.keys.Hint("grid.transpose", "grid"), Label: "转置", Action: "grid.transpose"},
 			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},
 		)
 	}
@@ -118,7 +115,7 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	p := a.win.Tree
 	b := ui.Block{
 		Title:   a.icons.Schema + " schema",
-		Hints:   bound(ui.Hint{Key: a.hint("normal", "tree.toggle"), Action: "tree.toggle"}),
+		Hints:   bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
 		Focused: a.win.Focus == p.ID,
 		Pane:    p.ID,
 	}
@@ -154,8 +151,8 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 		hx := in.Min.X + 1
 		for _, h := range []struct{ key, label string }{
 			{a.hints("tree", "/", "tree.down", "tree.up"), "move"},
-			{a.hint("tree", "tree.open"), "open"},
-			{a.hint("tree", "tree.open.tab"), "tab"},
+			{a.keys.Hint("tree.open", "tree"), "open"},
+			{a.keys.Hint("tree.open.tab", "tree"), "tab"},
 		} {
 			hx = f.Text(hx, in.Max.Y-1, right, h.key, uv.Style{Fg: th.Focus, Bg: th.PaneBg, Attrs: uv.AttrBold})
 			hx = f.Text(hx, in.Max.Y-1, right, " "+h.label+"  ", uv.Style{Fg: th.Dim, Bg: th.PaneBg})

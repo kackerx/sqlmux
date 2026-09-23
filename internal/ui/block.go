@@ -15,7 +15,7 @@ type Hint struct {
 	Button     bool        // Label drawn as a filled button, e.g. "▶ run" (§7.8); Key unused
 	Color      color.Color // Label color when not a button; default dim
 	Prio       int         // title hints: lower is placed first when space runs out
-	Attached   bool        // key text of the hint before it: shown only with it (§7.8)
+	Attached   bool        // key text of the hint before it: shown only with it (§7.8); needs a higher Prio than that hint
 }
 
 // titleText is how a hint reads on a border: "Label Key".
