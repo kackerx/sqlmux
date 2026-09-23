@@ -5,35 +5,35 @@ import (
 	"testing"
 )
 
-// §7.8's three fallback steps, each triggered by a narrower room.
+// §7.8: head first, hints greedily by priority, then the object name.
 func TestBlockFit(t *testing.T) {
 	b := Block{N: 2, Title: "> console", Object: "console_1", Hints: []Hint{
 		{Label: "doraemon.public ▾", Prio: 1},
 		{Label: "▶ run", Button: true},
 		{Key: "↵", Prio: 2},
 	}}
-	// full title 25, head 13; hints " doraemon.public ▾" 18, "  ▶ run " 8, " ↵" 2 → 28, +1 gap
+	run, drop, enter := b.Hints[1], b.Hints[0], b.Hints[2]
+	// head "⟨2⟩ > console" 13, full 25; hints take 1+w each: dropdown 18, " ▶ run " 8, ↵ 2.
 	for _, c := range []struct {
-		room      int
-		title     string
-		hintCount int
+		room  int
+		title string
+		hints []Hint
 	}{
-		{54, "⟨2⟩ > console · console_1", 3}, // everything fits
-		{50, "⟨2⟩ > console · cons…", 3},     // step 1: cut the object…
-		{42, "⟨2⟩ > console", 3},             // …down to the head
-		{41, "⟨2⟩ > console", 2},             // step 2: drop ↵ first (lowest priority)
-		{39, "⟨2⟩ > console · console_1", 1}, // then the dropdown; the object gets its room back
-		{22, "⟨2⟩ > console", 1},             // ▶ run is kept longest
-		{21, "⟨2⟩ > console · cons…", 0},     // …then dropped too
-		{12, "⟨2⟩", 0},                       // step 3: only ⟨n⟩
-		{2, "⟨…", 0},
+		{54, "⟨2⟩ > console · console_1", []Hint{drop, run, enter}}, // everything fits
+		{50, "⟨2⟩ > console · cons…", []Hint{drop, run, enter}},     // hints first, the object is cut
+		{42, "⟨2⟩ > console", []Hint{drop, run, enter}},             // …down to the head
+		{41, "⟨2⟩ > console", []Hint{drop, run}},                    // ↵ is the lowest priority
+		{39, "⟨2⟩ > console · console_1", []Hint{run, enter}},       // the dropdown doesn't fit: skipped, ↵ still tried
+		{24, "⟨2⟩ > console", []Hint{run, enter}},
+		{23, "⟨2⟩ > console", []Hint{run}},
+		{21, "⟨2⟩ > console · c…", []Hint{enter}}, // ▶ run no longer fits, ↵ alone does
+		{15, "⟨2⟩ > console", nil},
+		{12, "⟨2⟩", nil}, // the head doesn't fit: only ⟨n⟩
+		{2, "⟨…", nil},
 	} {
 		title, hints := b.fit(c.room)
-		if title != c.title || len(hints) != c.hintCount {
-			t.Errorf("room %d: %q with %d hints; want %q with %d", c.room, title, len(hints), c.title, c.hintCount)
+		if title != c.title || !reflect.DeepEqual(hints, c.hints) {
+			t.Errorf("room %d: %q %v; want %q %v", c.room, title, hints, c.title, c.hints)
 		}
-	}
-	if _, hints := b.fit(39); !reflect.DeepEqual(hints, b.Hints[1:2]) {
-		t.Errorf("room 39 should keep only ▶ run, got %+v", hints)
 	}
 }
