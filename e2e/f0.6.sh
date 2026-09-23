@@ -31,7 +31,7 @@ import re, sys
 ts = [t.strip() for l in sys.stdin for t in re.findall(r"→ (.+?)(?=\s{2,}\S →|\s*│$)", l)]
 sys.exit(0 if ts and all(re.search(r"[一-鿿]|ORDER|LIMIT|PAGE|COLS", t) for t in ts) else 1)'; }
 
-SPC_KEYS='s 0 1 2 3 4 5 6 7 8 9 c , & % " z x h j k l H J K L q b n'   # §6.8 里以 SPC 开头的默认键，按 default.toml 的顺序
+SPC_KEYS='s c n p l % " z x q b'   # §6.8 里以 SPC 开头的默认键（F0.11 精简后），按 default.toml 的顺序
 
 # ---- 出现：停在纯前缀节点 400ms 后
 start
