@@ -66,6 +66,20 @@ func TestPaletteFindsByID(t *testing.T) {
 	}
 }
 
+// The palette's own keys are not commands in it (§12).
+func TestPaletteListsNoOverlayKeys(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	for _, q := range []string{"关闭", "palette"} {
+		feed(t, a, "<C-p>"+q)
+		for _, r := range rowsOf(a) {
+			if strings.HasPrefix(r, "palette.") && r != "palette.open=C-p" && r != "palette.command=:" {
+				t.Errorf("%s lists %s", q, r)
+			}
+		}
+		feed(t, a, "<Esc>")
+	}
+}
+
 func TestPaletteHighlightsMatches(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>split")

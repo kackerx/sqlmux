@@ -38,12 +38,13 @@ func init() {
 	actions = map[string]Action{
 		"palette.open":    {Title: "命令面板", Run: do(func(a *App, _ Args) { a.openPalette("") })},
 		"palette.command": {Title: "命令面板：命令", Run: do(func(a *App, _ Args) { a.openPalette(">") })}, // : opens it as if > was typed
-		// Keys inside the palette; run from anywhere else (the palette lists
-		// them too, and config may bind them) they do nothing.
-		"palette.up":    {Title: "上一项", Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
-		"palette.down":  {Title: "下一项", Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
-		"palette.run":   {Title: "执行选中项", Run: inPalette(func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel) })},
-		"palette.close": {Title: "关闭命令面板", Run: inPalette(func(a *App) tea.Cmd { a.palette = nil; return nil })},
+		// Keys inside the palette. Like every overlay's own actions they have
+		// no title, so the palette does not list them (§12); bound elsewhere
+		// in config, they do nothing.
+		"palette.up":    {Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
+		"palette.down":  {Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
+		"palette.run":   {Run: inPalette(func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel) })},
+		"palette.close": {Run: inPalette(func(a *App) tea.Cmd { a.palette = nil; return nil })},
 		"cancel": {Title: "取消 / 连按两次退出", Run: func(a *App, _ Args) tea.Cmd {
 			if a.mode() != keymap.Normal { // in any input C-c is esc, as in vim (§6.8)
 				return a.press(keymap.Esc)
@@ -101,7 +102,6 @@ func init() {
 		"tree.down": "下移", "tree.up": "上移", "tree.top": "第一项", "tree.bottom": "最后一项",
 		"tree.open": "打开", "tree.open.tab": "在新 tab 打开", "tree.filter": "过滤", "tree.schema": "切换 schema",
 		"console.run": "执行", "console.format": "格式化", "console.schema": "切换 schema",
-		"palette.open.tab": "在新 tab 打开", "quicksql.copy": "复制为 CSV", "quicksql.edit": "在 console 中打开",
 		"cell.segment.next": "下一段", "cell.segment.prev": "上一段", "cell.up": "加一", "cell.down": "减一",
 		"cell.option.next": "下一个选项", "cell.option.prev": "上一个选项", "cell.accept": "确定", "cell.done": "完成编辑",
 	} {
