@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# F0.1 工程初始化、启动与退出（specs/plan.md F0.1）
+. "$(dirname "$0")/lib.sh"
+e2e_build || exit 1
+
+exited()  { screen_has '[e2e-exit'; }
+running() { flag_is alternate_on 1 && ! exited; }
+no_toast() { ! screen_has '输入 :qa 退出'; }
+same_as() { [[ $(e2e_cap) == "$1" ]] || { diff <(echo "$1") <(e2e_cap); false; }; }
+colored() { e2e_cap -e | grep -qF -- "$1"; }
+
+e2e_start "$E2E_BIN"
+check "进入全屏" wait_for 5 flag_is alternate_on 1
+check "开启 all-motion 鼠标 + SGR" eval 'flag_is mouse_all_flag 1 && flag_is mouse_sgr_flag 1'
+check "开启 bracketed paste" flag_is bracket_paste_flag 1
+check "背景 bg #1f2335" colored '48;2;31;35;53m'
+sleep 0.5; big=$(e2e_cap)
+
+e2e_resize 100 30; sleep 0.5; small=$(e2e_cap)
+check "100x30 不退出、不 panic" eval 'running && ! screen_has panic'
+e2e_resize 160 45; sleep 0.5
+check "调回 160x45 无残影（与调整前一致）" same_as "$big"
+
+e2e_keys C-c
+check "C-c 弹出 toast「输入 :qa 退出」" wait_for 2 screen_has '输入 :qa 退出'
+check "toast 为 warn 色 #e0af68" colored '38;2;224;175;104m输入 :qa 退出'
+check "C-c 后程序仍在运行" running
+check "toast 约 3 秒后消失" wait_for 5 no_toast
+
+e2e_type ':qa'; e2e_keys Enter
+check ":qa 退出，退出码 0" wait_for 3 screen_has '[e2e-exit 0]'
+check "退出后离开 alt screen" flag_is alternate_on 0
+check "退出后光标可见" flag_is cursor_flag 1
+check "退出后关闭鼠标上报（all/sgr/any）" eval 'flag_is mouse_all_flag 0 && flag_is mouse_sgr_flag 0 && flag_is mouse_any_flag 0'
+check "退出后关闭 bracketed paste" flag_is bracket_paste_flag 0
+e2e_type 'echo alive'; e2e_keys Enter
+check "shell 正常可用" wait_for 2 eval 'e2e_cap | grep -qx alive'
+
+e2e_start -x 100 -y 30 "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.5
+check "100x30 无残影（与同尺寸冷启动一致）" same_as "$small"
+
+# 终端支持键盘增强时（tmux extended-keys on）：请求增强、C-c / :qa 照常、退出后复原
+e2e_start "sleep 1; $E2E_BIN"; t set -s extended-keys on; wait_for 5 flag_is alternate_on 1; sleep 0.3
+check "开启键盘增强协议" eval '[[ $(e2e_flag pane_key_mode) != VT10x ]]'
+e2e_keys C-c
+check "增强模式下 C-c 仍弹 toast" wait_for 2 screen_has '输入 :qa 退出'
+e2e_type ':qa'; e2e_keys Enter
+check "增强模式下 :qa 退出" wait_for 3 screen_has '[e2e-exit 0]'
+check "退出后键盘模式复原" flag_is pane_key_mode VT10x
+
+e2e_done
