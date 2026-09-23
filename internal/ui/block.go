@@ -91,35 +91,22 @@ func (b Block) Draw(f *Frame, r uv.Rectangle) uv.Rectangle {
 
 func drawTitleHint(f *Frame, x, y, right int, h Hint, pane int) int {
 	th := f.Theme
-	hover := f.Region(uv.Rect(x, y, Width(h.titleText()), 1), Target{Kind: KindHint, Pane: pane, Action: h.Action})
-	bg := th.PaneBg
-	if hover {
-		bg = th.Select
+	f.Region(uv.Rect(x, y, Width(h.titleText()), 1), Target{Kind: KindHint, Pane: pane, Action: h.Action})
+	dim := uv.Style{Fg: th.Dim, Bg: th.PaneBg}
+	if h.Button {
+		x = f.Text(x, y, right, " "+h.Label+" ", uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold})
+		return f.Text(x, y, right, " "+h.Key, dim)
 	}
-	dim := uv.Style{Fg: th.Dim, Bg: bg}
-	switch {
-	case h.Button:
-		btn := uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
-		if hover {
-			btn.Bg = th.Warn
-		}
-		x = f.Text(x, y, right, " "+h.Label+" ", btn)
-		x = f.Text(x, y, right, " "+h.Key, dim)
-	case h.Label != "" && h.Key == "":
+	if h.Label != "" {
 		lc := dim
 		if h.Color != nil {
 			lc.Fg = h.Color
 		}
 		x = f.Text(x, y, right, h.Label, lc)
-	case h.Label != "":
-		lc := dim
-		if h.Color != nil {
-			lc.Fg = h.Color
+		if h.Key == "" {
+			return x
 		}
-		x = f.Text(x, y, right, h.Label+" ", lc)
-		x = f.Text(x, y, right, h.Key, dim)
-	default:
-		x = f.Text(x, y, right, h.Key, dim)
+		x = f.Text(x, y, right, " ", dim)
 	}
-	return x
+	return f.Text(x, y, right, h.Key, dim)
 }

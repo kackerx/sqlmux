@@ -37,12 +37,8 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		x = f.Text(x, y, r.Max.X, s, st)
 	}
 	x = f.Text(x, y, r.Max.X, "│", uv.Style{Fg: th.Sep, Bg: th.Bg})
-	plus := uv.Rect(x, y, 3, 1)
-	st := base
-	if f.Region(plus, Target{Kind: KindTab, Pane: t.Pane, I: -1}) {
-		st.Bg = th.Select
-	}
-	x = f.Text(x, y, r.Max.X, " + ", st)
+	f.Region(uv.Rect(x, y, 3, 1), Target{Kind: KindTab, Pane: t.Pane, I: -1})
+	x = f.Text(x, y, r.Max.X, " + ", base)
 
 	w := -3 // " · " before the first item is not drawn
 	for _, h := range t.Hints {
@@ -56,11 +52,10 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		if i > 0 {
 			hx = f.Text(hx, y, r.Max.X, " · ", base)
 		}
-		hs := base
-		if h.Action != "" && f.Region(uv.Rect(hx, y, Width(h.tabText()), 1), Target{Kind: KindHint, Pane: t.Pane, Action: h.Action}) {
-			hs.Bg = th.Select
+		if h.Action != "" {
+			f.Region(uv.Rect(hx, y, Width(h.tabText()), 1), Target{Kind: KindHint, Pane: t.Pane, Action: h.Action})
 		}
-		hx = f.Text(hx, y, r.Max.X, h.tabText(), hs)
+		hx = f.Text(hx, y, r.Max.X, h.tabText(), base)
 	}
 }
 

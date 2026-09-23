@@ -4,7 +4,6 @@ package ui
 import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/rivo/uniseg"
 )
 
 // Kind is what a hit region stands for (tech-design §7.4).
@@ -87,10 +86,9 @@ func (f *Frame) Text(x, y, right int, s string, st uv.Style) int {
 		return x
 	}
 	right = min(right, b.Max.X)
-	g := uniseg.NewGraphemes(s)
-	for g.Next() {
-		gr := g.Str()
-		w := ansi.GraphemeWidth.StringWidth(gr)
+	for s != "" {
+		gr, w := ansi.FirstGraphemeCluster(s, ansi.GraphemeWidth)
+		s = s[len(gr):]
 		if w == 0 {
 			continue
 		}

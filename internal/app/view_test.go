@@ -8,12 +8,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/golden"
 
-	"sqlmux/internal/config"
 	"sqlmux/internal/ui"
 )
 
 func sizedWith(w, h int, icons string) *App {
-	a := New(&config.Config{Icons: icons})
+	a := New(icons)
 	a.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return a
 }

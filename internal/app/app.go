@@ -6,7 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"sqlmux/internal/config"
 	"sqlmux/internal/ui"
 )
 
@@ -26,8 +25,9 @@ type App struct {
 
 type toastExpired struct{ seq int }
 
-func New(cfg *config.Config) *App {
-	return &App{theme: ui.TokyonightStorm, icons: ui.IconSet(cfg.Icons), sess: fakeSession()}
+// New builds the app; icons is "nerd" or "ascii" (§7.7).
+func New(icons string) *App {
+	return &App{theme: ui.TokyonightStorm, icons: ui.IconSet(icons), sess: fakeSession()}
 }
 
 func (a *App) Init() tea.Cmd { return nil }
@@ -86,7 +86,7 @@ func (a *App) exec(cmd string) tea.Cmd {
 	switch cmd {
 	case "":
 		return nil
-	case "qa", "qa!", "qall":
+	case "qa":
 		return tea.Quit
 	}
 	return a.showToast("未知命令: " + cmd)
