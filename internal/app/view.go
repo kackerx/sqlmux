@@ -57,6 +57,9 @@ func (a *App) render() *ui.Frame {
 
 	y := a.h - 1
 	a.statusLine().Draw(f, uv.Rect(0, y, a.w, 1))
+	if a.whichKey {
+		a.whichKeyOverlay().Draw(f, y)
+	}
 	if a.toast != "" && y > 0 {
 		t := " " + a.toast + " "
 		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Row})
@@ -235,4 +238,20 @@ func (a *App) statusLine() ui.StatusLine {
 		{Runs: []ui.Run{{Text: " " + strings.ToUpper(mode.String()) + " ", Style: uv.Style{Fg: th.Bg, Bg: modeColor, Attrs: uv.AttrBold}}}},
 	}
 	return s
+}
+
+// whichKeyOverlay lists what can follow the pending keys (§6.5).
+func (a *App) whichKeyOverlay() ui.WhichKey {
+	w := ui.WhichKey{Prefix: keymap.Display(a.res.Pending())}
+	for _, n := range a.res.Next() {
+		t := title(n.Action)
+		switch {
+		case n.RHS != nil:
+			t = keymap.String(n.RHS)
+		case n.Action == "":
+			t = "…" // a longer prefix
+		}
+		w.Items = append(w.Items, ui.WhichKeyItem{Key: keymap.Display([]keymap.Key{n.Key}), Title: t})
+	}
+	return w
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/keymap"
@@ -21,7 +22,8 @@ type App struct {
 	res   *keymap.Resolver
 	sess  *Session
 
-	cmdline *string // non-nil while the : command line is open (COMMAND mode)
+	cmdline  *string // non-nil while the : command line is open (COMMAND mode)
+	whichKey bool    // the which-key overlay is up (§6.5)
 
 	toast     string
 	toastSeq  int
@@ -31,7 +33,11 @@ type App struct {
 type (
 	toastExpired struct{ seq int }
 	keyTimeout   struct{ seq int }
+	whichKeyDue  struct{ seq int }
 )
+
+// whichKeyDelay is how long a pure prefix waits before which-key shows (§6.5).
+const whichKeyDelay = 400 * time.Millisecond
 
 func New(cfg *config.Config, keys *keymap.Map) *App {
 	return &App{
@@ -53,13 +59,22 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		out, wait := a.res.Feed(a.context(), keymap.FromTea(msg.Key()))
 		cmd := a.dispatch(out)
-		if wait {
-			seq := a.res.Seq()
+		seq := a.res.Seq()
+		switch {
+		case wait: // ambiguous: the shorter binding fires after timeoutlen
 			cmd = tea.Batch(cmd, tea.Tick(a.keys.Timeout, func(time.Time) tea.Msg { return keyTimeout{seq} }))
+		case len(a.res.Next()) == 0:
+			a.whichKey = false
+		case !a.whichKey: // a pure prefix: which-key shows if nothing follows soon
+			cmd = tea.Batch(cmd, tea.Tick(whichKeyDelay, func(time.Time) tea.Msg { return whichKeyDue{seq} }))
 		}
 		return a, cmd
 	case keyTimeout:
-		return a, a.dispatch(a.res.Timeout(a.context(), msg.seq))
+		cmd := a.dispatch(a.res.Timeout(a.context(), msg.seq))
+		a.whichKey = a.whichKey && len(a.res.Next()) > 0
+		return a, cmd
+	case whichKeyDue:
+		a.whichKey = msg.seq == a.res.Seq() && len(a.res.Next()) > 0
 	}
 	return a, nil
 }
@@ -122,16 +137,26 @@ func (a *App) cmdlineKey(k keymap.Key) tea.Cmd {
 		a.cmdline = nil
 		return a.exec(cmd)
 	case "<BS>":
-		r := []rune(*a.cmdline)
-		if len(r) == 0 {
+		if *a.cmdline == "" {
 			a.cmdline = nil
 		} else {
-			*a.cmdline = string(r[:len(r)-1])
+			*a.cmdline = dropLastGrapheme(*a.cmdline)
 		}
 	default:
 		*a.cmdline += keymap.Text(k)
 	}
 	return nil
+}
+
+// dropLastGrapheme removes the last grapheme cluster, as backspace does in
+// nvim: é typed as e + U+0301 or 👍🏽 goes whole, not a code point at a time.
+func dropLastGrapheme(s string) string {
+	last := 0
+	for i := 0; i < len(s); {
+		gr, _ := ansi.FirstGraphemeCluster(s[i:], ansi.GraphemeWidth)
+		last, i = i, i+len(gr)
+	}
+	return s[:last]
 }
 
 func (a *App) showToast(s string) tea.Cmd {

@@ -10,7 +10,7 @@ import (
 type Run struct {
 	Text   string
 	Style  uv.Style
-	Shrink bool // cut last, when nothing else can go (the session name)
+	Shrink bool // left group only: cut last, when nothing else can go (the session name)
 }
 
 // Segment is one flat block of the status bar; its runs carry their own

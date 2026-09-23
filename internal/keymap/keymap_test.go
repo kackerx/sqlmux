@@ -339,3 +339,31 @@ func TestMappingExpandsLeader(t *testing.T) {
 		t.Errorf("got %v", actions(got))
 	}
 }
+
+func TestNext(t *testing.T) {
+	m := mustLoad(t, "[map.normal]\n\"<Space>y\" = \"5j\"")
+	r := NewResolver(m)
+	if len(r.Next()) != 0 {
+		t.Fatal("nothing pending, nothing next")
+	}
+	press(t, r, grid, "<Space>")
+	next := r.Next()
+	var keys []string
+	for _, n := range next {
+		keys = append(keys, string(n.Key))
+	}
+	if strings.Join(keys, "") != "y"+"s0123456789c,&%\"zxhjklHJKLqbn" {
+		t.Errorf("SPC next keys in binding order: %q", strings.Join(keys, ""))
+	}
+	if next[0].RHS == nil || next[1].Action != "session.list" || next[1].Prefix {
+		t.Errorf("entries: %+v %+v", next[0], next[1])
+	}
+	press(t, r, grid, "g") // not bound after SPC: the sequence ends
+	if len(r.Next()) != 0 {
+		t.Error("Next after the sequence ended")
+	}
+	press(t, r, grid, "g")
+	if n := r.Next(); len(n) != 7 || n[0].Key != "g" || n[5].Key != "t" { // grid's g-keys first, then normal's
+		t.Errorf("g next: %+v", n)
+	}
+}
