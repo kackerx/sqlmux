@@ -19,7 +19,7 @@ quit_clean() {  # 退出码 0，终端标志位按 F0.1 复原
     flag_is mouse_sgr_flag 0 && flag_is bracket_paste_flag 0 && flag_is cursor_flag 1
 }
 empty_body() { local y; for y in $(seq 2 42); do [[ -z $(e2e_text 35 159 $y | tr -d " ") ]] || { echo "  row $y: $(e2e_text 35 159 $y)"; return 1; }; done; }
-NF_CONSOLE=$(printf '\xef\x84\xa0')     # U+F120
+NF_CONSOLE=$(printf '\xef\x92\x89')     # U+F489（F0.12 起）
 EMPTY_TABS="│ +$(printf '%123s')│"      # 34..160 列：只有 +
 codepoints() { python3 -c 'import sys; print(" ".join("%x" % ord(c) for c in sys.argv[1]))' "$1"; }
 
