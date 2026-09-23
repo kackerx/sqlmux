@@ -55,6 +55,9 @@ e2e_click()  { _sgr 0 "$1" "$2" M; _sgr 0 "$1" "$2" m; }
 e2e_dclick() { e2e_click "$1" "$2"; e2e_click "$1" "$2"; }
 e2e_move()   { _sgr 35 "$1" "$2" M; }                          # motion, no button
 e2e_drag()   { _sgr 0 "$1" "$2" M; _sgr 32 "$3" "$4" M; _sgr 0 "$3" "$4" m; }
+e2e_down()   { _sgr 0 "$1" "$2" M; }                           # press left button
+e2e_drag_to() { _sgr 32 "$1" "$2" M; }                         # motion with left button held
+e2e_up()     { _sgr 0 "$1" "$2" m; }                           # release
 e2e_wheel()  { _sgr $([[ $3 == up ]] && echo 64 || echo 65) "$1" "$2" M; }  # X Y up|down
 
 # Cell queries on the current screen, 1-based (see e2e/cells.py).
