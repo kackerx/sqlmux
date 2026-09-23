@@ -3,6 +3,8 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	uv "github.com/charmbracelet/ultraviolet"
 )
 
 // Items run down the columns, the box sits right above bottom, and rows that
@@ -12,7 +14,7 @@ func TestWhichKeyLayout(t *testing.T) {
 		{"a", "one"}, {"b", "two"}, {"c", "three"}, {"d", "four"}, {"e", "five"},
 	}}
 	f := NewFrame(30, 8, TokyonightStorm)
-	w.Draw(f, 7)
+	w.Draw(f, uv.Rect(0, 0, 30, 7))
 	lines := strings.Split(f.String(), "\n")
 	// colw = 1 + 3 + 5 + 3 = 12; (30-4+3)/12 = 2 columns, 3 rows, box rows 2..6
 	for i, want := range []string{
@@ -31,7 +33,7 @@ func TestWhichKeyLayout(t *testing.T) {
 	}
 
 	f = NewFrame(30, 5, TokyonightStorm)
-	w.Draw(f, 4) // room for 2 item rows only
+	w.Draw(f, uv.Rect(0, 0, 30, 4)) // room for 2 item rows only
 	if got := strings.Split(f.String(), "\n")[2]; !strings.Contains(got, "b → two") || strings.Contains(f.String(), "c → three") {
 		t.Errorf("clipped overlay:\n%s", f.String())
 	}

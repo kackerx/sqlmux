@@ -5,7 +5,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/keymap"
@@ -37,7 +36,7 @@ type (
 )
 
 // whichKeyDelay is how long a pure prefix waits before which-key shows (§6.5).
-const whichKeyDelay = 400 * time.Millisecond
+var whichKeyDelay = 400 * time.Millisecond
 
 func New(cfg *config.Config, keys *keymap.Map) *App {
 	return &App{
@@ -73,8 +72,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := a.dispatch(a.res.Timeout(a.context(), msg.seq))
 		a.whichKey = a.whichKey && len(a.res.Next()) > 0
 		return a, cmd
-	case whichKeyDue:
-		a.whichKey = msg.seq == a.res.Seq() && len(a.res.Next()) > 0
+	case whichKeyDue: // only opens it; key presses close it
+		if msg.seq == a.res.Seq() && len(a.res.Next()) > 0 {
+			a.whichKey = true
+		}
 	}
 	return a, nil
 }
@@ -140,23 +141,12 @@ func (a *App) cmdlineKey(k keymap.Key) tea.Cmd {
 		if *a.cmdline == "" {
 			a.cmdline = nil
 		} else {
-			*a.cmdline = dropLastGrapheme(*a.cmdline)
+			*a.cmdline = ui.DropLastGrapheme(*a.cmdline)
 		}
 	default:
 		*a.cmdline += keymap.Text(k)
 	}
 	return nil
-}
-
-// dropLastGrapheme removes the last grapheme cluster, as backspace does in
-// nvim: é typed as e + U+0301 or 👍🏽 goes whole, not a code point at a time.
-func dropLastGrapheme(s string) string {
-	last := 0
-	for i := 0; i < len(s); {
-		gr, _ := ansi.FirstGraphemeCluster(s[i:], ansi.GraphemeWidth)
-		last, i = i, i+len(gr)
-	}
-	return s[:last]
 }
 
 func (a *App) showToast(s string) tea.Cmd {
