@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/keymap"
@@ -516,5 +518,25 @@ func TestSplitIDsStayUnique(t *testing.T) {
 	feed(t, a, "<Space>x<Space>%")
 	if a.win().Focus == first {
 		t.Fatalf("pane ID %d reused", first)
+	}
+}
+
+// Init's borrowed mode report must reach the renderer: with no terminal
+// answering 2027, the output still switches to grapheme widths (§7.1).
+func TestRendererUsesGraphemeWidths(t *testing.T) {
+	var out bytes.Buffer
+	c := config.Default()
+	keys, _ := keymap.New(c)
+	p := tea.NewProgram(New(c, keys), tea.WithInput(nil), tea.WithOutput(&out),
+		tea.WithWindowSize(80, 24), tea.WithEnvironment([]string{"TERM=xterm-256color"}))
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		p.Quit()
+	}()
+	if _, err := p.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), ansi.SetModeUnicodeCore) {
+		t.Fatal("the renderer never switched to grapheme widths")
 	}
 }
