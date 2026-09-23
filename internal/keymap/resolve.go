@@ -64,6 +64,7 @@ func (m *Map) scopes(c Context, maps bool) []string {
 
 type node struct {
 	next   map[Key]*node
+	order  []Key // children in binding order, for which-key
 	bound  bool
 	action string
 	rhs    []Key
@@ -96,6 +97,7 @@ func (m *Map) trie(c Context, maps bool) *node {
 				}
 				if n.next[k] == nil {
 					n.next[k] = &node{}
+					n.order = append(n.order, k)
 				}
 				n = n.next[k]
 			}
@@ -146,6 +148,28 @@ func (r *Resolver) Timeout(c Context, seq int) []Result {
 }
 
 func (r *Resolver) Seq() int { return r.seq }
+
+// Next is one way to continue the pending sequence.
+type Next struct {
+	Key    Key
+	Action string // "" for a mapping or a further prefix
+	RHS    []Key  // set for a mapping
+	Prefix bool   // more keys can follow
+}
+
+// Next lists what can follow the pending keys, in binding order (§6.5
+// which-key). It is empty when nothing is pending.
+func (r *Resolver) Next() []Next {
+	if r.node == nil {
+		return nil
+	}
+	out := make([]Next, 0, len(r.node.order))
+	for _, k := range r.node.order {
+		n := r.node.next[k]
+		out = append(out, Next{Key: k, Action: n.action, RHS: n.rhs, Prefix: len(n.next) > 0})
+	}
+	return out
+}
 
 // Pending is the count and keys typed so far, for the status bar (B-03).
 func (r *Resolver) Pending() []Key { return append(digits(r.count), r.keys...) }

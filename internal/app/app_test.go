@@ -4,6 +4,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -267,5 +268,69 @@ func TestCloseTabPicksNext(t *testing.T) {
 		if !slices.Equal(p.Tabs, c.want) || p.Cur != c.wantCur || p.Prev != -1 {
 			t.Errorf("%v cur %d prev %d: got %v cur %d prev %d; want %v cur %d", c.tabs, c.cur, c.prev, p.Tabs, p.Cur, p.Prev, c.want, c.wantCur)
 		}
+	}
+}
+
+// due delivers the which-key tick the last key press asked for.
+func due(a *App) { a.Update(whichKeyDue{a.res.Seq()}) }
+
+func TestWhichKeyShowsAfterDelay(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<Space>")
+	if a.whichKey {
+		t.Fatal("which-key must wait for its delay")
+	}
+	due(a)
+	if !a.whichKey {
+		t.Fatal("which-key did not show")
+	}
+	var keys []string
+	for _, it := range a.whichKeyOverlay().Items {
+		keys = append(keys, it.Key)
+		if it.Title == "" || strings.Contains(it.Title, ".") {
+			t.Errorf("%s has no registry title: %q", it.Key, it.Title)
+		}
+	}
+	// §6.8's SPC keys, in default.toml order
+	if got := strings.Join(keys, " "); got != `s 0 1 2 3 4 5 6 7 8 9 c , & % " z x h j k l H J K L q b n` {
+		t.Errorf("SPC items: %s", got)
+	}
+	if row := strings.Split(a.render().String(), "\n")[a.h-2]; !strings.HasPrefix(row, "└") {
+		t.Errorf("the overlay should sit right above the status bar: %q", row)
+	}
+}
+
+func TestWhichKeyNotForQuickKeys(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<Space>")
+	seq := a.res.Seq()
+	feed(t, a, "s")
+	a.Update(whichKeyDue{seq})
+	if a.whichKey {
+		t.Fatal("SPC s typed quickly must not show which-key")
+	}
+}
+
+// Keys typed with the overlay up do what they do without it; esc closes it
+// and clears the pending keys.
+func TestWhichKeyKeys(t *testing.T) {
+	c, err := config.Parse("[keys.normal]\n\"<Leader>:\" = \"cmdline.open\"")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := sizedWith(160, 45, c)
+	feed(t, a, "<Space>")
+	due(a)
+	feed(t, a, ":")
+	if a.whichKey || a.cmdline == nil {
+		t.Fatal("SPC : through which-key should open the command line and close the overlay")
+	}
+
+	a = sized(160, 45, "nerd")
+	feed(t, a, "<Space>")
+	due(a)
+	feed(t, a, "<Esc>")
+	if a.whichKey || len(a.res.Pending()) != 0 {
+		t.Fatalf("esc: overlay %v, pending %v", a.whichKey, a.res.Pending())
 	}
 }

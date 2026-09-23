@@ -53,13 +53,53 @@ func init() {
 		"quit":      {"退出", func(*App, Args) tea.Cmd { return tea.Quit }},
 		"tab.close": {"关闭 tab", func(a *App, _ Args) tea.Cmd { a.closeTab(); return nil }},
 	}
+	// Bound by default.toml but built by later features: titled already, so
+	// which-key can name them; running them does nothing yet.
+	for id, title := range map[string]string{
+		"palette.open": "命令面板", "save": "保存",
+		"pane.focus.left": "焦点移到左边", "pane.focus.down": "焦点移到下边",
+		"pane.focus.up": "焦点移到上边", "pane.focus.right": "焦点移到右边",
+		"session.list": "session 列表", "session.new": "新建连接",
+		"window.select": "切换 window", "window.new": "新建 window",
+		"window.rename": "重命名 window", "window.close": "关闭 window",
+		"pane.split.right": "左右分割", "pane.split.below": "上下分割",
+		"pane.zoom": "缩放 / 还原", "pane.close": "关闭 pane", "pane.number": "按编号跳转",
+		"pane.resize.left": "向左调整大小", "pane.resize.down": "向下调整大小",
+		"pane.resize.up": "向上调整大小", "pane.resize.right": "向右调整大小",
+		"tree.toggle": "折叠 / 展开 schema 树", "tab.next": "下一个 tab", "tab.prev": "上一个 tab",
+		"grid.left": "左移", "grid.down": "下移", "grid.up": "上移", "grid.right": "右移",
+		"grid.top": "第一行", "grid.bottom": "最后一行", "grid.first": "第一列", "grid.last": "最后一列",
+		"grid.edit": "编辑单元格", "grid.refresh": "刷新", "grid.transpose": "转置",
+		"grid.where": "WHERE 条件", "grid.order": "ORDER", "grid.limit": "LIMIT",
+		"grid.page": "PAGE", "grid.cols": "COLS", "grid.page.next": "下一页", "grid.page.prev": "上一页",
+		"grid.yank": "复制单元格", "grid.yank.insert": "复制为 INSERT",
+		"result.pin": "固定结果", "result.close": "关闭结果",
+		"tree.down": "下移", "tree.up": "上移", "tree.top": "第一项", "tree.bottom": "最后一项",
+		"tree.open": "打开", "tree.open.tab": "在新 tab 打开", "tree.filter": "过滤", "tree.schema": "切换 schema",
+		"console.run": "执行", "console.format": "格式化", "console.schema": "切换 schema",
+		"palette.open.tab": "在新 tab 打开", "quicksql.copy": "复制为 CSV", "quicksql.edit": "在 console 中打开",
+		"cell.segment.next": "下一段", "cell.segment.prev": "上一段", "cell.up": "加一", "cell.down": "减一",
+		"cell.option.next": "下一个选项", "cell.option.prev": "上一个选项", "cell.accept": "确定", "cell.done": "完成编辑",
+	} {
+		actions[id] = Action{Title: title}
+	}
+}
+
+// title names "id [arg]" for which-key and the palette: "切换 window 3".
+func title(action string) string {
+	id, arg, _ := strings.Cut(action, " ")
+	t := actions[id].Title
+	if t == "" {
+		t = id
+	}
+	return strings.TrimSpace(t + " " + arg)
 }
 
 // run executes "id [arg]" from the registry.
 func (a *App) run(action string, count int) tea.Cmd {
 	id, arg, _ := strings.Cut(action, " ")
-	act, ok := actions[id]
-	if !ok {
+	act := actions[id]
+	if act.Run == nil {
 		return nil
 	}
 	return act.Run(a, Args{Count: count, Arg: arg})
