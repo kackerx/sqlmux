@@ -84,8 +84,8 @@ check "紧接着再按：退出" quit_clean
 
 # ---- 「再按一次 C-c 退出」只显示 2 秒；窗口就是它在屏幕上的这段时间（§6.8）
 start
-e2e_keys C-c; sleep 1.7
-check "1.7 秒时提示还在" screen_has "再按一次 C-c 退出"
+e2e_keys C-c; sleep 1.3
+check "1.3 秒时提示还在" screen_has "再按一次 C-c 退出"
 e2e_keys C-c
 check "提示还在时再按：退出" quit_clean
 start
