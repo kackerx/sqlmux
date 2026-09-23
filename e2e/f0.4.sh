@@ -69,6 +69,8 @@ e2e_type ":x${E_ACUTE}"; e2e_keys BSpace; sleep 0.2
 check "退格删掉整个 é（e+U+0301），不留下 e" cmdline_is ':x'
 e2e_keys Escape; sleep 0.2; e2e_type ":x${THUMB}"; e2e_keys BSpace; sleep 0.2
 check "退格删掉整个 👍🏽，不留下 👍" cmdline_is ':x'
+e2e_keys Escape; sleep 0.2; e2e_type ":x$(printf '\xf0\x9f\x87\xa8\xf0\x9f\x87\xb3')"; e2e_keys BSpace; sleep 0.2
+check "退格删掉整个国旗 🇨🇳（两个区域指示符）" cmdline_is ':x'
 e2e_keys Escape; sleep 0.2
 
 # ---- 连按两次 C-c 退出（§6.8）
