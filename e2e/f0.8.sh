@@ -9,7 +9,7 @@ L() { e2e_keys Space; e2e_type "$1"; sleep 0.3; }
 focused() { e2e_panes | awk '$6 == 1 { print $1 }'; }
 geom() { e2e_panes | awk -v n="$1" '$1 == n { print $2, $3, $4, $5 }'; }
 nums() { e2e_panes | awk '{ printf "%s ", $1 }'; }
-focus_is() { local f; f=$(focused); [[ $f == "$1" ]] || { echo "  focused ⟨$f⟩, want ⟨$1⟩"; false; }; }
+focus_is() { local f; f=$(focused); [[ $f == "$1" ]] || { echo "  focused ⟨${f}⟩, want ⟨$1⟩"; false; }; }
 geom_is()  { local g; g=$(geom "$1"); [[ $g == "$2" ]] || { echo "  ⟨$1⟩ at [$g], want [$2]"; false; }; }
 w_of() { geom "$1" | awk '{ print $3 }'; }
 h_of() { geom "$1" | awk '{ print $4 }'; }
@@ -94,13 +94,13 @@ e2e_keys Escape; sleep 0.2
 # ---- 滚轮（§7.4）：作用于指针下方的 pane，每格 3 行，到顶停住
 start
 row4() { e2e_text "$1" "$2" "$3"; }
-d0=$(row4 35 60 4); c0=$(row4 106 150 2)
+d0=$(row4 35 60 5); c0=$(row4 106 150 2)   # data 第 5 行是表格的第一行数据（F0.9）
 e2e_wheel 130 20 down; sleep 0.3
-check "指针在 console 上滚动：console 滚动、data 不动、焦点不变" eval '[[ $(row4 106 150 2) != "$c0" && $(row4 35 60 4) == "$d0" ]] && focus_is 1'
+check "指针在 console 上滚动：console 滚动、data 不动、焦点不变" eval '[[ $(row4 106 150 2) != "$c0" && $(row4 35 60 5) == "$d0" ]] && focus_is 1'
 e2e_wheel 60 20 down; sleep 0.3
-check "data 上滚一格：前进 3 行（689 → 692）" eval '[[ $(row4 35 60 4) == *692* ]]'
+check "data 上滚一格：前进 3 行（689 → 692），表头不动" eval '[[ $(row4 35 60 5) == *692* && $(row4 35 60 3) == *biz_type* ]]'
 e2e_wheel 60 20 up; e2e_wheel 60 20 up; e2e_wheel 60 20 up; sleep 0.3
-check "往上滚到顶就停住" eval '[[ $(row4 35 60 4) == *689* ]]'
+check "往上滚到顶就停住" eval '[[ $(row4 35 60 5) == *689* ]]'
 s0=$(row4 2 31 4); e2e_wheel 10 10 down; sleep 0.3
 check "侧栏滚动的是表列表（agent → mt_task，3 行）" eval '[[ $s0 == *" agent "* && $(row4 2 31 4) == *mt_task* ]]'
 

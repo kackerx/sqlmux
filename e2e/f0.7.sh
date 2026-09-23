@@ -10,7 +10,7 @@ key() { e2e_keys "$1"; sleep 0.25; }
 focused() { e2e_panes | awk '$6 == 1 { print $1 }'; }     # 聚焦 pane 的编号
 geom() { e2e_panes | awk -v n="$1" '$1 == n { print $2, $3, $4, $5 }'; }   # ⟨n⟩ 的 X Y W H
 nums() { e2e_panes | awk '{ printf "%s ", $1 }'; }        # 按出现顺序（行优先）列出编号
-focus_is() { local f; f=$(focused); [[ $f == "$1" ]] || { echo "  focused ⟨$f⟩, want ⟨$1⟩"; false; }; }
+focus_is() { local f; f=$(focused); [[ $f == "$1" ]] || { echo "  focused ⟨${f}⟩, want ⟨$1⟩"; false; }; }
 geom_is()  { local g; g=$(geom "$1"); [[ $g == "$2" ]] || { echo "  ⟨$1⟩ at [$g], want [$2]"; false; }; }
 title_of() { local g; g=($(geom "$1")); e2e_text "${g[0]}" $((g[0] + g[2] - 1)) "${g[1]}"; }
 empty_pane() {  # §7.8 空 pane：内容区为空、tab 栏只有 +
@@ -31,25 +31,31 @@ start
 L %
 check "SPC %：左右分割，⟨1⟩ data / ⟨2⟩ data（新）/ ⟨3⟩ console，新 pane 聚焦" eval 'geom_is 1 "34 1 35 44" && geom_is 2 "70 1 34 44" && geom_is 3 "105 1 56 44" && focus_is 2 && empty_pane 2'
 
-# ---- 按方向切焦点：与几何位置一致（§5：相邻且重叠最长）
+# ---- 按方向切焦点（§5）：相邻且有重叠；多个候选时选最近获得过焦点的；到边上不绕回
 start
-L '"'                                   # ⟨1⟩ 左上、⟨2⟩ 左下、⟨3⟩ 右
+L '"'                                   # ⟨1⟩ 左上、⟨2⟩ 左下（新，聚焦）、⟨3⟩ 右
 key C-l; check "左下 C-l → 右边的 console ⟨3⟩" focus_is 3
-key C-h; check "console C-h → 左边的 data（⟨1⟩ 或 ⟨2⟩）" eval '[[ $(focused) == 1 || $(focused) == 2 ]]'
-key C-h; check "再 C-h → 侧栏 ⟨0⟩" focus_is 0
-key C-l; key C-k; check "C-k → 上面的 ⟨1⟩" focus_is 1
+key C-h; check "再 C-h：回到刚离开的左下 ⟨2⟩" focus_is 2
+key C-k; check "C-k → 上面的 ⟨1⟩" focus_is 1
+key C-l; key C-h; check "从左上 C-l 再 C-h：回到左上 ⟨1⟩" focus_is 1
 key C-j; check "C-j → 下面的 ⟨2⟩" focus_is 2
 L k; check "SPC k 与 C-k 相同" focus_is 1
 L j; check "SPC j 与 C-j 相同" focus_is 2
 L l; check "SPC l 与 C-l 相同" focus_is 3
-L h; check "SPC h 与 C-h 相同（离开 console）" eval '[[ $(focused) == 1 || $(focused) == 2 ]]'
-# 右边再上下分割，把分界线挪开，让重叠长度有差别
-key C-l; L '"'                          # console 分成 ⟨3⟩ 上、⟨4⟩ 下
-L K; L K; L K                           # console 的分界线上移 15%
-key C-h; key C-k; check "准备：焦点在左上 ⟨1⟩" focus_is 1
-key C-l; check "左上 C-l → 与它重叠更长的右上 ⟨3⟩" focus_is 3
-key C-h; key C-j; key C-l; check "左下 C-l → 与它重叠更长的右下 ⟨4⟩" focus_is 4
-key C-l; check "最右边再 C-l：焦点不动" focus_is 4
+L h; check "SPC h 与 C-h 相同（回到最近用过的 ⟨2⟩）" focus_is 2
+key C-j; check "最下面再 C-j：焦点不动（不绕回）" focus_is 2
+key C-k; key C-k; check "最上面再 C-k：焦点不动" focus_is 1
+key C-l; key C-l; check "最右边再 C-l：焦点不动" focus_is 3
+key C-h; key C-h; check "左边的 data 再 C-h → 侧栏 ⟨0⟩" focus_is 0
+key C-h; check "侧栏再 C-h：焦点不动" focus_is 0
+e2e_click 60 30; sleep 0.3; key C-l; key C-h
+check "鼠标点过的 ⟨2⟩ 也算最近获得焦点：C-l 再 C-h 回到 ⟨2⟩" focus_is 2
+L q; e2e_type 1; sleep 0.3; key C-l; key C-h
+check "SPC q 跳过的 ⟨1⟩ 也算：C-l 再 C-h 回到 ⟨1⟩" focus_is 1
+key C-l; L '"'                          # console 分成 ⟨3⟩ 上、⟨4⟩ 下（新，聚焦）
+L K; L K; L K                           # 右边的分界线上移 15%：⟨4⟩ 同时和左边的 ⟨1⟩、⟨2⟩ 相邻
+key C-h; check "右下 ⟨4⟩ C-h：左边两个候选里回到最近用过的 ⟨1⟩" focus_is 1
+key C-l; check "左上 C-l：去最近用过的右边 pane ⟨4⟩，而不是重叠更长的 ⟨3⟩" focus_is 4
 
 # ---- 关闭（§5）：兄弟 pane 占满；侧栏和唯一的 pane 关不掉
 start

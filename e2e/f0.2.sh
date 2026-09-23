@@ -23,7 +23,7 @@ check "下边框在第 44 行，pane 占满状态栏以上" eval 'cols_are └ 4
 check "最后一行留给状态栏" status_row 160 45
 check "横向间隔 1 列，bg 底色" eval 'style_has 33 1 bg=$BG && style_has 33 20 bg=$BG && style_has 104 44 bg=$BG'
 check "data:console = 70:56 = 5:4" eval '(( (103 - 34 + 1) * 4 == (160 - 105 + 1) * 5 ))'
-check "pane 内容区为 pane_bg" eval 'style_has 60 20 bg=$PANE_BG && style_has 130 20 bg=$PANE_BG'
+check "pane 内容区为 pane_bg" eval 'style_has 130 20 bg=$PANE_BG && style_has 150 30 bg=$PANE_BG'   # data 的表格有斑马纹（F0.9）
 
 # ---- 聚焦色（§7.2）
 check "⟨1⟩ data 聚焦：边框 focus" eval 'style_has 34 1 fg=$FOCUS && style_has 34 20 fg=$FOCUS && style_has 103 44 fg=$FOCUS && style_has 60 44 fg=$FOCUS'
