@@ -143,7 +143,7 @@
 - [x] 在浮层中按键，效果与不打开浮层时直接按键相同
 - [x] 按 esc 后浮层关闭，状态栏的待输入序列清空
 
-## F0.7 布局树与 pane 操作（键盘） · 状态：reviewing
+## F0.7 布局树与 pane 操作（键盘） · 状态：testing
 
 - **依赖**：F0.2、F0.4
 - **涉及**：`internal/app`（layout、workspace）
