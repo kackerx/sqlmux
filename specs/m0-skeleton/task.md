@@ -1,0 +1,173 @@
+# M0 骨架 · 任务清单
+
+- **目标**：把界面骨架、按键系统和鼠标交互搭起来。不连接数据库，界面上的数据全部是假数据。
+- **范围**：PRD B-01~B-03、第 6 章、第 7 章的基础部分；对应 tech-design 的 §3、§6、§7。
+- **依赖**：无。
+- **完成标准**：F0.1–F0.8 全部 `passed`；在 M0 最后一个 commit 上，tester 跑一遍全部 e2e 脚本，结果全绿；用户实际验证通过后打 tag `m0`。
+
+任务文件的格式和状态约定见 [`../plan.md`](../plan.md)。
+
+---
+
+## F0.1 工程初始化、启动与退出 · 状态：passed（837b497；e2e 326d931）
+
+- **依赖**：无
+- **涉及**：`cmd/sqlmux`、`internal/app`
+
+**开发**
+- [x] `git init`；`.handoff/` 写入 `.git/info/exclude`；`.gitignore` 忽略 `bin/`
+- [x] `go mod init sqlmux`，按 tech-design §4 建立目录骨架
+- [x] Bubble Tea v2 程序：AltScreen、`MouseModeAllMotion`、bracketed paste；终端支持时顺带开启键盘增强
+- [x] `:qa` 退出；空闲时按 `C-c` 不退出，弹出 toast「输入 :qa 退出」
+
+**验收**
+- [x] `go build ./... && go vet ./... && go test ./...` 全部通过
+- [x] 在 tmux 中以 160×45 启动，进入全屏；`:qa` 退出。检查 `tmux display -p '#{alternate_on} #{mouse_all_flag} #{mouse_sgr_flag} #{bracket_paste_flag} #{cursor_flag}'`：运行时前四项为 1；退出后前四项为 0，`cursor_flag` 为 1
+- [x] 按 `C-c` 不退出，出现提示
+- [x] 窗口调到 100×30 再调回原尺寸，重绘正确，没有残影，不 panic
+
+## F0.2 Frame、Block、主题与静态布局 · 状态：doing
+
+- **依赖**：F0.1
+- **涉及**：`internal/ui`（frame、block、theme、icons）、`internal/app`（组装 View）
+
+**开发**
+- [ ] 主题：把 §7.3 的 token 定义成 Go 结构，内置 tokyonight-storm
+- [ ] 图标：做 nerd / ascii 两套映射。F0.2 先用代码参数切换，F0.3 再接入配置文件
+- [ ] Frame：包含 Canvas、命中表（这一步只记录区域，不处理鼠标事件）、主题、指针位置；提供绘制文字、登记区域的基础 API
+- [ ] Block：单线边框；上边框左侧放标题、右侧放提示；聚焦时用焦点色；标题过长时截断
+- [ ] 静态布局：侧栏宽度、5 : 4 的宽度比例、1 列间隔都按 §7.8；pane 里放占位内容（含占位的 tab 栏）
+- [ ] golden 测试框架，覆盖 160×45 和 80×24 两个尺寸
+
+**验收**
+- [ ] 160×45 与 80×24 的 golden 测试通过
+- [ ] 聚焦 pane 的边框和标题为 `focus` 色（#9ece6a），其余 pane 为暗色
+- [ ] `icons = "ascii"` 时，画面中不出现私有区码点（U+E000–U+F8FF）
+- [ ] 80×24 下不 panic、不越界，过长的标题被截断
+- [ ] 布局尺寸符合 §7.8：侧栏 32 列（窗口宽度小于 100 列时为 24 列）、data 与 console 为 5 : 4、横向间隔 1 列
+
+## F0.3 keymap 引擎与配置 · 状态：todo
+
+- **依赖**：F0.1。这一项是纯逻辑加命令行，不依赖 F0.2 的界面，可以和 F0.2 交错进行。
+- **涉及**：`internal/keymap`、`internal/config`、`cmd/sqlmux`（`keys` 子命令）
+
+**开发**
+- [ ] 键位记法的解析与规范化：`<C-p>`、`<Space>`、`<S-Tab>`、`<CR>`、`<Esc>`，以及普通字符序列
+- [ ] 作用域 trie，并按当前上下文合并优先级（§6.4）
+- [ ] 按键序列：纯前缀节点一直等待；歧义节点等待 `timeoutlen` 后执行
+- [ ] leader：`<Space>` 只在 NORMAL 下生效；配置成 Ctrl 组合时全局生效
+- [ ] 次数前缀：通过 `Args.Count` 传给 Action；没有输入次数时，`0` 作为普通按键
+- [ ] 用户映射 `[map.<mode>]`、`[map.<pane>.<mode>]`，语义同 noremap，优先级为 pane 类型 > 通用 > 默认
+- [ ] 冲突检测；`keymap.Hint`
+- [ ] `default.toml`（embed）写入 §6.8 的全部默认键位
+- [ ] 配置加载：读取 `$XDG_CONFIG_HOME/sqlmux/config.toml`，未设置时读 `~/.config/sqlmux/config.toml`；把 `icons` 接进来
+- [ ] 命令行：`sqlmux keys`（输出 markdown 表）、`--format toml`、`--check`
+
+**验收**
+- [ ] 单测覆盖以下几项：
+  - 纯前缀节点一直等待；歧义节点超时后执行；
+  - 次数能传给 Action；
+  - 映射优先级；
+  - leader 配成 `<C-a>` 后，在 INSERT 下也生效。
+- [ ] 默认键位兼容性单测：`default.toml` 中没有 Alt 组合，也没有只能在 kitty 协议下用的键
+- [ ] `sqlmux keys` 输出当前生效的键位表；`--format toml` 的输出能被重新加载
+- [ ] 在配置中写入重复绑定后，`sqlmux keys --check` 以非零状态码退出，并指出冲突的作用域和键
+- [ ] 把 `XDG_CONFIG_HOME` 指向临时目录后，写入的配置能生效（例如 `icons = "ascii"`）
+
+## F0.4 Action 注册表与命令行 · 状态：todo
+
+- **依赖**：F0.3
+- **涉及**：`internal/app`（action、mode、cmdline）
+
+**开发**
+- [ ] Action 注册表（§6.1），keymap 解析出的结果分发到对应的 Action
+- [ ] 模式由状态推导（§3 原则 3）：NORMAL / INSERT / VISUAL / COMMAND
+- [ ] `:` 命令行：显示在状态栏左侧（§7.8）；按 esc，或用退格删到空时关闭；支持 `:q`、`:qa`；输入未知命令时弹出 toast「未知命令: xxx」
+- [ ] `:q` 关闭当前 pane 的当前 tab（M0 中是占位 tab）；关掉最后一个 tab 时，连同 pane 一起关闭（侧栏除外）
+
+**验收**
+- [ ] `:q` 关闭当前 tab；关掉最后一个 tab 后，pane 也被关闭
+- [ ] `:qa` 退出；输入未知命令时出现提示
+- [ ] 按 esc 或把命令行删空，命令行关闭，回到 NORMAL
+- [ ] 所有键位最终都经由 Action 执行：单测里能直接调用 Action，结果与按键一致
+
+## F0.5 状态栏 · 状态：todo
+
+- **依赖**：F0.2、F0.3、F0.4
+- **涉及**：`internal/ui`（statusline）
+
+**开发**
+- [ ] 左侧：session 块、window 列表；右侧：模式附加信息、`C-p` 入口、待输入序列、光标位置、连接地址、模式块。颜色、间距、顺序都按 §7.8
+- [ ] 窗口窄时的省略规则：先省略模式附加信息
+- [ ] 待输入序列取自 keymap 的当前状态，模式取自 F0.4 的推导结果
+
+**验收**
+- [ ] golden 测试通过
+- [ ] 模式块颜色：NORMAL 为绿色；按 `:` 进入 COMMAND 后为青色
+- [ ] 按下 `SPC`、`g` 或数字后，状态栏显示待输入序列；序列完成或按 esc 后清空
+- [ ] 窗口宽度为 80 时，省略模式附加信息，模式块仍然可见
+
+## F0.6 which-key · 状态：todo
+
+- **依赖**：F0.3、F0.4、F0.5
+- **涉及**：`internal/ui`（whichkey）、`internal/app`
+
+**开发**
+- [ ] 按键序列停在纯前缀节点上 400ms 后，弹出浮层。定时器用带序号的 `tea.Tick`，过期的 Tick 直接忽略
+- [ ] 浮层紧贴在状态栏上方，左对齐，多列排列；每一项显示为 `键 → Action 标题`，标题取自注册表
+- [ ] 按 esc 取消：关闭浮层，并清空待输入序列
+
+**验收**
+- [ ] 按 `SPC` 并等待约 0.5 秒后出现浮层，内容与 §6.8 中以 `SPC` 开头的默认键一致
+- [ ] 按 `SPC` 后立即按下一个键，不出现浮层
+- [ ] 在浮层中按键，效果与不打开浮层时直接按键相同
+- [ ] 按 esc 后浮层关闭，状态栏的待输入序列清空
+
+## F0.7 布局树与 pane 操作（键盘） · 状态：todo
+
+- **依赖**：F0.2、F0.4
+- **涉及**：`internal/app`（layout、workspace）
+
+**开发**
+- [ ] `layout.go`：二叉分割树的分割、关闭、调整大小、按方向切焦点。全部写成纯函数，配单元测试
+- [ ] 按键：
+  - `C-h/j/k/l`、`SPC h/j/k/l`：切换焦点
+  - `SPC %` / `SPC "`：左右分割 / 上下分割
+  - `SPC x`：关闭当前 pane
+  - `SPC z`：缩放 / 还原
+  - `SPC H/J/K/L`：调整大小
+  - `SPC q`：显示编号，再按数字跳转
+  - `SPC b`：折叠 / 展开侧栏
+- [ ] pane 编号 ⟨n⟩ 按树的遍历顺序计算，侧栏固定为 ⟨0⟩
+
+**验收**
+- [ ] layout 的单元测试通过
+- [ ] tmux e2e 测试：
+  - 分割后出现新 pane，编号正确；
+  - 按方向切焦点的结果与几何位置一致；
+  - 关闭 pane 后，兄弟 pane 占满空间；
+  - 缩放后能还原；
+  - `SPC H/J/K/L` 能改变比例；
+  - `SPC q` 按数字跳转正确；
+  - 折叠后显示 3 列宽的细栏，再按一次恢复
+
+## F0.8 命中表与鼠标 · 状态：todo
+
+- **依赖**：F0.5、F0.6、F0.7
+- **涉及**：`internal/ui`（hit）、`internal/app`（鼠标事件的分发）
+
+**开发**
+- [ ] 鼠标事件经由命中表转成 Action（§7.4）；查找时倒序，后画的在上层
+- [ ] 点击 pane 使其获得焦点；双击 pane 标题切换缩放；拖动 pane 之间的边界调整大小；点击细栏展开侧栏
+- [ ] 键位提示即按钮：pane 标题右侧的提示、which-key 中的每一项、状态栏的 `C-p` 入口
+- [ ] 悬停高亮；识别双击（400ms 内点中同一个目标）；滚轮作用于指针下方的 pane；点击浮层外部关闭浮层
+
+**验收**
+
+在 tmux e2e 中注入 SGR 鼠标序列，检查以下各项：
+- [ ] 点击 pane 后获得焦点；双击标题会缩放，再双击还原
+- [ ] 拖动边界后比例改变；点击细栏后侧栏展开
+- [ ] 点击提示或 which-key 中的一项，都会触发对应的 Action
+- [ ] 悬停时样式有变化（用 `capture-pane -e` 检查颜色）
+- [ ] 滚轮作用于指针所在的 pane（用占位内容的滚动偏移验证）
+- [ ] 点击浮层外部后，浮层关闭

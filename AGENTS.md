@@ -54,13 +54,26 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 
 ## 协作流程（多会话开发）
 
-本项目由三个角色协作开发，feature 清单与验收标准见 [`specs/plan.md`](specs/plan.md)。
+本项目由三个角色协作开发。里程碑的索引和推进规则见 [`specs/plan.md`](specs/plan.md)；每个里程碑的任务清单在对应的目录下，例如 [`specs/m0-skeleton/task.md`](specs/m0-skeleton/task.md)。
 
 | 角色 | 职责 |
 |---|---|
-| 决策者 | 维护 `specs/tech-design.md`，以及 `specs/plan.md` 中的范围和验收标准；回答问题；确认每个阶段的 feature 拆分 |
-| worker | 按 `specs/plan.md` 逐个实现 feature |
-| tester | 逐个验证 feature |
+| 决策者 | 维护 `specs/` 下的文档：tech-design、plan，以及各 task.md 的范围和验收标准；回答问题；确认每个里程碑的开发清单；里程碑结束时整理验证步骤，交给用户亲自验证 |
+| worker | 按 task.md 的开发清单逐项实现 |
+| reviewer | 审查 worker 的每个 commit，通过后提测给 tester |
+| tester | 按 task.md 的验收项逐个测试 feature |
+
+固定的工作流：
+
+1. worker 完成一个 feature 后提交，把 commit 交给 reviewer。
+2. reviewer 审查。
+   - 通过：提测给 tester。
+   - 有必须修改的问题：退回给 worker。worker 修复后，再次交给 reviewer。
+3. tester 测试。
+   - 通过：feature 记为 passed。
+   - 有问题：退回给 worker。worker 的修复 commit 同样要先经过 reviewer 审查，再回到 tester。
+
+每个里程碑的所有 feature 都 passed 之后，由用户亲自验证一遍，确认后才打 tag，进入下一个里程碑。
 
 **通用规则**：
 
@@ -69,16 +82,55 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 
 **worker 的规则**：
 
-- 只有 worker 在主工作区（本目录）改代码，并提交到 `main`。只提交到本地，不 push。
-- 每完成一个可测试的 feature，依次：
-  1. 确认单测通过；
-  2. 提交一个 commit，提交说明以 feature ID 开头，例如 `F0.3: 状态栏`；
-  3. 把 `plan.md` 里这个 feature 的状态改为 `testing`；
-  4. 发消息给 tester，写明 feature ID、commit sha、验收要点和运行方式。
-- 不必等测试结果，接着做下一个 feature。收到 bug 报告后修复，提交新的 commit，再通知 tester 复测。
-- feature 通过测试后，把状态改为 `passed`。
+- **代码质量**：代码首先要好维护，并遵循 ponytail 原则（`ponytail:ponytail` skill）。
+  - 能不写的就不写；已有的代码优先复用；然后依次考虑标准库、已经引入的依赖，最后才写最少的新代码。
+  - 不做只有一个实现的接口，不做只有一种产品的工厂，不为不会变的值加配置，不为「以后可能用到」预先搭脚手架。
+  - 改 bug 要找到根因，改在所有调用方共用的那一处。
+  - 有意走的捷径，用 `ponytail:` 注释标出它的上限，以及以后怎么升级。
+  - 有分支、循环、解析等非平凡逻辑的地方，至少留一个能运行的测试。
+  - 包的边界按 tech-design §4 划分。命名要清楚。注释写「为什么」，不写「做了什么」。不留死代码。
+- **按清单逐步做**：
+  - 严格按 task.md 的开发清单逐项实现并勾选，不跳步，不顺手做清单以外的事。
+  - 发现清单漏了东西或者不合理，先提给决策者。
+- **提交**：
+  - 只有 worker 在主工作区（本目录）改代码，并提交到 `main`。只提交到本地，不 push。
+  - feature commit 里不包含 `specs/` 和 `AGENTS.md` 的改动（自己改的任务状态除外）。决策者通知文档有更新时，单独提交一个 `docs:` commit。
+- **每完成一个可测试的 feature**，依次：
+  1. 确认所有测试通过：单测、golden，以及合入 `e2e` 分支后的 e2e 回归；
+  2. 提交 commit，说明以 feature ID 开头，例如 `F0.3: keymap 引擎与配置`；
+  3. 把 task.md 里这个 feature 的状态改为 `reviewing`；
+  4. 发消息给 reviewer，写明 feature ID、commit sha、对应的 task.md 小节，以及希望重点审查的地方。
+- **不等审查和测试的结果**，接着做下一个 feature。
+- **收到退回时**：无论是 reviewer 的「必须改」还是 tester 的 bug，都修复后提交新的 commit，再交给 reviewer。
+- **状态更新**：
+  - reviewer 告知已提测后，把状态改为 `testing`；
+  - tester 报告通过后，勾选验收项，把状态改为 `passed`，并注明 commit sha。
+- **建议类意见**：reviewer 给出的「建议」不阻塞提测，可以攒起来，在后续的 commit 中一起处理。
+- **里程碑结束**：用户验证通过后，打 tag（`m0`、`m1` ……）。
+
+**reviewer 的规则**：
+
+- **只读**：不改代码、不改 `specs/`、不提交。
+  - 在主仓库里只执行只读的 git 命令来看改动，例如 `git -C /Users/ctw/proj/sqlmux show <sha>`，或 `git diff <上次审查通过的 sha>..<sha>`。
+  - 需要跑测试时，在自己的 worktree 里跑：`git worktree add --detach /Users/ctw/proj/sqlmux-review <sha>`，之后用 `git -C /Users/ctw/proj/sqlmux-review checkout --detach <sha>` 切换到要审查的 commit。不在主工作区跑，因为那里有 worker 尚未提交的改动。
+- **审查重点**：
+  1. **正确性**：逻辑与边界条件是否正确，错误处理是否可能导致数据丢失。
+  2. **可维护性与 ponytail**：有没有过度设计、重复造轮子、多余的依赖、死代码；非平凡的逻辑有没有测试。可以用 `code-review` 和 `ponytail:ponytail-review` skill。
+  3. **与文档一致**：实现是否符合 tech-design 和 task.md 的开发清单，有没有做清单以外的事。
+  4. **本文件的约定**：SQL 相关的实现有没有先参考开源实现；默认键位是否只用了任何终端都能区分的键；界面上的键位文字是否都从 keymap 读取；测试有没有隔离用户数据。
+- **意见分两级**：
+  - 「必须改」：不改就不能提测；
+  - 「建议」：不阻塞提测。
+- **有「必须改」时**：发给 worker，写明文件和行号、问题、建议的改法。worker 修复后会提交新的 commit，只复审新增的改动。
+- **审查通过时**：
+  - 发消息给 tester 提测，写明 feature ID、commit sha、验收要点、运行方式，以及审查中发现需要 tester 特别关注的地方；
+  - 同时告知 worker，由 worker 把状态改为 `testing`；
+  - 抄送决策者一句话结论。
+- **spec 本身有问题时**：发给决策者，不要自己决定。
 
 **tester 的规则**：
+
+- **测试请求来自 reviewer**：只测审查通过的 commit。发现问题退回给 worker；worker 的修复 commit 会先经过 reviewer，再回到你这里。
 
 - **不在主工作区操作**：在单独的 worktree 中测试，用 `git worktree add /Users/ctw/proj/sqlmux-e2e -b e2e` 创建。测试某个 commit 之前，先在 worktree 里执行 `git merge <sha>`。
 - **只改 `e2e/` 目录**（e2e 脚本），提交到 `e2e` 分支。worker 会定期把 `e2e` 分支合并进 `main`。

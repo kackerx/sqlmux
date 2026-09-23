@@ -107,6 +107,7 @@ sqlmux/
 - 格式化：`github.com/dop251/goja`
 - 模糊匹配：`github.com/junegunn/fzf/src/algo`
 - 其他：`github.com/BurntSushi/toml`
+- 命令行参数：用标准库 `flag`。目前只有 `keys` 一个子命令，加上 `--debug`、`--format`、`--check` 几个参数，不需要引入 kong 这类 CLI 库；等子命令多起来、或者需要 shell 补全时再换。
 
 ## 5. 核心数据模型
 
@@ -167,7 +168,7 @@ Tab 的种类：
 Window
 ├─ 侧栏 ⟨0⟩ schema（可折叠）
 └─ Node(纵向, 0.6)              ← 第一次执行 SQL 时，把原来的根节点包进一个新的纵向节点
-   ├─ Node(横向, 0.5)
+   ├─ Node(横向, 5:4)          ← data 与 console 的宽度比，取自设计稿（§7.8）
    │  ├─ Pane ⟨1⟩ data
    │  └─ Pane ⟨2⟩ console
    └─ Pane ⟨3⟩ result           底部全宽结果区（§11）
@@ -430,6 +431,47 @@ type Hit struct {
 ### 7.7 图标
 
 默认使用 Nerd Font 字形。设置 `icons = "ascii"` 后改用 ASCII 替代字符，用于没有安装 Nerd Font 的环境。
+
+### 7.8 默认尺寸与样式（取自设计稿）
+
+设计稿按 13px 等宽字体绘制，一列约 7.8px。下面的数值由此折算成终端的行和列；设计稿里没有标注的，由实现自行取整。
+
+- **整体布局**：
+  - 最外层不留边距。
+  - 横向相邻的 pane 之间留 1 列空白，纵向相邻的不留。
+  - data 与 console 的宽度比为 5 : 4（设计稿中分别是 flex 5 和 flex 4）。
+- **schema 侧栏**：
+  - 宽度默认 32 列（含边框；设计稿为 250px）。窗口宽度小于 100 列时，缩到 24 列。
+  - 折叠后是 3 列宽的细栏（设计稿为 24px），左右各 1 列边框、中间 1 列内容：顶部显示 `»`，下面竖排 `schema · SPC b`，每行一个字符。
+  - 侧栏内部从上到下依次是：
+    - 第一行：过滤图标（`info` 色）、`/`（`fg` 色）、`160 tables`（`dim` 色）；
+    - 一条分隔线（#2f3549）；
+    - 表列表：每项是「图标（`func` 色，当前表用 `focus` 色）+ 表名 + 右对齐的行数量级（`border` 色）」，当前表整行用 `select` 底色；
+    - 一条分隔线；
+    - 提示行，如 `j/k move  ↵ open tab`，键名用 `focus` 色粗体，说明文字用 `dim` 色。
+- **pane 标题**：
+  - 格式为 `⟨n⟩ <图标> 类型 · 对象名`，从左上角往右 1 列开始，两侧各留 1 个空格。
+  - 右侧提示离右上角 1 列。
+  - console 标题的右侧是 `▶ run`（`focus` 底、`bg` 色字、粗体）加上 `↵`（`dim` 色）；schema 下拉框 `doraemon.public ▾` 放在 run 的左边。
+- **tab 栏**：
+  - 位于 pane 内容区的最后一行，底色为 `bg`（比 pane 底色深），不画分隔线。
+  - 每个 tab 显示为 ` 序号:名称标记 `，tab 之间用 `│`（#2f3549）分隔。
+  - 当前 tab 用 `pane_bg` 底色、`focus` 色字；其他 tab 用 `dim` 色字。
+  - tab 之后是可点击的 `+`；最右端是 `dim` 色的键位提示，如 `hjkl · ↵ edit · T 转置 · gt/gT`，文字从 keymap 读取。
+- **状态栏**：
+  - 底色 #292e42。各段是扁平色块，不用 powerline 箭头，每段左右各留 1 列内边距。
+  - 左侧依次为：
+    - ` <引擎图标> doraemon ▾ `：`focus` 底、`bg` 色字、粗体；
+    - window 列表，如 ` 0: data* `：当前 window 用 #3b4261 底、`fg` 色字，其余 window 用 `dim` 色字、无底色。
+  - 右侧右对齐，依次为：
+    - 模式附加信息：`dim` 色，过长时用省略号，窗口窄时最先被省略；
+    - ` <搜索图标> C-p `：`info` 色；
+    - ` <键盘图标> 待输入序列 `：序列用 `warn` 色粗体；
+    - ` 行,列 `：`fg_muted` 色；
+    - ` <图标> pg@localhost:5432 `：`info` 色，#2f3549 底；
+    - ` NORMAL `：模式色底、`bg` 色字、粗体。
+- **命令行**：进入 COMMAND 模式时，命令行占用状态栏的左侧，替换掉 session 和 window 列表（与 tmux 的命令提示一致）；右侧的模式块显示 COMMAND。
+- **toast**：显示在状态栏上方一行的右侧，`warn` 色，3 秒后消失。data pane 中保存 / 刷新的结果按 Q-06 的要求显示在查询条的右侧，不通过 toast 显示。
 
 ## 8. 数据访问
 
@@ -879,7 +921,14 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
 
 ## 14. 配置与持久化
 
-所有 Unix 平台都遵循 XDG 规范。macOS 上也使用 `~/.config`，这是终端工具的惯例。
+所有 Unix 平台都遵循 XDG 规范：优先读 `$XDG_CONFIG_HOME`、`$XDG_STATE_HOME`、`$XDG_DATA_HOME`，未设置时分别用 `~/.config`、`~/.local/state`、`~/.local/share`。macOS 上也用 `~/.config`，不用 `~/Library/Application Support`，这是终端工具的惯例。
+
+**文件格式**：
+
+- **配置文件用 TOML**。配置是用户手写的，需要能写注释；键位的分层表（如 `[keys.grid]`、`[map.console.normal]`）写成 TOML 的表最自然。lazysql、Helix、Alacritty 用的也是 TOML。
+  - 不选 YAML：缩进容易写错，而且有隐式类型转换，比如 `no` 会被当成 false。
+  - 不选 JSON：不能写注释。
+- **state 文件用 JSON**。它只由程序读写，不需要用户手工编辑。
 
 | 文件 | 写入方 | 内容 |
 |---|---|---|
