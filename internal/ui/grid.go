@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	uv "github.com/charmbracelet/ultraviolet"
 )
@@ -76,7 +77,7 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 	// each cell: 1 space, content, 1 space; │ after the row numbers and between columns
 	room := area.Dx() - (noW + 2 + 1) - 3*len(g.Cols) + 1
 	ws := g.widths(room)
-	sep := uv.Style{Fg: th.Sep, Bg: th.PaneBg}
+	line := uv.Style{Fg: th.Sep, Bg: th.PaneBg}
 
 	// seps are the x of each │: after the row numbers, then between columns.
 	seps := []int{area.Min.X + noW + 2}
@@ -90,17 +91,14 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 		f.Text(cellX(c), y, min(cellX(c)+ws[c], area.Max.X), Truncate(g.header(col), ws[c]), uv.Style{Fg: th.Func, Bg: th.PaneBg, Attrs: uv.AttrBold})
 	}
 	for _, x := range seps {
-		f.Text(x, y, area.Max.X, "│", sep)
+		f.Text(x, y, area.Max.X, "│", line)
 	}
 	if y++; y >= area.Max.Y {
 		return
 	}
-	for x := area.Min.X; x < area.Max.X; x++ {
-		ch := "─"
-		if slices.Contains(seps, x) {
-			ch = "┼"
-		}
-		f.Text(x, y, x+1, ch, sep)
+	f.Text(area.Min.X, y, area.Max.X, strings.Repeat("─", area.Dx()), line)
+	for _, x := range seps {
+		f.Text(x, y, area.Max.X, "┼", line)
 	}
 	y++
 
