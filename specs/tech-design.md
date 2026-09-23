@@ -521,7 +521,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
 
 - `text` 换字形，`fg` 换颜色，两者都可以只写一个。没写的沿用 `icons` 选的那一套（nerd / ascii），`icons = "ascii"` 时覆盖照样生效。
 - 写了 `fg` 的图标在任何位置都用这个颜色；没写时跟随所在位置的颜色，比如标题聚焦时是 `focus` 色。
-- 可以覆盖的图标：`schema`、`table`、`data`、`console`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`。以后新增的图标（如 `mysql`、视图）也按名字加入。名字写错时启动报错。
+- 可以覆盖的图标：`schema`、`table`、`data`、`console`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`，以及命令面板用的 `command`（nf-fa-bolt，U+F0E7，ascii 为 `:`）和 `window`（nf-fa-window_restore，U+F2D2，ascii 为 `[]`）。以后新增的图标（如 `mysql`、视图）也按名字加入。名字写错时启动报错。
 
 ### 7.8 默认尺寸与样式（取自设计稿）
 
@@ -1021,8 +1021,12 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
 - **打开**：`C-p`（`palette.open`）打开，范围为「所有」；NORMAL 下按 `:`（`palette.command`）打开并直接进入命令范围，相当于输入了 `>`。
 - **ex 别名**：命令可以带别名，如 `q`（关闭 tab）、`qa`（退出）、`w`（保存）。在命令范围里，输入与某个别名完全相同时，这条命令排第一，所以 `:q↵`、`:qa↵` 的用法不变。
 - **数据来源**：session、window、pane 取自工作现场；表取自 catalog；命令取自 Action 注册表（带标题的 Action）；SQL 取自快速查询的历史。
+  - 只在浮层里用的 Action 不作为候选，比如面板自己的 `palette.up` / `palette.down` / `palette.run` / `palette.close`，以及以后的 `where.*`、`cols.*`：离开那个浮层，执行它们没有意义。判断方法可以是「只在浮层作用域里有绑定」。
 - **范围与前缀**：按 PRD K-02，范围标签为 所有 / 会话 / 窗口·Pane / 表 / 命令 / SQL，M0 先有 所有、窗口·Pane、表、命令。`Tab` / `S-Tab` 切换范围标签；输入前缀直接限定范围：`>` 命令、`@` 表、`%` 窗口·Pane、`$` 会话、`;` SQL。
-- **每一行**（K-03）：图标、名称、所在位置（`dim` 色）、右侧的键位或 ON / OFF、类型标签。
+  - 范围只由输入里的前缀决定，不另存状态：`Tab` / `S-Tab` 就是改写前缀（「命令」→ `>`、「表」→ `@`、「窗口·Pane」→ `%`，「所有」去掉前缀），输入的其余内容保留；范围标签按当前前缀高亮。`:` 相当于输入了 `>`，也是同一套机制。
+- **每一行**（K-03）：图标、名称、所在位置（`dim` 色）、右侧的键位或 ON / OFF、类型标签（命令 / 表 / Pane / 窗口）。图标都放在最左列对齐。
+  - pane 的名称是 `⟨1⟩ data · t_order`，所在位置是它所在的 window，如 `0: data`；
+  - window 的名称是 `0: data`，所在位置是 session 名。
   - 命令的名称是中文标题，所在位置显示它的 action id，如 `左右分割  pane.split.right`。匹配的对象是「名称 + 空格 + 所在位置」这一整串，两部分都能高亮，所以输入 `split` 也能找到；action id 也正是在 config.toml 里绑键时要写的名字。
   - 表的所在位置是 `session.schema`，如 `doraemon.public`。
 - **布局**：宽度 min(80, 窗口宽 − 4)，水平居中；上边缘固定在窗口高度的 1/4 处，列表变长变短时输入行不动。单线边框、`focus` 色，标题「命令面板」。从上到下：
@@ -1032,8 +1036,15 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
   - 底栏：左边是移动和关闭的键位提示（从 keymap 读取），右边是 `↵ <按回车的效果>`。
 - **光标**：用终端自己的光标，放在输入位置上，输入法的候选框也会跟着它。
 - **开关类命令**（M0）：`tree.toggle`（侧栏展开时为 ON）、`pane.zoom`（缩放中为 ON）。
-- **匹配**：使用 fzf 的算法，并支持它的扩展语法（§9.7），匹配到的字符用黄底高亮。输入为空时，先列最近用过的，其余命令按 action id 排序；最近使用 M0 只记在内存里，M1 有了 state.json 之后持久化。
-- **执行**：按 K-04。命令：执行，开关类命令只切换状态，不关闭面板；表：`↵` 在当前 tab 打开，`C-t` 在新 tab 打开；pane：聚焦；window：切换（M5 之前只列出，不能切换）。底栏右侧显示当前项按回车会做什么。
+- **匹配**：使用 fzf 的算法，并支持它的扩展语法（§9.7），匹配到的字符用黄底高亮。
+  - 输入为空时，先列最近用过的（不分种类）；其余按范围标签的顺序：window、pane（按 ⟨n⟩）→ 表（按侧栏顺序）→ 命令（按 action id）。
+  - 输入不为空时，各种类混在一起按 fzf 的分数排。
+  - 最近使用 M0 只记在内存里，M1 有了 state.json 之后持久化。
+- **执行**：按 K-04。底栏右侧显示当前项按回车会做什么。
+  - 命令：执行；开关类命令只切换状态，不关闭面板。
+  - 表：打开到焦点所在的 data pane；焦点不在 data pane 上时，用这个 window 里的第一个 data pane；一个都没有时什么都不做。`↵` 在当前 tab 打开，`C-t` 在那个 pane 新开一个 tab 并切过去；底栏显示 `↵ 打开 · C-t 新 tab`。选中的不是表时，`C-t` 不起作用。
+  - pane：聚焦。
+  - window：切换。M5 之前只列出，`↵` 只关闭面板。
 - **预览（K-05）**：光标在某张表上停留 150ms 后，从 `Meta` 获取 DDL，获取后缓存。窗口高度不够时，列表至少保留 3 行，底部提示始终显示，先压缩预览区。
 - **快速 SQL**：
   - **执行**：在 `Meta` 上执行，PG 用 `BEGIN READ ONLY`，MySQL 用 `START TRANSACTION READ ONLY`，执行完一律 ROLLBACK。执行时加上 §9.4 的自动 LIMIT。
