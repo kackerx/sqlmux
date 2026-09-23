@@ -318,7 +318,7 @@
 - [x] 列表往下滚动之后，执行开关类命令（如 `pane.zoom`），选中项仍然在可视区域内。
 - [x] `match.go` 的单测覆盖：排序结果、高亮位置、扩展语法。
 
-## F0.14 命令面板：表、pane、window 范围 · 状态：testing
+## F0.14 命令面板：表、pane、window 范围 · 状态：passed（bf453c0；e2e c3e9a0a）
 
 - **依赖**：F0.13
 - **涉及**：`internal/app`、`internal/ui`（palette）
@@ -331,12 +331,12 @@
 - [x] 每一行按 K-03（§12）：图标、名称、所在位置、右侧的键位或 ON / OFF、类型标签。新用到的图标（如命令、window）加进 §7.7 的可覆盖列表。
 
 **验收**
-- [ ] `Tab` / `S-Tab` 在范围之间循环；输入 `@ord` 只在表里找，`%con` 只在窗口和 pane 里找。
-- [ ] 在表范围选中 `t_user`，按 ↵ 后当前 tab 变成 t_user；按 `C-t` 则新开一个 tab。
-- [ ] 焦点在 console 上时，从面板打开一张表：表打开到第一个 data pane，焦点也移到这个 data pane。
-- [ ] console 处于缩放状态时，从面板打开表，或者在面板里聚焦 data pane：先退出缩放，再聚焦 data pane。目标就是正在缩放的 pane 时，保持缩放。
-- [ ] 在 pane 范围选中 console，按 ↵ 后焦点移到 console。
-- [ ] 「所有」范围里同时有命令、表、pane 和 window，每一行都有类型标签。
+- [x] `Tab` / `S-Tab` 在范围之间循环；输入 `@ord` 只在表里找，`%con` 只在窗口和 pane 里找。
+- [x] 在表范围选中 `t_user`，按 ↵ 后当前 tab 变成 t_user；按 `C-t` 则新开一个 tab。
+- [x] 焦点在 console 上时，从面板打开一张表：表打开到第一个 data pane，焦点也移到这个 data pane。
+- [x] console 处于缩放状态时，从面板打开表，或者在面板里聚焦 data pane：先退出缩放，再聚焦 data pane。目标就是正在缩放的 pane 时，保持缩放。
+- [x] 在 pane 范围选中 console，按 ↵ 后焦点移到 console。
+- [x] 「所有」范围里同时有命令、表、pane 和 window，每一行都有类型标签。
 
 ## F0.15 侧栏：拖动调宽、标题显示当前 schema · 状态：testing
 
