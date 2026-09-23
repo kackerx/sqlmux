@@ -59,15 +59,16 @@ func init() {
 		"pane.zoom":        {"缩放 / 还原", do(func(a *App, _ Args) { a.toggleZoom() })},
 		"pane.number":      {"按编号跳转", do(func(a *App, _ Args) { a.paneNumbers = true })},
 		"tree.toggle":      {"折叠 / 展开 schema 树", do(func(a *App, _ Args) { a.toggleTree() })},
-	}
-	for _, side := range []string{"left", "down", "up", "right"} {
-		actions["pane.focus."+side] = Action{"焦点移到" + sideName[side] + "边", do(func(a *App, _ Args) { a.focusSide(side) })}
-	}
-	for side, r := range map[string]struct {
-		d    Dir
-		sign float64
-	}{"left": {Horiz, -1}, "right": {Horiz, 1}, "up": {Vert, -1}, "down": {Vert, 1}} {
-		actions["pane.resize."+side] = Action{"向" + sideName[side] + "调整大小", do(func(a *App, args Args) { a.resizePane(r.d, r.sign, args.Count) })}
+
+		"pane.focus.left":  {"焦点移到左边", do(func(a *App, _ Args) { a.focusSide("left") })},
+		"pane.focus.down":  {"焦点移到下边", do(func(a *App, _ Args) { a.focusSide("down") })},
+		"pane.focus.up":    {"焦点移到上边", do(func(a *App, _ Args) { a.focusSide("up") })},
+		"pane.focus.right": {"焦点移到右边", do(func(a *App, _ Args) { a.focusSide("right") })},
+
+		"pane.resize.left":  {"向左调整大小", do(func(a *App, args Args) { a.resizePane(Horiz, -1, args.Count) })},
+		"pane.resize.down":  {"向下调整大小", do(func(a *App, args Args) { a.resizePane(Vert, 1, args.Count) })},
+		"pane.resize.up":    {"向上调整大小", do(func(a *App, args Args) { a.resizePane(Vert, -1, args.Count) })},
+		"pane.resize.right": {"向右调整大小", do(func(a *App, args Args) { a.resizePane(Horiz, 1, args.Count) })},
 	}
 	// Bound by default.toml but built by later features: titled already, so
 	// which-key can name them; running them does nothing yet.
@@ -94,8 +95,6 @@ func init() {
 		actions[id] = Action{Title: title}
 	}
 }
-
-var sideName = map[string]string{"left": "左", "down": "下", "up": "上", "right": "右"}
 
 // do adapts an action that only changes state.
 func do(f func(*App, Args)) func(*App, Args) tea.Cmd {

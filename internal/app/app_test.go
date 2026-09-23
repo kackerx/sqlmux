@@ -494,3 +494,24 @@ func TestFoldSidebar(t *testing.T) {
 		t.Errorf("unfolded width %d", r.Dx())
 	}
 }
+
+// Closing a zoomed pane (here with :q) ends the zoom: the zoom must never
+// point at a pane that is gone.
+func TestCloseZoomedPane(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<Space>z:q<CR>:q<CR>")
+	if a.win().Zoom != 0 || len(a.layout()) != 2 || !strings.Contains(a.render().String(), "console") {
+		t.Fatalf("zoom %d, layout %v", a.win().Zoom, a.layout())
+	}
+}
+
+// Split IDs are never handed out twice, even after the highest is closed.
+func TestSplitIDsStayUnique(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<Space>%")
+	first := a.win().Focus
+	feed(t, a, "<Space>x<Space>%")
+	if a.win().Focus == first {
+		t.Fatalf("pane ID %d reused", first)
+	}
+}

@@ -30,11 +30,11 @@ func (a *App) hints(scope, sep string, actions ...string) string {
 	return strings.Join(ks, sep)
 }
 
-// layout places the sidebar and every pane of the current window, keyed by
-// pane ID. The last row is the status bar.
 // thinBarWidth is the folded sidebar: two borders around one column (§7.8).
 const thinBarWidth = 3
 
+// layout places the sidebar and every pane of the current window, keyed by
+// pane ID. The last row is the status bar.
 func (a *App) layout() map[int]uv.Rectangle {
 	win := a.win()
 	main := uv.Rect(0, 0, max(a.w, 0), max(a.h-1, 0))

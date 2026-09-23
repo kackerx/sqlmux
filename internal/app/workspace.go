@@ -44,6 +44,7 @@ type Window struct {
 	Root     *Node
 	Focus    int // pane ID
 	Zoom     int // zoomed pane ID; 0 = none (P-03)
+	lastID   int // highest pane ID handed out
 }
 
 // Session is one connection (tech-design §5).
@@ -66,6 +67,7 @@ func fakeSession() *Session {
 		Tree:     &Pane{ID: 0, Kind: KindSchema},
 		Root:     &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(cons)}, // data : console = 5 : 4 (§7.8)
 		Focus:    1,
+		lastID:   2,
 	}
 	// ponytail: the second window only shows in the status bar's window list;
 	// switching windows is M5.
@@ -121,11 +123,17 @@ func (a *App) closeTab() {
 		p.Cur = max(min(closed, len(p.Tabs)-1), 0)
 	}
 	p.Prev = -1
-	if len(p.Tabs) > 0 {
-		return
+	if len(p.Tabs) == 0 {
+		a.removePane(p.ID)
 	}
-	if root, heir := a.win().Root.remove(p.ID); root != nil {
-		a.win().Root, a.win().Focus = root, heir.ID
+}
+
+// removePane takes pane id out of the tree: its sibling gets the space and
+// the focus, and any zoom ends. The window's only pane stays.
+func (a *App) removePane(id int) {
+	win := a.win()
+	if root, heir := win.Root.remove(id); root != nil {
+		win.Root, win.Focus, win.Zoom = root, heir.ID, 0
 	}
 }
 
@@ -154,11 +162,8 @@ func (a *App) splitPane(d Dir) {
 	if p.Kind == KindSchema {
 		return
 	}
-	next := 0
-	for _, q := range win.Root.Leaves() {
-		next = max(next, q.ID)
-	}
-	np := &Pane{ID: next + 1, Kind: p.Kind, Prev: -1}
+	win.lastID++ // never reused, so pane IDs stay stable (§5)
+	np := &Pane{ID: win.lastID, Kind: p.Kind, Prev: -1}
 	win.Root, win.Focus, win.Zoom = win.Root.split(p.ID, d, np), np.ID, 0
 }
 
@@ -166,11 +171,8 @@ func (a *App) splitPane(d Dir) {
 // sidebar and the window's only pane stay.
 func (a *App) closePane() {
 	win := a.win()
-	if win.Focus == win.Tree.ID {
-		return
-	}
-	if root, heir := win.Root.remove(win.Focus); root != nil {
-		win.Root, win.Focus, win.Zoom = root, heir.ID, 0
+	if win.Focus != win.Tree.ID {
+		a.removePane(win.Focus)
 	}
 }
 
