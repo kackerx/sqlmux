@@ -19,6 +19,7 @@ import sys
 import unicodedata
 
 SGR = re.compile(r"\x1b\[([0-9;:]*)m|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[A-Za-z]")
+CIRCLED = "⓪" + "".join(chr(0x2460 + i) for i in range(20))  # ⓪ ① … ⑳: pane numbers under nerd icons (F0.16)
 WIDTH = int(os.environ.get("E2E_W", 1 << 30))  # pane width, for the last tab stop
 BASIC = ["000000", "cd0000", "00cd00", "cdcd00", "0000ee", "cd00cd", "00cdcd", "e5e5e5"]
 
@@ -139,8 +140,9 @@ def main():
                 if x2 is None or y2 is None:
                     continue
                 title = "".join(ch[0] for ch in row[x:x2])
-                m = re.search(r"⟨(\d+)⟩", title)
-                print(m[1] if m else "-", x + 1, y + 1, x2 - x + 1, y2 - y + 1, int(c[1] == "#9ece6a"))
+                m = re.search(r"⟨(\d+)⟩|([⓪①-⑳])", title)
+                num = m[1] if m and m[1] else (str(CIRCLED.index(m[2])) if m else "-")
+                print(num, x + 1, y + 1, x2 - x + 1, y2 - y + 1, int(c[1] == "#9ece6a"))
     elif cmd == "width":
         for row in g:
             print(len(row))
