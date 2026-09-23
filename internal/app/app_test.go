@@ -96,13 +96,13 @@ func TestCmdlineCloses(t *testing.T) {
 	for _, in := range []string{":ab<Esc>", ":a<BS><BS>"} {
 		a := sized(160, 45, "nerd")
 		feed(t, a, in)
-		if a.cmdline != nil || a.mode() != ModeNormal {
+		if a.cmdline != nil || a.mode() != keymap.Normal {
 			t.Errorf("%q: cmdline still open", in)
 		}
 	}
 	a := sized(160, 45, "nerd")
 	feed(t, a, ":q a")
-	if a.mode() != ModeCommand || *a.cmdline != "q a" {
+	if a.mode() != keymap.Command || *a.cmdline != "q a" {
 		t.Fatalf("cmdline = %v", a.cmdline)
 	}
 }
@@ -135,16 +135,16 @@ func TestCloseTab(t *testing.T) {
 		t.Fatalf("after :q: tabs %v cur %d", data.Tabs, data.Cur)
 	}
 	feed(t, a, ":q<CR>")
-	if leaves := a.win.Root.Leaves(); len(leaves) != 1 || leaves[0].Kind != KindConsole || a.win.Focus != leaves[0].ID {
-		t.Fatalf("closing the last tab should close the pane and focus the console: %v focus %d", leaves, a.win.Focus)
+	if leaves := a.win().Root.Leaves(); len(leaves) != 1 || leaves[0].Kind != KindConsole || a.win().Focus != leaves[0].ID {
+		t.Fatalf("closing the last tab should close the pane and focus the console: %v focus %d", leaves, a.win().Focus)
 	}
 	feed(t, a, ":q<CR>")
-	if leaves := a.win.Root.Leaves(); len(leaves) != 1 || len(leaves[0].Tabs) != 0 {
+	if leaves := a.win().Root.Leaves(); len(leaves) != 1 || len(leaves[0].Tabs) != 0 {
 		t.Fatalf("the only pane stays, empty: %v", leaves)
 	}
-	a.win.Focus = a.win.Tree.ID
+	a.win().Focus = a.win().Tree.ID
 	feed(t, a, ":q<CR>") // the sidebar never closes
-	if a.win.Focus != a.win.Tree.ID {
+	if a.win().Focus != a.win().Tree.ID {
 		t.Fatal("focus moved")
 	}
 	a.View()
@@ -163,7 +163,7 @@ func TestKeysRunActions(t *testing.T) {
 	pressed, direct = sized(160, 45, "nerd"), sized(160, 45, "nerd")
 	feed(t, pressed, ":q<CR>")
 	direct.run("tab.close", 0)
-	if !reflect.DeepEqual(pressed.win, direct.win) {
+	if !reflect.DeepEqual(pressed.win(), direct.win()) {
 		t.Error(":q and tab.close differ")
 	}
 
@@ -176,12 +176,12 @@ func TestKeysRunActions(t *testing.T) {
 // runs the command instead of console.run.
 func TestCmdlineShadowsPaneKeys(t *testing.T) {
 	a := sized(160, 45, "nerd")
-	a.win.Focus = 2 // console
+	a.win().Focus = 2 // console
 	if ctx := a.context(); ctx.Mode != keymap.Normal || ctx.Focus[0] != "console" {
 		t.Fatalf("console context %+v", ctx)
 	}
 	feed(t, a, ":")
-	if ctx := a.context(); ctx.Overlay != "cmdline" || ctx.Focus != nil || ctx.Mode != keymap.Insert {
+	if ctx := a.context(); ctx.Overlay != "cmdline" || ctx.Focus != nil || ctx.Mode != keymap.Command {
 		t.Fatalf("cmdline context %+v", ctx)
 	}
 	if !feed(t, a, "qa<CR>") {

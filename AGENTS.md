@@ -93,7 +93,7 @@ sqlmux/
 
 | 角色 | 职责 |
 |---|---|
-| 决策者 | 维护 `specs/` 下的文档：tech-design、plan，以及各 task.md 的范围和验收标准；回答问题；确认每个里程碑的开发清单；每个 feature 测试通过后整理验证步骤，交给用户亲自验证 |
+| 决策者 | 维护 `specs/` 下的文档：tech-design、plan，以及各 task.md 的范围和验收标准；回答问题；确认每个里程碑的开发清单；里程碑结束时整理体验路径，交给用户验收 |
 | worker | 按 task.md 的开发清单逐项实现 |
 | reviewer | 审查 worker 的每个 commit，通过后提测给 tester |
 | tester | 按 task.md 的验收项逐个测试 feature |
@@ -105,17 +105,14 @@ sqlmux/
    - 通过：提测给 tester。
    - 有必须修改的问题：退回给 worker。worker 修复后，再次交给 reviewer。
 3. tester 测试。
-   - 通过：状态改为 `verifying`，报告给决策者和 worker。
+   - 通过：状态改为 `passed`，报告给决策者和 worker。
    - 有问题：退回给 worker。worker 的修复 commit 同样要先经过 reviewer 审查，再回到 tester。
-4. 决策者整理验证步骤，交给用户亲自验证。
-   - 通过：feature 才算 `passed`。
-   - 有问题：退回给 worker，按第 2、3 步重新走一遍。
 
-一个里程碑的所有 feature 都 `passed`、并且完整的 e2e 回归通过之后，打 tag，然后**暂停**：
+用户按里程碑验收，不逐个验收 feature。一个里程碑的所有 feature 都 `passed`、完整的 e2e 回归也通过之后，进入**暂停**：
 
 - 用户深度体验这个里程碑，提出问题和改进意见；
 - 决策者把反馈整理成改进 feature，照常走完上面的流程；
-- 用户确认可以继续后，才进入下一个里程碑。
+- 用户确认验收通过后，打 tag，进入下一个里程碑。
 
 暂停期间，worker 不写代码，只可以起草下一个里程碑的开发清单。
 
@@ -149,10 +146,9 @@ sqlmux/
 - **收到退回时**：无论是 reviewer 的「必须改」还是 tester 的 bug，都修复后提交新的 commit，再交给 reviewer。
 - **状态更新**：
   - reviewer 告知已提测后，把状态改为 `testing`；
-  - tester 报告通过后，勾选验收项，把状态改为 `verifying`；
-  - 决策者转告用户验证通过后，把状态改为 `passed`，并注明 commit sha。
+  - tester 报告通过后，勾选验收项，把状态改为 `passed`，并注明 commit sha。
 - **建议类意见**：reviewer 给出的「建议」不阻塞提测，可以攒起来，在后续的 commit 中一起处理。
-- **里程碑结束**：全部 feature 都 `passed`、tester 的完整回归也通过之后，打 tag（`m0`、`m1` ……），然后停下来，等用户深度体验并提出反馈。用户确认之前，不开始下一个里程碑的代码。
+- **里程碑结束**：全部 feature 都 `passed`、tester 的完整回归也通过之后，停下来，等用户深度体验并提出反馈。用户验收通过后才打 tag（`m0`、`m1` ……），然后才开始下一个里程碑的代码。
 
 **reviewer 的规则**：
 
