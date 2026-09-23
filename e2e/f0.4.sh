@@ -11,7 +11,9 @@ start_with() { printf "$1" >| "$CFG/config.toml"; start -c "$CFG/config.toml"; }
 exited()  { screen_has '[e2e-exit'; }
 running() { flag_is alternate_on 1 && ! exited; }
 cmd() { e2e_type ":$1"; e2e_keys Enter; sleep 0.3; }
-cmdline_is() { local got; got=$(e2e_plain | sed -n 45p | sed 's/ *$//'); [[ $got == "$1" ]] || { echo "  row 45: '$got', want '$1'"; false; }; }
+# 命令行占状态栏左侧（F0.5 起前面有 1 列内边距、右侧还有别的块）；'' 表示命令行没打开
+cmdline() { local row; row=$(e2e_text 1 "$(e2e_flag pane_width)" "$(e2e_flag pane_height)"); [[ $row == *" COMMAND " ]] || return 0; row=${row#" "}; echo "${row%%"  "*}"; }
+cmdline_is() { local got; got=$(cmdline); [[ $got == "$1" ]] || { echo "  cmdline: '$got', want '$1'"; false; }; }
 quit_clean() {  # 退出码 0，终端标志位按 F0.1 复原
   wait_for 3 screen_has '[e2e-exit 0]' && flag_is alternate_on 0 && flag_is mouse_all_flag 0 &&
     flag_is mouse_sgr_flag 0 && flag_is bracket_paste_flag 0 && flag_is cursor_flag 1
@@ -56,7 +58,9 @@ check ":qa 退出，终端复原" quit_clean
 start
 E_ACUTE=$(printf 'e\xcc\x81') THUMB=$(printf '\xf0\x9f\x91\x8d\xf0\x9f\x8f\xbd')   # e+U+0301、👍🏽（bash 3.2 没有 \u）
 e2e_type ":x${E_ACUTE}${THUMB}中"; sleep 0.3
-check "命令行完整显示 é、👍🏽、中" eval '[[ $(codepoints "$(e2e_plain | sed -n 45p | sed "s/ *$//")") == "3a 78 65 301 1f44d 1f3fd 4e2d" ]]'
+# 这里不用 cmdline：👍🏽 会让渲染器多算 2 列、挤掉行尾的 COMMAND（宽度问题已报决策者），只看左侧的输入
+row45() { local r; r=$(e2e_text 1 160 45); r=${r#" "}; echo "${r%%"  "*}"; }
+check "命令行完整显示 é、👍🏽、中" eval '[[ $(codepoints "$(row45)") == "3a 78 65 301 1f44d 1f3fd 4e2d" ]]'
 e2e_keys Enter; sleep 0.3
 # 带肤色修饰的 emoji 不放进 toast：不支持 mode 2027 的终端（如 tmux）里，渲染器按 WcWidth 算它 4 列，与 Frame 的 2 列不一致（已报决策者）
 e2e_type ":x${E_ACUTE}中"; e2e_keys Enter; sleep 0.3

@@ -9,7 +9,8 @@ NF_FILTER=$(printf '\xef\x82\xb0') NF_CONSOLE=$(printf '\xef\x84\xa0')  # U+F0B0
 
 cols_are() { local got; got=$(e2e_find "$1" "$2"); [[ $got == "$3" ]] || { echo "  row $2 '$1' at [$got], want [$3]"; false; }; }
 widths_are() { local got; got=$(e2e_widths | sed '/^0$/d' | sort -u | tr '\n' ' '); [[ $got == "$1 " ]] || { echo "  row widths: $got"; false; }; }
-row_blank() { [[ -z $(e2e_text 1 "$1" "$2" | tr -d ' ') ]]; }
+# 最后一行是状态栏（F0.5 起有内容）：没有 pane 的边框，底色 #292e42
+status_row() { ! e2e_text 1 "$1" "$2" | python3 -c 'import sys; sys.exit(0 if set(sys.stdin.read()) & set("│┌┐└┘─") else 1)' && style_has $(($1 / 2)) "$2" bg=#292e42; }
 running() { flag_is alternate_on 1 && ! screen_has '[e2e-exit'; }
 at() { local c; c=$(e2e_find "$1" "$2"); style_has "$((${c%% *} + ${4:-0}))" "$2" "$3"; }  # TEXT Y STYLE [DX]
 start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
@@ -19,7 +20,7 @@ start
 check "每行都是 160 列" widths_are 160
 check "上边框角：侧栏 [1,32]、data [34,103]、console [105,160]" eval 'cols_are ┌ 1 "1 34 105" && cols_are ┐ 1 "32 103 160"'
 check "下边框在第 44 行，pane 占满状态栏以上" eval 'cols_are └ 44 "1 34 105" && cols_are ┘ 44 "32 103 160"'
-check "最后一行留给状态栏（此时为空）" row_blank 160 45
+check "最后一行留给状态栏" status_row 160 45
 check "横向间隔 1 列，bg 底色" eval 'style_has 33 1 bg=$BG && style_has 33 20 bg=$BG && style_has 104 44 bg=$BG'
 check "data:console = 70:56 = 5:4" eval '(( (103 - 34 + 1) * 4 == (160 - 105 + 1) * 5 ))'
 check "pane 内容区为 pane_bg" eval 'style_has 60 20 bg=$PANE_BG && style_has 130 20 bg=$PANE_BG'
@@ -97,7 +98,7 @@ start -x 80 -y 24
 check "每行都是 80 列" widths_are 80
 check "80 宽：24 / 30 / 24" eval 'cols_are ┌ 1 "1 26 57" && cols_are ┐ 1 "24 55 80" && cols_are ┘ 23 "24 55 80"'
 check "console 标题截断为 console · c…" text_has 57 80 1 "console · c… ─┐"
-check "最后一行留给状态栏" row_blank 80 24
+check "最后一行留给状态栏" status_row 80 24
 
 # ---- 侧栏宽度切换点：<100 列为 24
 start -x 99;  check "99 宽侧栏 24 列" eval '[[ $(e2e_find ┐ 1) == 24\ * ]]'
