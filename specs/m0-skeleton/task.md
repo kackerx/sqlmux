@@ -251,7 +251,7 @@
 - [x] 在 `config.toml` 里写 `[keys.normal] "<Leader>h" = "pane.focus.left"` 后，`SPC h` 能切焦点，which-key 里也出现这一项。
 - [x] 默认键位的兼容性单测照常通过。
 
-## F0.12 主题文件、按类型配色、console 图标 · 状态：todo
+## F0.12 主题文件：颜色、按类型配色、图标 · 状态：todo
 
 - **依赖**：F0.9
 - **涉及**：`internal/ui`（theme、grid、icons）、`internal/config`、`internal/app`
@@ -263,15 +263,21 @@
   - `string`、`time`、`bool`、`json`：默认都与 `fg` 相同。
 - [ ] grid 按列类型着色（§7.6）：每列带一个类型分类（number / string / time / bool / json / 其他）。M0 的假数据给每列标上分类：id 是 number，biz_type、status 是 string，created_at 是 time；M1 再按数据库类型映射。
 - [ ] console 图标改为 `nf-oct-terminal`（U+F489，带方框的终端图标）；ascii 下仍是 `>`。
+- [ ] 主题文件的 `[icon]` 表（§7.7，写法参考 yazi）：`名字 = { text = "…", fg = "#…" }`。
+  - `text` 换字形，`fg` 换颜色，两者都可以只写一个；没写的沿用 `icons`（nerd / ascii）那一套；
+  - 写了 `fg` 的图标在任何位置都用这个颜色，没写时跟随所在位置的颜色；
+  - 可以写的名字：`schema`、`table`、`data`、`console`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`。
 
 **验收**
-- [ ] 不写 `theme` 时，画面与现在完全一样，golden 不变。
+- [ ] 不写 `theme` 时，除了 console 图标，画面与现在完全一样：160×45（nerd）的 golden 只有 console 标题里的图标这一个字符不同，80×24（ascii）的 golden 不变。拆出 `bar` 不应带来任何变化。
 - [ ] 在临时的 `XDG_CONFIG_HOME` 里放一个主题文件，只写 `pane_bg`、`row`、`cursor`、`number`、`string`、`time`，`theme` 选它：
   - 这几项生效，其余 token 不变；
   - 状态栏的底色不受 `row` 影响。
 - [ ] 主题文件里 token 名写错、颜色写错，或者 `theme` 指向不存在的名字：启动报错并指出是哪一项，退出码为 1。
 - [ ] data 表格里 id、biz_type、created_at 三列分别用 `number`、`string`、`time` 的颜色。
 - [ ] nerd 图标下，console 标题里的图标是 U+F489。
+- [ ] 主题文件里写 `[icon] console = { text = "C", fg = "#ff0000" }`：console 标题的图标变成红色的 `C`。只写 `fg` 时字形不变、只改颜色。`icons = "ascii"` 时覆盖照样生效。
+- [ ] `[icon]` 里写了不存在的名字，或者颜色写错：启动报错并指出是哪一项。
 
 ## F0.13 命令面板：框架与命令范围 · 状态：todo
 

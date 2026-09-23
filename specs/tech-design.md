@@ -416,6 +416,7 @@ type Frame struct {
 
 - `config.toml` 里写 `theme = "<名字>"` 选择主题：先找 `~/.config/sqlmux/themes/<名字>.toml`，没有再找内置主题。
 - 主题文件只需写要改的 token，没写的沿用 `tokyonight-storm`。颜色写成 `#rrggbb`。token 名或颜色写错、或者找不到这个主题时，启动报错并指出是哪一项。
+- 主题文件里还可以用 `[icon]` 表自定义图标（§7.7）。
 
 ```toml
 # ~/.config/sqlmux/themes/ristretto.toml
@@ -509,6 +510,18 @@ type Hit struct {
 ### 7.7 图标
 
 默认使用 Nerd Font 字形。设置 `icons = "ascii"` 后改用 ASCII 替代字符，用于没有安装 Nerd Font 的环境。console 用带方框的终端图标 `nf-oct-terminal`（U+F489）。
+
+主题文件里可以逐个覆盖图标（M0 用户反馈，写法参考 yazi 的 `theme.toml`）：
+
+```toml
+[icon]
+console = { text = "\uf489", fg = "#78dce8" }   # 换字形，也换颜色
+table   = { fg = "#a9dc76" }                     # 只换颜色
+```
+
+- `text` 换字形，`fg` 换颜色，两者都可以只写一个。没写的沿用 `icons` 选的那一套（nerd / ascii），`icons = "ascii"` 时覆盖照样生效。
+- 写了 `fg` 的图标在任何位置都用这个颜色；没写时跟随所在位置的颜色，比如标题聚焦时是 `focus` 色。
+- 可以覆盖的图标：`schema`、`table`、`data`、`console`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`。以后新增的图标（如 `mysql`、视图）也按名字加入。名字写错时启动报错。
 
 ### 7.8 默认尺寸与样式（取自设计稿）
 
