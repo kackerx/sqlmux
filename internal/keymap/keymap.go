@@ -19,7 +19,7 @@ var defaultTOML string
 // pressed over it resolve as without it (§6.5).
 var tables = []string{
 	"keys.palette", "keys.where", "keys.cols", "keys.schema", "keys.sessions",
-	"keys.complete", "keys.cmdline", "keys.cell", "keys.input",
+	"keys.complete", "keys.cell", "keys.input",
 	"keys.result", "keys.grid", "keys.tree", "keys.console", "keys.normal", "keys.global",
 	"map.console.normal", "map.console.visual", "map.grid.normal", "map.grid.visual",
 	"map.tree.normal", "map.tree.visual", "map.normal", "map.visual",

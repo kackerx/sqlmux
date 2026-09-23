@@ -15,7 +15,7 @@ leader = "<Space>"
 "<C-j>" = "pane.focus.down"
 "<C-k>" = "pane.focus.up"
 "<C-l>" = "pane.focus.right"
-# Only the common keys (§6.8). Everything else runs from the palette (F0.13), or
+# Only the common keys (§6.8). Everything else runs from the palette, or
 # gets a key in config.toml: "<Leader>h" = "pane.focus.left".
 "<Leader>s" = "session.list"
 "<Leader>c" = "window.new"
@@ -30,7 +30,7 @@ leader = "<Space>"
 "<Leader>b" = "tree.toggle"
 "gt" = "tab.next"
 "gT" = "tab.prev"
-":" = "cmdline.open"
+":" = "palette.command"
 
 [keys.grid]
 "h" = "grid.left"
@@ -76,6 +76,12 @@ leader = "<Space>"
 "gs" = "console.schema"
 
 [keys.palette] # quick SQL lives in the palette's SQL mode
+"<Up>" = "palette.up"
+"<Down>" = "palette.down"
+"<C-p>" = "palette.up"
+"<C-n>" = "palette.down"
+"<CR>" = "palette.run"
+"<Esc>" = "palette.close"
 "<C-t>" = "palette.open.tab"
 "<C-y>" = "quicksql.copy"
 "<C-e>" = "quicksql.edit"

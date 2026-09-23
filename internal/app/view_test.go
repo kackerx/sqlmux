@@ -186,8 +186,10 @@ func TestStatusModeBlock(t *testing.T) {
 		t.Errorf("NORMAL block: %q bg %v", statusRow(a), modeBg())
 	}
 	feed(t, a, ":")
-	if !strings.HasSuffix(statusRow(a), " COMMAND ") || modeBg() != th.Info {
-		t.Errorf("COMMAND block: %q bg %v", statusRow(a), modeBg())
+	f := ui.NewFrame(a.w, 1, th) // the bar alone: over it the palette's backdrop dims everything
+	a.statusLine().Draw(f, uv.Rect(0, 0, a.w, 1))
+	if !strings.HasSuffix(f.String(), " COMMAND ") || f.Buf.CellAt(a.w-2, 0).Style.Bg != th.Info || !strings.Contains(f.String(), "doraemon") {
+		t.Errorf("COMMAND block, and no command line: %q bg %v", f.String(), f.Buf.CellAt(a.w-2, 0).Style.Bg)
 	}
 }
 
@@ -230,38 +232,6 @@ func TestStatusPendingKeepsPlace(t *testing.T) {
 		if got := cp(a); got != idle {
 			t.Errorf("%s: C-p at %d, idle at %d", in, got, idle)
 		}
-	}
-}
-
-// The command line gets at least half the bar; the matching commands go
-// first, then the connection, as the bar or the input grows tight (§7.8).
-func TestStatusCommandLine(t *testing.T) {
-	a := sized(160, 45, "nerd")
-	feed(t, a, ":")
-	if row := statusRow(a); !strings.HasPrefix(row, " :") || !strings.Contains(row, " :q | :qa ") || strings.Contains(row, "doraemon") {
-		t.Errorf("COMMAND at 160: %q", row)
-	}
-	feed(t, a, "qa")
-	if row := statusRow(a); !strings.Contains(row, " :qa  ") || strings.Contains(row, ":q |") {
-		t.Errorf("typed qa: %q", row)
-	}
-
-	a = sized(80, 24, "nerd")
-	feed(t, a, ":q")
-	row := statusRow(a)
-	if strings.Contains(row, ":q |") || strings.Contains(row, "pg@localhost") || !strings.HasSuffix(row, " COMMAND ") {
-		t.Errorf("COMMAND at 80: %q", row)
-	}
-	if i := strings.Index(row, ui.NerdIcons.Search.Text); ui.Width(row[:i]) < 40 {
-		t.Errorf("the command line must keep half the bar: %q", row)
-	}
-	if !strings.Contains(row, " 1,1 ") {
-		t.Errorf("the cursor goes only once the input is long: %q", row)
-	}
-	feed(t, a, strings.Repeat("x", 53))
-	row = statusRow(a)
-	if strings.Contains(row, " 1,1 ") || !strings.Contains(row, ":q"+strings.Repeat("x", 53)) || !strings.HasSuffix(row, " COMMAND ") {
-		t.Errorf("a long input pushes the cursor out: %q", row)
 	}
 }
 

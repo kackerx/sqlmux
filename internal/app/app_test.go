@@ -22,7 +22,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	toastTTL, whichKeyDelay, quitWindow = time.Millisecond, time.Millisecond, time.Millisecond
+	whichKeyDelay, quitWindow = time.Millisecond, time.Millisecond
 	os.Exit(m.Run())
 }
 
@@ -50,6 +50,14 @@ func teaKey(k keymap.Key) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyBackspace}
 	case "<Space>":
 		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	case "<Up>":
+		return tea.KeyPressMsg{Code: tea.KeyUp}
+	case "<Down>":
+		return tea.KeyPressMsg{Code: tea.KeyDown}
+	case "<Left>":
+		return tea.KeyPressMsg{Code: tea.KeyLeft}
+	case "<Right>":
+		return tea.KeyPressMsg{Code: tea.KeyRight}
 	}
 	if s := string(k); len(s) == 5 && s[:3] == "<C-" {
 		return tea.KeyPressMsg{Code: rune(s[3]), Mod: tea.ModCtrl}
@@ -95,23 +103,18 @@ func TestQuitCommand(t *testing.T) {
 		t.Fatal(":qa did not quit")
 	}
 	a := sized(160, 45, "nerd")
-	if feed(t, a, ":foo<CR>") || a.toast != "未知命令: foo" {
-		t.Fatalf("unknown command: toast %q", a.toast)
+	if feed(t, a, ":zzzz<CR>") || a.palette == nil {
+		t.Fatal("↵ with nothing matching does nothing")
 	}
 }
 
-func TestCmdlineCloses(t *testing.T) {
-	for _, in := range []string{":ab<Esc>", ":a<BS><BS>"} {
+func TestPaletteCloses(t *testing.T) {
+	for _, in := range []string{":ab<Esc>", "<C-p>ab<C-c>"} {
 		a := sized(160, 45, "nerd")
 		feed(t, a, in)
-		if a.cmdline != nil || a.mode() != keymap.Normal {
-			t.Errorf("%q: cmdline still open", in)
+		if a.palette != nil || a.mode() != keymap.Normal || a.toast != "" {
+			t.Errorf("%q: palette %v, toast %q", in, a.palette, a.toast)
 		}
-	}
-	a := sized(160, 45, "nerd")
-	feed(t, a, ":q a")
-	if a.mode() != keymap.Command || *a.cmdline != "q a" {
-		t.Fatalf("cmdline = %v", a.cmdline)
 	}
 }
 
@@ -166,9 +169,9 @@ func TestCloseTab(t *testing.T) {
 func TestKeysRunActions(t *testing.T) {
 	pressed, direct := sized(160, 45, "nerd"), sized(160, 45, "nerd")
 	feed(t, pressed, ":")
-	direct.run("cmdline.open", 0)
-	if !reflect.DeepEqual(pressed.cmdline, direct.cmdline) {
-		t.Error(": and cmdline.open differ")
+	direct.run("palette.command", 0)
+	if !reflect.DeepEqual(pressed.palette, direct.palette) {
+		t.Error(": and palette.command differ")
 	}
 
 	pressed, direct = sized(160, 45, "nerd"), sized(160, 45, "nerd")
@@ -183,41 +186,37 @@ func TestKeysRunActions(t *testing.T) {
 	}
 }
 
-// With the cmdline open, keys go to it, not to the focused pane's scope: ↵
+// With the palette open, keys go to it, not to the focused pane's scope: ↵
 // runs the command instead of console.run.
-func TestCmdlineShadowsPaneKeys(t *testing.T) {
+func TestPaletteShadowsPaneKeys(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	a.win().Focus = 2 // console
 	if ctx := a.context(); ctx.Mode != keymap.Normal || ctx.Focus[0] != "console" {
 		t.Fatalf("console context %+v", ctx)
 	}
 	feed(t, a, ":")
-	if ctx := a.context(); ctx.Overlay != "cmdline" || ctx.Focus != nil || ctx.Mode != keymap.Command {
-		t.Fatalf("cmdline context %+v", ctx)
+	if ctx := a.context(); ctx.Overlay != "palette" || ctx.Focus != nil || ctx.Mode != keymap.Command {
+		t.Fatalf("palette context %+v", ctx)
 	}
 	if !feed(t, a, "qa<CR>") {
 		t.Fatal(":qa typed over the console did not quit")
-	}
-	a = sized(160, 45, "nerd")
-	if feed(t, a, ":<C-c>"); a.cmdline != nil || a.toast != "" {
-		t.Fatal("C-c should just leave the command line")
 	}
 }
 
 // An ambiguous binding fires when its timeoutlen tick comes back.
 func TestAmbiguousKeyTimesOut(t *testing.T) {
 	c := config.Default()
-	c.Bindings = []config.Binding{{Table: "keys.normal", Key: "g", Value: "cmdline.open"}}
+	c.Bindings = []config.Binding{{Table: "keys.normal", Key: "g", Value: "palette.open"}}
 	a := sizedWith(160, 45, c)
-	if _, cmd := a.Update(teaKey("g")); cmd == nil || a.cmdline != nil {
+	if _, cmd := a.Update(teaKey("g")); cmd == nil || a.palette != nil {
 		t.Fatal("g should wait for timeoutlen")
 	}
 	a.Update(keyTimeout{a.res.Seq() - 1}) // stale
-	if a.cmdline != nil {
+	if a.palette != nil {
 		t.Fatal("a stale timeout fired")
 	}
 	a.Update(keyTimeout{a.res.Seq()})
-	if a.cmdline == nil {
+	if a.palette == nil {
 		t.Fatal("the timeout did not run g")
 	}
 }
@@ -231,20 +230,20 @@ func TestResizeNoPanic(t *testing.T) {
 	}
 }
 
-// Typed text reaches the command line whole: multi-rune clusters are one key.
-func TestCmdlineTakesGraphemes(t *testing.T) {
+// Typed text reaches the palette whole: multi-rune clusters are one key.
+func TestPaletteTakesGraphemes(t *testing.T) {
 	a := sized(160, 45, "nerd")
-	feed(t, a, ":")
+	feed(t, a, "<C-p>")
 	for _, s := range []string{"e\u0301", "👍🏽", "🇨🇳"} {
 		a.Update(tea.KeyPressMsg{Code: tea.KeyExtended, Text: s})
 	}
-	if *a.cmdline != "e\u0301👍🏽🇨🇳" {
-		t.Fatalf("cmdline = %q", *a.cmdline)
+	if got := a.palette.input.Text; got != "e\u0301👍🏽🇨🇳" {
+		t.Fatalf("input = %q", got)
 	}
 	for _, want := range []string{"e\u0301👍🏽", "e\u0301", ""} { // backspace takes whole clusters, as in nvim
 		feed(t, a, "<BS>")
-		if a.cmdline == nil || *a.cmdline != want {
-			t.Fatalf("after <BS>: %v, want %q", a.cmdline, want)
+		if got := a.palette.input.Text; got != want {
+			t.Fatalf("after <BS>: %q, want %q", got, want)
 		}
 	}
 }
@@ -330,7 +329,7 @@ func TestWhichKeyNotForQuickKeys(t *testing.T) {
 // Keys typed with the overlay up do what they do without it; esc closes it
 // and clears the pending keys.
 func TestWhichKeyKeys(t *testing.T) {
-	c, err := config.Parse("[keys.normal]\n\"<Leader>:\" = \"cmdline.open\"")
+	c, err := config.Parse("[keys.normal]\n\"<Leader>:\" = \"palette.command\"")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,8 +337,8 @@ func TestWhichKeyKeys(t *testing.T) {
 	feed(t, a, "<Space>")
 	due(a)
 	feed(t, a, ":")
-	if a.whichKey || a.cmdline == nil {
-		t.Fatal("SPC : through which-key should open the command line and close the overlay")
+	if a.whichKey || a.palette == nil {
+		t.Fatal("SPC : through which-key should open the palette and close the overlay")
 	}
 
 	a = sized(160, 45, "nerd")

@@ -93,7 +93,7 @@ func TestSequences(t *testing.T) {
 		{Context{Focus: []string{"console"}, Pane: "console", Mode: Insert}, "<CR>gq", []string{"keys <CR>", "keys g", "keys q"}},
 		{Context{Focus: []string{"cell"}, Mode: Insert}, "<Tab>", []string{"cell.segment.next"}},
 		// COMMAND is typing too: no counts, no widget keys, no user maps
-		{Context{Overlay: "cmdline", Focus: []string{"console"}, Pane: "console", Mode: Command}, "5<CR>", []string{"keys 5", "keys <CR>"}},
+		{Context{Overlay: "palette", Mode: Command}, "5<CR>", []string{"keys 5", "palette.run"}},
 	} {
 		got, _ := press(t, NewResolver(m), c.ctx, c.in)
 		if !reflect.DeepEqual(actions(got), c.want) {
@@ -195,7 +195,7 @@ L = "5l"
 		{grid, "2J", []string{"grid.down ×23"}},         // count goes in front, as in vim
 		{console, "L", []string{"keys 5l"}},
 		{input, "J", []string{"keys J"}},                                      // no maps in INSERT
-		{Context{Overlay: "cmdline", Mode: Command}, "J", []string{"keys J"}}, // nor in COMMAND
+		{Context{Overlay: "palette", Mode: Command}, "J", []string{"keys J"}}, // nor in COMMAND
 	} {
 		got, _ := press(t, NewResolver(m), c.ctx, c.in)
 		if !reflect.DeepEqual(actions(got), c.want) {
@@ -206,7 +206,7 @@ L = "5l"
 
 func TestCtrlLeaderWorksInInsert(t *testing.T) {
 	m := mustLoad(t, "[keys]\nleader = \"<C-a>\"")
-	for _, ctx := range []Context{input, grid, {Overlay: "cmdline", Mode: Command}} {
+	for _, ctx := range []Context{input, grid, {Overlay: "palette", Mode: Command}} {
 		got, _ := press(t, NewResolver(m), ctx, "<C-a>%")
 		if !reflect.DeepEqual(actions(got), []string{"pane.split.right"}) {
 			t.Errorf("%+v: got %v", ctx, actions(got))

@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +22,7 @@ type Args struct {
 type Action struct {
 	Title string // shown by which-key and the palette
 	Run   func(*App, Args) tea.Cmd
+	On    func(*App) bool // a toggle's state: the palette shows ON / OFF and stays open (§12)
 }
 
 // quitWindow is how long the "press C-c again" toast stays; a second press
@@ -36,52 +36,57 @@ var actions map[string]Action
 
 func init() {
 	actions = map[string]Action{
-		"cmdline.open": {"命令行", func(a *App, _ Args) tea.Cmd {
-			s := ""
-			a.cmdline = &s
-			return nil
-		}},
-		"cancel": {"取消 / 连按两次退出", func(a *App, _ Args) tea.Cmd {
+		"palette.open":    {Title: "命令面板", Run: do(func(a *App, _ Args) { a.openPalette("") })},
+		"palette.command": {Title: "命令面板：命令", Run: do(func(a *App, _ Args) { a.openPalette(">") })}, // : opens it as if > was typed
+		// Keys inside the palette; run from anywhere else (the palette lists
+		// them too, and config may bind them) they do nothing.
+		"palette.up":    {Title: "上一项", Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
+		"palette.down":  {Title: "下一项", Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
+		"palette.run":   {Title: "执行选中项", Run: inPalette(func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel) })},
+		"palette.close": {Title: "关闭命令面板", Run: inPalette(func(a *App) tea.Cmd { a.palette = nil; return nil })},
+		"cancel": {Title: "取消 / 连按两次退出", Run: func(a *App, _ Args) tea.Cmd {
 			if a.mode() != keymap.Normal { // in any input C-c is esc, as in vim (§6.8)
-				return a.dispatch([]keymap.Result{{Keys: []keymap.Key{keymap.Esc}}})
+				return a.press(keymap.Esc)
 			}
 			if a.toast != "" && a.toastSeq == a.quitToast { // the first press's toast is still up
 				return tea.Quit
 			}
-			cmd := a.showToastFor(fmt.Sprintf("再按一次 %s 退出", a.keys.Hint("cancel", "global")), quitWindow)
+			cmd := a.showToast(fmt.Sprintf("再按一次 %s 退出", a.keys.Hint("cancel", "global")), quitWindow)
 			a.quitToast = a.toastSeq
 			return cmd
 		}},
-		"quit":      {"退出", func(*App, Args) tea.Cmd { return tea.Quit }},
-		"tab.close": {"关闭 tab", func(a *App, _ Args) tea.Cmd { a.closeTab(); return nil }},
+		"quit":      {Title: "退出", Run: func(*App, Args) tea.Cmd { return tea.Quit }},
+		"tab.close": {Title: "关闭 tab", Run: func(a *App, _ Args) tea.Cmd { a.closeTab(); return nil }},
 
-		"pane.split.right": {"左右分割", do(func(a *App, _ Args) { a.splitPane(Horiz) })},
-		"pane.split.below": {"上下分割", do(func(a *App, _ Args) { a.splitPane(Vert) })},
-		"pane.close":       {"关闭 pane", do(func(a *App, _ Args) { a.closePane() })},
-		"pane.zoom":        {"缩放 / 还原", do(func(a *App, _ Args) { a.toggleZoom() })},
-		"pane.number":      {"按编号跳转", do(func(a *App, _ Args) { a.paneNumbers = true })},
-		"tree.toggle":      {"折叠 / 展开 schema 树", do(func(a *App, _ Args) { a.toggleTree() })},
+		"pane.split.right": {Title: "左右分割", Run: do(func(a *App, _ Args) { a.splitPane(Horiz) })},
+		"pane.split.below": {Title: "上下分割", Run: do(func(a *App, _ Args) { a.splitPane(Vert) })},
+		"pane.close":       {Title: "关闭 pane", Run: do(func(a *App, _ Args) { a.closePane() })},
+		"pane.zoom": {Title: "缩放 / 还原", Run: do(func(a *App, _ Args) { a.toggleZoom() }),
+			On: func(a *App) bool { return a.win().Zoom != 0 }},
+		"pane.number": {Title: "按编号跳转", Run: do(func(a *App, _ Args) { a.paneNumbers = true })},
+		"tree.toggle": {Title: "折叠 / 展开 schema 树", Run: do(func(a *App, _ Args) { a.toggleTree() }),
+			On: func(a *App) bool { return a.win().TreeOpen }},
 
 		// "pane.focus <id>" is what a click runs; untitled, it stays out of the palette.
-		"pane.focus": {"", do(func(a *App, args Args) {
+		"pane.focus": {Run: do(func(a *App, args Args) {
 			if id, err := strconv.Atoi(args.Arg); err == nil {
 				a.focusPane(id)
 			}
 		})},
-		"pane.focus.left":  {"焦点移到左边", do(func(a *App, _ Args) { a.focusSide("left") })},
-		"pane.focus.down":  {"焦点移到下边", do(func(a *App, _ Args) { a.focusSide("down") })},
-		"pane.focus.up":    {"焦点移到上边", do(func(a *App, _ Args) { a.focusSide("up") })},
-		"pane.focus.right": {"焦点移到右边", do(func(a *App, _ Args) { a.focusSide("right") })},
+		"pane.focus.left":  {Title: "焦点移到左边", Run: do(func(a *App, _ Args) { a.focusSide("left") })},
+		"pane.focus.down":  {Title: "焦点移到下边", Run: do(func(a *App, _ Args) { a.focusSide("down") })},
+		"pane.focus.up":    {Title: "焦点移到上边", Run: do(func(a *App, _ Args) { a.focusSide("up") })},
+		"pane.focus.right": {Title: "焦点移到右边", Run: do(func(a *App, _ Args) { a.focusSide("right") })},
 
-		"pane.resize.left":  {"向左调整大小", do(func(a *App, args Args) { a.resizePane(Horiz, -1, args.Count) })},
-		"pane.resize.down":  {"向下调整大小", do(func(a *App, args Args) { a.resizePane(Vert, 1, args.Count) })},
-		"pane.resize.up":    {"向上调整大小", do(func(a *App, args Args) { a.resizePane(Vert, -1, args.Count) })},
-		"pane.resize.right": {"向右调整大小", do(func(a *App, args Args) { a.resizePane(Horiz, 1, args.Count) })},
+		"pane.resize.left":  {Title: "向左调整大小", Run: do(func(a *App, args Args) { a.resizePane(Horiz, -1, args.Count) })},
+		"pane.resize.down":  {Title: "向下调整大小", Run: do(func(a *App, args Args) { a.resizePane(Vert, 1, args.Count) })},
+		"pane.resize.up":    {Title: "向上调整大小", Run: do(func(a *App, args Args) { a.resizePane(Vert, -1, args.Count) })},
+		"pane.resize.right": {Title: "向右调整大小", Run: do(func(a *App, args Args) { a.resizePane(Horiz, 1, args.Count) })},
 	}
 	// Bound by default.toml but built by later features: titled already, so
 	// which-key can name them; running them does nothing yet.
 	for id, title := range map[string]string{
-		"palette.open": "命令面板", "save": "保存",
+		"save":         "保存",
 		"session.list": "session 列表", "session.new": "新建连接",
 		"window.new": "新建 window", "window.rename": "重命名 window", "window.close": "关闭 window",
 		"window.next": "下一个 window", "window.prev": "上一个 window", "window.last": "上次用的 window",
@@ -101,6 +106,16 @@ func init() {
 		"cell.option.next": "下一个选项", "cell.option.prev": "上一个选项", "cell.accept": "确定", "cell.done": "完成编辑",
 	} {
 		actions[id] = Action{Title: title}
+	}
+}
+
+// inPalette adapts an action that only means something with the palette open.
+func inPalette(f func(*App) tea.Cmd) func(*App, Args) tea.Cmd {
+	return func(a *App, _ Args) tea.Cmd {
+		if a.palette == nil {
+			return nil
+		}
+		return f(a)
 	}
 }
 
@@ -127,30 +142,4 @@ func (a *App) run(action string, count int) tea.Cmd {
 		return nil
 	}
 	return act.Run(a, Args{Count: count, Arg: arg})
-}
-
-// commands maps : commands to actions.
-var commands = map[string]string{"q": "tab.close", "qa": "quit"}
-
-// matchCommands lists the commands the typed text could become, as the
-// status bar shows them in COMMAND mode: ":q", ":qa".
-func matchCommands(typed string) []string {
-	var out []string
-	for name := range commands {
-		if strings.HasPrefix(name, typed) {
-			out = append(out, ":"+name)
-		}
-	}
-	slices.Sort(out)
-	return out
-}
-
-func (a *App) exec(cmd string) tea.Cmd {
-	if cmd == "" {
-		return nil
-	}
-	if action, ok := commands[cmd]; ok {
-		return a.run(action, 0)
-	}
-	return a.showToast("未知命令: " + cmd)
 }

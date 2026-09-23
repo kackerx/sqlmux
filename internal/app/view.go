@@ -101,6 +101,11 @@ func (a *App) render() *ui.Frame {
 		t := " " + a.toast + " "
 		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Bar})
 	}
+	if a.palette != nil {
+		if c := a.paletteView().Draw(f, a.window()); c.X >= 0 {
+			f.Cursor = &c
+		}
+	}
 	return f
 }
 
@@ -269,27 +274,18 @@ func (a *App) statusLine() ui.StatusLine {
 	mode := a.mode()
 	var s ui.StatusLine
 
-	if mode == keymap.Command {
-		// The command line takes the left side, like tmux's prompt, and gets
-		// space first: at least half the bar, wider as the input grows (§7.8).
-		cmd := " :" + *a.cmdline + " "
-		cmd += strings.Repeat(" ", max(a.w/2-ui.Width(cmd), 0))
-		s.Left = []ui.Segment{{Runs: []ui.Run{{Text: cmd, Style: bar(th.Fg)}}}}
-		s.Info = strings.Join(matchCommands(*a.cmdline), " | ")
-	} else {
-		sess := uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
-		// ponytail: postgres only; pick the icon by a.sess.Engine when MySQL lands (M5).
-		s.Left = []ui.Segment{{Runs: append(iconRuns(ic.Postgres, sess, " "),
-			ui.Run{Text: a.sess.Name, Style: sess, Shrink: true},
-			ui.Run{Text: " ▾ ", Style: sess},
-		)}}
-		for i, w := range a.sess.Windows {
-			seg := ui.Segment{Runs: []ui.Run{{Text: fmt.Sprintf(" %d: %s ", i, w.Name), Style: bar(th.Dim)}}, Drop: dropWindow}
-			if i == a.sess.Active {
-				seg = ui.Segment{Runs: []ui.Run{{Text: fmt.Sprintf(" %d: %s* ", i, w.Name), Style: uv.Style{Fg: th.Fg, Bg: th.Border}}}}
-			}
-			s.Left = append(s.Left, seg)
+	sess := uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
+	// ponytail: postgres only; pick the icon by a.sess.Engine when MySQL lands (M5).
+	s.Left = []ui.Segment{{Runs: append(iconRuns(ic.Postgres, sess, " "),
+		ui.Run{Text: a.sess.Name, Style: sess, Shrink: true},
+		ui.Run{Text: " ▾ ", Style: sess},
+	)}}
+	for i, w := range a.sess.Windows {
+		seg := ui.Segment{Runs: []ui.Run{{Text: fmt.Sprintf(" %d: %s ", i, w.Name), Style: bar(th.Dim)}}, Drop: dropWindow}
+		if i == a.sess.Active {
+			seg = ui.Segment{Runs: []ui.Run{{Text: fmt.Sprintf(" %d: %s* ", i, w.Name), Style: uv.Style{Fg: th.Fg, Bg: th.Border}}}}
 		}
+		s.Left = append(s.Left, seg)
 	}
 
 	pending := ui.Run{Text: "·", Style: bar(th.Dim)}

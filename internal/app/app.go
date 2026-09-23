@@ -15,8 +15,6 @@ import (
 	"sqlmux/internal/ui"
 )
 
-var toastTTL = 3 * time.Second
-
 type App struct {
 	w, h  int
 	theme *ui.Theme
@@ -25,8 +23,9 @@ type App struct {
 	res   *keymap.Resolver
 	sess  *Session
 
-	cmdline  *string // non-nil while the : command line is open (COMMAND mode)
-	whichKey bool    // the which-key overlay is up (§6.5)
+	palette  *palette // non-nil while the command palette is open (COMMAND mode)
+	recent   []string // actions run from the palette, most recent first (§12)
+	whichKey bool     // the which-key overlay is up (§6.5)
 	// paneNumbers is SPC q's overlay: the next key picks a pane by its ⟨n⟩.
 	paneNumbers bool
 
@@ -90,6 +89,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.drag != nil { // the border follows the pointer
 			a.win().Root = a.win().Root.setRatio(a.drag.idx, a.drag.ratioAt(a.mouse))
 		}
+		if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow && a.palette != nil { // hover selects (K-03)
+			a.palette.sel = t.I
+		}
 	case tea.MouseReleaseMsg:
 		a.drag = nil
 	case tea.MouseClickMsg:
@@ -148,8 +150,10 @@ func (a *App) click(p uv.Position) tea.Cmd {
 	case ui.KindNumber:
 		a.jumpToPane(keymap.Key(strconv.Itoa(t.I)))
 	case ui.KindBackdrop: // outside an overlay: close it
-		a.whichKey, a.paneNumbers = false, false
+		a.whichKey, a.paneNumbers, a.palette = false, false, nil
 		a.res.Reset()
+	case ui.KindRow:
+		return a.paletteRun(t.I)
 	case ui.KindItem:
 		if next := a.res.Next(); t.I < len(next) {
 			return a.press(next[t.I].Key)
@@ -192,9 +196,9 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 	for _, r := range out {
 		if r.Action != "" {
 			cmds = append(cmds, a.run(r.Action, r.Count))
-		} else if a.cmdline != nil {
+		} else if a.palette != nil {
 			for _, k := range r.Keys {
-				cmds = append(cmds, a.cmdlineKey(k))
+				a.paletteKey(k)
 			}
 		}
 	}
@@ -205,7 +209,7 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 // ponytail: only NORMAL and COMMAND exist until inputs (M1) and the console
 // editor (M3) arrive.
 func (a *App) mode() keymap.Mode {
-	if a.cmdline != nil {
+	if a.palette != nil {
 		return keymap.Command
 	}
 	return keymap.Normal
@@ -214,10 +218,14 @@ func (a *App) mode() keymap.Mode {
 // context tells the keymap which scopes apply to the next key (§6.4).
 func (a *App) context() keymap.Context {
 	if a.mode() == keymap.Command {
-		return keymap.Context{Overlay: "cmdline", Mode: keymap.Command}
+		return keymap.Context{Overlay: "palette", Mode: keymap.Command}
 	}
-	scope := [...]string{KindSchema: "tree", KindData: "grid", KindConsole: "console"}[a.focused().Kind]
-	return keymap.Context{Focus: []string{scope}, Pane: scope}
+	return keymap.Context{Focus: []string{a.paneScope()}, Pane: a.paneScope()}
+}
+
+// paneScope is the keymap scope of the focused pane.
+func (a *App) paneScope() string {
+	return [...]string{KindSchema: "tree", KindData: "grid", KindConsole: "console"}[a.focused().Kind]
 }
 
 func (a *App) focused() *Pane {
@@ -232,31 +240,7 @@ func (a *App) focused() *Pane {
 	return a.win().Tree
 }
 
-// cmdlineKey edits the : command line; it is a plain input, so its own
-// editing keys are not bindings.
-func (a *App) cmdlineKey(k keymap.Key) tea.Cmd {
-	switch k {
-	case keymap.Esc:
-		a.cmdline = nil
-	case "<CR>":
-		cmd := *a.cmdline
-		a.cmdline = nil
-		return a.exec(cmd)
-	case "<BS>":
-		if *a.cmdline == "" {
-			a.cmdline = nil
-		} else {
-			*a.cmdline = ui.DropLastGrapheme(*a.cmdline)
-		}
-	default:
-		*a.cmdline += keymap.Text(k)
-	}
-	return nil
-}
-
-func (a *App) showToast(s string) tea.Cmd { return a.showToastFor(s, toastTTL) }
-
-func (a *App) showToastFor(s string, ttl time.Duration) tea.Cmd {
+func (a *App) showToast(s string, ttl time.Duration) tea.Cmd {
 	a.toast = s
 	a.toastSeq++
 	seq := a.toastSeq
@@ -267,6 +251,10 @@ func (a *App) View() tea.View {
 	f := a.render()
 	a.hits = f.Hits // clicks are looked up in what was drawn
 	v := tea.NewView(f.Render())
+	if c := f.Cursor; c != nil { // the terminal's own cursor, which input methods follow (§12)
+		v.Cursor = tea.NewCursor(c.X, c.Y)
+		v.Cursor.Shape = tea.CursorBar
+	}
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion
 	return v

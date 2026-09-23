@@ -34,7 +34,7 @@ func (s Segment) width() int {
 // Info goes first, then droppable segments, and last the Shrink run is cut.
 type StatusLine struct {
 	Left  []Segment
-	Info  string // mode extra info, ellipsized
+	Info  string // mode extra info, ellipsized; M1's WHERE input shows "-- editing WHERE --" here (§7.8)
 	Right []Segment
 }
 

@@ -2,6 +2,10 @@
 package ui
 
 import (
+	"cmp"
+	"image/color"
+	"unicode/utf8"
+
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -19,6 +23,7 @@ const (
 	KindNumber                   // a pane under SPC q's numbers (I: its ⟨n⟩)
 	KindBorder                   // a split's drag handle (I: the split's index)
 	KindBackdrop                 // behind an overlay: a click closes it
+	KindRow                      // a palette candidate (I: its index): hover selects, click runs
 )
 
 // Target is what a click on a hit region resolves to. Targets compare with
@@ -38,10 +43,11 @@ type Hit struct {
 // Frame is one render pass: a cell buffer, the hit table built while
 // drawing, and what drawing needs to pick styles.
 type Frame struct {
-	Buf   uv.ScreenBuffer
-	Hits  []Hit
-	Mouse uv.Position // pointer, for hover styles; (-1,-1) when unknown
-	Theme *Theme
+	Buf    uv.ScreenBuffer
+	Hits   []Hit
+	Mouse  uv.Position // pointer, for hover styles; (-1,-1) when unknown
+	Theme  *Theme
+	Cursor *uv.Position // the terminal cursor, while an input has focus
 }
 
 func NewFrame(w, h int, th *Theme) *Frame {
@@ -102,6 +108,48 @@ func (f *Frame) Text(x, y, right int, s string, st uv.Style) int {
 		x += w
 	}
 	return x
+}
+
+// TextMatch is Text with the runes at pos (a Match's) drawn in hl: a
+// grapheme lights up when any of its runes matched.
+func (f *Frame) TextMatch(x, y, right int, s string, pos []int, st, hl uv.Style) int {
+	r := 0 // rune offset of the grapheme
+	for s != "" {
+		gr, _ := ansi.FirstGraphemeCluster(s, ansi.GraphemeWidth)
+		s = s[len(gr):]
+		n := utf8.RuneCountInString(gr)
+		for len(pos) > 0 && pos[0] < r {
+			pos = pos[1:]
+		}
+		style := st
+		if len(pos) > 0 && pos[0] < r+n {
+			style = hl
+		}
+		x = f.Text(x, y, right, gr, style)
+		r += n
+	}
+	return x
+}
+
+// Dim blends every cell 60% of the way to bg, so what an overlay covers
+// reads as behind it (§7.5): a terminal has no alpha.
+func (f *Frame) Dim() {
+	th := f.Theme
+	for y := range f.Buf.Height() {
+		for x := range f.Buf.Width() {
+			c := f.Buf.CellAt(x, y)
+			c.Style.Fg = mix(cmp.Or(c.Style.Fg, th.Fg), th.Bg, 0.6)
+			c.Style.Bg = mix(cmp.Or(c.Style.Bg, th.Bg), th.Bg, 0.6)
+		}
+	}
+}
+
+// mix is the color t of the way from a to b.
+func mix(a, b color.Color, t float64) color.Color {
+	ar, ag, ab, _ := a.RGBA()
+	br, bg, bb, _ := b.RGBA()
+	m := func(x, y uint32) uint8 { return uint8((float64(x)*(1-t) + float64(y)*t) / 0x101) }
+	return color.RGBA{m(ar, br), m(ag, bg), m(ab, bb), 0xff}
 }
 
 func (f *Frame) Render() string { return f.Buf.Render() }

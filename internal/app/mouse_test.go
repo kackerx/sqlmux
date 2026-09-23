@@ -175,7 +175,7 @@ func TestClickUnderPaneNumbers(t *testing.T) {
 		if a.paneNumbers || a.win().Focus != c.focus {
 			t.Errorf("%s: numbers %v, focus %d, want %d", c.name, a.paneNumbers, a.win().Focus, c.focus)
 		}
-		if feed(t, a, ":"); a.cmdline == nil {
+		if feed(t, a, ":"); a.palette == nil {
 			t.Errorf("%s: the key after the click was swallowed", c.name)
 		}
 	}
