@@ -215,8 +215,6 @@ func TestStatusPendingKeys(t *testing.T) {
 	}
 }
 
-// The command line gets at least half the bar; the matching commands go
-// first, then the connection, as the bar or the input grows tight (§7.8).
 // The pending-keys block is at least 3 columns: typing SPC, g or a count
 // leaves the C-p entry where it was (§7.8).
 func TestStatusPendingKeepsPlace(t *testing.T) {
@@ -234,6 +232,8 @@ func TestStatusPendingKeepsPlace(t *testing.T) {
 	}
 }
 
+// The command line gets at least half the bar; the matching commands go
+// first, then the connection, as the bar or the input grows tight (§7.8).
 func TestStatusCommandLine(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, ":")
