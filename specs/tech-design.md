@@ -229,6 +229,7 @@ type Action struct {
 | `palette` / `where` / `cols` / `schema` / `sessions` / `whichkey` / `complete` / `cmdline` | 对应的浮层打开时，取最上层的一个 |
 | `cell` | 正在编辑单元格（INSERT） |
 | `input` | 任意单行输入框获得焦点（INSERT） |
+| `result` | result pane 获得焦点时生效，优先级在 `grid` 之上（如 `P`、`q`）；其余按键落到 `grid` |
 | `grid` / `tree` / `console` | 对应控件获得焦点。`console` 只含应用层的键（如 ↵ 执行、gq），其余按键交给 vim 引擎 |
 | `normal` | 所有 NORMAL 上下文共用：pane 焦点、leader、gt/gT、`:` |
 | `global` | 始终生效，只有少数 Ctrl 组合：C-p、C-s、C-c |
@@ -327,7 +328,8 @@ H = "0"
 | 表格 | `]` · `[` | 下一页 · 上一页 | 未定义 |
 | 表格 | `yy` · `yi` | 复制单元格 · 把行复制为 INSERT 语句 | y / yi |
 | result | `P` · `q` | 固定当前结果 tab · 关闭当前结果 tab | P / q（原为固定 / 关闭 pane） |
-| schema 树 | `↵` · `t` · `/` | 在当前 tab 打开 · 在新 tab 打开 · 过滤 | ↵ / C-↵ / / |
+| schema 树 | `j` `k` `gg` `G` | 移动，支持次数前缀，与表格一致 | j/k |
+| schema 树 | `↵` · `t` · `/` · `gs` | 在当前 tab 打开 · 在新 tab 打开 · 过滤 · 切换 schema | ↵ / C-↵ / / ；gs 为新增 |
 | console | `↵`（NORMAL / VISUAL） | 执行光标所在语句 · 执行选区 | ⌥↵ |
 | console | `gq` | 格式化当前语句或选区 | 同 |
 | console | `gs` | 打开 schema 下拉框（仅 PG，§8.6） | 新增 |

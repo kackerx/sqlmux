@@ -5,6 +5,41 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 - 设计与决策以 [`specs/tech-design.md`](specs/tech-design.md) 为准。要改设计，先改这份文档，再写代码。
 - 产品需求：[PRD - DB TUI v0.0.2](https://claude.ai/design/p/e6118404-bf7a-4420-abfd-e31198df2ba8?file=PRD+-+DB+TUI+v0.0.2.dc.html)；设计稿：[DB TUI v0.0.2](https://claude.ai/design/p/e6118404-bf7a-4420-abfd-e31198df2ba8?file=DB+TUI+v0.0.2.dc.html)。
 
+## 目录结构
+
+以 tech-design §4 为准。增删目录属于设计变更，由决策者同时更新 §4 和本节。
+
+```
+sqlmux/
+├─ AGENTS.md、CLAUDE.md       本文件；CLAUDE.md 只有一行 @AGENTS.md
+├─ cmd/sqlmux/                程序入口、子命令（keys）
+├─ internal/
+│  ├─ app/                    Model / Update / View、Action、工作现场模型、布局树
+│  ├─ ui/                     Frame、Block、主题、命中表、模糊匹配、各组件的绘制
+│  ├─ keymap/                 键位解析、作用域、映射、default.toml
+│  ├─ editor/                 vim 编辑器；testdata/ 放 nvim 差分用例
+│  ├─ sqlkit/                 词法、分句、读写判定、补全上下文、格式化
+│  ├─ db/                     连接、Worker、postgres/、mysql/、catalog
+│  └─ config/                 config / connections / state 文件，以及 XDG 路径
+├─ e2e/                       tester 的黑盒测试脚本，从 e2e 分支合并进来
+├─ testdata/seed/             集成测试的种子数据（M1 起）
+├─ docker-compose.yml         集成测试用的 PG / MySQL（M1 起）
+├─ specs/
+│  ├─ tech-design.md          技术方案
+│  ├─ plan.md                 里程碑索引与推进规则
+│  └─ m0-skeleton/ … m6-config/task.md   各里程碑的任务清单
+├─ bin/                       构建产物，不入库
+└─ .handoff/                  会话交接文档，不入库
+```
+
+仓库之外还有三个 worktree，分别由不同的角色使用：
+
+| 路径 | 使用者 | 分支 |
+|---|---|---|
+| `/Users/ctw/proj/sqlmux-e2e` | tester | `e2e` |
+| `/Users/ctw/proj/sqlmux-review` | reviewer | detached |
+| `/Users/ctw/proj/sqlmux-verify` | 决策者，给用户验证用 | detached |
+
 ## 遇到 SQL 相关的问题，先看开源实现，不要想当然
 
 凡是涉及以下内容的问题，动手前先查下面这些项目是怎么做的：
@@ -54,11 +89,11 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 
 ## 协作流程（多会话开发）
 
-本项目由三个角色协作开发。里程碑的索引和推进规则见 [`specs/plan.md`](specs/plan.md)；每个里程碑的任务清单在对应的目录下，例如 [`specs/m0-skeleton/task.md`](specs/m0-skeleton/task.md)。
+本项目由四个角色协作开发。里程碑的索引和推进规则见 [`specs/plan.md`](specs/plan.md)；每个里程碑的任务清单在对应的目录下，例如 [`specs/m0-skeleton/task.md`](specs/m0-skeleton/task.md)。
 
 | 角色 | 职责 |
 |---|---|
-| 决策者 | 维护 `specs/` 下的文档：tech-design、plan，以及各 task.md 的范围和验收标准；回答问题；确认每个里程碑的开发清单；里程碑结束时整理验证步骤，交给用户亲自验证 |
+| 决策者 | 维护 `specs/` 下的文档：tech-design、plan，以及各 task.md 的范围和验收标准；回答问题；确认每个里程碑的开发清单；每个 feature 测试通过后整理验证步骤，交给用户亲自验证 |
 | worker | 按 task.md 的开发清单逐项实现 |
 | reviewer | 审查 worker 的每个 commit，通过后提测给 tester |
 | tester | 按 task.md 的验收项逐个测试 feature |
@@ -70,10 +105,13 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
    - 通过：提测给 tester。
    - 有必须修改的问题：退回给 worker。worker 修复后，再次交给 reviewer。
 3. tester 测试。
-   - 通过：feature 记为 passed。
+   - 通过：状态改为 `verifying`，报告给决策者和 worker。
    - 有问题：退回给 worker。worker 的修复 commit 同样要先经过 reviewer 审查，再回到 tester。
+4. 决策者整理验证步骤，交给用户亲自验证。
+   - 通过：feature 才算 `passed`。
+   - 有问题：退回给 worker，按第 2、3 步重新走一遍。
 
-每个里程碑的所有 feature 都 passed 之后，由用户亲自验证一遍，确认后才打 tag，进入下一个里程碑。
+一个里程碑的所有 feature 都 `passed`，并且完整的 e2e 回归通过之后，打 tag，进入下一个里程碑。
 
 **通用规则**：
 
@@ -104,9 +142,10 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 - **收到退回时**：无论是 reviewer 的「必须改」还是 tester 的 bug，都修复后提交新的 commit，再交给 reviewer。
 - **状态更新**：
   - reviewer 告知已提测后，把状态改为 `testing`；
-  - tester 报告通过后，勾选验收项，把状态改为 `passed`，并注明 commit sha。
+  - tester 报告通过后，勾选验收项，把状态改为 `verifying`；
+  - 决策者转告用户验证通过后，把状态改为 `passed`，并注明 commit sha。
 - **建议类意见**：reviewer 给出的「建议」不阻塞提测，可以攒起来，在后续的 commit 中一起处理。
-- **里程碑结束**：用户验证通过后，打 tag（`m0`、`m1` ……）。
+- **里程碑结束**：全部 feature 都 `passed`、tester 的完整回归也通过之后，打 tag（`m0`、`m1` ……）。
 
 **reviewer 的规则**：
 
@@ -131,7 +170,6 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 **tester 的规则**：
 
 - **测试请求来自 reviewer**：只测审查通过的 commit。发现问题退回给 worker；worker 的修复 commit 会先经过 reviewer，再回到你这里。
-
 - **不在主工作区操作**：在单独的 worktree 中测试，用 `git worktree add /Users/ctw/proj/sqlmux-e2e -b e2e` 创建。测试某个 commit 之前，先在 worktree 里执行 `git merge <sha>`。
 - **只改 `e2e/` 目录**（e2e 脚本），提交到 `e2e` 分支。worker 会定期把 `e2e` 分支合并进 `main`。
 - **测试分三层**：

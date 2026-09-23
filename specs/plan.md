@@ -31,26 +31,27 @@
 | `doing` | 开发中 |
 | `reviewing` | 已提交，等待 reviewer 审查 |
 | `testing` | 审查通过，已提测，等待 tester 测试 |
-| `passed` | 测试通过 |
-| `failed` | 审查或测试发现问题；修复后回到 `reviewing` |
+| `verifying` | 测试通过，等待用户亲自验证 |
+| `passed` | 用户验证通过 |
+| `failed` | 审查、测试或用户验证发现问题；修复后回到 `reviewing` |
 
 ## 按步推进的规则
 
 1. **按依赖顺序开发。** 依赖的 feature 只要已经提交（状态为 `reviewing` 或之后），就可以开工；如果依赖在审查或测试中发现问题，先修依赖。
 2. **每一步都保持全绿。** 每个 commit 都要让已有测试全部通过：单元测试、golden 测试，以及 worker 合入 `e2e` 分支后的 e2e 回归。
-3. **一个 feature 完成后，先审查，再测试。**
+3. **一个 feature 完成后：先审查，再测试，最后由用户验证。**
    1. 开发清单全部勾选、单元测试通过后提交，把 commit sha 发给 reviewer；
    2. reviewer 审查通过后，提测给 tester；
-   3. 审查或测试发现问题时，worker 修复并提交新 commit，这个 commit 同样要先经过 reviewer，再回到 tester。
+   3. tester 测试通过后，决策者整理验证步骤（包括怎么运行、试哪些操作、应该看到什么），交给用户亲自验证；用户确认后，feature 才算 `passed`。
+   4. 审查、测试或用户验证发现问题时，worker 修复并提交新 commit。这个 commit 同样要先经过 reviewer，再依次经过 tester 和用户。
 4. **谁改什么。**
    - 开发清单由 worker 勾选。
-   - 验收项由 tester 测试。tester 报告通过后，由 worker 勾选验收项，并把状态改为 `passed`。
+   - 验收项由 tester 测试。tester 报告通过后，worker 勾选验收项，把状态改为 `verifying`。决策者转告用户验证通过后，worker 再把状态改为 `passed`，并注明 commit sha。
    - reviewer 和 tester 都不改 `task.md`。
    - 范围和验收标准只由决策者修改。worker 觉得清单不合理时，提给决策者。
 5. **里程碑完成的流程。**
-   1. 全部 feature 为 `passed`；
+   1. 全部 feature 为 `passed`，每一个都已经过用户验证；
    2. tester 在最后一个 commit 上跑一遍完整的 e2e 回归；
-   3. **用户亲自验证**：决策者整理出验证步骤交给用户，由用户在自己的终端里实际操作一遍；
-   4. 用户确认后，worker 打 tag（`m0`、`m1` ……），决策者把本表的状态改为「完成」。
+   3. 回归通过后，worker 打 tag（`m0`、`m1` ……），决策者把本表的状态改为「完成」。
 6. **下一个里程碑开工前**，worker 补充该里程碑的开发清单，发给决策者确认后，状态从 `draft` 改为 `todo`。
 7. **specs 的提交。** feature commit 不包含 `specs/` 和 `AGENTS.md` 的改动，但 worker 自己改的任务状态可以一起提交。决策者改完文档后会通知 worker，由 worker 单独提交一个 `docs:` commit。
