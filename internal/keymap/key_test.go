@@ -83,3 +83,11 @@ func TestFromTea(t *testing.T) {
 		}
 	}
 }
+
+func TestText(t *testing.T) {
+	for k, want := range map[Key]string{"a": "a", "中": "中", "<Space>": " ", "<lt>": "<", "<CR>": "", "<C-a>": ""} {
+		if got := Text(k); got != want {
+			t.Errorf("Text(%q) = %q, want %q", k, got, want)
+		}
+	}
+}

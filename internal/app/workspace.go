@@ -1,6 +1,9 @@
 package app
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // PaneKind is what a pane shows.
 type PaneKind uint8
@@ -76,4 +79,30 @@ var fakeSQL = []string{
 	"from t_order",
 	"where deleted_at is null",
 	"order by created_at desc;",
+}
+
+// closeTab closes the focused pane's current tab (:q). Closing the last tab
+// closes the pane too, except the sidebar and the window's only pane.
+func (a *App) closeTab() {
+	p := a.focused()
+	if p.Kind == KindSchema || len(p.Tabs) == 0 {
+		return
+	}
+	closed := p.Cur
+	p.Tabs = slices.Delete(p.Tabs, closed, closed+1)
+	switch {
+	case p.Prev > closed: // back to the previous tab, like vim's alternate
+		p.Cur = p.Prev - 1
+	case p.Prev >= 0 && p.Prev != closed:
+		p.Cur = p.Prev
+	default:
+		p.Cur = max(min(closed, len(p.Tabs)-1), 0)
+	}
+	p.Prev = -1
+	if len(p.Tabs) > 0 {
+		return
+	}
+	if root, heir := a.win.Root.remove(p.ID); root != nil {
+		a.win.Root, a.win.Focus = root, heir.ID
+	}
 }

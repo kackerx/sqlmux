@@ -26,7 +26,7 @@
 - [x] 按 `C-c` 不退出，出现提示
 - [x] 窗口调到 100×30 再调回原尺寸，重绘正确，没有残影，不 panic
 
-## F0.2 Frame、Block、主题与静态布局 · 状态：verifying（275701a；e2e 834b0ae）
+## F0.2 Frame、Block、主题与静态布局 · 状态：passed（67d664c；e2e 232e984）
 
 - **依赖**：F0.1
 - **涉及**：`internal/ui`（frame、block、theme、icons）、`internal/app`（组装 View）
@@ -46,7 +46,7 @@
 - [x] 80×24 下不 panic、不越界。标题栏空间不够时，按 §7.8 的顺序退让：先截短标题中的对象名，再从优先级最低的提示开始丢；160×45 下，console 标题栏的 `doraemon.public ▾` 和 `▶ run ↵` 都能完整显示
 - [x] 布局尺寸符合 §7.8：侧栏 32 列（窗口宽度小于 100 列时为 24 列）、data 与 console 为 5 : 4、横向间隔 1 列
 
-## F0.3 keymap 引擎与配置 · 状态：reviewing
+## F0.3 keymap 引擎与配置 · 状态：testing
 
 - **依赖**：F0.1。这一项是纯逻辑加命令行，不依赖 F0.2 的界面，可以和 F0.2 交错进行。
 - **涉及**：`internal/keymap`、`internal/config`、`cmd/sqlmux`（`keys` 子命令）
@@ -74,17 +74,17 @@
 - [ ] 在配置中写入重复绑定后，`sqlmux keys --check` 以非零状态码退出，并指出冲突的作用域和键
 - [ ] 把 `XDG_CONFIG_HOME` 指向临时目录后，写入的配置能生效（例如 `icons = "ascii"`）
 
-## F0.4 Action 注册表与命令行 · 状态：todo
+## F0.4 Action 注册表与命令行 · 状态：reviewing
 
 - **依赖**：F0.3
 - **涉及**：`internal/app`（action、mode、cmdline）
 
 **开发**
-- [ ] Action 注册表（§6.1），keymap 解析出的结果分发到对应的 Action
-- [ ] 模式由状态推导（§3 原则 3）：NORMAL / INSERT / VISUAL / COMMAND
-- [ ] `:` 命令行：显示在状态栏左侧（§7.8）；按 esc，或用退格删到空时关闭；支持 `:q`、`:qa`；输入未知命令时弹出 toast「未知命令: xxx」
-- [ ] `:q` 关闭当前 pane 的当前 tab（M0 中是占位 tab）；关掉最后一个 tab 时，连同 pane 一起关闭（侧栏除外）
-- [ ] 空闲时连按两次 `C-c` 退出（§6.8）：第一次按下弹出 toast「再按一次 C-c 退出」，2 秒内再按一次就退出，超过 2 秒则重新计时。这条规则取代 F0.1 中「按 C-c 不退出」的行为
+- [x] Action 注册表（§6.1），keymap 解析出的结果分发到对应的 Action
+- [x] 模式由状态推导（§3 原则 3）：NORMAL / INSERT / VISUAL / COMMAND
+- [x] `:` 命令行：显示在状态栏左侧（§7.8）；按 esc，或用退格删到空时关闭；支持 `:q`、`:qa`；输入未知命令时弹出 toast「未知命令: xxx」
+- [x] `:q` 关闭当前 pane 的当前 tab（M0 中是占位 tab）；关掉最后一个 tab 时，连同 pane 一起关闭（侧栏除外）
+- [x] 空闲时连按两次 `C-c` 退出（§6.8）：第一次按下弹出 toast「再按一次 C-c 退出」，2 秒内再按一次就退出，超过 2 秒则重新计时。这条规则取代 F0.1 中「按 C-c 不退出」的行为
 
 **验收**
 - [ ] `:q` 关闭当前 tab；关掉最后一个 tab 后，pane 也被关闭

@@ -228,3 +228,18 @@ func mods(ctrl, alt, shift bool, name string) Key {
 	}
 	return Key(s + name + ">")
 }
+
+// Text is what typing k inserts into an input: the character itself, a space
+// for <Space>; "" for keys that type nothing.
+func Text(k Key) string {
+	switch k {
+	case "<Space>":
+		return " "
+	case "<lt>":
+		return "<"
+	}
+	if utf8.RuneCountInString(string(k)) == 1 {
+		return string(k)
+	}
+	return ""
+}

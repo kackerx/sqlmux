@@ -40,7 +40,11 @@ func (m *Map) scopes(c Context, maps bool) []string {
 		ts = append(ts, "map."+c.Mode.String())
 	}
 	for _, f := range c.Focus {
-		ts = append(ts, "keys."+f)
+		// grid/tree/console/result keys are NORMAL/VISUAL keys: in INSERT only
+		// the input being typed into has bindings (↵ in console inserts a newline).
+		if c.Mode != Insert || f == "cell" || f == "input" {
+			ts = append(ts, "keys."+f)
+		}
 	}
 	if c.Mode == Normal {
 		ts = append(ts, "keys.normal")
