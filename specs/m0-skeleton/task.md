@@ -126,7 +126,7 @@
 - [x] 窗口继续变窄时，各段按 §7.8 的顺序省略，session 块、当前 window、`C-p` 入口、待输入序列和模式块始终都在
 - [ ] 待输入序列在 3 列以内时（如 `SPC`、`g`、`5`），`C-p` 入口的位置与没有待输入时相同
 
-## F0.6 which-key · 状态：testing
+## F0.6 which-key · 状态：reviewing
 
 - **依赖**：F0.3、F0.4、F0.5
 - **涉及**：`internal/ui`（whichkey）、`internal/app`
@@ -135,7 +135,7 @@
 - [x] 按键序列停在纯前缀节点上 400ms 后，弹出浮层。定时器用带序号的 `tea.Tick`，过期的 Tick 直接忽略
 - [x] 浮层紧贴在状态栏上方，左对齐，多列排列；每一项显示为 `键 → Action 标题`，标题取自注册表
 - [x] 按 esc 取消：关闭浮层，并清空待输入序列
-- [ ] keymap 的表清单去掉 `keys.whichkey`：which-key 浮层不是作用域（§6.4、§6.5）
+- [x] keymap 的表清单去掉 `keys.whichkey`：which-key 浮层不是作用域（§6.4、§6.5）
 
 **验收**
 - [ ] 按 `SPC` 并等待约 0.5 秒后出现浮层，内容与 §6.8 中以 `SPC` 开头的默认键一致

@@ -243,6 +243,8 @@ func TestProblems(t *testing.T) {
 "<Nope>" = "c"
 [keys.nowhere]
 x = "d"
+[keys.whichkey]
+y = "e"
 [keys]
 leader = "<Bad>"
 `)
@@ -250,7 +252,7 @@ leader = "<Bad>"
 	for _, p := range ps {
 		got = append(got, p.Table+" "+p.Key)
 	}
-	want := []string{"keys leader", "keys.normal <c-X>", "keys.normal <Nope>", "keys.nowhere x"}
+	want := []string{"keys leader", "keys.normal <c-X>", "keys.normal <Nope>", "keys.nowhere x", "keys.whichkey y"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
