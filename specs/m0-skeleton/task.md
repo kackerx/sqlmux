@@ -74,7 +74,7 @@
 - [x] 在配置中写入重复绑定后，`sqlmux keys --check` 以非零状态码退出，并指出冲突的作用域和键
 - [x] 把 `XDG_CONFIG_HOME` 指向临时目录后，写入的配置能生效（例如 `icons = "ascii"`）
 
-## F0.4 Action 注册表与命令行 · 状态：reviewing
+## F0.4 Action 注册表与命令行 · 状态：testing
 
 - **依赖**：F0.3
 - **涉及**：`internal/app`（action、mode、cmdline）

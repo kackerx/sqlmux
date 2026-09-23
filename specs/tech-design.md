@@ -382,7 +382,7 @@ type Frame struct {
 - **宽度**：Frame 和 Bubble Tea 的渲染器必须用同一种宽度算法。两者不一致时，渲染器会按自己的算法重排这一行，行尾的边框会被挤掉。统一按字素簇计算（`ansi.GraphemeWidth`）：
   - 实测 tmux 3.7b 按字素簇显示：👍🏽、❤️、👨‍👩‍👧、1️⃣、☺️、⚠️ 都占 2 列；按 wcwidth 算，分别是 4、1、6、1、1、1 列。
   - Bubble Tea v2 默认用 wcwidth，只有终端回报支持 mode 2027 时才改用字素簇。tmux 不回报，Terminal.app 连查询都不发，所以要在启动时主动切换。
-  - Bubble Tea v2.0.9 没有公开的设置项。做法是在 `Init` 里返回一个 `tea.ModeReportMsg{Mode: ansi.ModeUnicodeCore, Value: ansi.ModeSet}`，它走的是终端回报 2027 时的同一条路径（`tea.go` 的 eventLoop）。升级 Bubble Tea 时，检查是否有了正式的设置项。
+  - Bubble Tea v2.0.9 没有公开的设置项。做法是在 `Init` 里返回一个 `tea.ModeReportMsg{Mode: ansi.ModeUnicodeCore, Value: ansi.ModeSet}`，它走的是终端回报 2027 时的同一条路径（`tea.go` 的 eventLoop）。这借用的是未公开的行为，所以配一个单测：终端不回报时，启动后渲染器已经切换（它会输出 `ansi.SetModeUnicodeCore`）。升级 Bubble Tea 后这条路径变了，测试就会失败；升级时也顺便看看是否有了正式的设置项。
   - 代价：只按 wcwidth 显示的老终端，遇到这类字符会错位。有人遇到时再加配置项。
 
 ### 7.2 Block
