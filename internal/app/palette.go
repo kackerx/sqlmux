@@ -47,8 +47,7 @@ func (a *App) paletteMatches() (ids []string, ms []ui.Match) {
 	}
 	query, commandScope := strings.CutPrefix(a.palette.input.Text, ">")
 	ms = ui.Filter(query, texts)
-	if id, ok := exAliases[strings.TrimSpace(query)]; ok && commandScope {
-		i := slices.Index(ids, id)
+	if i := slices.Index(ids, exAliases[strings.TrimSpace(query)]); i >= 0 && commandScope {
 		ms = slices.Insert(slices.DeleteFunc(ms, func(m ui.Match) bool { return m.Index == i }), 0, ui.Match{Index: i})
 	}
 	return ids, ms
@@ -114,6 +113,7 @@ func (a *App) paletteRun(i int) tea.Cmd {
 	cmd := a.run(id, 0)
 	ids, ms = a.paletteMatches() // it may have moved up among the recent ones
 	a.palette.sel = slices.IndexFunc(ms, func(m ui.Match) bool { return ids[m.Index] == id })
+	a.paletteMove(0) // and the list scrolls to it
 	return cmd
 }
 

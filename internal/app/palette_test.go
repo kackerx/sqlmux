@@ -116,6 +116,23 @@ func TestPaletteTogglesAndRecent(t *testing.T) {
 	}
 }
 
+// Running a toggle far down the list moves it up among the recent ones; the
+// list follows it rather than leaving the selection out of sight.
+func TestPaletteToggleKeepsSelectionShown(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<C-p>")
+	for rowsOf(a)[a.palette.sel] != "pane.zoom=OFF" {
+		feed(t, a, "<Down>")
+	}
+	if a.palette.top == 0 {
+		t.Fatal("pane.zoom should be past the first page")
+	}
+	feed(t, a, "<CR>")
+	if p := a.palette; p.sel != 0 || p.top != 0 {
+		t.Errorf("after ↵: sel %d top %d, want pane.zoom on top and shown", p.sel, p.top)
+	}
+}
+
 func TestPaletteMoves(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>"+strings.Repeat("<Down>", 12))

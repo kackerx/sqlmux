@@ -32,8 +32,9 @@ type term struct {
 
 // parseTerms reads the common part of fzf's extended syntax (§9.7): terms
 // split by spaces must all match; 'exact, ^prefix, suffix$ and !exclude.
-// ponytail: no `|` (OR) and no 'exact-boundary'; add them the way fzf's
-// pattern.go does if lists grow long enough to need them.
+// ponytail: no `|` (OR), no 'exact-boundary' and no `\ ` for a space inside
+// a term; add them the way fzf's pattern.go does if lists grow long enough
+// to need them.
 func parseTerms(pattern string) []term {
 	var terms []term
 	for _, s := range strings.Fields(pattern) {
