@@ -407,11 +407,13 @@ func TestFocusFollowsGeometry(t *testing.T) {
 	}{
 		{"<C-k>", 1},
 		{"<C-l>", 2},
-		{"<C-h>", 1}, // the closest on the left; ties go to the larger overlap
+		{"<C-h>", 1}, // back where it came from, not just the first candidate
 		{"<C-h>", 0}, // the sidebar
 		{"<Space>l", 1},
 		{"<C-j>", 3},
-		{"<C-j>", 3}, // nothing below: stays
+		{"<C-j>", 3}, // nothing below: stays, no wrapping round
+		{"<C-l>", 2},
+		{"<C-h>", 3}, // came from the lower half: back to it
 	} {
 		feed(t, a, c.keys)
 		if a.win().Focus != c.want {

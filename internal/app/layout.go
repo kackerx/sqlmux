@@ -134,12 +134,13 @@ func (n *Node) has(id int) bool {
 	return false
 }
 
-// neighbor finds the pane next to from on side (left / down / up / right),
-// like tmux: the nearest one on that side that overlaps it along the other
-// axis, the longest overlap winning a tie.
-func neighbor(rects map[int]uv.Rectangle, from int, side string) (int, bool) {
+// neighbor finds the pane next to from on side (left / down / up / right):
+// among the nearest ones on that side that overlap it along the other axis,
+// the one prefer ranks first (tech-design §5). Nothing there: no move, no
+// wrapping round.
+func neighbor(rects map[int]uv.Rectangle, from int, side string, prefer func(a, b int) bool) (int, bool) {
 	f := rects[from]
-	best, bestDist, bestOver := 0, 0, 0
+	best, bestDist := 0, 0
 	found := false
 	for id, r := range rects {
 		var dist, over int
@@ -156,9 +157,8 @@ func neighbor(rects map[int]uv.Rectangle, from int, side string) (int, bool) {
 		if id == from || dist < 0 || over <= 0 {
 			continue
 		}
-		better := !found || dist < bestDist || dist == bestDist && (over > bestOver || over == bestOver && id < best)
-		if better {
-			best, bestDist, bestOver, found = id, dist, over, true
+		if !found || dist < bestDist || dist == bestDist && prefer(id, best) {
+			best, bestDist, found = id, dist, true
 		}
 	}
 	return best, found

@@ -86,22 +86,28 @@ func TestNeighbor(t *testing.T) {
 		2: uv.Rect(22, 0, 10, 10),
 		3: uv.Rect(11, 10, 21, 10),
 	}
+	byID := func(a, b int) bool { return a < b }
+	recent := map[int]int{2: 5, 1: 3}
+	byRecent := func(a, b int) bool { return recent[a] > recent[b] }
 	for _, c := range []struct {
-		from int
-		side string
-		want int
-		ok   bool
+		from   int
+		side   string
+		prefer func(a, b int) bool
+		want   int
+		ok     bool
 	}{
-		{1, "left", 0, true},
-		{1, "right", 2, true},
-		{1, "down", 3, true},
-		{3, "up", 1, true}, // 1 and 2 both touch 3 with the same overlap: the lower id
-		{3, "left", 0, true},
-		{0, "right", 1, true}, // 1 and 3 both adjacent, same overlap: the lower id
-		{2, "right", 0, false},
-		{0, "up", 0, false},
+		{1, "left", byID, 0, true},
+		{1, "right", byID, 2, true},
+		{1, "down", byID, 3, true},
+		{3, "left", byID, 0, true},
+		{3, "up", byID, 1, true},     // 1 and 2 both touch 3: prefer decides…
+		{3, "up", byRecent, 2, true}, // …here the more recently focused
+		{0, "right", byID, 1, true},  // 1 and 3 both touch 0
+		{0, "right", byRecent, 1, true},
+		{2, "right", byID, 0, false}, // the edge: no wrapping round
+		{0, "up", byID, 0, false},
 	} {
-		got, ok := neighbor(rects, c.from, c.side)
+		got, ok := neighbor(rects, c.from, c.side, c.prefer)
 		if ok != c.ok || ok && got != c.want {
 			t.Errorf("%d %s: %d %v, want %d %v", c.from, c.side, got, ok, c.want, c.ok)
 		}

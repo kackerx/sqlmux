@@ -48,6 +48,19 @@ type Window struct {
 	Focus    int // pane ID
 	Zoom     int // zoomed pane ID; 0 = none (P-03)
 	lastID   int // highest pane ID handed out
+
+	focusTick int
+	focusedAt map[int]int // pane ID → focusTick when it last got focus
+}
+
+// focus moves focus to pane id, remembering when: moving by direction
+// prefers the neighbour focused most recently (§5).
+func (w *Window) focus(id int) {
+	if w.focusedAt == nil {
+		w.focusedAt = map[int]int{}
+	}
+	w.focusTick++
+	w.Focus, w.focusedAt[id] = id, w.focusTick
 }
 
 // Session is one connection (tech-design §5).
@@ -142,7 +155,8 @@ func (a *App) closeTab() {
 func (a *App) removePane(id int) {
 	win := a.win()
 	if root, heir := win.Root.remove(id); root != nil {
-		win.Root, win.Focus, win.Zoom = root, heir.ID, 0
+		win.Root, win.Zoom = root, 0
+		win.focus(heir.ID)
 	}
 }
 
@@ -159,8 +173,19 @@ func (a *App) focusSide(side string) {
 	if !win.TreeOpen {
 		delete(rects, win.Tree.ID)
 	}
-	if id, ok := neighbor(rects, win.Focus, side); ok {
-		win.Focus = id
+	order := map[int]int{}
+	for n, p := range a.panesByNumber() {
+		order[p.ID] = n
+	}
+	// most recently focused first; never focused, then the one first in ⟨n⟩ order (up / left)
+	prefer := func(x, y int) bool {
+		if win.focusedAt[x] != win.focusedAt[y] {
+			return win.focusedAt[x] > win.focusedAt[y]
+		}
+		return order[x] < order[y]
+	}
+	if id, ok := neighbor(rects, win.Focus, side, prefer); ok {
+		win.focus(id)
 	}
 }
 
@@ -173,7 +198,8 @@ func (a *App) splitPane(d Dir) {
 	}
 	win.lastID++ // never reused, so pane IDs stay stable (§5)
 	np := &Pane{ID: win.lastID, Kind: p.Kind, Prev: -1}
-	win.Root, win.Focus, win.Zoom = win.Root.split(p.ID, d, np), np.ID, 0
+	win.Root, win.Zoom = win.Root.split(p.ID, d, np), 0
+	win.focus(np.ID)
 }
 
 // closePane closes the focused pane; its sibling takes the space. The
@@ -210,7 +236,7 @@ func (a *App) toggleTree() {
 	win := a.win()
 	win.TreeOpen = !win.TreeOpen
 	if !win.TreeOpen && win.Focus == win.Tree.ID {
-		win.Focus = win.Root.Leaves()[0].ID
+		win.focus(win.Root.Leaves()[0].ID)
 	}
 }
 
@@ -223,13 +249,14 @@ func (a *App) jumpToPane(k keymap.Key) {
 	if err != nil || n < 0 || n >= len(ps) || n == 0 && !a.win().TreeOpen {
 		return
 	}
-	a.win().Focus, a.win().Zoom = ps[n].ID, 0
+	a.win().Zoom = 0
+	a.win().focus(ps[n].ID)
 }
 
 // focusPane gives focus to pane id if it is on screen (a click).
 func (a *App) focusPane(id int) {
 	if _, ok := a.layout()[id]; ok && (id != a.win().Tree.ID || a.win().TreeOpen) {
-		a.win().Focus = id
+		a.win().focus(id)
 	}
 }
 
