@@ -82,7 +82,7 @@ Go 生态相对 Rust 缺三样东西，对策如下：
 
 1. **只有一棵状态树，只在 Update 里修改。** IO 放在 `tea.Cmd` 里执行，结果以 Msg 的形式回到 Update。
 2. **所有操作都是 Action。** 键位、鼠标点击、命令面板最终都落到同一个 Action 上，满足 PRD 第 2、7 章「鼠标和键盘不存在两套逻辑」的要求。
-3. **模式由状态推导，不单独存储。** 编辑单元格或输入框获得焦点即为 INSERT；console 的模式就是编辑器自身的模式；`:` 命令行打开即为 COMMAND（B-02）。
+3. **模式由状态推导，不单独存储。** 编辑单元格或输入框获得焦点即为 INSERT；console 的模式就是编辑器自身的模式；命令面板打开即为 COMMAND（B-02）。
 4. **视图是状态的纯函数。** 命中表是渲染的副产品，每帧重建。
 
 ## 4. 目录结构
@@ -238,7 +238,7 @@ type Action struct {
 
 | 作用域 | 何时生效 |
 |---|---|
-| `palette` / `where` / `cols` / `schema` / `sessions` / `complete` / `cmdline` | 对应的浮层打开时，取最上层的一个。which-key 浮层不是作用域（§6.5） |
+| `palette` / `where` / `cols` / `schema` / `sessions` / `complete` | 对应的浮层打开时，取最上层的一个。which-key 浮层不是作用域（§6.5） |
 | `cell` | 正在编辑单元格（INSERT） |
 | `input` | 任意单行输入框获得焦点（INSERT） |
 | `result` | result pane 获得焦点时生效，优先级在 `grid` 之上（如 `P`、`q`）；其余按键落到 `grid` |
@@ -266,7 +266,7 @@ type Action struct {
 
 **方案（已确认）**：
 
-- NORMAL 模式下用 `SPC` 作 leader，后面接 PRD 原来跟在 C-a 后面的那些键：`SPC s` 打开 session 列表、`SPC 0-9` 切换 window、`SPC %` 左右分割，以此类推。与 PRD 是机械替换关系。
+- NORMAL 模式下用 `SPC` 作 leader，后面接 PRD 原来跟在 C-a 后面的那些键：`SPC s` 打开 session 列表、`SPC %` 左右分割，以此类推。与 PRD 基本是机械替换关系，默认只保留常用的几个（§6.8）。
 - 最常用的 pane 焦点切换另配直达键：C-h/j/k/l。
 - leader 可以配置。配成 Ctrl 组合（如 `<C-a>`）时，它在所有模式下生效，也就恢复了 tmux 式前缀。
 
@@ -328,12 +328,12 @@ H = "0"
 | 全局 | `C-c` | 有查询在执行时，取消查询。空闲时连按两次退出：第一次弹出 toast「再按一次 C-c 退出」，显示 2 秒；toast 还在时再按一次即退出，消失后再按，重新算第一次（与 Claude Code、node REPL 的习惯一致）。`:qa` 也可以退出。处在命令行、输入框、浮层、单元格编辑或编辑器 INSERT 这类输入状态时，`C-c` 的作用等同 esc（与 vim 一致），不算作连按两次退出中的一次 | 新增 |
 | NORMAL | `C-h` `C-j` `C-k` `C-l` | 切换 pane 焦点 | C-a hjkl |
 | NORMAL | `SPC s` | session 列表 | C-a s |
-| NORMAL | `SPC 0-9` · `SPC c` · `SPC ,` · `SPC &` | 切换 · 新建 · 重命名 · 关闭 window | C-a 0-9 / c / , |
+| NORMAL | `SPC c` · `SPC n` · `SPC p` · `SPC l` | 新建 · 下一个 · 上一个 · 上次用的 window | C-a c / n / p / l |
 | NORMAL | `SPC %` · `SPC "` · `SPC z` · `SPC x` | 左右分割 · 上下分割 · 缩放 · 关闭 pane | C-a % / " / z / x |
-| NORMAL | `SPC hjkl` · `SPC HJKL` · `SPC q` | pane 焦点 · 调整大小 · 按编号跳转 | C-a hjkl / HJKL / q |
-| NORMAL | `SPC b` · `SPC n` | 折叠 schema 树 · 新建连接 | C-a b / C-a n |
+| NORMAL | `SPC q` | 按编号跳转 pane | C-a q |
+| NORMAL | `SPC b` | 折叠 schema 树 | C-a b |
 | NORMAL | `gt` · `gT` | 下一个 · 上一个 tab | 同 |
-| NORMAL | `:` | 命令行：`:w` `:q` `:qa` | 同 |
+| NORMAL | `:` | 打开命令面板并直接进入命令范围；`:q`、`:qa`、`:w` 照常可用（§12） | 同 |
 | 表格 | `hjkl` `gg` `G` `0` `$` | 移动，支持次数前缀 | hjkl |
 | 表格 | `↵` · `i` | 编辑单元格 | 同 |
 | 表格 | `R` · `T` · `x` | 刷新 · 转置 · 关闭 tab（有未保存修改时需确认） | 同 |
@@ -351,6 +351,17 @@ H = "0"
 | 快速 SQL | `C-y` · `C-e` | 复制为 CSV · 在 console 中打开（写语句也走这条路） | C-y / C-e；取消 C-S-↵ |
 | 单元格编辑 | 见 §10.2 | 时间分段调整、选项选择 | 新增 |
 | 各浮层 | 见下表 | 各浮层内的移动与选择 | 同 PRD |
+
+**默认键位只放常用的**（M0 用户反馈）。其余操作都能在命令面板里搜到并执行；想要快捷键的，在 `config.toml` 里自己绑定，例如：
+
+```toml
+[keys.normal]
+"<Leader>h" = "pane.focus.left"   # 用 SPC h 切焦点
+"<Leader>L" = "pane.resize.right"  # 用 SPC L 调整大小
+"<Leader>," = "window.rename"
+```
+
+不提供「切换到第 n 个 window」这类按编号的命令：window 用 `SPC n` / `SPC p` / `SPC l` 切换，或者在命令面板的 window 范围里搜，也可以点击状态栏上的 window 名。
 
 console 里的 `x` 是 vim 的删除字符，所以 console 的 tab 用 `:q` 关闭。
 
@@ -401,7 +412,22 @@ type Frame struct {
 
 ### 7.3 主题
 
-颜色从设计稿提取，定义为语义 token。内置 `tokyonight-storm`，可以用 TOML 覆盖（PRD 第 8 章）。终端不支持真彩时，lipgloss 的 colorprofile 会自动降级。
+颜色从设计稿提取，定义为语义 token。内置主题 `tokyonight-storm`，也可以自己写主题文件（PRD 第 8 章）：
+
+- `config.toml` 里写 `theme = "<名字>"` 选择主题：先找 `~/.config/sqlmux/themes/<名字>.toml`，没有再找内置主题。
+- 主题文件只需写要改的 token，没写的沿用 `tokyonight-storm`。颜色写成 `#rrggbb`。token 名或颜色写错、或者找不到这个主题时，启动报错并指出是哪一项。
+
+```toml
+# ~/.config/sqlmux/themes/ristretto.toml
+pane_bg = "#393333"
+row     = "#6c6a6d"   # 当前行
+cursor  = "#81817e"   # 当前单元格
+number  = "#ab9df2"
+string  = "#ffd866"
+time    = "#fc9867"
+```
+
+终端不支持真彩时，lipgloss 的 colorprofile 会自动降级。
 
 | token | 值 | 用途 |
 |---|---|---|
@@ -418,6 +444,8 @@ type Frame struct {
 | `info` | #7dcfff | 连接信息、COMMAND |
 | `error` | #f7768e | 错误、Redis 标识 |
 | `number` / `pk` / `func` | #ff9e64 / #73daca / #7aa2f7 | 数值 / 主键与 schema 值 / 函数名 |
+| `string` / `time` / `bool` / `json` | 同 `fg` | 表格里对应类型的值（§7.6）。默认不着色，主题可以改 |
+| `bar` | #292e42 | 状态栏和 toast 的底色。原来与 `row` 共用一个值，拆开后主题改当前行的颜色不会连带改状态栏 |
 | `sep` | #2f3549 | 分隔线：侧栏内的分隔线、tab 之间的 `│`、连接地址块的底色 |
 
 ### 7.4 命中表与鼠标（PRD 第 7 章）
@@ -458,7 +486,8 @@ type Hit struct {
   3. 还放不下就横向滚动。
 - **宽度计算**：按字素簇计算（§7.1「宽度」），CJK 字符和 emoji 都能正确处理。
 - **单元格显示**：
-  - 数值右对齐，用 `number` 色；NULL 显示为 `dim` 色的 `<null>`；超长内容用 `…` 截断；主键列的表头带钥匙图标。
+  - 按列的类型分类着色（§7.3）：数值（int、numeric、float 等）用 `number` 色，并且右对齐；字符串用 `string`；时间（date、time、timestamp、timestamptz、interval）用 `time`；布尔用 `bool`；json / jsonb 用 `json`；其余类型用 `fg`。
+  - NULL 显示为 `dim` 色的 `<null>`；超长内容用 `…` 截断；主键列的表头带钥匙图标。
   - 显示前清理控制字符：换行显示为 `dim` 色的 `↵`，Tab 显示为一个空格，其余控制字符（包括 ESC）直接去掉，避免把终端控制序列画到屏幕上。截断按字素簇进行。完整的值在单元格编辑（M2）里看。
   - 已修改的单元格用 `warn` 色文字、`edited_bg` 底色、点状下划线（SGR 4:4）。终端不支持点状下划线时，退化为普通下划线。
 - **转置（G-05）只影响渲染**：`GridState` 始终保存数据坐标，按键时把屏幕方向换算成数据方向，所以光标位置和修改标记在两种视图之间自然保持。
@@ -479,7 +508,7 @@ type Hit struct {
 
 ### 7.7 图标
 
-默认使用 Nerd Font 字形。设置 `icons = "ascii"` 后改用 ASCII 替代字符，用于没有安装 Nerd Font 的环境。
+默认使用 Nerd Font 字形。设置 `icons = "ascii"` 后改用 ASCII 替代字符，用于没有安装 Nerd Font 的环境。console 用带方框的终端图标 `nf-oct-terminal`（U+F489）。
 
 ### 7.8 默认尺寸与样式（取自设计稿）
 
@@ -491,6 +520,8 @@ type Hit struct {
   - data 与 console 的宽度比为 5 : 4（设计稿中分别是 flex 5 和 flex 4）。
 - **schema 侧栏**：
   - 宽度默认 32 列（含边框；设计稿为 250px）。窗口宽度小于 100 列时，缩到 24 列。
+  - 可以用鼠标拖动侧栏和右边 pane 之间的那 1 列间隔来调宽度，最窄 16 列，最宽为窗口宽度的一半；拖过的宽度记在 window 上。折叠时不能拖。
+  - 标题为 `⟨0⟩ <schema 图标> <当前 schema> ▾`，例如 `⟨0⟩ public ▾`。点击它，或者在树里按 `gs`，打开 schema 下拉框（与 §8.6 是同一个组件）。右侧提示仍是 `SPC b`。
   - 折叠后是 3 列宽的细栏（设计稿为 24px），左右各 1 列边框、中间 1 列内容：顶部显示 `»`，下面竖排 `schema · SPC b`，每行一个字符。
   - 侧栏内部从上到下依次是：
     - 第一行：过滤图标（`info` 色）、`/`（`fg` 色）、`160 tables`（`dim` 色）；
@@ -515,7 +546,7 @@ type Hit struct {
   - 当前 tab 用 `pane_bg` 底色、`focus` 色字；其他 tab 用 `dim` 色字。
   - tab 之后是可点击的 `+`；最右端是 `dim` 色的键位提示，如 `hjkl · ↵ edit · T 转置 · gt/gT`，文字从 keymap 读取。
 - **状态栏**：
-  - 底色 #292e42。各段是扁平色块，不用 powerline 箭头，每段左右各留 1 列内边距。
+  - 底色为 `bar`（#292e42）。各段是扁平色块，不用 powerline 箭头，每段左右各留 1 列内边距。
   - 左侧依次为：
     - ` <引擎图标> doraemon ▾ `：`focus` 底、`bg` 色字、粗体；
     - window 列表，如 ` 0: data* `：当前 window 用 #3b4261 底、`fg` 色字，其余 window 用 `dim` 色字、无底色。
@@ -524,7 +555,7 @@ type Hit struct {
       - NORMAL：不显示；
       - INSERT：正在编辑的对象，如 `-- editing WHERE --`；
       - VISUAL：选区大小和执行键，如 `4 lines · ↵ run`，键位文字从 keymap 读取；
-      - COMMAND：与已输入内容匹配的命令，如 `:q | :qa`。
+      - COMMAND：不显示，匹配的命令在命令面板里。
     - ` <搜索图标> C-p `：`info` 色；
     - ` <键盘图标> 待输入序列 `：序列用 `warn` 色粗体。没有待输入的键时，显示 `dim` 色的 `·`；这一块始终占着位置，序列部分至少 3 列宽（放得下 `SPC`），内容靠左，这样按键时右侧各块不会左右跳动，序列超过 3 列时才变宽；
     - ` 行,列 `：`fg_muted` 色；
@@ -538,9 +569,7 @@ type Hit struct {
     5. 截短 session 名。
 
     始终保留的是：session 块（名称可以被截短）、当前 window、`C-p` 入口、待输入序列、模式块。
-- **命令行**：进入 COMMAND 模式时，命令行占用状态栏的左侧，替换掉 session 和 window 列表（与 tmux 的命令提示一致）；右侧的模式块显示 COMMAND。
-  - 命令行是用户正在输入的地方，优先分配空间：宽度至少占状态栏的一半；输入更长时继续变宽。
-  - 右侧各块只用剩下的宽度，放不下时按上面的省略顺序让出空间。
+- **COMMAND 模式**：命令面板打开时，模式块显示 COMMAND。状态栏里不再有命令行：M0 用户体验后改由命令面板取代（§12），`:` 打开面板的命令范围。
 - **toast**：显示在状态栏上方一行的右侧，默认 3 秒后消失；「再按一次 C-c 退出」这一条显示 2 秒，正好是连按的窗口（§6.8）。样式为 `warn` 色字、#292e42 底、左右各留 1 列。设计稿里没有 toast，这个样式是后定的。加底色是因为那一行正好是 pane 的下边框，不加底色，文字会和边框混在一起。data pane 中保存 / 刷新的结果按 Q-06 的要求显示在查询条的右侧，不通过 toast 显示。
 
 ## 8. 数据访问
@@ -574,7 +603,7 @@ type Result struct {
 - **PG**：
   - `pgconn.Exec`（简单协议）本身就返回文本；`ExecParams` 把结果格式指定为文本，参数 OID 传 0，由服务端推断类型。
   - 列类型取自 FieldDescription 里的 OID。
-  - 连接建立后执行 `SET DateStyle = ISO, YMD`，保证时间文本的格式可以解析（§10.2）。
+  - 建连时通过 RuntimeParams（startup 消息）设置 `DateStyle = ISO, YMD`，保证时间文本的格式可以解析（§10.2）。每条连接都会带上，不会漏设，也不需要额外的往返。
   - 连接参数交给 `pgconn.ParseConfig(dsn)` 解析，环境变量（`PGHOST` 等）和 `~/.pgpass` 都由它处理，不自己实现。没写 `application_name` 时补成 `sqlmux`，没写连接超时时补成 10s。
 - **MySQL**：DSN 加上 `interpolateParams=true`，全程走文本协议；列类型从 `ColumnTypes()` 获取。
 - **已知上限**：MySQL 中非 UTF-8 的 blob 显示为 `<binary n bytes>`；PG 的 bytea 按服务端返回的 `\x…` 文本显示。
@@ -590,7 +619,7 @@ type Result struct {
 
 - 拆成两条的原因：console 里跑长查询时，树、命令面板和表格浏览不会跟着卡住。
 - manual 事务模式下表格读取改走 `Main`，这样能看到自己还没提交的修改。
-- `Meta` 建连后设为只读：PG 执行 `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`，MySQL 执行 `SET SESSION TRANSACTION READ ONLY`。`Meta` 上只有读操作，写入只走 `Main`，所以 WHERE 里就算调用了会写数据的函数，也改不了数据。和 §13 一样，这是为了防误操作，不是权限边界。
+- `Meta` 建连后设为只读：PG 设 `default_transaction_read_only = on`（和 DateStyle 一样放在 RuntimeParams 里，效果等同 `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`），MySQL 执行 `SET SESSION TRANSACTION READ ONLY`。`Meta` 上只有读操作，写入只走 `Main`，所以 WHERE 里就算调用了会写数据的函数，也改不了数据。和 §13 一样，这是为了防误操作，不是权限边界。
 
 ### 8.3 取消、超时、过期响应
 
@@ -974,10 +1003,14 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
 
 ## 12. 命令面板与快速 SQL（K、F）
 
-- **数据来源**：session、window、pane 取自工作现场；表取自 catalog；命令取自 Action 注册表；SQL 取自快速查询的历史。
-- **范围与前缀**：按 PRD K-02。`Tab` / `S-Tab` 切换范围标签；输入前缀直接限定范围：`>` 命令、`@` 表、`$` 会话、`%` 窗口、`;` SQL。
-- **匹配**：使用 fzf 的算法，并支持它的扩展语法（§9.7），匹配到的字符用黄底高亮。输入为空时按最近使用排序，最近使用记录会持久化。
-- **执行**：按 K-04。开关类命令只切换状态，不关闭面板。底栏右侧显示当前项按回车会做什么。
+命令面板是执行命令的主要入口，取代了 M0 最初的 `:` 命令行（M0 用户反馈）。M0 先做面板本身，包括命令、表、pane、window 四个范围（F0.13、F0.14）；表在 M0 里用侧栏的假数据，M1 换成 catalog。session、SQL 范围和 DDL 预览在后面的里程碑。
+
+- **打开**：`C-p` 打开，范围为「全部」；NORMAL 下按 `:` 打开并直接进入命令范围，相当于输入了 `>`。
+- **ex 别名**：命令可以带别名，如 `q`（关闭 tab）、`qa`（退出）、`w`（保存）。在命令范围里，输入与某个别名完全相同时，这条命令排第一，所以 `:q↵`、`:qa↵` 的用法不变。
+- **数据来源**：session、window、pane 取自工作现场；表取自 catalog；命令取自 Action 注册表（带标题的 Action）；SQL 取自快速查询的历史。
+- **范围与前缀**：按 PRD K-02。`Tab` / `S-Tab` 切换范围标签；输入前缀直接限定范围：`>` 命令、`@` 表、`#` pane、`%` 窗口、`$` 会话、`;` SQL。
+- **匹配**：使用 fzf 的算法，并支持它的扩展语法（§9.7），匹配到的字符用黄底高亮。输入为空时按最近使用排序；M0 只记在内存里，M1 有了 state.json 之后持久化。
+- **执行**：按 K-04。命令：执行，开关类命令只切换状态，不关闭面板；表：`↵` 在当前 tab 打开，`C-t` 在新 tab 打开；pane：聚焦；window：切换（M5 之前只列出，不能切换）。底栏右侧显示当前项按回车会做什么。
 - **预览（K-05）**：光标在某张表上停留 150ms 后，从 `Meta` 获取 DDL，获取后缓存。窗口高度不够时，列表至少保留 3 行，底部提示始终显示，先压缩预览区。
 - **快速 SQL**：
   - **执行**：在 `Meta` 上执行，PG 用 `BEGIN READ ONLY`，MySQL 用 `START TRANSACTION READ ONLY`，执行完一律 ROLLBACK。执行时加上 §9.4 的自动 LIMIT。
@@ -1100,13 +1133,13 @@ read_only    = false
 
 | 阶段 | 内容 | PRD 条目 |
 |---|---|---|
-| M0 骨架 | Bubble Tea 程序、Frame、Block、主题、状态栏；keymap（序列、leader、which-key、次数、映射、提示）；Action 注册表；命中表与键位提示按钮 | B-01~03、第 6 章、第 7 章基础 |
+| M0 骨架 | Bubble Tea 程序、Frame、Block、主题与主题文件、状态栏；keymap（序列、leader、which-key、次数、映射、提示）；Action 注册表；命中表与键位提示按钮；命令面板（命令、表、pane、window 范围） | B-01~03、K-01~04 的面板部分、第 6 章、第 7 章基础 |
 | M1 浏览 | PG 连接、schema 树、data pane 只读（WHERE 条件及其补全、历史/收藏、ORDER/LIMIT/PAGE/COLS、转置）、滚轮 | D-01~04、Q-01~06、G-01、G-04~06、T-01~03 |
 | M2 编辑 | 单元格编辑与按列属性的选项、待提交标记、保存与刷新 | G-02、G-03 |
 | M3 console | vim 编辑器（用 nvim 差分测试校验）、SQL 模糊补全、高亮、分句与执行前高亮、执行与取消、sql-formatter 格式化、底部结果区（日志 tab、结果 tab 的复用与固定）。编辑器（含块选择）是工作量最大的一项，可以从 M0 起并行开发 | C-01~07 |
-| M4 命令面板 | 全局搜索、DDL 预览、快速 SQL | K-01~05、F-01~05 |
+| M4 命令面板 | 面板的 session 与 SQL 范围、DDL 预览、快速 SQL（面板本身已在 M0 完成） | K-02、K-05、F-01~05 |
 | M5 工作现场 | 多 session 与多 window、pane 的分割/缩放/关闭/拖拽、session 列表、只读、事务模式、MySQL | S-01~04、W-01~02、P-01~04 |
-| M6 配置 | 键位覆盖/冲突/导出、主题文件、持久化 | 第 6 章 |
+| M6 配置 | 键位覆盖/冲突/导出、持久化（主题文件已在 M0 完成） | 第 6 章 |
 
 M1 完成后，就有一个能日常查数据的只读版本，可以尽早给用户试用。
 
@@ -1157,5 +1190,9 @@ PRD 10.2 中影响实现的几条：
 | 15 | 结果改为在底部全宽结果区中显示：第 1 个 tab 为日志，每个 console 复用自己的结果 tab，固定的结果单独保留。原来在 console 旁边分割的方式保留为可选配置 | C-04~C-07、第 4 章 |
 | 16 | console 编辑器支持块选择 `C-v` | C-01、6.1 |
 | 17 | console 标题右侧增加 schema 下拉框（仅 PG，与 DataGrip 一致），每个 console 单独选择 schema | 5.7、3 章 Session 行 |
+| 18 | 取消 `SPC 0-9`（原 C-a 0-9）按编号切换 window，改为 `SPC n` / `SPC p` / `SPC l` 和命令面板的 window 范围；默认键位只保留常用的，其余在命令面板里执行，或者自己绑定 | W-02、6.2 |
+| 19 | `:` 命令行由命令面板取代：`:` 打开面板的命令范围，`:q` 等用法不变 | B-02、K-01 |
+| 20 | 侧栏标题显示当前 schema，可以点击切换；侧栏宽度可以拖动 | D-01~D-04、第 4 章 |
+| 21 | 主题可以写成 `~/.config/sqlmux/themes/` 下的文件；表格按列的类型着色 | 第 8 章 |
 
 设计稿里写死的键位文字（如 `C-a b`、`run ⌥↵`、`C-↵ 送到 result pane`）会按新的默认键位显示；实现中这些文字都从 keymap 读取，不写死。
