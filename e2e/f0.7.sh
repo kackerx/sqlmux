@@ -5,6 +5,10 @@
 e2e_build || exit 1
 
 start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
+# F0.11 起 SPC hjkl / HJKL 不再是默认键：用 config 绑回去来测这些 Action
+CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); trap 'e2e_stop; rm -rf "$CFG"' EXIT
+printf '[keys.normal]\n"<Leader>h" = "pane.focus.left"\n"<Leader>j" = "pane.focus.down"\n"<Leader>k" = "pane.focus.up"\n"<Leader>l" = "pane.focus.right"\n"<Leader>H" = "pane.resize.left"\n"<Leader>J" = "pane.resize.down"\n"<Leader>K" = "pane.resize.up"\n"<Leader>L" = "pane.resize.right"\n' > "$CFG/keys.toml"
+start_keys() { start -c "$CFG/keys.toml" "$@"; }
 L() { e2e_keys Space; e2e_type "$1"; sleep 0.3; }         # SPC <key>
 key() { e2e_keys "$1"; sleep 0.25; }
 focused() { e2e_panes | awk '$6 == 1 { print $1 }'; }     # 聚焦 pane 的编号
@@ -32,17 +36,17 @@ L %
 check "SPC %：左右分割，⟨1⟩ data / ⟨2⟩ data（新）/ ⟨3⟩ console，新 pane 聚焦" eval 'geom_is 1 "34 1 35 44" && geom_is 2 "70 1 34 44" && geom_is 3 "105 1 56 44" && focus_is 2 && empty_pane 2'
 
 # ---- 按方向切焦点（§5）：相邻且有重叠；多个候选时选最近获得过焦点的；到边上不绕回
-start
+start_keys
 L '"'                                   # ⟨1⟩ 左上、⟨2⟩ 左下（新，聚焦）、⟨3⟩ 右
 key C-l; check "左下 C-l → 右边的 console ⟨3⟩" focus_is 3
 key C-h; check "再 C-h：回到刚离开的左下 ⟨2⟩" focus_is 2
 key C-k; check "C-k → 上面的 ⟨1⟩" focus_is 1
 key C-l; key C-h; check "从左上 C-l 再 C-h：回到左上 ⟨1⟩" focus_is 1
 key C-j; check "C-j → 下面的 ⟨2⟩" focus_is 2
-L k; check "SPC k 与 C-k 相同" focus_is 1
-L j; check "SPC j 与 C-j 相同" focus_is 2
-L l; check "SPC l 与 C-l 相同" focus_is 3
-L h; check "SPC h 与 C-h 相同（回到最近用过的 ⟨2⟩）" focus_is 2
+L k; check "（config 绑定）SPC k 与 C-k 相同" focus_is 1
+L j; check "（config 绑定）SPC j 与 C-j 相同" focus_is 2
+L l; check "（config 绑定）SPC l 与 C-l 相同" focus_is 3
+L h; check "（config 绑定）SPC h 与 C-h 相同（回到最近用过的 ⟨2⟩）" focus_is 2
 key C-j; check "最下面再 C-j：焦点不动（不绕回）" focus_is 2
 key C-k; key C-k; check "最上面再 C-k：焦点不动" focus_is 1
 key C-l; key C-l; check "最右边再 C-l：焦点不动" focus_is 3
@@ -81,8 +85,8 @@ start
 L z; e2e_type ':q'; e2e_keys Enter; sleep 0.3; e2e_type ':q'; e2e_keys Enter; sleep 0.3
 check "回归：缩放中用 :q 关掉 data 的最后一个 tab，画面正常、console 占满" eval '[[ $(nums) == "0 1 " ]] && geom_is 1 "34 1 127 44" && [[ $(title_of 1) == *console* ]]'
 
-# ---- 调整大小（§5）：每次 5%，次数前缀，10%–90%；方向与 tmux resize-pane 相同
-start
+# ---- 调整大小（§5）：每次 5%，次数前缀，10%–90%；方向与 tmux resize-pane 相同（F0.11 起用 config 绑定的 SPC HJKL）
+start_keys
 check "准备：data 70 列（主区域 127 列）" eval '[[ $(width_of 1) == 70 ]]'
 L H; check "SPC H：分割线左移约 5%（6 列）" eval '[[ $(width_of 1) == 64 ]]'
 L L; check "SPC L：移回" eval '[[ $(width_of 1) == 70 ]]'
@@ -91,7 +95,7 @@ for i in $(seq 20); do L H; done
 check "一直 SPC H：停在 10%" eval '(( $(width_of 1) * 100 / 127 == 10 ))'
 for i in $(seq 25); do L L; done
 check "一直 SPC L：停在 90%" eval 'w=$(width_of 1); (( (w + 1) * 100 / 127 >= 89 && w * 100 / 127 <= 90 ))'
-start
+start_keys
 key C-l; L H
 check "焦点在右边的 console 时 SPC H 也是分割线左移（与 tmux 相同）" eval '[[ $(width_of 1) == 64 ]]'
 L J; check "没有上下分割时 SPC J 不起作用" eval '[[ $(e2e_panes | awk "{print \$5}" | sort -u) == 44 ]]'
