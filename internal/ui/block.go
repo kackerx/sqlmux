@@ -14,7 +14,8 @@ type Hint struct {
 	Action     string
 	Button     bool        // Label drawn as a filled button, e.g. "▶ run" (§7.8); Key unused
 	Color      color.Color // Label color when not a button; default dim
-	Prio       int         // title hints: higher is dropped first when space runs out
+	Prio       int         // title hints: lower is placed first when space runs out
+	Attached   bool        // key text of the hint before it: shown only with it (§7.8)
 }
 
 // titleText is how a hint reads on a border: "Label Key".
@@ -98,6 +99,9 @@ func (b Block) fit(room int) (string, []Hint) {
 	keep := make([]bool, len(b.Hints))
 	used := 0
 	for _, i := range order {
+		if b.Hints[i].Attached && (i == 0 || !keep[i-1]) {
+			continue
+		}
 		// +1: the space between the title and the first hint.
 		if w := 1 + Width(b.Hints[i].titleText()); Width(head)+1+used+w <= room {
 			keep[i], used = true, used+w

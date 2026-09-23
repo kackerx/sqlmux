@@ -83,7 +83,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		b.Hints = append([]ui.Hint{
 			{Label: "doraemon.public ▾", Action: "console.schema", Color: th.PK, Prio: 1},
 			{Label: "▶ run", Action: "console.run", Button: true},
-		}, bound(ui.Hint{Key: a.hint("console", "console.run"), Action: "console.run", Prio: 2})...)
+		}, bound(ui.Hint{Key: a.hint("console", "console.run"), Action: "console.run", Prio: 2, Attached: true})...)
 		tabHints = bound(
 			ui.Hint{Key: a.hint("console", "console.format"), Label: "format", Action: "console.format"},
 			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},
