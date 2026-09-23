@@ -41,30 +41,15 @@ e2e_type g; sleep 0.2;  check "5 之后按 g：显示 5g" pending_is 5g
 e2e_keys Escape; sleep 0.2; check "esc 清空待输入序列" pending_is "·"
 e2e_keys Space; sleep 0.1; e2e_keys Escape; sleep 0.2; check "SPC 后 esc：清空" pending_is "·"
 
-# ---- COMMAND 模式（§7.8 命令行）
-e2e_type ':'; sleep 0.2
-check "按 : 进入 COMMAND：模式块 info 底、bg 字、粗体" eval 'at COMMAND bg=$INFO && at COMMAND fg=$BG && at COMMAND bold'
-check "命令行替换 session 块与 window 列表" eval 'bar_lacks doraemon && bar_lacks "0: data" && text_is 1 2 45 " :"'
-check "160 宽：右侧显示匹配的命令 :q | :qa（dim）" eval 'bar_has ":q | :qa  @ C-p" && at ":q | :qa" fg=$DIM'
-check "命令行至少占一半：右侧各块从第 81 列之后开始" eval '(( $(e2e_find ":q | :qa" 45) > 80 ))'
-e2e_type qa; sleep 0.2
-check "输入 qa 后只剩 :qa" eval 'bar_has ":qa  @ C-p" && bar_lacks ":q |" && text_is 1 4 45 " :qa"'
+# ---- COMMAND 模式：F0.13 起由命令面板进入，状态栏不再有命令行；面板打开时背景（含状态栏）变暗 60%
+e2e_type ':'; sleep 0.3
+check "按 : 打开面板：模式块显示 COMMAND，状态栏左侧仍是 session 与 window" eval 'bar_has "@ doraemon ▾  0: data*" && [[ $(bar) == *" COMMAND " ]]'
+check "COMMAND 模式块的底色是 info 变暗后的颜色（不是 focus）" eval 'at COMMAND bold && ! at COMMAND bg=$FOCUS >/dev/null && ! at COMMAND bg=$INFO >/dev/null'
 e2e_keys Escape; sleep 0.2
 check "esc 回到 NORMAL" eval 'at NORMAL bg=$FOCUS && bar_has doraemon'
-long() { printf "%$1s" | tr ' ' "$2"; }
-e2e_type ":$(long 85 a)"; sleep 0.2
-check "输入 85 字：右侧各块都还在" eval 'bar_has "1,1  @ pg@localhost:5432  COMMAND"'
-e2e_type "$(long 30 b)"; sleep 0.2
-check "输入 115 字：命令行变宽，连接地址先让出" eval 'bar_has " :$(long 85 a)$(long 30 b)" && bar_lacks pg@localhost && bar_has "1,1  COMMAND"'
-e2e_type "$(long 20 c)"; sleep 0.2
-check "输入 135 字：光标位置也让出，C-p / 待输入 / 模式块还在" eval 'bar_has "$(long 20 c)" && bar_lacks "1,1" && bar_has "@ C-p  @ ·    COMMAND "'
-e2e_keys Escape; sleep 0.2
-
-# ---- 80 宽 COMMAND：先去匹配的命令，再去连接地址
 start -x 80
-e2e_type ':'; sleep 0.2
-check "80 宽 COMMAND：不显示匹配的命令和连接地址，模式块可见" eval 'bar_lacks ":q |" && bar_lacks pg@ && bar_has "@ C-p  @ ·    1,1  COMMAND "'
-check "80 宽：命令行至少 40 列" eval '(( $(e2e_find "C-p" 45) > 40 ))'
+e2e_type ':'; sleep 0.3
+check "80 宽：面板打开时模式块 COMMAND 仍然可见" eval '[[ $(bar) == *" COMMAND " ]]'
 e2e_keys Escape; sleep 0.2
 
 # ---- NORMAL 逐步变窄：连接地址 → 非当前 window → 光标位置 → 截短 session 名

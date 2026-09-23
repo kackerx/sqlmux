@@ -8,8 +8,12 @@ OUT=$(mktemp "${TMPDIR:-/tmp}/sqlmux-e2e-out.XXXXXX")
 trap 'e2e_stop; rm -f "$OUT"' EXIT
 start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 bar_end_is() { local got; got=$(e2e_text 150 160 45); [[ $got == *" $1 " ]] || { echo "  status tail: '$got'"; false; }; }
-toast_row_ok() {  # §7.8 toast：内边距在，pane 右下角的 ┘ 也在
-  toast_is "$1" && [[ $(e2e_text 160 160 44) == ┘ ]] || { echo "  row 44 tail: '$(e2e_text 130 160 44)'"; false; }
+# F0.13 起「未知命令」toast 没了，改在命令面板的输入行里放这些字形：输入行的右边框要还在原位
+input_row_ok() {
+  local t; t=$(e2e_plain | python3 -c 'import sys; print(next(i + 1 for i, l in enumerate(sys.stdin) if "┌─ 命令面板" in l))')
+  local l; l=$(e2e_find "┌─ 命令面板" "$t" | cut -d' ' -f1)
+  [[ $(e2e_text $((l + 79)) $((l + 79)) $((t + 1))) == │ && $(e2e_text $((l + 2)) $((l + 20)) $((t + 1))) == ">x$1"* ]] ||
+    { echo "  input row: '$(e2e_text $l $((l + 79)) $((t + 1)))'"; false; }
 }
 # bash 3.2 没有 \u：用 UTF-8 字节写
 declare -a NAMES=("👍🏽（肤色修饰）" "❤️（VS16）" "👨‍👩‍👧（ZWJ）" "1️⃣（keycap）")
@@ -20,11 +24,10 @@ start
 for i in 0 1 2 3; do
   e=${EMOJI[$i]}
   e2e_type ":x${e}"; sleep 0.3
-  check "${NAMES[$i]}：命令行里，状态栏行尾的 COMMAND 完整" bar_end_is COMMAND
-  e2e_keys Enter; sleep 0.3
-  check "${NAMES[$i]}：toast「未知命令: x…」一行完整，┘ 还在" toast_row_ok "未知命令: x${e}"
+  check "${NAMES[$i]}：面板打开时，状态栏行尾的 COMMAND 完整" bar_end_is COMMAND
+  check "${NAMES[$i]}：面板输入行完整，右边框在原位" input_row_ok "${e}"
+  e2e_keys Escape; sleep 0.3
   check "${NAMES[$i]}：之后 NORMAL 状态栏完整" bar_end_is NORMAL
-  sleep 3.1   # 等 toast 消失，下一轮从干净的画面开始
 done
 
 # 渲染器切到字素簇时写 CSI ? 2027 h，退出时写 CSI ? 2027 l 还原

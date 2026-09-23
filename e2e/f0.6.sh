@@ -15,7 +15,7 @@ top_row() { e2e_plain | python3 -c 'import sys; print(next((i + 1 for i, l in en
 shown()  { [[ -n $(top_row "$1 ") ]]; }
 hidden() { ! shown "$1" || { echo "  which-key '$1' is showing"; false; }; }
 pending_is() { local c; c=$(e2e_find "C-p" "$(H)"); text_is $((c + 7)) $((c + 6 + $(strwidth "$1"))) "$(H)" "$1"; }
-cmdline_open() { [[ $(e2e_text 1 "$(W)" "$(H)") == *" COMMAND " ]]; }
+palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }   # F0.13: : opens the command palette
 running() { flag_is alternate_on 1 && ! screen_has '[e2e-exit'; }
 # 浮层里的键，按列读（先竖后横）：每一格是「键 → 标题」
 items() {
@@ -81,14 +81,14 @@ for s in "80 24" "80 12" "40 6"; do
 done
 
 # ---- 在浮层里按键，效果与直接按相同：用 <Leader>: 打开命令行来观察
-start_with '[keys.normal]\n"<Leader>:" = "cmdline.open"\n'
+start_with '[keys.normal]\n"<Leader>:" = "palette.command"\n'
 e2e_keys Space; sleep 0.6
 check "配置的 <Leader>: 出现在浮层里" eval '[[ $(items SPC) == *" :"* || $(items SPC) == ":"* ]]'
 e2e_type ':'; sleep 0.3
-check "浮层里按 :：打开命令行、浮层关闭" eval 'cmdline_open && hidden SPC'
+check "浮层里按 :：打开命令面板、which-key 关闭" eval 'palette_open && hidden SPC'
 e2e_keys Escape; sleep 0.2
 e2e_keys Space; sleep 0.05; e2e_type ':'; sleep 0.3
-check "不等浮层直接按 SPC :：同样打开命令行" cmdline_open
+check "不等浮层直接按 SPC :：同样打开命令面板" palette_open
 e2e_keys Escape; sleep 0.2
 
 # ---- 浮层内容跟随 keymap
