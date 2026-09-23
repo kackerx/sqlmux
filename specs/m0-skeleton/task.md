@@ -318,7 +318,7 @@
 - [ ] 列表往下滚动之后，执行开关类命令（如 `pane.zoom`），选中项仍然在可视区域内。
 - [ ] `match.go` 的单测覆盖：排序结果、高亮位置、扩展语法。
 
-## F0.14 命令面板：表、pane、window 范围 · 状态：reviewing
+## F0.14 命令面板：表、pane、window 范围 · 状态：testing
 
 - **依赖**：F0.13
 - **涉及**：`internal/app`、`internal/ui`（palette）
