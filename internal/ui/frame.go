@@ -10,15 +10,23 @@ import (
 type Kind uint8
 
 const (
-	KindTab Kind = iota + 1
-	KindHint
+	KindPane     Kind = iota + 1 // a pane's area: click focuses, wheel scrolls
+	KindTitle                    // a pane's title: double-click zooms
+	KindTab                      // a tab in a pane's tab bar (I: index, -1 the +)
+	KindHint                     // a key hint inside a pane: focus it, then run Action
+	KindButton                   // a clickable outside any pane (status bar): run Action
+	KindItem                     // a which-key item (I: its index)
+	KindNumber                   // a pane under SPC q's numbers (I: its ⟨n⟩)
+	KindBorder                   // a split's drag handle (I: the split's index)
+	KindBackdrop                 // behind an overlay: a click closes it
 )
 
-// Target is what a click on a hit region resolves to.
+// Target is what a click on a hit region resolves to. Targets compare with
+// == to spot a double click.
 type Target struct {
 	Kind   Kind
-	Pane   int    // pane ID
-	I      int    // tab index
+	Pane   int    // pane ID, for the pane kinds
+	I      int    // kind-specific index
 	Action string // action with args, e.g. "window.select 3"
 }
 
@@ -52,6 +60,16 @@ func (f *Frame) Region(r uv.Rectangle, t Target) (hover bool) {
 	}
 	f.Hits = append(f.Hits, Hit{r, t})
 	return f.Mouse.In(r)
+}
+
+// HitAt returns the topmost target at p: later hits were drawn on top.
+func HitAt(hits []Hit, p uv.Position) (Target, bool) {
+	for i := len(hits) - 1; i >= 0; i-- {
+		if p.In(hits[i].Rect) {
+			return hits[i].Target, true
+		}
+	}
+	return Target{}, false
 }
 
 // Fill paints every cell of r with a blank in style st.

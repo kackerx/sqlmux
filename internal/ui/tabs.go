@@ -39,9 +39,11 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 	if len(t.Names) > 0 {
 		x = f.Text(x, y, r.Max.X, "│", uv.Style{Fg: th.Sep, Bg: th.Bg})
 	}
-	start := x
-	x = f.Text(x, y, r.Max.X, " + ", base)
-	f.Region(uv.Rect(start, y, x-start, 1), Target{Kind: KindTab, Pane: t.Pane, I: -1})
+	plus := base
+	if f.Region(uv.Rect(x, y, min(3, r.Max.X-x), 1), Target{Kind: KindTab, Pane: t.Pane, I: -1}) {
+		plus.Bg = th.Select
+	}
+	x = f.Text(x, y, r.Max.X, " + ", plus)
 
 	w := -3 // " · " before the first item is not drawn
 	for _, h := range t.Hints {
@@ -55,15 +57,16 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		if i > 0 {
 			hx = f.Text(hx, y, r.Max.X, " · ", base)
 		}
-		start := hx
-		hx = f.Text(hx, y, r.Max.X, h.tabText(), base)
-		if h.Action != "" {
-			f.Region(uv.Rect(start, y, hx-start, 1), Target{Kind: KindHint, Pane: t.Pane, Action: h.Action})
+		st := base
+		if h.Action != "" && f.Region(uv.Rect(hx, y, Width(h.tabText()), 1), Target{Kind: KindHint, Pane: t.Pane, Action: h.Action}) {
+			st.Bg = th.Select
 		}
+		hx = f.Text(hx, y, r.Max.X, h.tabText(), st)
 	}
 }
 
-// tabText is how a hint reads in a tab bar: "Key Label".
+// tabText is how a hint reads in a tab bar: "Key Label"; its width is the
+// hint's hit region, measured before drawing to pick the hover style.
 func (h Hint) tabText() string {
 	if h.Label == "" {
 		return h.Key

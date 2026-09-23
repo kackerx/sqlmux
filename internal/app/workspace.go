@@ -27,6 +27,7 @@ type Pane struct {
 	Tabs      []string
 	Cur, Prev int      // tab bar * and - (T-01)
 	Lines     []string // M0 placeholder content
+	Scroll    int      // first placeholder line shown; the mouse wheel moves it
 }
 
 // Object is the title's "· name" part: the current tab.
@@ -215,4 +216,28 @@ func (a *App) jumpToPane(k keymap.Key) {
 		return
 	}
 	a.win().Focus, a.win().Zoom = ps[n].ID, 0
+}
+
+// focusPane gives focus to pane id if it is on screen (a click).
+func (a *App) focusPane(id int) {
+	if _, ok := a.layout()[id]; ok && (id != a.win().Tree.ID || a.win().TreeOpen) {
+		a.win().Focus = id
+	}
+}
+
+// wheelStep is how many placeholder lines one wheel notch scrolls.
+const wheelStep = 3
+
+// scrollPane scrolls pane id by notches (negative: up), within its content.
+func (a *App) scrollPane(id, notches int) {
+	for _, p := range a.panesByNumber() {
+		if p.ID != id {
+			continue
+		}
+		n := len(p.Lines)
+		if p.Kind == KindSchema {
+			n = len(fakeTables)
+		}
+		p.Scroll = min(max(p.Scroll+notches*wheelStep, 0), max(n-1, 0))
+	}
 }

@@ -107,3 +107,33 @@ func TestNeighbor(t *testing.T) {
 		}
 	}
 }
+
+func TestHandles(t *testing.T) {
+	p := func(id int) *Node { return leaf(&Pane{ID: id}) }
+	// (1 | (2 / 3)) over 41×20: 1 gets 20 cols, gap at x=20, right half 20 cols split 10/10
+	tree := &Node{Split: Horiz, Ratio: 0.5, A: p(1), B: &Node{Split: Vert, Ratio: 0.5, A: p(2), B: p(3)}}
+	hs := tree.handles(uv.Rect(0, 0, 41, 20))
+	if len(hs) != 2 || hs[0].rect != uv.Rect(20, 0, 1, 20) || hs[1].rect != uv.Rect(21, 9, 20, 1) {
+		t.Fatalf("handles: %+v", hs)
+	}
+	// dragging the gap to x=30 gives the left pane 30 of the 40 columns
+	if r := hs[0].ratioAt(uv.Pos(30, 5)); r != 0.75 {
+		t.Errorf("ratio at x=30: %v", r)
+	}
+	// dragging the stacked border to row 14: the top half keeps rows 0..14
+	if r := hs[1].ratioAt(uv.Pos(25, 14)); r != 0.75 {
+		t.Errorf("ratio at y=14: %v", r)
+	}
+	if r := hs[0].ratioAt(uv.Pos(0, 0)); r != minRatio {
+		t.Errorf("clamped: %v", r)
+	}
+	moved := tree.setRatio(1, 0.75)
+	if moved.Ratio != 0.5 || moved.B.Ratio != 0.75 || tree.B.Ratio != 0.5 {
+		t.Errorf("setRatio: %v %v (original %v)", moved.Ratio, moved.B.Ratio, tree.B.Ratio)
+	}
+	rects := map[int]uv.Rectangle{}
+	moved.Rects(uv.Rect(0, 0, 41, 20), rects)
+	if rects[2].Max.Y != 15 {
+		t.Errorf("after the drag the top half ends at %d", rects[2].Max.Y)
+	}
+}

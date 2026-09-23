@@ -1,6 +1,10 @@
 package ui
 
-import uv "github.com/charmbracelet/ultraviolet"
+import (
+	"strings"
+
+	uv "github.com/charmbracelet/ultraviolet"
+)
 
 // WhichKeyItem is one way to continue a pending sequence: "key → title".
 type WhichKeyItem struct{ Key, Title string }
@@ -29,6 +33,7 @@ func (w WhichKey) Draw(f *Frame, area uv.Rectangle) {
 	rows := (len(w.Items) + cols - 1) / cols
 	h := min(rows+2, area.Dy())
 	r := uv.Rect(area.Min.X, area.Max.Y-h, area.Dx(), h)
+	f.Region(f.Bounds(), Target{Kind: KindBackdrop}) // a click anywhere else closes it
 	f.Fill(r, uv.Style{Bg: th.PaneBg})
 	border := uv.NormalBorder().Style(uv.Style{Fg: th.Border, Bg: th.PaneBg})
 	border.Draw(f.Buf, r)
@@ -41,8 +46,13 @@ func (w WhichKey) Draw(f *Frame, area uv.Rectangle) {
 			continue // clipped: not enough rows above the status bar
 		}
 		x := r.Min.X + 2 + col*colw
-		x = f.Text(x, y, r.Max.X-1, it.Key, uv.Style{Fg: th.Warn, Bg: th.PaneBg, Attrs: uv.AttrBold})
-		x = f.Text(x+kw-Width(it.Key), y, r.Max.X-1, " → ", uv.Style{Fg: th.Dim, Bg: th.PaneBg})
-		f.Text(x, y, r.Max.X-1, it.Title, uv.Style{Fg: th.Fg, Bg: th.PaneBg})
+		bg := th.PaneBg
+		if f.Region(uv.Rect(x, y, min(colw-whichKeyGap, r.Max.X-1-x), 1), Target{Kind: KindItem, I: i}) {
+			bg = th.Select
+		}
+		x = f.Text(x, y, r.Max.X-1, it.Key, uv.Style{Fg: th.Warn, Bg: bg, Attrs: uv.AttrBold})
+		x = f.Text(x, y, r.Max.X-1, strings.Repeat(" ", kw-Width(it.Key))+" → ", uv.Style{Fg: th.Dim, Bg: bg})
+		x = f.Text(x, y, r.Max.X-1, it.Title, uv.Style{Fg: th.Fg, Bg: bg})
+		f.Text(x, y, r.Min.X+2+col*colw+colw-whichKeyGap, strings.Repeat(" ", tw-Width(it.Title)), uv.Style{Bg: bg})
 	}
 }

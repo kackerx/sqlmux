@@ -1,6 +1,8 @@
 package app
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -12,6 +14,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/keymap"
@@ -516,5 +519,34 @@ func TestSplitIDsStayUnique(t *testing.T) {
 	feed(t, a, "<Space>x<Space>%")
 	if a.win().Focus == first {
 		t.Fatalf("pane ID %d reused", first)
+	}
+}
+
+// quitOnMode stops the program once the mode report Init sends comes back.
+type quitOnMode struct{ *App }
+
+func (q quitOnMode) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(tea.ModeReportMsg); ok {
+		return q, tea.Quit
+	}
+	q.App.Update(msg)
+	return q, nil
+}
+
+// Init's borrowed mode report must reach the renderer: with no terminal
+// answering 2027, the output still switches to grapheme widths (§7.1).
+func TestRendererUsesGraphemeWidths(t *testing.T) {
+	var out bytes.Buffer
+	c := config.Default()
+	keys, _ := keymap.New(c)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // Init stopped sending it
+	defer cancel()
+	p := tea.NewProgram(quitOnMode{New(c, keys)}, tea.WithContext(ctx), tea.WithInput(nil), tea.WithOutput(&out),
+		tea.WithWindowSize(80, 24), tea.WithEnvironment([]string{"TERM=xterm-256color"}))
+	if _, err := p.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), ansi.SetModeUnicodeCore) {
+		t.Fatal("the renderer never switched to grapheme widths")
 	}
 }

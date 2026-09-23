@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -61,6 +62,12 @@ func init() {
 		"pane.number":      {"按编号跳转", do(func(a *App, _ Args) { a.paneNumbers = true })},
 		"tree.toggle":      {"折叠 / 展开 schema 树", do(func(a *App, _ Args) { a.toggleTree() })},
 
+		// "pane.focus <id>" is what a click runs; untitled, it stays out of the palette.
+		"pane.focus": {"", do(func(a *App, args Args) {
+			if id, err := strconv.Atoi(args.Arg); err == nil {
+				a.focusPane(id)
+			}
+		})},
 		"pane.focus.left":  {"焦点移到左边", do(func(a *App, _ Args) { a.focusSide("left") })},
 		"pane.focus.down":  {"焦点移到下边", do(func(a *App, _ Args) { a.focusSide("down") })},
 		"pane.focus.up":    {"焦点移到上边", do(func(a *App, _ Args) { a.focusSide("up") })},
