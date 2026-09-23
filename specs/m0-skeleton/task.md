@@ -356,7 +356,7 @@
 - [ ] 侧栏标题显示 `public ▾`；窗口变窄时按 §7.8 的规则截短。
 - [ ] golden 测试随之更新并通过。
 
-## F0.16 去掉多余的说明文字和面板候选 · 状态：reviewing
+## F0.16 去掉多余的说明文字和面板候选 · 状态：testing
 
 - **依赖**：F0.15。用户试用主题时提出（2026-09-23）。
 - **涉及**：`internal/ui`（block、statusline、icons）、`internal/app`（view）
