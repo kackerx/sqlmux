@@ -5,7 +5,7 @@
 e2e_build || exit 1
 
 FOCUS=#9ece6a BORDER=#3b4261 DIM=#565f89 BG=#1f2335 PANE_BG=#24283b SEP=#2f3549
-NF_FILTER=$(printf '\xef\x82\xb0') NF_CONSOLE=$(printf '\xef\x84\xa0')  # U+F0B0 U+F120（bash 3.2 没有 \u）
+NF_FILTER=$(printf '\xef\x82\xb0') NF_CONSOLE=$(printf '\xef\x92\x89')  # U+F0B0 U+F489（bash 3.2 没有 \u）
 
 cols_are() { local got; got=$(e2e_find "$1" "$2"); [[ $got == "$3" ]] || { echo "  row $2 '$1' at [$got], want [$3]"; false; }; }
 widths_are() { local got; got=$(e2e_widths | sed '/^0$/d' | sort -u | tr '\n' ' '); [[ $got == "$1 " ]] || { echo "  row widths: $got"; false; }; }

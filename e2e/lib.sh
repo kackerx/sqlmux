@@ -17,19 +17,21 @@ e2e_build() { (cd "$E2E_ROOT" && go build -o "$E2E_BIN" ./cmd/sqlmux); }
 # e2e_start [-x W] [-y H] [-k] [-c FILE] CMD — fresh server, session "t" (default 160x45).
 # -k: turn on tmux extended-keys before CMD starts, so it can negotiate key enhancements.
 # -c: install FILE as $XDG_CONFIG_HOME/sqlmux/config.toml before CMD starts.
+# -C: copy DIR's contents into $XDG_CONFIG_HOME/sqlmux/ (config.toml, themes/ …).
 # CMD runs under sh; when it exits the pane prints "[e2e-exit N]" and drops to
 # an sh prompt, so terminal restoration can be checked afterwards.
 # TERM=xterm-256color + COLORTERM: a detached tmux has no client to report RGB,
 # so colorprofile would drop to 256 colors and theme hex values couldn't be checked.
 e2e_start() {
-  local w=160 h=45 keys=off conf=
-  while [[ $1 == -[xykc] ]]; do
-    case $1 in -x) w=$2; shift ;; -y) h=$2; shift ;; -c) conf=$2; shift ;; -k) keys=on ;; esac; shift
+  local w=160 h=45 keys=off conf= confdir=
+  while [[ $1 == -[xykcC] ]]; do
+    case $1 in -x) w=$2; shift ;; -y) h=$2; shift ;; -c) conf=$2; shift ;; -C) confdir=$2; shift ;; -k) keys=on ;; esac; shift
   done
   e2e_stop
   E2E_TMP=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e.XXXXXX")
   mkdir -p "$E2E_TMP"/{config/sqlmux,state,data}
   [[ -n $conf ]] && cp "$conf" "$E2E_TMP/config/sqlmux/config.toml"
+  [[ -n $confdir ]] && cp -R "$confdir"/. "$E2E_TMP/config/sqlmux/"
   t -f /dev/null set -s extended-keys "$keys" \; new-session -d -s t -x "$w" -y "$h" \
     -e XDG_CONFIG_HOME="$E2E_TMP/config" -e XDG_STATE_HOME="$E2E_TMP/state" \
     -e XDG_DATA_HOME="$E2E_TMP/data" -e COLORTERM=truecolor \
