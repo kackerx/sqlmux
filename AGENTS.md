@@ -176,12 +176,14 @@ sqlmux/
   1. `go vet ./... && go test ./...`；
   2. 涉及数据库的 feature：先 `docker compose up -d`，再跑 `go test -tags integration ./...`；
   3. 界面行为：用 tmux 做黑盒测试。
-- **tmux 黑盒测试的用法**：必须使用独立的 socket，不要碰用户自己的 tmux。
-  - 启动：`tmux -L sqlmux-e2e -f /dev/null new-session -d -s t -x 160 -y 45 '<命令>'`
-  - 按键：`send-keys`
-  - 鼠标单击第 X 列、第 Y 行（从 1 开始计）：`send-keys -l $'\e[<0;X;YM\e[<0;X;Ym'`
-  - 读屏幕：`capture-pane -p`，需要颜色时加 `-e`
-  - 结束：`tmux -L sqlmux-e2e kill-server`
+- **tmux 黑盒测试一律通过 `e2e/lib.sh` 进行**：worker 在 main 上、tester 在 e2e worktree 里，会同时跑同一套脚本。
+  - `lib.sh` 每次运行都使用独立的 socket `sqlmux-e2e-<pid>`，退出时执行 kill-server 并删除 socket 文件。
+  - 不要写死 socket 名，否则一方的 kill-server 或 resize 会打到另一方的会话上；也不要碰用户自己的 tmux。
+  - 需要手动操作时，参照 `lib.sh` 的做法：
+    - `tmux -L sqlmux-e2e-<唯一后缀> -f /dev/null new-session -d -x 160 -y 45 '<命令>'`
+    - 用 `send-keys` 发按键；
+    - 用 `send-keys -l $'\e[<0;X;YM\e[<0;X;Ym'` 单击第 X 列、第 Y 行（从 1 开始计）；
+    - 用 `capture-pane -p` 读屏幕，需要颜色时加 `-e`。
 - **隔离用户数据**：e2e 运行时，把 `XDG_CONFIG_HOME`、`XDG_STATE_HOME`、`XDG_DATA_HOME` 指向临时目录，不要读写用户自己的配置和数据。
 - **报告问题**：发给 worker，写明 feature ID、复现步骤（脚本或按键序列）、期望结果（引用 tech-design 的章节或 PRD 编号）、实际结果（贴屏幕截取）。
 - **测完一个 feature**：把结论（通过 / 不通过、问题数）同时发给决策者和 worker。
