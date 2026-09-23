@@ -56,12 +56,25 @@ check "提示行：键名 focus 粗体、说明 dim" eval 'at "j/k" 43 fg=$FOCUS
 # ---- 标题栏退让（§7.8 pane 标题）：先截对象名，再按 ▶ run > 下拉框 > ↵ 从低往高丢，最后只留 ⟨n⟩
 console_title() { local c; c=$(e2e_find ┌ 1); c=${c##* }; e2e_text "$c" "$(e2e_flag pane_width)" 1; }
 title_ends() { local got; got=$(console_title); [[ $got == *"$1" ]] || { echo "  console title '$got', want suffix '$1'"; false; }; }
-# 任何宽度下都不能出现「低优先级的提示在、高优先级的不在」
-hints_monotonic() {
-  local t; t=$(console_title)
-  local run=0 dd=0 ret=0
-  [[ $t == *"▶ run"* ]] && run=1; [[ $t == *"doraemon.public ▾"* ]] && dd=1; [[ $t == *"▶ run  ↵"* ]] && ret=1
-  ((run >= dd && dd >= ret)) || { echo "  width $(e2e_flag pane_width): '$t'"; false; }
+# §7.8 第 2 步：提示放不下才跳过——被跳过的提示，宽度一定大于「对象名 + 填充的 ─」所占的列数；
+# 键位文字 ↵ 依附于 ▶ run，只在 run 显示时才要求（也才允许）出现。
+# 提示宽度含前导空格：" doraemon.public ▾" 18，"  ▶ run " 8，" ↵" 2。
+no_wasted_room() {
+  T=$(console_title) python3 - <<'PY'
+import os, re, sys
+t = os.environ["T"]
+m = re.match(r"^┌─ ⟨2⟩ \S console((?: · \S+)?) (─*)(.*)─┐$", t)
+if not m:
+    sys.exit(0 if re.match(r"^┌─ ⟨2⟩ ─*┐$", t) else f"  unparsed console title: {t!r}")
+free = len(m[1]) + len(m[2])
+run = "▶ run" in m[3]
+if "↵" in m[3] and not run:
+    sys.exit(f"  {t!r}: ↵ shown without ▶ run")
+want = {"▶ run": 8, "doraemon.public ▾": 18, **({"↵": 2} if run else {})}
+skipped = [h for h, w in want.items() if h not in m[3] and free >= w]
+if skipped:
+    sys.exit(f"  {t!r}: skipped {skipped} with {free} free columns")
+PY
 }
 start -x 200
 check "200 宽：对象名完整，doraemon.public ▾ 在 ▶ run ↵ 左边" title_ends "console · console_1 ────────────── doraemon.public ▾  ▶ run  ↵ ─┐"
@@ -69,8 +82,16 @@ check "200 宽：data:console 仍约为 5:4" eval 'set -- $(e2e_find ┌ 1) $(e2
 start -x 140; check "140 宽：对象名已截完，先丢 ↵" title_ends "⟨2⟩ $NF_CONSOLE console ─ doraemon.public ▾  ▶ run  ─┐"
 start -x 100; check "100 宽：只剩 ▶ run" title_ends "⟨2⟩ $NF_CONSOLE console ─  ▶ run  ─┐"
 start -x 60;  check "60 宽：只保留 ⟨2⟩" title_ends "─ ⟨2⟩ ───────┐"
-ok=1; for w in 220 180 160 150 140 130 120 110 100 90 80 70; do start -x $w -y 12; hints_monotonic || ok=0; done
-check "220…70 宽：提示总是按 ▶ run > 下拉框 > ↵ 的优先级保留" test $ok = 1
+ok=1; for w in 110 115 120 125 130; do start -x $w -y 12; title_ends "▶ run  ↵ ─┐" || ok=0; done
+check "110–130 宽：下拉框放不下时仍显示 ▶ run ↵" test $ok = 1
+ok=1; for w in 65 70 75 80 85; do
+  start -x $w -y 12; t=$(console_title); [[ $t == *"↵"* && $t != *"▶ run"* ]] && { echo "  $w: '$t'"; ok=0; }
+done
+check "65–85 宽：没有脱离 ▶ run 单独出现的 ↵" test $ok = 1
+ok=1; for w in 220 200 180 170 165 160 150 140 135 130 125 120 115 110 105 100 95 90 85 80 75 70 65 60; do
+  start -x $w -y 12; no_wasted_room || ok=0
+done
+check "220…60 宽：没有「放得下却没显示」的按钮" test $ok = 1
 
 # ---- 80x24：侧栏 24 列、截断、不越界
 start -x 80 -y 24
