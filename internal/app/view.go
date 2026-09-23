@@ -32,13 +32,23 @@ func (a *App) hints(scope, sep string, actions ...string) string {
 
 // layout places the sidebar and every pane of the current window, keyed by
 // pane ID. The last row is the status bar.
+// thinBarWidth is the folded sidebar: two borders around one column (§7.8).
+const thinBarWidth = 3
+
 func (a *App) layout() map[int]uv.Rectangle {
+	win := a.win()
 	main := uv.Rect(0, 0, max(a.w, 0), max(a.h-1, 0))
+	if win.Zoom != 0 { // the zoomed pane takes the whole window, sidebar included
+		return map[int]uv.Rectangle{win.Zoom: main}
+	}
 	side := main
 	side.Max.X = min(main.Min.X+sidebarWidth(a.w), main.Max.X)
+	if !win.TreeOpen {
+		side.Max.X = min(main.Min.X+thinBarWidth, main.Max.X)
+	}
 	main.Min.X = min(side.Max.X+1, main.Max.X)
-	rects := map[int]uv.Rectangle{a.win().Tree.ID: side}
-	a.win().Root.Rects(main, rects)
+	rects := map[int]uv.Rectangle{win.Tree.ID: side}
+	win.Root.Rects(main, rects)
 	return rects
 }
 
@@ -50,9 +60,16 @@ func (a *App) render() *ui.Frame {
 		return f
 	}
 	rects := a.layout()
-	a.drawSidebar(f, rects[a.win().Tree.ID])
+	if r, ok := rects[a.win().Tree.ID]; ok {
+		a.drawSidebar(f, r)
+	}
 	for i, p := range a.win().Root.Leaves() {
-		a.drawPane(f, p, i+1, rects[p.ID])
+		if r, ok := rects[p.ID]; ok {
+			a.drawPane(f, p, i+1, r)
+		}
+	}
+	if a.paneNumbers {
+		a.drawPaneNumbers(f, rects)
 	}
 
 	y := a.h - 1
@@ -118,6 +135,10 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	th := f.Theme
 	p := a.win().Tree
+	if !a.win().TreeOpen {
+		a.drawThinBar(f, r)
+		return
+	}
 	b := ui.Block{
 		Title:   a.icons.Schema + " schema",
 		Hints:   bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
@@ -254,4 +275,44 @@ func (a *App) whichKeyOverlay() ui.WhichKey {
 		w.Items = append(w.Items, ui.WhichKeyItem{Key: keymap.Display([]keymap.Key{n.Key}), Title: t})
 	}
 	return w
+}
+
+// drawThinBar is the folded sidebar (§7.8): "»" on top, then "schema · SPC b"
+// down the middle column, one character per row.
+func (a *App) drawThinBar(f *ui.Frame, r uv.Rectangle) {
+	th := f.Theme
+	in := ui.Block{Pane: a.win().Tree.ID}.Draw(f, r)
+	if in.Empty() {
+		return
+	}
+	text := "»schema"
+	if k := a.keys.Hint("tree.toggle", "normal"); k != "" {
+		text += " · " + k
+	}
+	y := in.Min.Y
+	for _, ch := range text {
+		st := uv.Style{Fg: th.Dim, Bg: th.PaneBg}
+		if y == in.Min.Y {
+			st.Fg = th.Focus
+		}
+		f.Text(in.Min.X, y, in.Max.X, string(ch), st)
+		if y++; y >= in.Max.Y {
+			break
+		}
+	}
+}
+
+// drawPaneNumbers is SPC q's overlay: each pane's ⟨n⟩ in its middle, until
+// a digit jumps there.
+func (a *App) drawPaneNumbers(f *ui.Frame, rects map[int]uv.Rectangle) {
+	th := f.Theme
+	for n, p := range a.panesByNumber() {
+		r, ok := rects[p.ID]
+		if !ok {
+			continue
+		}
+		label := fmt.Sprintf(" %d ", n)
+		x, y := r.Min.X+(r.Dx()-ui.Width(label))/2, r.Min.Y+r.Dy()/2
+		f.Text(x, y, r.Max.X, label, uv.Style{Fg: th.Bg, Bg: th.Warn, Attrs: uv.AttrBold})
+	}
 }

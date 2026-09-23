@@ -3,6 +3,9 @@ package app
 import (
 	"fmt"
 	"slices"
+	"strconv"
+
+	"sqlmux/internal/keymap"
 )
 
 // PaneKind is what a pane shows.
@@ -35,10 +38,12 @@ func (p *Pane) Object() string {
 }
 
 type Window struct {
-	Name  string
-	Tree  *Pane // ⟨0⟩ sidebar, not part of the split tree (D-04)
-	Root  *Node
-	Focus int // pane ID
+	Name     string
+	TreeOpen bool  // the ⟨0⟩ sidebar is open, not folded to its thin bar
+	Tree     *Pane // ⟨0⟩ sidebar, not part of the split tree (D-04)
+	Root     *Node
+	Focus    int // pane ID
+	Zoom     int // zoomed pane ID; 0 = none (P-03)
 }
 
 // Session is one connection (tech-design §5).
@@ -56,10 +61,11 @@ func fakeSession() *Session {
 	data := &Pane{ID: 1, Kind: KindData, Tabs: []string{"t_order", "t_user"}, Prev: 1, Lines: fakeRows()}
 	cons := &Pane{ID: 2, Kind: KindConsole, Tabs: []string{"console_1"}, Prev: -1, Lines: fakeSQL}
 	main := &Window{
-		Name:  "data",
-		Tree:  &Pane{ID: 0, Kind: KindSchema},
-		Root:  &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(cons)}, // data : console = 5 : 4 (§7.8)
-		Focus: 1,
+		Name:     "data",
+		TreeOpen: true,
+		Tree:     &Pane{ID: 0, Kind: KindSchema},
+		Root:     &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(cons)}, // data : console = 5 : 4 (§7.8)
+		Focus:    1,
 	}
 	// ponytail: the second window only shows in the status bar's window list;
 	// switching windows is M5.
@@ -121,4 +127,90 @@ func (a *App) closeTab() {
 	if root, heir := a.win().Root.remove(p.ID); root != nil {
 		a.win().Root, a.win().Focus = root, heir.ID
 	}
+}
+
+// panesByNumber is ⟨n⟩ order: the sidebar is 0, then the tree's leaves.
+func (a *App) panesByNumber() []*Pane {
+	return append([]*Pane{a.win().Tree}, a.win().Root.Leaves()...)
+}
+
+// focusSide moves focus to the neighbouring pane on side, from the rects the
+// last frame was drawn with (tech-design §5). A folded sidebar takes no focus.
+func (a *App) focusSide(side string) {
+	win := a.win()
+	rects := a.layout()
+	if !win.TreeOpen {
+		delete(rects, win.Tree.ID)
+	}
+	if id, ok := neighbor(rects, win.Focus, side); ok {
+		win.Focus = id
+	}
+}
+
+// splitPane divides the focused pane along d; the new, empty pane gets focus.
+func (a *App) splitPane(d Dir) {
+	win := a.win()
+	p := a.focused()
+	if p.Kind == KindSchema {
+		return
+	}
+	next := 0
+	for _, q := range win.Root.Leaves() {
+		next = max(next, q.ID)
+	}
+	np := &Pane{ID: next + 1, Kind: p.Kind, Prev: -1}
+	win.Root, win.Focus, win.Zoom = win.Root.split(p.ID, d, np), np.ID, 0
+}
+
+// closePane closes the focused pane; its sibling takes the space. The
+// sidebar and the window's only pane stay.
+func (a *App) closePane() {
+	win := a.win()
+	if win.Focus == win.Tree.ID {
+		return
+	}
+	if root, heir := win.Root.remove(win.Focus); root != nil {
+		win.Root, win.Focus, win.Zoom = root, heir.ID, 0
+	}
+}
+
+// resizeStep is how far one SPC H/J/K/L moves a border.
+const resizeStep = 0.05
+
+func (a *App) resizePane(d Dir, sign float64, count int) {
+	win := a.win()
+	if win.Focus == win.Tree.ID {
+		return
+	}
+	win.Root = win.Root.resize(win.Focus, d, sign*resizeStep*float64(max(count, 1)))
+}
+
+func (a *App) toggleZoom() {
+	win := a.win()
+	switch {
+	case win.Zoom != 0:
+		win.Zoom = 0
+	case win.Focus != win.Tree.ID:
+		win.Zoom = win.Focus
+	}
+}
+
+func (a *App) toggleTree() {
+	win := a.win()
+	win.TreeOpen = !win.TreeOpen
+	if !win.TreeOpen && win.Focus == win.Tree.ID {
+		win.Focus = win.Root.Leaves()[0].ID
+	}
+}
+
+// jumpToPane is SPC q's second key: a digit picks ⟨n⟩, anything else just
+// closes the numbers.
+func (a *App) jumpToPane(k keymap.Key) {
+	a.paneNumbers = false
+	n, err := strconv.Atoi(string(k))
+	ps := a.panesByNumber()
+	if err != nil || n < 0 || n >= len(ps) || n == 0 && !a.win().TreeOpen {
+		return
+	}
+	a.win().Focus, a.win().Zoom = ps[n].ID, 0
 }

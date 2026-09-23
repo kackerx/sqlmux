@@ -23,6 +23,8 @@ type App struct {
 
 	cmdline  *string // non-nil while the : command line is open (COMMAND mode)
 	whichKey bool    // the which-key overlay is up (§6.5)
+	// paneNumbers is SPC q's overlay: the next key picks a pane by its ⟨n⟩.
+	paneNumbers bool
 
 	toast     string
 	toastSeq  int
@@ -56,6 +58,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.toast = ""
 		}
 	case tea.KeyPressMsg:
+		if a.paneNumbers {
+			a.jumpToPane(keymap.FromTea(msg.Key()))
+			return a, nil
+		}
 		out, wait := a.res.Feed(a.context(), keymap.FromTea(msg.Key()))
 		cmd := a.dispatch(out)
 		seq := a.res.Seq()
