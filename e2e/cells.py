@@ -23,9 +23,22 @@ BASIC = ["000000", "cd0000", "00cd00", "cdcd00", "0000ee", "cd00cd", "00cdcd", "
 
 
 def width(ch):
-    if unicodedata.combining(ch) or ch in "\u200d\ufe0f" or "\U0001f3fb" <= ch <= "\U0001f3ff":
+    if unicodedata.category(ch) in ("Mn", "Me") or ch in "\u200d\ufe0f" or "\U0001f3fb" <= ch <= "\U0001f3ff":
         return 0  # joins the previous cell: combining mark, ZWJ, VS16, emoji skin tone
     return 2 if unicodedata.east_asian_width(ch) in "WF" else 1
+
+
+def cells_of(text):
+    """Split text into (cluster, width) cells the way tmux lays them out: zero-width
+    chars and anything after a ZWJ join the previous cell; VS16 widens it to 2."""
+    out = []
+    for ch in text:
+        if out and (width(ch) == 0 or out[-1][0].endswith("\u200d")):
+            c, w = out[-1]
+            out[-1] = (c + ch, 2 if ch == "\ufe0f" else w)
+        else:
+            out.append((ch, width(ch)))
+    return out
 
 
 def color(ps, i):
@@ -72,11 +85,13 @@ def grid(dump):
         for m in [*SGR.finditer(line), None]:
             for ch in line[pos : m.start() if m else len(line)]:
                 cell = (ch, st["fg"], st["bg"], frozenset(st["attrs"]))
+                i = len(row) - (2 if row and row[-1][0] == "" else 1)  # previous cluster's cell
                 if ch == "\t":  # tmux keeps HT the renderer used to skip blanks; stops every 8, last column caps
                     row += [(" ", *cell[1:])] * (min(len(row) // 8 * 8 + 8, WIDTH - 1) - len(row))
-                elif width(ch) == 0 and row:
-                    i = len(row) - (2 if row[-1][0] == "" else 1)
+                elif row and (width(ch) == 0 or row[i][0].endswith("\u200d")):  # see cells_of
                     row[i] = (row[i][0] + ch, *row[i][1:])
+                    if ch == "\ufe0f" and row[-1][0] != "":
+                        row.append(("", *row[i][1:]))
                 else:
                     row += [cell, ("", *cell[1:])] if width(ch) == 2 else [cell]
             if m:
@@ -89,7 +104,7 @@ def grid(dump):
 
 def main():
     if sys.argv[1] == "strwidth":
-        return print(sum(width(c) for c in sys.argv[2]))
+        return print(sum(w for _, w in cells_of(sys.argv[2])))
     g = grid(sys.stdin.read())
     cmd, args = sys.argv[1], [int(a) for a in sys.argv[2:] if a.isdigit()]
     if cmd == "style":

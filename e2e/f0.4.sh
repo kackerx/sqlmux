@@ -59,13 +59,9 @@ check ":qa 退出，终端复原" quit_clean
 start
 E_ACUTE=$(printf 'e\xcc\x81') THUMB=$(printf '\xf0\x9f\x91\x8d\xf0\x9f\x8f\xbd')   # e+U+0301、👍🏽（bash 3.2 没有 \u）
 e2e_type ":x${E_ACUTE}${THUMB}中"; sleep 0.3
-# 这里不用 cmdline：👍🏽 会让渲染器多算 2 列、挤掉行尾的 COMMAND（宽度问题已报决策者），只看左侧的输入
-row45() { local r; r=$(e2e_text 1 160 45); r=${r#" "}; echo "${r%%"  "*}"; }
-check "命令行完整显示 é、👍🏽、中" eval '[[ $(codepoints "$(row45)") == "3a 78 65 301 1f44d 1f3fd 4e2d" ]]'
+check "命令行完整显示 é、👍🏽、中" eval '[[ $(codepoints "$(cmdline)") == "3a 78 65 301 1f44d 1f3fd 4e2d" ]]'
 e2e_keys Enter; sleep 0.3
-# 带肤色修饰的 emoji 不放进 toast：不支持 mode 2027 的终端（如 tmux）里，渲染器按 WcWidth 算它 4 列，与 Frame 的 2 列不一致（已报决策者）
-e2e_type ":x${E_ACUTE}中"; e2e_keys Enter; sleep 0.3
-check "未知命令 toast 里的字素完整" toast_is "未知命令: x${E_ACUTE}中"
+check "未知命令 toast 里的字素完整" toast_is "未知命令: x${E_ACUTE}${THUMB}中"
 e2e_type ":x${E_ACUTE}"; e2e_keys BSpace; sleep 0.2
 check "退格删掉整个 é（e+U+0301），不留下 e" cmdline_is ':x'
 e2e_keys Escape; sleep 0.2; e2e_type ":x${THUMB}"; e2e_keys BSpace; sleep 0.2
