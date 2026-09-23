@@ -99,4 +99,9 @@ start_with '[keys]\nleader = "<C-a>"\n'
 e2e_keys C-a; sleep 0.6
 check "leader = <C-a>：浮层标题为 C-a，内容不变" eval 'shown C-a && [[ $(items C-a) == "$SPC_KEYS" ]]'
 
+# ---- which-key 不是作用域（§6.4）：[keys.whichkey] 是未知的表
+printf '[keys.whichkey]\n"a" = "b"\n' >| "$CFG/config.toml"; mkdir -p "$CFG/x/sqlmux"; cp "$CFG/config.toml" "$CFG/x/sqlmux/"
+err=$(XDG_CONFIG_HOME="$CFG/x" "$E2E_BIN" keys --check 2>&1); rc=$?
+check "[keys.whichkey]：--check 报「没有这个表」、退出码 1" eval '[[ $rc == 1 && $err == *"[keys.whichkey] a: 没有这个表"* ]] || { echo "  rc=$rc: $err"; false; }'
+
 e2e_done

@@ -19,7 +19,7 @@ BAR=#292e42 FOCUS=#9ece6a BG=#1f2335 FG=#c0caf5 DIM=#565f89 WARN=#e0af68 INFO=#7
 
 # ---- 160 宽 NORMAL：内容与顺序
 start
-check "160 宽状态栏" bar_is " @ doraemon ▾  0: data*  1: report $(printf '%79s') @ C-p  @ ·  1,1  @ pg@localhost:5432  NORMAL "
+check "160 宽状态栏" bar_is " @ doraemon ▾  0: data*  1: report $(printf '%77s') @ C-p  @ ·    1,1  @ pg@localhost:5432  NORMAL "
 check "状态栏底色 #292e42" eval 'style_has 40 45 bg=$BAR && style_has 100 45 bg=$BAR'
 check "session 块：focus 底、bg 字、粗体" eval 'at doraemon bg=$FOCUS && at doraemon fg=$BG && at doraemon bold && style_has 1 45 bg=$FOCUS'
 check "当前 window：#3b4261 底、fg 字" eval 'at "0: data*" bg=#3b4261 && at "0: data*" fg=$FG && at "0: data*" bg=#3b4261 -1'
@@ -57,35 +57,49 @@ check "输入 85 字：右侧各块都还在" eval 'bar_has "1,1  @ pg@localhost
 e2e_type "$(long 30 b)"; sleep 0.2
 check "输入 115 字：命令行变宽，连接地址先让出" eval 'bar_has " :$(long 85 a)$(long 30 b)" && bar_lacks pg@localhost && bar_has "1,1  COMMAND"'
 e2e_type "$(long 20 c)"; sleep 0.2
-check "输入 135 字：光标位置也让出，C-p / 待输入 / 模式块还在" eval 'bar_has "$(long 20 c)" && bar_lacks "1,1" && bar_has "@ C-p  @ ·  COMMAND "'
+check "输入 135 字：光标位置也让出，C-p / 待输入 / 模式块还在" eval 'bar_has "$(long 20 c)" && bar_lacks "1,1" && bar_has "@ C-p  @ ·    COMMAND "'
 e2e_keys Escape; sleep 0.2
 
 # ---- 80 宽 COMMAND：先去匹配的命令，再去连接地址
 start -x 80
 e2e_type ':'; sleep 0.2
-check "80 宽 COMMAND：不显示匹配的命令和连接地址，模式块可见" eval 'bar_lacks ":q |" && bar_lacks pg@ && bar_has "@ C-p  @ ·  1,1  COMMAND "'
+check "80 宽 COMMAND：不显示匹配的命令和连接地址，模式块可见" eval 'bar_lacks ":q |" && bar_lacks pg@ && bar_has "@ C-p  @ ·    1,1  COMMAND "'
 check "80 宽：命令行至少 40 列" eval '(( $(e2e_find "C-p" 45) > 40 ))'
 e2e_keys Escape; sleep 0.2
 
 # ---- NORMAL 逐步变窄：连接地址 → 非当前 window → 光标位置 → 截短 session 名
-start -x 81; check "81 宽：全部显示" bar_has "1: report  @ C-p  @ ·  1,1  @ pg@localhost:5432  NORMAL "
-start -x 80; check "80 宽：先省略连接地址" eval 'bar_lacks pg@ && bar_has "1: report" && bar_has "1,1"'
-start -x 57; check "57 宽：去掉非当前 window" eval 'bar_lacks "1: report" && bar_has "1,1"'
-start -x 49; check "49 宽：光标位置还在" bar_has "1,1  NORMAL "
-start -x 48; check "48 宽：去掉光标位置，session 名完整" eval 'bar_lacks "1,1" && bar_has " doraemon ▾"'
-start -x 43; check "43 宽：截短 session 名" bar_has " doraem… ▾"
+start -x 83; check "83 宽：全部显示" bar_has "1: report  @ C-p  @ ·    1,1  @ pg@localhost:5432  NORMAL "
+start -x 82; check "82 宽：先省略连接地址" eval 'bar_lacks pg@ && bar_has "1: report" && bar_has "1,1"'
+start -x 60; check "60 宽：去掉非当前 window" eval 'bar_lacks "1: report" && bar_has "1,1"'
+start -x 51; check "51 宽：光标位置还在" bar_has "1,1  NORMAL "
+start -x 50; check "50 宽：去掉光标位置，session 名完整" eval 'bar_lacks "1,1" && bar_has " doraemon ▾"'
+start -x 45; check "45 宽：截短 session 名" bar_has " doraem… ▾"
 monotonic() {  # 省略顺序：有连接地址 ⇒ 有 1: report ⇒ 有 1,1 ⇒ session 名完整；且必留的块都在
   local b; b=$(bar)
   local c=0 r=0 p=0 s=0
   [[ $b == *pg@localhost* ]] && c=1; [[ $b == *"1: report"* ]] && r=1; [[ $b == *"1,1"* ]] && p=1; [[ $b == *" doraemon ▾"* ]] && s=1
   ((c <= r && r <= p && p <= s)) || { echo "  width $(W): order broken: '$b'"; return 1; }
-  [[ $b == *"▾  0: data*"*"@ C-p  @ ·"*" NORMAL " ]] || { echo "  width $(W): a kept block is missing: '$b'"; return 1; }
+  [[ $b == *"▾  0: data*"*"@ C-p  @ ·   "*" NORMAL " ]] || { echo "  width $(W): a kept block is missing: '$b'"; return 1; }
 }
-ok=1; for w in 160 120 100 90 81 80 70 60 58 57 56 50 49 48 46 44 43 42 40 38; do start -x $w -y 12; monotonic || ok=0; done
-check "160…38 宽：省略顺序正确，session 块 / 0: data* / C-p / 待输入 / 模式块始终都在" test $ok = 1
+ok=1; for w in 160 120 100 90 83 82 70 62 61 60 58 52 51 50 48 46 45 44 42 40; do start -x $w -y 12; monotonic || ok=0; done
+check "160…40 宽：省略顺序正确，session 块 / 0: data* / C-p / 待输入 / 模式块始终都在" test $ok = 1
 
 # ---- C-p 入口的键位文字取自 keymap
 printf '[keys.global]\n"<C-p>" = ""\n"<C-k>" = "palette.open"\n' >| "$CFG/config.toml"; start -c "$CFG/config.toml"
 check "改绑 palette.open 为 C-k：状态栏显示 C-k" eval 'bar_has "@ C-k  @ ·" && bar_lacks "C-p"'
+
+# ---- 待输入块至少 3 列、内容靠左：3 列以内时 C-p 不动（§7.8）
+start
+cp0=$(e2e_find "C-p" 45)
+check "空闲时 · 后补 2 格" bar_has "@ C-p  @ ·    1,1"
+still() { local c; c=$(e2e_find "C-p" 45); [[ $c == "$cp0" ]] || { echo "  C-p at $c, idle at $cp0 ($1)"; false; }; }
+ok=1
+e2e_keys Space; sleep 0.2; still SPC || ok=0; pending_is "SPC" || ok=0; e2e_keys Escape; sleep 0.2
+e2e_type g; sleep 0.2; still g || ok=0; pending_is "g  " || ok=0; e2e_keys Escape; sleep 0.2
+e2e_type 5; sleep 0.2; still 5 || ok=0; e2e_type 2; sleep 0.2; still 52 || ok=0; pending_is "52 " || ok=0; e2e_keys Escape; sleep 0.2
+check "按 SPC / g / 5 / 52：C-p 位置不变，序列靠左" test $ok = 1
+e2e_type 5; e2e_keys Space; sleep 0.2
+check "序列超过 3 列（5 SPC）时才变宽" eval 'pending_is "5 SPC" && (( $(e2e_find "C-p" 45) < cp0 ))'
+e2e_keys Escape; sleep 0.2
 
 e2e_done

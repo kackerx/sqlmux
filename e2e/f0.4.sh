@@ -34,6 +34,7 @@ cmd q
 check "唯一的 pane 关掉最后一个 tab：保留为空 pane，标题只有 ⟨1⟩ <图标> console" text_is 34 51 1 "┌─ ⟨1⟩ $NF_CONSOLE console ─"
 check "空 pane：内容区为空" empty_body
 check "空 pane：tab 栏只有 +，前面没有 │，右侧没有提示" text_is 34 160 43 "$EMPTY_TABS"
+check "空 pane：标题栏右侧没有任何提示（§7.8 空 pane）" eval '[[ $(e2e_text 34 160 1) == "┌─ ⟨1⟩ $NF_CONSOLE console "*"─┐" && $(e2e_text 52 160 1) =~ ^─+┐$ ]] || { echo "  title: $(e2e_text 34 160 1)"; false; }'
 check "空 pane：程序不退出" running
 cmd q
 check "空 pane 上再 :q：不退出、画面不变" eval 'running && text_is 34 160 43 "$EMPTY_TABS"'
@@ -84,6 +85,29 @@ e2e_keys C-c; sleep 2.3; e2e_keys C-c; sleep 0.3
 check "两次间隔超过 2 秒：不退出，第二次重新算第一次" eval 'running && toast_is "再按一次 C-c 退出"'
 e2e_keys C-c
 check "紧接着再按：退出" quit_clean
+
+# ---- 「再按一次 C-c 退出」只显示 2 秒；窗口就是它在屏幕上的这段时间（§6.8）
+start
+e2e_keys C-c; sleep 1.7
+check "1.7 秒时提示还在" screen_has "再按一次 C-c 退出"
+e2e_keys C-c
+check "提示还在时再按：退出" quit_clean
+start
+e2e_keys C-c; sleep 2.2
+check "2.2 秒时提示已消失（只显示 2 秒）" eval '! screen_has "再按一次"'
+e2e_keys C-c; sleep 0.3
+check "消失后再按：不退出，提示重新出现" eval 'running && toast_is "再按一次 C-c 退出"'
+e2e_keys Escape; sleep 2.2
+start
+e2e_keys C-c; sleep 0.3; cmd foo
+check "被「未知命令」toast 顶掉" eval 'toast_is "未知命令: foo" && ! screen_has "再按一次"'
+e2e_keys C-c; sleep 0.3
+check "顶掉后再按 C-c：算第一次，不退出" eval 'running && toast_is "再按一次 C-c 退出"'
+start
+cmd foo; sleep 2.4
+check "其他 toast 仍显示 3 秒：2.7 秒时还在" screen_has "未知命令: foo"
+sleep 0.8
+check "约 3 秒后消失" eval '! screen_has "未知命令: foo"'
 
 # ---- 命令行里的 C-c 等同 esc，不计入连按
 start
