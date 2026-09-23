@@ -224,10 +224,10 @@ func TestResizeNoPanic(t *testing.T) {
 func TestCmdlineTakesGraphemes(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, ":")
-	for _, s := range []string{"é", "👍🏽", "🇨🇳"} {
+	for _, s := range []string{"e\u0301", "👍🏽", "🇨🇳"} {
 		a.Update(tea.KeyPressMsg{Code: tea.KeyExtended, Text: s})
 	}
-	if *a.cmdline != "é👍🏽🇨🇳" {
+	if *a.cmdline != "e\u0301👍🏽🇨🇳" {
 		t.Fatalf("cmdline = %q", *a.cmdline)
 	}
 }

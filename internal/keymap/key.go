@@ -73,8 +73,8 @@ func looksLikeName(s string) bool {
 
 // plain is the key for typed text, one grapheme cluster. A literal space is
 // <Space>, as in vim, so it matches what FromTea reports.
-func plain[T rune | string](c T) Key {
-	switch s := string(c); s {
+func plain(s string) Key {
+	switch s {
 	case "<":
 		return "<lt>"
 	case " ":
@@ -120,7 +120,7 @@ func parseBracket(body string) (Key, error) {
 		r, shift = unicode.ToUpper(r), false // <S-a> is A
 	}
 	if !ctrl && !alt && !shift {
-		return plain(r), nil
+		return plain(string(r)), nil
 	}
 	name := string(r)
 	if r == '<' {
@@ -198,7 +198,7 @@ func FromTea(k tea.Key) Key {
 	}
 	if !ctrl && !alt {
 		if k.Text == "" {
-			return plain(k.Code)
+			return plain(string(k.Code))
 		}
 		return plain(k.Text) // whole cluster: multi-rune ones arrive as KeyExtended
 	}
