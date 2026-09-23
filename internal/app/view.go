@@ -154,6 +154,10 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 			{a.keys.Hint("tree.open", "tree"), "open"},
 			{a.keys.Hint("tree.open.tab", "tree"), "tab"},
 		} {
+			// Unbound actions get no hint (§6.7); an item that doesn't fit whole is left out.
+			if h.key == "" || hx+ui.Width(h.key+" "+h.label) > right {
+				continue
+			}
 			hx = f.Text(hx, in.Max.Y-1, right, h.key, uv.Style{Fg: th.Focus, Bg: th.PaneBg, Attrs: uv.AttrBold})
 			hx = f.Text(hx, in.Max.Y-1, right, " "+h.label+"  ", uv.Style{Fg: th.Dim, Bg: th.PaneBg})
 		}

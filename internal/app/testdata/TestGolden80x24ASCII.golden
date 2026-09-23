@@ -19,6 +19,6 @@
 │                      │ │ 704   goal       pending   │ │                      │
 │                      │ │ 705   task       running   │ │                      │
 │──────────────────────│ │ 706   report     done      │ │                      │
-│ j/k move  ↵ open  t  │ │ 1:t_order* │ 2:t_user- │ + │ │ 1:console_1* │ +     │
+│ j/k move  ↵ open     │ │ 1:t_order* │ 2:t_user- │ + │ │ 1:console_1* │ +     │
 └──────────────────────┘ └────────────────────────────┘ └──────────────────────┘
                                                                                 
