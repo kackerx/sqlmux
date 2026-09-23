@@ -6,15 +6,21 @@ import (
 	"strings"
 )
 
+// Mode is the vim mode (B-02). COMMAND resolves like INSERT: the command line
+// is an input.
 type Mode uint8
 
 const (
 	Normal Mode = iota
 	Visual
 	Insert
+	Command
 )
 
-func (m Mode) String() string { return [...]string{"normal", "visual", "insert"}[m] }
+func (m Mode) String() string { return [...]string{"normal", "visual", "insert", "command"}[m] }
+
+// typing reports whether keys go into an input rather than to NORMAL/VISUAL bindings.
+func (m Mode) typing() bool { return m == Insert || m == Command }
 
 // Context is where a key press lands; it picks and orders the scopes (§6.4).
 type Context struct {
@@ -33,7 +39,7 @@ func (m *Map) scopes(c Context, maps bool) []string {
 	if c.Overlay != "" {
 		ts = append(ts, "keys."+c.Overlay)
 	}
-	if maps && c.Mode != Insert {
+	if maps && !c.Mode.typing() {
 		if c.Pane != "" {
 			ts = append(ts, "map."+c.Pane+"."+c.Mode.String())
 		}
@@ -42,7 +48,7 @@ func (m *Map) scopes(c Context, maps bool) []string {
 	for _, f := range c.Focus {
 		// grid/tree/console/result keys are NORMAL/VISUAL keys: in INSERT only
 		// the input being typed into has bindings (↵ in console inserts a newline).
-		if c.Mode != Insert || f == "cell" || f == "input" {
+		if !c.Mode.typing() || f == "cell" || f == "input" {
 			ts = append(ts, "keys."+f)
 		}
 	}
@@ -148,7 +154,7 @@ func (r *Resolver) Reset() { r.count, r.keys, r.node = "", nil, nil }
 
 func (r *Resolver) feed(c Context, k Key, root *node, out *[]Result) {
 	if r.node == nil {
-		if c.Mode != Insert && len(k) == 1 && (k >= "1" && k <= "9" || k == "0" && r.count != "") {
+		if !c.Mode.typing() && len(k) == 1 && (k >= "1" && k <= "9" || k == "0" && r.count != "") {
 			r.count += string(k) // a lone 0 is a key (grid.first), not a count
 			return
 		}

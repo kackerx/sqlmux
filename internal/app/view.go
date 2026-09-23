@@ -2,10 +2,12 @@ package app
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	uv "github.com/charmbracelet/ultraviolet"
 
+	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
 
@@ -35,8 +37,8 @@ func (a *App) layout() map[int]uv.Rectangle {
 	side := main
 	side.Max.X = min(main.Min.X+sidebarWidth(a.w), main.Max.X)
 	main.Min.X = min(side.Max.X+1, main.Max.X)
-	rects := map[int]uv.Rectangle{a.win.Tree.ID: side}
-	a.win.Root.Rects(main, rects)
+	rects := map[int]uv.Rectangle{a.win().Tree.ID: side}
+	a.win().Root.Rects(main, rects)
 	return rects
 }
 
@@ -48,15 +50,13 @@ func (a *App) render() *ui.Frame {
 		return f
 	}
 	rects := a.layout()
-	a.drawSidebar(f, rects[a.win.Tree.ID])
-	for i, p := range a.win.Root.Leaves() {
+	a.drawSidebar(f, rects[a.win().Tree.ID])
+	for i, p := range a.win().Root.Leaves() {
 		a.drawPane(f, p, i+1, rects[p.ID])
 	}
 
 	y := a.h - 1
-	if a.cmdline != nil {
-		f.Text(0, y, a.w, ":"+*a.cmdline, uv.Style{Fg: th.Fg, Bg: th.Bg})
-	}
+	a.statusLine().Draw(f, uv.Rect(0, y, a.w, 1))
 	if a.toast != "" && y > 0 {
 		t := " " + a.toast + " "
 		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Row})
@@ -70,7 +70,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		N:       n,
 		Title:   a.kindIcon(p.Kind) + " " + p.Kind.String(),
 		Object:  p.Object(),
-		Focused: a.win.Focus == p.ID,
+		Focused: a.win().Focus == p.ID,
 		Pane:    p.ID,
 	}
 	var tabHints []ui.Hint
@@ -114,11 +114,11 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 // drawSidebar paints the ⟨0⟩ schema tree placeholder (§7.8).
 func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	th := f.Theme
-	p := a.win.Tree
+	p := a.win().Tree
 	b := ui.Block{
 		Title:   a.icons.Schema + " schema",
 		Hints:   bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
-		Focused: a.win.Focus == p.ID,
+		Focused: a.win().Focus == p.ID,
 		Pane:    p.ID,
 	}
 	in := b.Draw(f, r)
@@ -180,4 +180,54 @@ func bound(hs ...ui.Hint) []ui.Hint {
 func (a *App) kindIcon(k PaneKind) string {
 	ic := a.icons
 	return [...]string{ic.Schema, ic.Data, ic.Console}[k]
+}
+
+// Drop order of status bar segments when the bar is too narrow (§7.8); the
+// mode extra info goes before all of them, the session name is cut last.
+const (
+	dropConn = iota + 1
+	dropWindow
+	dropCursor
+)
+
+// statusLine lays out the bottom bar (B-01~B-03, §7.8).
+func (a *App) statusLine() ui.StatusLine {
+	th, ic := a.theme, a.icons
+	bar := func(fg color.Color) uv.Style { return uv.Style{Fg: fg, Bg: th.Row} }
+	mode := a.mode()
+	var s ui.StatusLine
+
+	if mode == keymap.Command {
+		// The command line takes the left side, like tmux's prompt, and gets
+		// space first: at least half the bar, wider as the input grows (§7.8).
+		cmd := " :" + *a.cmdline + " "
+		cmd += strings.Repeat(" ", max(a.w/2-ui.Width(cmd), 0))
+		s.Left = []ui.Segment{{Runs: []ui.Run{{Text: cmd, Style: bar(th.Fg)}}}}
+		s.Info = strings.Join(matchCommands(*a.cmdline), " | ")
+	} else {
+		sess := uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
+		s.Left = []ui.Segment{{Runs: []ui.Run{{Text: " " + ic.Postgres + " ", Style: sess}, {Text: a.sess.Name, Style: sess}, {Text: " ▾ ", Style: sess}}}}
+		for i, w := range a.sess.Windows {
+			seg := ui.Segment{Runs: []ui.Run{{Text: fmt.Sprintf(" %d: %s ", i, w.Name), Style: bar(th.Dim)}}, Drop: dropWindow}
+			if i == a.sess.Active {
+				seg = ui.Segment{Runs: []ui.Run{{Text: fmt.Sprintf(" %d: %s* ", i, w.Name), Style: uv.Style{Fg: th.Fg, Bg: th.Border}}}}
+			}
+			s.Left = append(s.Left, seg)
+		}
+	}
+
+	pending := ui.Run{Text: "·", Style: bar(th.Dim)}
+	if ks := a.res.Pending(); len(ks) > 0 {
+		pending = ui.Run{Text: keymap.Display(ks), Style: uv.Style{Fg: th.Warn, Bg: th.Row, Attrs: uv.AttrBold}}
+	}
+	modeColor := [...]color.Color{keymap.Normal: th.Focus, keymap.Visual: th.Keyword, keymap.Insert: th.Warn, keymap.Command: th.Info}[mode]
+	palette := strings.TrimRight(" "+ic.Search+" "+a.keys.Hint("palette.open", "global"), " ") + " "
+	s.Right = []ui.Segment{
+		{Runs: []ui.Run{{Text: palette, Style: bar(th.Info)}}, Action: "palette.open"},
+		{Runs: []ui.Run{{Text: " " + ic.Keys + " ", Style: bar(th.FgMuted)}, pending, {Text: " ", Style: bar(th.FgMuted)}}},
+		{Runs: []ui.Run{{Text: " 1,1 ", Style: bar(th.FgMuted)}}, Drop: dropCursor}, // ponytail: M0 has no cursor yet
+		{Runs: []ui.Run{{Text: " " + ic.Conn + " " + a.sess.Addr + " ", Style: uv.Style{Fg: th.Info, Bg: th.Sep}}}, Drop: dropConn},
+		{Runs: []ui.Run{{Text: " " + strings.ToUpper(mode.String()) + " ", Style: uv.Style{Fg: th.Bg, Bg: modeColor, Attrs: uv.AttrBold}}}},
+	}
+	return s
 }

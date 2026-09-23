@@ -146,9 +146,9 @@ func TestSidebarHintRow(t *testing.T) {
 func TestEmptyPane(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, ":q<CR>:q<CR>:q<CR>") // both data tabs, then the console's
-	p := a.win.Root.Leaves()[0]
-	if len(a.win.Root.Leaves()) != 1 || len(p.Tabs) != 0 {
-		t.Fatalf("expected one empty pane, got %v", a.win.Root.Leaves())
+	p := a.win().Root.Leaves()[0]
+	if len(a.win().Root.Leaves()) != 1 || len(p.Tabs) != 0 {
+		t.Fatalf("expected one empty pane, got %v", a.win().Root.Leaves())
 	}
 	f, r := a.render(), a.layout()[p.ID]
 	lines := strings.Split(f.String(), "\n")
@@ -170,5 +170,105 @@ func TestEmptyPane(t *testing.T) {
 	}
 	if !plus {
 		t.Error("the + has no hit region")
+	}
+}
+
+func statusRow(a *App) string {
+	return strings.Split(a.render().String(), "\n")[a.h-1]
+}
+
+func TestStatusModeBlock(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	th := ui.TokyonightStorm
+	modeBg := func() color.Color { return a.render().Buf.CellAt(a.w-2, a.h-1).Style.Bg }
+	if !strings.HasSuffix(statusRow(a), " NORMAL ") || modeBg() != th.Focus {
+		t.Errorf("NORMAL block: %q bg %v", statusRow(a), modeBg())
+	}
+	feed(t, a, ":")
+	if !strings.HasSuffix(statusRow(a), " COMMAND ") || modeBg() != th.Info {
+		t.Errorf("COMMAND block: %q bg %v", statusRow(a), modeBg())
+	}
+}
+
+func TestStatusPendingKeys(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	pending := func() string {
+		row := statusRow(a)
+		i := strings.Index(row, ui.NerdIcons.Keys)
+		return strings.Fields(row[i+len(ui.NerdIcons.Keys):])[0]
+	}
+	for _, c := range []struct{ in, want string }{
+		{"", "·"},
+		{"<Space>", "SPC"},
+		{"s", "·"}, // SPC s completes (session.list comes later) and clears
+		{"g", "g"},
+		{"t", "·"},
+		{"5", "5"},
+		{"<Esc>", "·"},
+	} {
+		if c.in != "" {
+			feed(t, a, c.in)
+		}
+		if got := pending(); got != c.want {
+			t.Errorf("after %q: pending %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// The command line gets at least half the bar; the matching commands go
+// first, then the connection, as the bar or the input grows tight (§7.8).
+func TestStatusCommandLine(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, ":")
+	if row := statusRow(a); !strings.HasPrefix(row, " :") || !strings.Contains(row, " :q | :qa ") || strings.Contains(row, "doraemon") {
+		t.Errorf("COMMAND at 160: %q", row)
+	}
+	feed(t, a, "qa")
+	if row := statusRow(a); !strings.Contains(row, " :qa  ") || strings.Contains(row, ":q |") {
+		t.Errorf("typed qa: %q", row)
+	}
+
+	a = sized(80, 24, "nerd")
+	feed(t, a, ":q")
+	row := statusRow(a)
+	if strings.Contains(row, ":q |") || strings.Contains(row, "pg@localhost") || !strings.HasSuffix(row, " COMMAND ") {
+		t.Errorf("COMMAND at 80: %q", row)
+	}
+	if i := strings.Index(row, ui.NerdIcons.Search); ui.Width(row[:i]) < 40 {
+		t.Errorf("the command line must keep half the bar: %q", row)
+	}
+	if !strings.Contains(row, " 1,1 ") {
+		t.Errorf("the cursor goes only once the input is long: %q", row)
+	}
+	feed(t, a, strings.Repeat("x", 55))
+	row = statusRow(a)
+	if strings.Contains(row, " 1,1 ") || !strings.Contains(row, ":q"+strings.Repeat("x", 55)) || !strings.HasSuffix(row, " COMMAND ") {
+		t.Errorf("a long input pushes the cursor out: %q", row)
+	}
+}
+
+// Whatever the width, the session block, the current window, the C-p entry,
+// the pending keys and the mode block stay (§7.8).
+func TestStatusNarrowing(t *testing.T) {
+	for _, c := range []struct {
+		w          int
+		has, lacks []string
+	}{
+		{160, []string{"doraemon ▾", " 0: data* ", " 1: report ", " 1,1 ", "pg@localhost:5432", " NORMAL "}, nil},
+		{80, []string{"doraemon ▾", " 1: report ", " 1,1 ", " NORMAL "}, []string{"pg@localhost"}},
+		{55, []string{"doraemon ▾", " 0: data* ", " 1,1 "}, []string{" 1: report "}},
+		{40, []string{" 0: data* ", "C-p", "·", " NORMAL "}, []string{" 1,1 ", "doraemon"}},
+	} {
+		row := statusRow(sized(c.w, 24, "nerd"))
+		for _, s := range append(c.has, " 0: data* ", "C-p", "·", " NORMAL ") {
+			if !strings.Contains(row, s) {
+				t.Errorf("w=%d lacks %q: %q", c.w, s, row)
+			}
+		}
+		for _, s := range c.lacks {
+			if strings.Contains(row, s) {
+				t.Errorf("w=%d still has %q: %q", c.w, s, row)
+			}
+		}
 	}
 }

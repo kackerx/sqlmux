@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,7 +40,7 @@ func init() {
 			return nil
 		}},
 		"cancel": {"取消 / 连按两次退出", func(a *App, _ Args) tea.Cmd {
-			if a.mode() != ModeNormal { // in any input C-c is esc, as in vim (§6.8)
+			if a.mode() != keymap.Normal { // in any input C-c is esc, as in vim (§6.8)
 				return a.dispatch([]keymap.Result{{Keys: []keymap.Key{keymap.Esc}}})
 			}
 			now := time.Now()
@@ -66,6 +67,19 @@ func (a *App) run(action string, count int) tea.Cmd {
 
 // commands maps : commands to actions.
 var commands = map[string]string{"q": "tab.close", "qa": "quit"}
+
+// matchCommands lists the commands the typed text could become, as the
+// status bar shows them in COMMAND mode: ":q", ":qa".
+func matchCommands(typed string) []string {
+	var out []string
+	for name := range commands {
+		if strings.HasPrefix(name, typed) {
+			out = append(out, ":"+name)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
 
 func (a *App) exec(cmd string) tea.Cmd {
 	if cmd == "" {

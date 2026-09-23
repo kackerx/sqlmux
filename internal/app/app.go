@@ -19,7 +19,7 @@ type App struct {
 	icons *ui.Icons
 	keys  *keymap.Map
 	res   *keymap.Resolver
-	win   *Window
+	sess  *Session
 
 	cmdline *string // non-nil while the : command line is open (COMMAND mode)
 
@@ -36,7 +36,7 @@ type (
 func New(cfg *config.Config, keys *keymap.Map) *App {
 	return &App{
 		theme: ui.TokyonightStorm, icons: ui.IconSet(cfg.Icons),
-		keys: keys, res: keymap.NewResolver(keys), win: fakeWindow(),
+		keys: keys, res: keymap.NewResolver(keys), sess: fakeSession(),
 	}
 }
 
@@ -80,44 +80,35 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// Mode is derived from state, never stored (§3 principle 3).
-type Mode uint8
-
-const (
-	ModeNormal Mode = iota
-	ModeInsert
-	ModeVisual
-	ModeCommand
-)
-
+// mode is derived from state, never stored (§3 principle 3).
 // ponytail: only NORMAL and COMMAND exist until inputs (M1) and the console
 // editor (M3) arrive.
-func (a *App) mode() Mode {
+func (a *App) mode() keymap.Mode {
 	if a.cmdline != nil {
-		return ModeCommand
+		return keymap.Command
 	}
-	return ModeNormal
+	return keymap.Normal
 }
 
 // context tells the keymap which scopes apply to the next key (§6.4).
 func (a *App) context() keymap.Context {
-	if a.mode() == ModeCommand {
-		return keymap.Context{Overlay: "cmdline", Mode: keymap.Insert}
+	if a.mode() == keymap.Command {
+		return keymap.Context{Overlay: "cmdline", Mode: keymap.Command}
 	}
 	scope := [...]string{KindSchema: "tree", KindData: "grid", KindConsole: "console"}[a.focused().Kind]
 	return keymap.Context{Focus: []string{scope}, Pane: scope}
 }
 
 func (a *App) focused() *Pane {
-	if a.win.Focus == a.win.Tree.ID {
-		return a.win.Tree
+	if a.win().Focus == a.win().Tree.ID {
+		return a.win().Tree
 	}
-	for _, p := range a.win.Root.Leaves() {
-		if p.ID == a.win.Focus {
+	for _, p := range a.win().Root.Leaves() {
+		if p.ID == a.win().Focus {
 			return p
 		}
 	}
-	return a.win.Tree
+	return a.win().Tree
 }
 
 // cmdlineKey edits the : command line; it is a plain input, so its own

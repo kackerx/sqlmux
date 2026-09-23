@@ -35,20 +35,36 @@ func (p *Pane) Object() string {
 }
 
 type Window struct {
+	Name  string
 	Tree  *Pane // ⟨0⟩ sidebar, not part of the split tree (D-04)
 	Root  *Node
 	Focus int // pane ID
 }
 
-// fakeWindow is M0's stand-in workspace: no database behind it.
-func fakeWindow() *Window {
+// Session is one connection (tech-design §5).
+type Session struct {
+	Name, Engine string
+	Addr         string // shown in the status bar, e.g. pg@localhost:5432
+	Windows      []*Window
+	Active       int
+}
+
+func (a *App) win() *Window { return a.sess.Windows[a.sess.Active] }
+
+// fakeSession is M0's stand-in workspace: no database behind it.
+func fakeSession() *Session {
 	data := &Pane{ID: 1, Kind: KindData, Tabs: []string{"t_order", "t_user"}, Prev: 1, Lines: fakeRows()}
 	cons := &Pane{ID: 2, Kind: KindConsole, Tabs: []string{"console_1"}, Prev: -1, Lines: fakeSQL}
-	return &Window{
+	main := &Window{
+		Name:  "data",
 		Tree:  &Pane{ID: 0, Kind: KindSchema},
 		Root:  &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(cons)}, // data : console = 5 : 4 (§7.8)
 		Focus: 1,
 	}
+	// ponytail: the second window only shows in the status bar's window list;
+	// switching windows is M5.
+	return &Session{Name: "doraemon", Engine: "postgres", Addr: "pg@localhost:5432",
+		Windows: []*Window{main, {Name: "report"}}}
 }
 
 type fakeTable struct{ name, rows string }
@@ -102,7 +118,7 @@ func (a *App) closeTab() {
 	if len(p.Tabs) > 0 {
 		return
 	}
-	if root, heir := a.win.Root.remove(p.ID); root != nil {
-		a.win.Root, a.win.Focus = root, heir.ID
+	if root, heir := a.win().Root.remove(p.ID); root != nil {
+		a.win().Root, a.win().Focus = root, heir.ID
 	}
 }
