@@ -63,7 +63,8 @@ func (n *Node) Rects(r uv.Rectangle, out map[int]uv.Rectangle) {
 
 // remove returns the tree without the leaf holding pane id: its sibling takes
 // the parent's place (tech-design §5). heir is the pane that should get focus,
-// the sibling's nearest leaf; root is nil when id was the only leaf.
+// the sibling's nearest leaf; root is nil when id was the only leaf. The
+// caller must make sure id is in the tree: otherwise it gets a copy, heir nil.
 func (n *Node) remove(id int) (root *Node, heir *Pane) {
 	if n.Split == Leaf {
 		if n.Pane.ID == id {

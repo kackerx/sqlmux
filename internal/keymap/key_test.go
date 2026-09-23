@@ -28,6 +28,8 @@ func TestParse(t *testing.T) {
 		"<bar>":     {"|"},
 		"中":         {"中"},
 		" ":         {"<Space>"},
+		"e\u0301x":  {"e\u0301", "x"},
+		"👍🏽🇨🇳":      {"👍🏽", "🇨🇳"},
 		"<Space>":   {"<Space>"},
 	} {
 		got, err := Parse(in)
@@ -77,6 +79,10 @@ func TestFromTea(t *testing.T) {
 		{tea.Key{Code: tea.KeyUp}, "<Up>"},
 		{tea.Key{Code: 'a', Mod: tea.ModCtrl | tea.ModShift}, "<C-S-a>"}, // kitty only, but must match what Parse gives
 		{tea.Key{Code: 'a', Mod: tea.ModAlt | tea.ModShift}, "<M-A>"},
+		// multi-rune clusters come as one KeyExtended event
+		{tea.Key{Code: tea.KeyExtended, Text: "e\u0301"}, "e\u0301"},
+		{tea.Key{Code: tea.KeyExtended, Text: "👍🏽"}, "👍🏽"},
+		{tea.Key{Code: tea.KeyExtended, Text: "🇨🇳"}, "🇨🇳"},
 	} {
 		if got := FromTea(c.k); got != c.want {
 			t.Errorf("FromTea(%v) = %q, want %q", c.k, got, c.want)
@@ -85,7 +91,10 @@ func TestFromTea(t *testing.T) {
 }
 
 func TestText(t *testing.T) {
-	for k, want := range map[Key]string{"a": "a", "中": "中", "<Space>": " ", "<lt>": "<", "<CR>": "", "<C-a>": ""} {
+	for k, want := range map[Key]string{
+		"a": "a", "中": "中", "e\u0301": "e\u0301", "👍🏽": "👍🏽", "🇨🇳": "🇨🇳",
+		"<Space>": " ", "<lt>": "<", "<CR>": "", "<C-a>": "",
+	} {
 		if got := Text(k); got != want {
 			t.Errorf("Text(%q) = %q, want %q", k, got, want)
 		}

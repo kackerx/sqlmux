@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Key is one keystroke in canonical vim notation: a single character ("a",
@@ -51,9 +52,10 @@ func Parse(s string) ([]Key, error) {
 				}
 			}
 		}
-		r, n := utf8.DecodeRuneInString(s)
-		out = append(out, plain(r))
-		s = s[n:]
+		// One key per grapheme cluster, as the terminal sends them (é, 👍🏽, 🇨🇳).
+		gr, _ := ansi.FirstGraphemeCluster(s, ansi.GraphemeWidth)
+		out = append(out, plain(gr))
+		s = s[len(gr):]
 	}
 	return out, nil
 }
@@ -69,16 +71,17 @@ func looksLikeName(s string) bool {
 	return true
 }
 
-// plain is the key for a typed character. A literal space is <Space>, as in
-// vim, so it matches what FromTea reports.
-func plain(r rune) Key {
-	switch r {
-	case '<':
+// plain is the key for typed text, one grapheme cluster. A literal space is
+// <Space>, as in vim, so it matches what FromTea reports.
+func plain[T rune | string](c T) Key {
+	switch s := string(c); s {
+	case "<":
 		return "<lt>"
-	case ' ':
+	case " ":
 		return "<Space>"
+	default:
+		return Key(s)
 	}
-	return Key(string(r))
 }
 
 func parseBracket(body string) (Key, error) {
@@ -197,8 +200,7 @@ func FromTea(k tea.Key) Key {
 		if k.Text == "" {
 			return plain(k.Code)
 		}
-		r, _ := utf8.DecodeRuneInString(k.Text)
-		return plain(r)
+		return plain(k.Text) // whole cluster: multi-rune ones arrive as KeyExtended
 	}
 	// Same folding as parseBracket: <C-P> is <C-p>, <M-S-a> is <M-A>.
 	r := k.Code
@@ -232,14 +234,13 @@ func mods(ctrl, alt, shift bool, name string) Key {
 // Text is what typing k inserts into an input: the character itself, a space
 // for <Space>; "" for keys that type nothing.
 func Text(k Key) string {
-	switch k {
-	case "<Space>":
+	switch {
+	case k == "<Space>":
 		return " "
-	case "<lt>":
+	case k == "<lt>":
 		return "<"
+	case strings.HasPrefix(string(k), "<"):
+		return "" // named keys type nothing; a literal < is <lt>
 	}
-	if utf8.RuneCountInString(string(k)) == 1 {
-		return string(k)
-	}
-	return ""
+	return string(k)
 }
