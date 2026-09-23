@@ -346,7 +346,7 @@ console 里的 `x` 是 vim 的删除字符，所以 console 的 tab 用 `:q` 关
 
 ```go
 type Frame struct {
-    Canvas *lipgloss.Canvas      // Ultraviolet cell 缓冲区
+    Buf    *uv.ScreenBuffer      // Ultraviolet 的 cell 缓冲区（lipgloss.Canvas 只是在它外面包了一层，还不暴露 FillArea，所以直接用它）
     Hits   []Hit                 // 按绘制顺序追加；查找时倒序，后画的在上层
     Mouse  uv.Position           // 当前指针位置，用于悬停样式
     Theme  *Theme
@@ -354,11 +354,11 @@ type Frame struct {
 }
 ```
 
-- **组件接口**：每个组件实现 `Draw(f *Frame, area uv.Rectangle)`。区域由 `ultraviolet/layout` 切分，文字用 `uv.NewStyledString(s).Draw(canvas, rect)` 画进去。
+- **组件接口**：每个组件实现 `Draw(f *Frame, area uv.Rectangle)`。区域由 `ultraviolet/layout` 切分，文字用 `uv.NewStyledString(s).Draw(buf, rect)` 画进去。
 - **View()**：依次画 pane、状态栏、浮层，把 `Hits` 存进 model 的缓存指针，然后返回：
 
   ```go
-  tea.View{Content: canvas.Render(), AltScreen: true, MouseMode: tea.MouseModeAllMotion, ...}
+  tea.View{Content: buf.Render(), AltScreen: true, MouseMode: tea.MouseModeAllMotion, ...}
   ```
 
 ### 7.2 Block
@@ -387,6 +387,7 @@ type Frame struct {
 | `info` | #7dcfff | 连接信息、COMMAND |
 | `error` | #f7768e | 错误、Redis 标识 |
 | `number` / `pk` / `func` | #ff9e64 / #73daca / #7aa2f7 | 数值 / 主键与 schema 值 / 函数名 |
+| `sep` | #2f3549 | 分隔线：侧栏内的分隔线、tab 之间的 `│`、连接地址块的底色 |
 
 ### 7.4 命中表与鼠标（PRD 第 7 章）
 
@@ -447,7 +448,7 @@ type Hit struct {
   - 折叠后是 3 列宽的细栏（设计稿为 24px），左右各 1 列边框、中间 1 列内容：顶部显示 `»`，下面竖排 `schema · SPC b`，每行一个字符。
   - 侧栏内部从上到下依次是：
     - 第一行：过滤图标（`info` 色）、`/`（`fg` 色）、`160 tables`（`dim` 色）；
-    - 一条分隔线（#2f3549）；
+    - 一条分隔线（`sep` 色）；
     - 表列表：每项是「图标（`func` 色，当前表用 `focus` 色）+ 表名 + 右对齐的行数量级（`border` 色）」，当前表整行用 `select` 底色；
     - 一条分隔线；
     - 提示行，如 `j/k move  ↵ open tab`，键名用 `focus` 色粗体，说明文字用 `dim` 色。
@@ -455,9 +456,13 @@ type Hit struct {
   - 格式为 `⟨n⟩ <图标> 类型 · 对象名`，从左上角往右 1 列开始，两侧各留 1 个空格。
   - 右侧提示离右上角 1 列。
   - console 标题的右侧是 `▶ run`（`focus` 底、`bg` 色字、粗体）加上 `↵`（`dim` 色）；schema 下拉框 `doraemon.public ▾` 放在 run 的左边。
+  - **空间不够时，先截标题，最后才丢右侧的提示**，因为提示都是可点击的按钮（§7.4）。依次这样退让：
+    1. 截短标题里的对象名，末尾加 `…`，如 `⟨2⟩ console · cons…`；截到只剩 `⟨n⟩ <图标> 类型` 为止。
+    2. 从右侧提示里优先级最低的开始丢。每个 pane 的提示按重要性从高到低排列；console 的顺序是 `▶ run` > schema 下拉框 > 键位文字 `↵`。
+    3. 还放不下，就只保留 `⟨n⟩`。
 - **tab 栏**：
   - 位于 pane 内容区的最后一行，底色为 `bg`（比 pane 底色深），不画分隔线。
-  - 每个 tab 显示为 ` 序号:名称标记 `，tab 之间用 `│`（#2f3549）分隔。
+  - 每个 tab 显示为 ` 序号:名称标记 `，tab 之间用 `│`（`sep` 色）分隔。
   - 当前 tab 用 `pane_bg` 底色、`focus` 色字；其他 tab 用 `dim` 色字。
   - tab 之后是可点击的 `+`；最右端是 `dim` 色的键位提示，如 `hjkl · ↵ edit · T 转置 · gt/gT`，文字从 keymap 读取。
 - **状态栏**：
@@ -470,10 +475,10 @@ type Hit struct {
     - ` <搜索图标> C-p `：`info` 色；
     - ` <键盘图标> 待输入序列 `：序列用 `warn` 色粗体；
     - ` 行,列 `：`fg_muted` 色；
-    - ` <图标> pg@localhost:5432 `：`info` 色，#2f3549 底；
+    - ` <图标> pg@localhost:5432 `：`info` 色，`sep` 底；
     - ` NORMAL `：模式色底、`bg` 色字、粗体。
 - **命令行**：进入 COMMAND 模式时，命令行占用状态栏的左侧，替换掉 session 和 window 列表（与 tmux 的命令提示一致）；右侧的模式块显示 COMMAND。
-- **toast**：显示在状态栏上方一行的右侧，`warn` 色，3 秒后消失。data pane 中保存 / 刷新的结果按 Q-06 的要求显示在查询条的右侧，不通过 toast 显示。
+- **toast**：显示在状态栏上方一行的右侧，3 秒后消失。样式为 `warn` 色字、#292e42 底、左右各留 1 列。设计稿里没有 toast，这个样式是后定的。加底色是因为那一行正好是 pane 的下边框，不加底色，文字会和边框混在一起。data pane 中保存 / 刷新的结果按 Q-06 的要求显示在查询条的右侧，不通过 toast 显示。
 
 ## 8. 数据访问
 
