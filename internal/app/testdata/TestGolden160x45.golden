@@ -1,0 +1,45 @@
+┌─ ⟨0⟩  schema ─────── SPC b ─┐ ┌─ ⟨1⟩  data · t_order ─────────────────────────────────────────────┐ ┌─ ⟨2⟩  console · console_1 ──────────────  ▶ run  ↵ ─┐
+│  / 14 tables                 │ │ WHERE deleted_at is null                                           │ │ select * from mt_task                                │
+│──────────────────────────────│ │ id    biz_type   status     created_at                             │ │ where status = 'running';                            │
+│  agent                  124 │ │ 689   goal       running    2026-09-21 10:00                       │ │                                                      │
+│  agent_version          530 │ │ 690   task       done       2026-09-21 10:01                       │ │ select id, biz_type, status                          │
+│  goal                    57 │ │ 691   report     failed     2026-09-21 10:02                       │ │ from t_order                                         │
+│  mt_task                812 │ │ 692   goal       pending    2026-09-21 10:03                       │ │ where deleted_at is null                             │
+│  mt_task_log            96k │ │ 693   task       running    2026-09-21 10:04                       │ │ order by created_at desc;                            │
+│  schema_migrations       88 │ │ 694   report     done       2026-09-21 10:05                       │ │                                                      │
+│  t_order               1.2M │ │ 695   goal       failed     2026-09-21 10:06                       │ │                                                      │
+│  t_order_item          3.4M │ │ 696   task       pending    2026-09-21 10:07                       │ │                                                      │
+│  t_payment             410k │ │ 697   report     running    2026-09-21 10:08                       │ │                                                      │
+│  t_refund               12k │ │ 698   goal       done       2026-09-21 10:09                       │ │                                                      │
+│  t_sku                 8.1k │ │ 699   task       failed     2026-09-21 10:10                       │ │                                                      │
+│  t_user                 38k │ │ 700   report     pending    2026-09-21 10:11                       │ │                                                      │
+│  t_user_address         52k │ │ 701   goal       running    2026-09-21 10:12                       │ │                                                      │
+│  t_user_profile         38k │ │ 702   task       done       2026-09-21 10:13                       │ │                                                      │
+│                              │ │ 703   report     failed     2026-09-21 10:14                       │ │                                                      │
+│                              │ │ 704   goal       pending    2026-09-21 10:15                       │ │                                                      │
+│                              │ │ 705   task       running    2026-09-21 10:16                       │ │                                                      │
+│                              │ │ 706   report     done       2026-09-21 10:17                       │ │                                                      │
+│                              │ │ 707   goal       failed     2026-09-21 10:18                       │ │                                                      │
+│                              │ │ 708   task       pending    2026-09-21 10:19                       │ │                                                      │
+│                              │ │ 709   report     running    2026-09-21 10:20                       │ │                                                      │
+│                              │ │ 710   goal       done       2026-09-21 10:21                       │ │                                                      │
+│                              │ │ 711   task       failed     2026-09-21 10:22                       │ │                                                      │
+│                              │ │ 712   report     pending    2026-09-21 10:23                       │ │                                                      │
+│                              │ │ 713   goal       running    2026-09-21 10:24                       │ │                                                      │
+│                              │ │ 714   task       done       2026-09-21 10:25                       │ │                                                      │
+│                              │ │ 715   report     failed     2026-09-21 10:26                       │ │                                                      │
+│                              │ │ 716   goal       pending    2026-09-21 10:27                       │ │                                                      │
+│                              │ │ 717   task       running    2026-09-21 10:28                       │ │                                                      │
+│                              │ │ 718   report     done       2026-09-21 10:29                       │ │                                                      │
+│                              │ │ 719   goal       failed     2026-09-21 10:30                       │ │                                                      │
+│                              │ │ 720   task       pending    2026-09-21 10:31                       │ │                                                      │
+│                              │ │ 721   report     running    2026-09-21 10:32                       │ │                                                      │
+│                              │ │ 722   goal       done       2026-09-21 10:33                       │ │                                                      │
+│                              │ │ 723   task       failed     2026-09-21 10:34                       │ │                                                      │
+│                              │ │ 724   report     pending    2026-09-21 10:35                       │ │                                                      │
+│                              │ │ 725   goal       running    2026-09-21 10:36                       │ │                                                      │
+│                              │ │ 726   task       done       2026-09-21 10:37                       │ │                                                      │
+│──────────────────────────────│ │ 727   report     failed     2026-09-21 10:38                       │ │                                                      │
+│ j/k move  ↵ open  t tab      │ │ 1:t_order* │ 2:t_user- │ +          hjkl · ↵ edit · T 转置 · gt/gT │ │ 1:console_1* │ +                   gq format · gt/gT │
+└──────────────────────────────┘ └────────────────────────────────────────────────────────────────────┘ └──────────────────────────────────────────────────────┘
+                                                                                                                                                                

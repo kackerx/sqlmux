@@ -17,6 +17,7 @@ type Theme struct {
 	Keyword, Info       color.Color
 	Error               color.Color
 	Number, PK, Func    color.Color
+	Sep                 color.Color // separators and tab dividers (§7.8)
 }
 
 var TokyonightStorm = &Theme{
@@ -29,6 +30,7 @@ var TokyonightStorm = &Theme{
 	Keyword:  c("#bb9af7"), Info: c("#7dcfff"),
 	Error:  c("#f7768e"),
 	Number: c("#ff9e64"), PK: c("#73daca"), Func: c("#7aa2f7"),
+	Sep: c("#2f3549"),
 }
 
 func c(s string) color.Color { return lipgloss.Color(s) }

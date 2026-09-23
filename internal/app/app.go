@@ -5,8 +5,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	uv "github.com/charmbracelet/ultraviolet"
 
+	"sqlmux/internal/config"
 	"sqlmux/internal/ui"
 )
 
@@ -15,6 +15,8 @@ var toastTTL = 3 * time.Second
 type App struct {
 	w, h  int
 	theme *ui.Theme
+	icons *ui.Icons
+	sess  *Session
 
 	cmdline *string // non-nil while the : command line is open (COMMAND mode)
 
@@ -24,7 +26,9 @@ type App struct {
 
 type toastExpired struct{ seq int }
 
-func New() *App { return &App{theme: ui.TokyonightStorm} }
+func New(cfg *config.Config) *App {
+	return &App{theme: ui.TokyonightStorm, icons: ui.IconSet(cfg.Icons), sess: fakeSession()}
+}
 
 func (a *App) Init() tea.Cmd { return nil }
 
@@ -100,21 +104,4 @@ func (a *App) View() tea.View {
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion
 	return v
-}
-
-func (a *App) render() *ui.Frame {
-	th := a.theme
-	f := ui.NewFrame(a.w, a.h, th)
-	base := uv.Style{Fg: th.Fg, Bg: th.Bg}
-	f.Fill(f.Bounds(), base)
-	f.Text(1, 0, a.w, "sqlmux", base)
-
-	y := a.h - 1
-	if a.cmdline != nil {
-		f.Text(0, y, a.w, ":"+*a.cmdline, base)
-	} else if a.toast != "" {
-		w := ui.Width(a.toast)
-		f.Text(max(a.w-w-1, 0), y, a.w, a.toast, uv.Style{Fg: th.Warn, Bg: th.Bg})
-	}
-	return f
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"sqlmux/internal/config"
 	"time"
 
 	"testing"
@@ -45,7 +46,7 @@ func feed(a *App, ss ...string) (quit bool) {
 }
 
 func sized(w, h int) *App {
-	a := New()
+	a := New(config.Default())
 	a.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return a
 }
