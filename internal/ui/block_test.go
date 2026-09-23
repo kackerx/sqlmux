@@ -7,7 +7,7 @@ import (
 
 // §7.8: head first, hints greedily by priority, then the object name.
 func TestBlockFit(t *testing.T) {
-	b := Block{N: 2, Title: "> console", Object: "console_1", Hints: []Hint{
+	b := Block{Num: "⟨2⟩", Title: "> console", Object: "console_1", Hints: []Hint{
 		{Label: "doraemon.public ▾", Prio: 1},
 		{Label: "▶ run", Button: true},
 		{Key: "↵", Prio: 2, Attached: true},
@@ -33,6 +33,17 @@ func TestBlockFit(t *testing.T) {
 		title, hints := b.fit(c.room)
 		if title != c.title || !reflect.DeepEqual(hints, c.hints) {
 			t.Errorf("room %d: %q %v; want %q %v", c.room, title, hints, c.title, c.hints)
+		}
+	}
+}
+
+// With a Nerd icon there is no type (§7.7): the object follows the icon, and
+// the shortest title is "⟨n⟩ <icon>".
+func TestBlockFitWithoutType(t *testing.T) {
+	b := Block{Num: "⟨2⟩", Icon: Icon{Text: ">"}, Object: "console_1"}
+	for room, want := range map[int]string{20: "⟨2⟩ > console_1", 8: "⟨2⟩ > c…", 5: "⟨2⟩ >", 4: "⟨2⟩"} {
+		if title, _ := b.fit(room); title != want {
+			t.Errorf("room %d: %q, want %q", room, title, want)
 		}
 	}
 }

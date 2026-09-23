@@ -8,7 +8,7 @@ import (
 
 // Every icon and color token can be set from a theme file (§7.3, §7.7).
 func TestThemeFileNamesEverything(t *testing.T) {
-	if n, want := len(NerdIcons.byName()), reflect.TypeOf(Icons{}).NumField(); n != want {
+	if n, want := len(NerdIcons.byName()), reflect.TypeOf(Icons{}).NumField()-1; n != want { // but Labeled
 		t.Errorf("[icon] names %d of %d icons", n, want)
 	}
 	if n, want := len(TokyonightStorm.tokens()), reflect.TypeOf(Theme{}).NumField(); n != want {

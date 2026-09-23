@@ -80,6 +80,19 @@ func TestPaletteListsNoOverlayKeys(t *testing.T) {
 	}
 }
 
+// Cell editing's keys are no commands either (§12).
+func TestPaletteListsNoCellKeys(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<C-p>")
+	for _, r := range namesOf(a) {
+		for _, name := range []string{"确定", "完成编辑", "加一", "减一", "下一段", "上一段"} {
+			if r == "命令:"+name {
+				t.Errorf("lists %s", r)
+			}
+		}
+	}
+}
+
 func TestPaletteHighlightsMatches(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>split")
@@ -238,7 +251,7 @@ func TestPaletteScopesCycle(t *testing.T) {
 func TestPaletteScopesFilter(t *testing.T) {
 	for in, want := range map[string]string{
 		"@ord": "表:t_order 表:t_order_item",
-		"%con": "Pane:⟨2⟩ console · console_1",
+		"%con": "Pane:② console · console_1",
 	} {
 		a := sized(160, 45, "nerd")
 		if feed(t, a, "<C-p>"+in); strings.Join(namesOf(a), " ") != want {
@@ -248,12 +261,12 @@ func TestPaletteScopesFilter(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>")
 	all := strings.Join(namesOf(a), " ")
-	for _, s := range []string{"窗口:0: data", "Pane:⟨1⟩ data · t_order", "表:t_user", "命令:左右分割"} {
+	for _, s := range []string{"窗口:0: data", "Pane:① data · t_order", "表:t_user", "命令:左右分割"} {
 		if !strings.Contains(all, s) {
 			t.Errorf("所有 lacks %s", s)
 		}
 	}
-	if !strings.HasPrefix(all, "窗口:0: data 窗口:1: report Pane:⟨0⟩ schema") {
+	if !strings.HasPrefix(all, "窗口:0: data 窗口:1: report Pane:⓪ schema") {
 		t.Errorf("windows, then panes, when nothing is typed: %.80s", all)
 	}
 }

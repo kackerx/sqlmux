@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"image/color"
 	"slices"
 	"strings"
@@ -38,9 +37,9 @@ func (h Hint) titleText() string {
 //
 //	┌─ ⟨1⟩ data · t_order ──────── hint hint ─┐
 type Block struct {
-	N       int // shown as ⟨n⟩
+	Num     string // ⟨n⟩ or ①, from Icons.Number
 	Icon    Icon
-	Title   string // the pane type, after the icon
+	Title   string // after the icon: the pane type with ascii icons (§7.7), the sidebar's schema
 	Object  string // "· object" part; truncated first
 	Hints   []Hint // in drawing order
 	Focused bool
@@ -76,7 +75,7 @@ func (b Block) Draw(f *Frame, r uv.Rectangle) uv.Rectangle {
 		}
 		f.Text(x0+2, y0, x1, " "+title+" ", st)
 		// An icon with its own color keeps it (§7.7).
-		if n := fmt.Sprintf("⟨%d⟩ ", b.N); b.Icon.Fg != nil && strings.HasPrefix(title, n+b.Icon.Text) {
+		if n := b.Num + " "; b.Icon.Fg != nil && strings.HasPrefix(title, n+b.Icon.Text) {
 			f.Text(x0+3+Width(n), y0, x1, b.Icon.Text, b.Icon.On(st))
 		}
 	}
@@ -93,14 +92,20 @@ func (b Block) Draw(f *Frame, r uv.Rectangle) uv.Rectangle {
 }
 
 // fit shares the top border per §7.8: reserve the shortest title
-// "⟨n⟩ <icon> type", place hints greedily from the highest priority (one that
+// "⟨n⟩ <icon> [type]", place hints greedily from the highest priority (one that
 // doesn't fit is skipped, the next is still tried), give what's left to the
 // object name, and fall back to "⟨n⟩" alone.
 func (b Block) fit(room int) (string, []Hint) {
-	n := fmt.Sprintf("⟨%d⟩", b.N)
+	n := b.Num
 	head := n
-	if b.Title != "" {
-		head += " " + strings.TrimLeft(b.Icon.Text+" "+b.Title, " ")
+	for _, s := range []string{b.Icon.Text, b.Title} {
+		if s != "" {
+			head += " " + s
+		}
+	}
+	sep := " · " // "type · object"; with no type the object follows the icon
+	if b.Title == "" {
+		sep = " "
 	}
 	if Width(head) > room {
 		return Truncate(n, room), nil
@@ -131,14 +136,14 @@ func (b Block) fit(room int) (string, []Hint) {
 	if len(hints) > 0 {
 		avail -= used + 1
 	}
-	full := head + " · " + b.Object
-	switch obj := avail - Width(head+" · "); {
+	full := head + sep + b.Object
+	switch obj := avail - Width(head+sep); {
 	case b.Object == "":
 		return head, hints
 	case Width(full) <= avail:
 		return full, hints
 	case obj >= 2: // at least "x…"
-		return head + " · " + Truncate(b.Object, obj), hints
+		return head + sep + Truncate(b.Object, obj), hints
 	}
 	return head, hints
 }

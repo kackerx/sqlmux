@@ -1,5 +1,5 @@
-┌─ ⟨0⟩  public ▾ ───── SPC b ─┐ ┌─ ⟨1⟩  data · t_order ─────────────────────────────────────────────┐ ┌─ ⟨2⟩  console · cons…  doraemon.public ▾  ▶ run  ↵ ─┐
-│  / 14 tables                │ │ WHERE deleted_at is null                                           │ │ select * from mt_task                                │
+┌─ ⓪  public ▾ ─────── SPC b ─┐ ┌─ ①  t_order ──────────────────────────────────────────────────────┐ ┌─ ②  console_1 ──────── doraemon.public ▾  ▶ run  ↵ ─┐
+│  14 tables                  │ │ WHERE deleted_at is null                                           │ │ select * from mt_task                                │
 │──────────────────────────────│ │    │  id │ biz_type │ status  │ created_at                        │ │ where status = 'running';                            │
 │  agent                  124 │ │────┼──────┼──────────┼─────────┼───────────────────────────────────│ │                                                      │
 │  agent_version          530 │ │  1 │  689 │ goal     │ running │ 2026-09-21 10:00:00               │ │ select id, biz_type, status                          │
@@ -42,4 +42,4 @@
 │──────────────────────────────│ │ 38 │  726 │ task     │ done    │ 2026-09-21 10:37:00               │ │                                                      │
 │ j/k move  ↵ open  t tab      │ │ 1:t_order* │ 2:t_user- │ +          hjkl · ↵ edit · T 转置 · gt/gT │ │ 1:console_1* │ +                   gq format · gt/gT │
 └──────────────────────────────┘ └────────────────────────────────────────────────────────────────────┘ └──────────────────────────────────────────────────────┘
-  doraemon ▾  0: data*  1: report                                                                                C-p   ·    1,1   pg@localhost:5432  NORMAL 
+  doraemon ▾  0: data*  1: report                                                                                      ·    1,1   pg@localhost:5432  NORMAL 

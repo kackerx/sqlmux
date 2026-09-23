@@ -232,11 +232,11 @@ func TestDragSidebarEdge(t *testing.T) {
 func TestSidebarSchemaTitle(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	top := strings.Split(a.render().String(), "\n")[0]
-	if !strings.HasPrefix(top, "┌─ ⟨0⟩ "+ui.NerdIcons.Schema.Text+" public ▾ ─") || !strings.Contains(top, "SPC b ─┐") {
+	if !strings.HasPrefix(top, "┌─ ⓪ "+ui.NerdIcons.Schema.Text+" public ▾ ─") || !strings.Contains(top, "SPC b ─┐") {
 		t.Fatalf("title: %q", top)
 	}
 	r := find(t, a, ui.Target{Kind: ui.KindHint, Action: "tree.schema"})
-	if r.Min.X != 2 || r.Dx() != ui.Width(" ⟨0⟩ "+ui.NerdIcons.Schema.Text+" public ▾ ") {
+	if r.Min.X != 2 || r.Dx() != ui.Width(" ⓪ "+ui.NerdIcons.Schema.Text+" public ▾ ") {
 		t.Errorf("the button covers the whole title: %v", r)
 	}
 	click(a, uv.Pos(r.Min.X+5, 0))
