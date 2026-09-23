@@ -112,8 +112,6 @@ func init() {
 		"tree.down": "下移", "tree.up": "上移", "tree.top": "第一项", "tree.bottom": "最后一项",
 		"tree.open": "打开", "tree.open.tab": "在新 tab 打开", "tree.filter": "过滤", "tree.schema": "切换 schema",
 		"console.run": "执行", "console.format": "格式化", "console.schema": "切换 schema",
-		"cell.segment.next": "下一段", "cell.segment.prev": "上一段", "cell.up": "加一", "cell.down": "减一",
-		"cell.option.next": "下一个选项", "cell.option.prev": "上一个选项", "cell.accept": "确定", "cell.done": "完成编辑",
 	} {
 		actions[id] = Action{Title: title}
 	}

@@ -123,9 +123,9 @@ func (a *App) render() *ui.Frame {
 func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	th := f.Theme
 	b := ui.Block{
-		N:       n,
+		Num:     a.icons.Number(n),
 		Icon:    a.kindIcon(p.Kind),
-		Title:   p.Kind.String(),
+		Title:   a.label(p.Kind.String()),
 		Object:  p.Object(),
 		Focused: a.win().Focus == p.ID,
 		Pane:    p.ID,
@@ -193,6 +193,7 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	}
 	paneRegions(f, p.ID, r)
 	b := ui.Block{
+		Num:   a.icons.Number(0),
 		Icon:  a.icons.Schema,
 		Title: "public ▾", // ponytail: M0's fake schema; M1 F1.2 shows the tree's own
 		// the whole title opens the schema dropdown (§7.8)
@@ -209,7 +210,9 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	info := uv.Style{Fg: th.Info, Bg: th.PaneBg}
 	x = f.Text(x, y, right, a.icons.Filter.Text, a.icons.Filter.On(info))
 	x = f.Text(x, y, right, " ", info)
-	x = f.Text(x, y, right, "/ ", uv.Style{Fg: th.Fg, Bg: th.PaneBg})
+	if l := a.label("/"); l != "" {
+		x = f.Text(x, y, right, l+" ", uv.Style{Fg: th.Fg, Bg: th.PaneBg})
+	}
 	f.Text(x, y, right, fmt.Sprintf("%d tables", len(fakeTables)), uv.Style{Fg: th.Dim, Bg: th.PaneBg})
 
 	sep := func(y int) {
@@ -261,6 +264,15 @@ func bound(hs ...ui.Hint) []ui.Hint {
 	return out
 }
 
+// label is s where the icons need words beside them (ascii), else nothing:
+// a Nerd icon says it by itself (§7.7).
+func (a *App) label(s string) string {
+	if a.icons.Labeled {
+		return s
+	}
+	return ""
+}
+
 func (a *App) kindIcon(k PaneKind) ui.Icon {
 	ic := a.icons
 	return [...]ui.Icon{ic.Schema, ic.Data, ic.Console}[k]
@@ -310,7 +322,7 @@ func (a *App) statusLine() ui.StatusLine {
 	modeColor := [...]color.Color{keymap.Normal: th.Focus, keymap.Visual: th.Keyword, keymap.Insert: th.Warn, keymap.Command: th.Info}[mode]
 	conn := uv.Style{Fg: th.Info, Bg: th.Sep}
 	s.Right = []ui.Segment{
-		{Runs: iconRuns(ic.Search, bar(th.Info), strings.TrimRight(" "+a.keys.Hint("palette.open", "global"), " ")+" "), Action: "palette.open"},
+		{Runs: iconRuns(ic.Search, bar(th.Info), strings.TrimRight(" "+a.label(a.keys.Hint("palette.open", "global")), " ")+" "), Action: "palette.open"},
 		{Runs: append(iconRuns(ic.Keys, bar(th.FgMuted), " "), pending, ui.Run{Text: " ", Style: bar(th.FgMuted)})},
 		{Runs: []ui.Run{{Text: " 1,1 ", Style: bar(th.FgMuted)}}, Drop: dropCursor}, // ponytail: M0 has no cursor yet
 		{Runs: iconRuns(ic.Conn, conn, " "+a.sess.Addr+" "), Drop: dropConn},

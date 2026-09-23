@@ -86,7 +86,8 @@ func TestSmallSizes(t *testing.T) {
 // "▶ run ↵", cutting the object name instead.
 func TestConsoleTitleAt160(t *testing.T) {
 	top := strings.Split(sized(160, 45, "nerd").render().String(), "\n")[0]
-	for _, want := range []string{"console · cons…", "doraemon.public ▾", " ▶ run  ↵ ─┐"} {
+	// no "console" beside its icon (§7.7), so the tab name fits whole
+	for _, want := range []string{"② " + ui.NerdIcons.Console.Text + " console_1 ─", "doraemon.public ▾", " ▶ run  ↵ ─┐"} {
 		if !strings.Contains(top, want) {
 			t.Errorf("top row lacks %q: %q", want, top)
 		}
@@ -154,7 +155,7 @@ func TestEmptyPane(t *testing.T) {
 	f, r := a.render(), a.layout()[p.ID]
 	lines := strings.Split(f.String(), "\n")
 	cells := func(y int) string { return strings.TrimSpace(string([]rune(lines[y])[r.Min.X+1 : r.Max.X-1])) }
-	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ⟨1⟩ "+ui.NerdIcons.Console.Text+" console ─") || strings.Contains(top, "run") || strings.Contains(top, "▾") {
+	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ① "+ui.NerdIcons.Console.Text+" ─") || strings.Contains(top, "run") || strings.Contains(top, "▾") {
 		t.Errorf("title, with no hints: %q", top)
 	}
 	for y := r.Min.Y + 1; y < r.Max.Y-2; y++ {
@@ -243,12 +244,13 @@ func TestStatusNarrowing(t *testing.T) {
 		has, lacks []string
 	}{
 		{160, []string{"doraemon ▾", " 0: data* ", " 1: report ", " 1,1 ", "pg@localhost:5432", " NORMAL "}, nil},
-		{80, []string{"doraemon ▾", " 1: report ", " 1,1 ", " NORMAL "}, []string{"pg@localhost"}},
+		{78, []string{"doraemon ▾", " 1: report ", " 1,1 ", " NORMAL "}, []string{"pg@localhost"}},
 		{55, []string{"doraemon ▾", " 0: data* ", " 1,1 "}, []string{" 1: report "}},
-		{40, []string{" 0: data* ", "C-p", "·", " NORMAL "}, []string{" 1,1 ", "doraemon"}},
+		{40, []string{" 0: data* ", "·", " NORMAL "}, []string{" 1,1 ", "doraemon"}},
 	} {
 		row := statusRow(sized(c.w, 24, "nerd"))
-		for _, s := range append(c.has, " 0: data* ", "C-p", "·", " NORMAL ") {
+		// the palette entry is its icon alone (§7.7)
+		for _, s := range append(c.has, " 0: data* ", " "+ui.NerdIcons.Search.Text+" ", "·", " NORMAL ") {
 			if !strings.Contains(row, s) {
 				t.Errorf("w=%d lacks %q: %q", c.w, s, row)
 			}

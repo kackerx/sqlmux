@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
 
 	uv "github.com/charmbracelet/ultraviolet"
@@ -32,6 +33,9 @@ type Icons struct {
 	Key           Icon // primary key columns
 	Command       Icon // palette rows (K-03)
 	Window        Icon
+	// Labeled sets (ascii) say nothing by themselves, so the words beside
+	// the icons stay: pane types in titles, C-p, the filter's / (§7.7).
+	Labeled bool
 }
 
 // Nerd Font glyphs, all from the BMP private use area.
@@ -61,6 +65,7 @@ var ASCIIIcons = &Icons{
 	Key:      Icon{Text: "*"},
 	Command:  Icon{Text: ":"},
 	Window:   Icon{Text: "[]"},
+	Labeled:  true,
 }
 
 // IconSet maps the config value `icons = "nerd" | "ascii"`.
@@ -69,6 +74,18 @@ func IconSet(name string) *Icons {
 		return ASCIIIcons
 	}
 	return NerdIcons
+}
+
+// Number writes pane n's ⟨n⟩ (§7.8): beside Nerd icons ⓪ ① … ⑳, one
+// column each; with ascii icons, or past 20, ⟨n⟩.
+func (ic *Icons) Number(n int) string {
+	switch {
+	case ic.Labeled || n < 0 || n > 20:
+		return fmt.Sprintf("⟨%d⟩", n)
+	case n == 0:
+		return "\u24ea" // ⓪
+	}
+	return string(rune(0x2460 + n - 1)) // ① is U+2460
 }
 
 // byName names the icons the way a theme file's [icon] table does (§7.7).
