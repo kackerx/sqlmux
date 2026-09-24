@@ -85,6 +85,10 @@ check() {
   if "$@"; then E2E_PASS=$((E2E_PASS + 1)); echo "PASS $_desc"
   else E2E_FAIL=$((E2E_FAIL + 1)); echo "FAIL $_desc"; e2e_cap | sed 's/^/  | /'; fi
 }
+SEARCH_ICON=$(printf '\xef\x80\x82')   # U+F002: the status bar's palette entry (icon only under nerd icons, F0.16)
+search_col() { e2e_find "$SEARCH_ICON" "$(e2e_flag pane_height)" | cut -d' ' -f1; }
+# column where the pending key sequence starts: " <search> " then " <keyboard> <seq>"
+pending_col() { echo $(( $(search_col) + 5 )); }
 strwidth()   { python3 "$E2E_ROOT/e2e/cells.py" strwidth "$1"; }
 # toast_is TEXT — §7.8：状态栏上一行、靠右，warn 字、#292e42 底、左右各 1 列内边距
 toast_is() {

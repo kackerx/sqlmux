@@ -29,7 +29,7 @@ NF_DATA=$(printf '\xef\x87\x80')   # U+F1C0
 start
 L '"'
 check 'SPC "：data 上下分割，⟨1⟩ data / ⟨2⟩ data（新）/ ⟨3⟩ console' eval 'geom_is 1 "34 1 70 22" && geom_is 2 "34 23 70 22" && geom_is 3 "105 1 56 44"'
-check "新 pane 是同类型的空 pane，标题只有 ⟨2⟩ <图标> data" eval '[[ $(title_of 2) == "┌─ ⟨2⟩ $NF_DATA data ─"*"─┐" ]] && empty_pane 2'
+check "新 pane 是同类型的空 pane，标题只有 ② <图标>（F0.16）" eval '[[ $(title_of 2) == "┌─ ② $NF_DATA ─"*"─┐" ]] && empty_pane 2'
 check "新 pane 获得焦点" focus_is 2
 start
 L %

@@ -46,14 +46,14 @@ check "shrink the window to 100: the sidebar clamps to half (50)" side_is 50
 e2e_resize 160 45; sleep 0.4
 check "back to 160: the dragged 80 comes back" side_is 80
 
-# ---- the title: ⟨0⟩ <icon> public ▾, one button
+# ---- the title: ⓪ <icon> public ▾, one button (circled number under nerd icons, F0.16)
 start
-check "sidebar title shows public ▾" eval '[[ $(e2e_text 1 32 1) == "┌─ ⟨0⟩ "?" public ▾ "*"SPC b ─┐" ]]'
+check "sidebar title shows public ▾" eval '[[ $(e2e_text 1 32 1) == "┌─ ⓪ "?" public ▾ "*"SPC b ─┐" ]]'
 e2e_move 10 1; sleep 0.3
 check "hovering anywhere on the title highlights all of it (select)" eval 'style_has 4 1 bg=#364a82 && style_has 10 1 bg=#364a82 && style_has 13 1 bg=#364a82'
 e2e_click 10 1; sleep 0.3
 check "clicking the title focuses the sidebar (tree.schema does nothing yet)" eval '[[ $(focused) == 0 ]] && (( $(e2e_panes | wc -l) == 3 ))'
 start -x 60
-check "narrow window: the title shrinks by §7.8, the box stays intact" eval 't=$(e2e_text 1 24 1); [[ $t == "┌─ ⟨0⟩ "*"┐" && $(e2e_find ┐ 1 | cut -d" " -f1) == 24 ]]'
+check "narrow window: the title shrinks by §7.8, the box stays intact" eval 't=$(e2e_text 1 24 1); [[ $t == "┌─ ⓪ "*"┐" && $(e2e_find ┐ 1 | cut -d" " -f1) == 24 ]]'
 
 e2e_done

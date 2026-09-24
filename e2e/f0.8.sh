@@ -16,7 +16,7 @@ h_of() { geom "$1" | awk '{ print $4 }'; }
 at() { local c; c=$(e2e_find "$1" "$2"); echo "${c%% *} $2"; }   # TEXT Y → "X Y"（第一处）
 SELECT=#364a82 WARN=#e0af68
 wk_open() { e2e_plain | grep -q '^┌─ SPC '; }
-pending_idle() { local c; c=$(e2e_find "C-p" 45); [[ $(e2e_text $((c + 7)) $((c + 7)) 45) == "·" ]]; }
+pending_idle() { [[ $(e2e_text $(pending_col) $(pending_col) 45) == "·" ]]; }
 palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }   # F0.13: : opens the command palette
 numbers_shown() { [[ $(e2e_text 16 16 23) == 0 ]]; }
 
@@ -83,8 +83,8 @@ check "悬停 ▶ run：warn 底" style_has $x $y bg=$WARN
 hover 60 20; check "移开后恢复 focus 底" style_has $x $y bg=#9ece6a
 read x y <<<"$(at "│ +" 43)"; x=$((x + 2)); hover $x $y
 check "悬停 tab 栏的 +：select 底" style_has $x $y bg=$SELECT
-read x y <<<"$(at "C-p" 45)"; hover $x $y
-check "悬停状态栏 C-p 入口：select 底（含图标）" eval 'style_has $x $y bg=$SELECT && style_has $((x - 2)) $y bg=$SELECT'
+x=$(search_col) y=45; hover $x $y
+check "悬停状态栏的命令面板入口（搜索图标）：select 底" eval 'style_has $x $y bg=$SELECT && style_has $((x - 1)) $y bg=$SELECT'
 hover 60 20
 e2e_keys Space; sleep 0.6
 read x y <<<"$(for y in $(seq 30 44); do c=$(e2e_find "s →" $y); [[ -n $c ]] && { echo "$c $y"; break; }; done)"; hover $x $y
