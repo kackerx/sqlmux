@@ -77,6 +77,20 @@ func init() {
 		"pane.number": {Title: "按编号跳转", Run: do(func(a *App, _ Args) { a.paneNumbers = true })},
 		"tree.toggle": {Title: "折叠 / 展开 schema 树", Run: do(func(a *App, _ Args) { a.toggleTree() }),
 			On: func(a *App) bool { return a.win().TreeOpen }},
+		"tree.down":     {Title: "下移", Run: do(func(a *App, args Args) { a.treeMove(max(args.Count, 1)) })},
+		"tree.up":       {Title: "上移", Run: do(func(a *App, args Args) { a.treeMove(-max(args.Count, 1)) })},
+		"tree.top":      {Title: "第一项", Run: do(func(a *App, _ Args) { a.treeMove(-a.win().tree.cursor) })},
+		"tree.bottom":   {Title: "最后一项", Run: do(func(a *App, _ Args) { _, ms := a.treeTables(); a.treeMove(len(ms)) })}, // clamped to the last
+		"tree.open":     {Title: "打开", Run: do(func(a *App, _ Args) { a.treeOpen(false) })},
+		"tree.open.tab": {Title: "在新 tab 打开", Run: do(func(a *App, _ Args) { a.treeOpen(true) })},
+		"tree.filter":   {Title: "过滤", Run: do(func(a *App, _ Args) { a.treeFilter() })},
+		"tree.schema":   {Title: "切换 schema", Run: do(func(a *App, _ Args) { a.openSchemaMenu() })},
+		"tree.refresh":  {Title: "刷新表列表", Run: func(a *App, _ Args) tea.Cmd { return a.loadCatalog() }},
+		// Keys inside the schema dropdown (§8.6): untitled, like the palette's.
+		"schema.up":     {Run: inMenu(func(a *App) { a.menuMove(-1) })},
+		"schema.down":   {Run: inMenu(func(a *App) { a.menuMove(1) })},
+		"schema.select": {Run: inMenu(func(a *App) { a.menuPick(a.menu.sel) })},
+		"schema.close":  {Run: inMenu(func(a *App) { a.menu = nil })},
 
 		// "pane.focus <id>" is what a click runs; untitled, it stays out of the palette.
 		"pane.focus": {Run: do(func(a *App, args Args) {
@@ -110,8 +124,6 @@ func init() {
 		"grid.page": "PAGE", "grid.cols": "COLS", "grid.page.next": "下一页", "grid.page.prev": "上一页",
 		"grid.yank": "复制单元格", "grid.yank.insert": "复制为 INSERT",
 		"result.pin": "固定结果", "result.close": "关闭结果",
-		"tree.down": "下移", "tree.up": "上移", "tree.top": "第一项", "tree.bottom": "最后一项",
-		"tree.open": "打开", "tree.open.tab": "在新 tab 打开", "tree.filter": "过滤", "tree.schema": "切换 schema",
 		"console.run": "执行", "console.format": "格式化", "console.schema": "切换 schema",
 	} {
 		actions[id] = Action{Title: title}
@@ -125,6 +137,16 @@ func inPalette(f func(*App) tea.Cmd) func(*App, Args) tea.Cmd {
 			return nil
 		}
 		return f(a)
+	}
+}
+
+// inMenu adapts an action that only means something with the schema dropdown open.
+func inMenu(f func(*App)) func(*App, Args) tea.Cmd {
+	return func(a *App, _ Args) tea.Cmd {
+		if a.menu != nil {
+			f(a)
+		}
+		return nil
 	}
 }
 

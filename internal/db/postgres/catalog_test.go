@@ -1,0 +1,96 @@
+//go:build integration
+
+package postgres
+
+import (
+	"context"
+	"reflect"
+	"testing"
+
+	"sqlmux/internal/db"
+)
+
+func TestSchemas(t *testing.T) {
+	schemas, current, err := Schemas(context.Background(), connect(t, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(schemas, []string{"agentable", "public"}) || current != "public" {
+		t.Fatalf("schemas %v, current %q", schemas, current)
+	}
+}
+
+// Partitions are left out, their parent listed; views and materialized
+// views are in (§8.4).
+func TestTables(t *testing.T) {
+	ts, err := Tables(context.Background(), connect(t, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	rows := map[string]float64{}
+	for _, tb := range ts {
+		names = append(names, tb.Schema+"."+tb.Name)
+		rows[tb.Name] = tb.Rows
+	}
+	want := []string{
+		"agentable.agent", "agentable.agent_version", "agentable.goal",
+		"public.mv_order_by_status", "public.t_event", "public.t_log", "public.t_order",
+		"public.t_order_item", "public.t_sku", "public.t_user", "public.v_paid_order",
+	}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("tables %v", names)
+	}
+	if rows["t_order"] != 6000 || rows["v_paid_order"] >= 0 {
+		t.Errorf("estimates: t_order %v, a view %v", rows["t_order"], rows["v_paid_order"])
+	}
+}
+
+func TestTableColumns(t *testing.T) {
+	c := connect(t, true)
+	cols := func(table string) db.Columns {
+		t.Helper()
+		cs, err := TableColumns(context.Background(), c, "public", table)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return cs
+	}
+	order := cols("t_order")
+	byName := map[string]db.Column{}
+	for _, col := range order.Cols {
+		byName[col.Name] = col
+	}
+	for name, want := range map[string]db.Column{
+		"id":         {Name: "id", Type: "bigint", NotNull: true, Default: "nextval('t_order_id_seq'::regclass)"},
+		"status":     {Name: "status", Type: "order_status", NotNull: true, Default: "'pending'::order_status", Enum: []string{"pending", "running", "done", "failed"}},
+		"amount":     {Name: "amount", Type: "numeric(10,2)", NotNull: true},
+		"paid":       {Name: "paid", Type: "boolean"},
+		"meta":       {Name: "meta", Type: "jsonb"},
+		"created_at": {Name: "created_at", Type: "timestamp with time zone", NotNull: true, Default: "now()"},
+		"deleted_at": {Name: "deleted_at", Type: "timestamp with time zone"},
+	} {
+		if got := byName[name]; !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: %+v, want %+v", name, got, want)
+		}
+	}
+	if len(order.Cols) != 10 || order.Cols[0].Name != "id" || order.Cols[9].Name != "deleted_at" {
+		t.Errorf("columns out of attnum order: %v", order.Cols)
+	}
+	if !reflect.DeepEqual(order.PK, []string{"id"}) || order.Unique != nil {
+		t.Errorf("t_order keys: pk %v unique %v", order.PK, order.Unique)
+	}
+
+	// the primary key in key order, not column order
+	if item := cols("t_order_item"); !reflect.DeepEqual(item.PK, []string{"order_id", "line_no"}) {
+		t.Errorf("composite pk %v", item.PK)
+	}
+	// code and title (INCLUDE barcode) can identify a row; the nullable
+	// barcode, the partial and the expression index can't
+	if sku := cols("t_sku"); sku.PK != nil || !reflect.DeepEqual(sku.Unique, [][]string{{"code"}, {"title"}}) {
+		t.Errorf("t_sku keys: pk %v unique %v", sku.PK, sku.Unique)
+	}
+	if log := cols("t_log"); log.PK != nil || log.Unique != nil || len(log.Cols) != 2 {
+		t.Errorf("t_log: %+v", log)
+	}
+}

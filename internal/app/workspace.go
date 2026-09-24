@@ -29,7 +29,6 @@ type Pane struct {
 	Kind      PaneKind
 	Tabs      []string
 	Cur, Prev int // tab bar * and - (T-01)
-	Scroll    int // the sidebar's first table shown; the mouse wheel moves it
 }
 
 // Object is the title's "· name" part: the current tab.
@@ -45,6 +44,7 @@ type Window struct {
 	TreeOpen bool  // the ⟨0⟩ sidebar is open, not folded to its thin bar
 	TreeW    int   // the sidebar's width once dragged (§7.8); 0 is the default
 	Tree     *Pane // ⟨0⟩ sidebar, not part of the split tree (D-04)
+	tree     treeState
 	Root     *Node
 	Focus    int // pane ID
 	Zoom     int // zoomed pane ID; 0 = none (P-03)
@@ -55,13 +55,15 @@ type Window struct {
 }
 
 // focus moves focus to pane id, remembering when: moving by direction
-// prefers the neighbour focused most recently (§5).
+// prefers the neighbour focused most recently (§5). Leaving the tree leaves
+// its filter row too.
 func (w *Window) focus(id int) {
 	if w.focusedAt == nil {
 		w.focusedAt = map[int]int{}
 	}
 	w.focusTick++
 	w.Focus, w.focusedAt[id] = id, w.focusTick
+	w.tree.filtering = w.tree.filtering && id == w.Tree.ID
 }
 
 // Session is one connection (tech-design §5).
@@ -69,6 +71,9 @@ type Session struct {
 	Name       string
 	Addr       string     // shown in the status bar, e.g. ctw@localhost:5432
 	Main, Meta *db.Worker // §8.2
+	Schema     string     // where the schema tree is (§8.6)
+	Schemas    []string   // the catalog's (§8.4)
+	Tables     []db.Table // every schema's, by schema and name
 	Windows    []*Window
 	Active     int
 }
@@ -112,41 +117,24 @@ func (s *Session) Close() {
 	s.Meta.Close()
 }
 
-// fakeTables stand in for the catalog in the sidebar and the palette.
-// ponytail: F1.2 lists the catalog's tables instead.
-type fakeTable struct{ name, rows string }
-
-var fakeTables = []fakeTable{
-	{"agent", "124"}, {"agent_version", "530"}, {"goal", "57"},
-	{"mt_task", "812"}, {"mt_task_log", "96k"}, {"schema_migrations", "88"},
-	{"t_order", "1.2M"}, {"t_order_item", "3.4M"}, {"t_payment", "410k"},
-	{"t_refund", "12k"}, {"t_sku", "8.1k"}, {"t_user", "38k"},
-	{"t_user_address", "52k"}, {"t_user_profile", "38k"},
-}
-
-// openTable shows table t in the focused data pane, else the window's first
-// one, and focuses it (§12): in place of its current tab, or in a new tab it
-// switches to.
+// openTable shows table t in openTarget's pane and focuses it (§7.8, §12):
+// in place of its current tab, or in a new tab it switches to.
 // ponytail: it only names the tab; F1.3 fetches the table's data.
-func (a *App) openTable(t string, newTab bool) {
-	p := a.focused()
-	if p.Kind != KindData {
-		i := slices.IndexFunc(a.win().Root.Leaves(), func(p *Pane) bool { return p.Kind == KindData })
-		if i < 0 {
-			return
-		}
-		p = a.win().Root.Leaves()[i]
+func (a *App) openTable(t db.Table, newTab bool) {
+	p := a.openTarget()
+	if p == nil {
+		return
 	}
 	a.showPane(p.ID)
 	if !newTab && len(p.Tabs) > 0 {
-		p.Tabs[p.Cur] = t
+		p.Tabs[p.Cur] = t.Name
 		return
 	}
 	p.Prev = p.Cur
 	if len(p.Tabs) == 0 { // an empty pane: there is no tab to go back to
 		p.Prev = -1
 	}
-	p.Tabs = append(p.Tabs, t)
+	p.Tabs = append(p.Tabs, t.Name)
 	p.Cur = len(p.Tabs) - 1
 }
 
@@ -299,7 +287,7 @@ const wheelStep = 3
 // scrollPane scrolls pane id by notches (negative: up), within its content.
 // ponytail: only the sidebar has content to scroll; F1.3's grid adds the data pane.
 func (a *App) scrollPane(id, notches int) {
-	if p := a.win().Tree; p.ID == id {
-		p.Scroll = min(max(p.Scroll+notches*wheelStep, 0), max(len(fakeTables)-1, 0))
+	if id == a.win().Tree.ID {
+		a.scrollTree(notches)
 	}
 }

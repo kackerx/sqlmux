@@ -38,8 +38,9 @@ create table t_order_item (
     primary key (order_id, line_no)
 );
 
--- no primary key, only a unique index over not-null columns. The nullable and
--- the partial unique index must not count as a row identity (§8.4).
+-- no primary key, only unique indexes. code and title (its INCLUDE column
+-- doesn't count) can identify a row; the nullable, partial and expression
+-- ones can't (§8.4).
 create table t_sku (
     code    text not null,
     barcode text,
@@ -49,6 +50,8 @@ create table t_sku (
 create unique index t_sku_code on t_sku (code);
 create unique index t_sku_barcode on t_sku (barcode);
 create unique index t_sku_title_priced on t_sku (title) where price is not null;
+create unique index t_sku_lower_title on t_sku (lower(title));
+create unique index t_sku_title on t_sku (title) include (barcode);
 
 -- no primary key and no unique index; one row carries control characters (§7.6)
 create table t_log (

@@ -17,6 +17,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"sqlmux/internal/config"
+	"sqlmux/internal/db"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -26,8 +27,34 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// testSession is the default workspace with no database behind it.
-func testSession() *Session { return newSession("doraemon", "pg@localhost:5432", nil, nil) }
+// noDB answers every query with nothing: the tests' catalog is set up
+// front, and a load that Init starts finds nothing to add.
+type noDB struct{}
+
+func (noDB) Exec(context.Context, string, int) ([]db.Result, error)      { return nil, nil }
+func (noDB) Query(context.Context, string, ...db.Val) (db.Result, error) { return db.Result{}, nil }
+func (noDB) Close() error                                                { return nil }
+
+// testSession is the default workspace over a catalog of 14 tables in
+// public and one in agentable, with no database behind it.
+func testSession() *Session {
+	s := newSession("doraemon", "pg@localhost:5432", db.NewWorker(noDB{}), db.NewWorker(noDB{}))
+	s.Schema, s.Schemas = "public", []string{"agentable", "public"}
+	s.Tables = []db.Table{{Schema: "agentable", Name: "planner", Rows: 3}}
+	for _, t := range []struct {
+		name string
+		rows float64
+	}{
+		{"agent", 124}, {"agent_version", 530}, {"goal", 57},
+		{"mt_task", 812}, {"mt_task_log", 96e3}, {"schema_migrations", 88},
+		{"t_order", 1.2e6}, {"t_order_item", 3.4e6}, {"t_payment", 410e3},
+		{"t_refund", 12e3}, {"t_sku", 8.1e3}, {"t_user", 38e3},
+		{"t_user_address", 52e3}, {"t_user_profile", 38e3},
+	} {
+		s.Tables = append(s.Tables, db.Table{Schema: "public", Name: t.name, Rows: t.rows})
+	}
+	return s
+}
 
 // m0Layout puts M0's layout into a, for the tests of panes, tabs and windows
 // that need more than the default one empty data pane: ⟨1⟩ data with the

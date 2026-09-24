@@ -66,28 +66,28 @@
 - [ ] 没有 `connections.toml` 时，错误里写明配置文件的路径；`sqlmux <名字>` 的名字不存在时，列出已有的连接名。
 - [ ] `connections.toml` 中写有明文密码且权限为 0644 时，出现警告。
 
-## F1.2 catalog 与 schema 树 · 状态：todo
+## F1.2 catalog 与 schema 树 · 状态：reviewing
 
 - **依赖**：F1.1
 - **涉及**：`internal/db`（catalog）、`internal/ui`（tree）
 
 **开发**
-- [ ] catalog 查询（§8.4）：
+- [x] catalog 查询（§8.4）：
   - 表列表及行数估计、列属性、主键、非空唯一索引、枚举值；
   - 加载时机按 §8.4：Init 时只查 schema 列表和表列表；列属性等按表在第一次打开时查并缓存。F1.2 先把按表查的那条查询和集成测试写好，F1.3 取数时用；
   - 按 session 缓存；`R`（Action `tree.refresh`）重新加载表列表并清掉列缓存；
   - PG 按 §8.4 表下列出的细节实现：分区的子表不列出、`reltuples < 0` 显示 `?`、列属性查 `pg_attribute`、主键按 `conkey` 的顺序、唯一索引的判定条件、枚举按 `enumsortorder` 排序。
-- [ ] 树的过滤直接复用 F0.13 的 `match.go`。
-- [ ] schema 树（§7.8 的样式）：
+- [x] 树的过滤直接复用 F0.13 的 `match.go`。
+- [x] schema 树（§7.8 的样式）：
   - 显示表列表、行数量级（格式见 §7.8），光标行与当前打开的表分开画（§7.8）；
   - 按键：`j` / `k` 移动（支持次数前缀）；`/` 过滤（nvim-tree 式 live filter，§7.8）并高亮匹配字符；`↵` 在当前 tab 打开，`t` 在新 tab 打开；
   - 绘制放在 `ui.Tree`（过滤行、列表、提示行），app 只提供数据和状态；
   - 鼠标：单击在当前 tab 打开，中键在新 tab 打开；支持滚轮（每格 3 行，最多滚到最后一项贴着底边，§7.4）和悬停高亮。
-- [ ] 侧栏底部的提示行（`j/k move  ↵ open …`）复用 ui 的 `hintRow`。M0 里它是在 view.go 手写的，和 pane 标题提示、tab 栏 / 面板底栏已经是三种画法，不要再写第四份（M0 修剪时留下的观察）。
-- [ ] 切换树的 schema：在树里按 `gs`，或点击侧栏标题上的 schema（F0.15 已经画出这个按钮），打开 schema 下拉框（交互、位置、键位见 §8.6）。这个下拉组件以后 console 的 schema 选择会复用。
+- [x] 侧栏底部的提示行（`j/k move  ↵ open …`）复用 ui 的 `hintRow`。M0 里它是在 view.go 手写的，和 pane 标题提示、tab 栏 / 面板底栏已经是三种画法，不要再写第四份（M0 修剪时留下的观察）。
+- [x] 切换树的 schema：在树里按 `gs`，或点击侧栏标题上的 schema（F0.15 已经画出这个按钮），打开 schema 下拉框（交互、位置、键位见 §8.6）。这个下拉组件以后 console 的 schema 选择会复用。
   - 侧栏标题显示树当前所在的 schema，切换后跟着变，不再写死为 `public`。
-- [ ] 命令面板的「表」范围改为列出 catalog 里所有非系统 schema 的表，所在位置显示真实的 `session.schema`，顺序见 §12，不再用 M0 的假表。tab 名 F1.2 只写表名，F1.3 改成带 schema 的 DataTab。
-- [ ] 从树里打开表之后，焦点移到 data pane（§7.8，已定）。
+- [x] 命令面板的「表」范围改为列出 catalog 里所有非系统 schema 的表，所在位置显示真实的 `session.schema`，顺序见 §12，不再用 M0 的假表。tab 名 F1.2 只写表名，F1.3 改成带 schema 的 DataTab。
+- [x] 从树里打开表之后，焦点移到 data pane（§7.8，已定）。
 
 **验收**
 - [ ] 集成测试：catalog 返回的主键、唯一索引、枚举、可空、默认值都与 seed 一致；分区表只列父表，物化视图在列表里。

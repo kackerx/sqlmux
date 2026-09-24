@@ -69,6 +69,7 @@ leader = "<Space>"
 "t" = "tree.open.tab"
 "/" = "tree.filter"
 "gs" = "tree.schema"
+"R" = "tree.refresh"
 
 [keys.console] # NORMAL / VISUAL; everything else goes to the vim engine
 "<CR>" = "console.run"
@@ -87,6 +88,14 @@ leader = "<Space>"
 "<C-t>" = "palette.open.tab"
 "<C-y>" = "quicksql.copy"
 "<C-e>" = "quicksql.edit"
+
+[keys.schema] # §8.6: typing goes to the filter, so no j/k
+"<Up>" = "schema.up"
+"<Down>" = "schema.down"
+"<C-p>" = "schema.up"
+"<C-n>" = "schema.down"
+"<CR>" = "schema.select"
+"<Esc>" = "schema.close"
 
 [keys.cell] # §10.2
 "<Tab>" = "cell.segment.next"

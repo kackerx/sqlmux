@@ -134,31 +134,37 @@ func TestHover(t *testing.T) {
 	}
 }
 
-// The wheel scrolls the pane under the pointer, whatever has focus.
+// The wheel scrolls the pane under the pointer, whatever has focus; the
+// tree's view moves and pulls the cursor along, as in nvim (§7.8).
 func TestWheelScrollsPaneUnderPointer(t *testing.T) {
-	a := sized(160, 45, "nerd")
-	tree := a.win().Tree
+	a := sized(160, 18, "nerd") // 14 tables, 11 rows shown
+	tree := &a.win().tree
 	wheel := func(id int, b tea.MouseButton) {
 		r := a.layout()[id]
 		a.Update(tea.MouseWheelMsg{X: r.Min.X + 5, Y: r.Min.Y + 5, Button: b})
 	}
 	wheel(1, tea.MouseWheelDown) // the data pane, focused, has nothing to scroll yet
-	if tree.Scroll != 0 {
-		t.Fatalf("the wheel over the data pane scrolled the tree to %d", tree.Scroll)
+	if tree.top != 0 {
+		t.Fatalf("the wheel over the data pane scrolled the tree to %d", tree.top)
 	}
 	wheel(0, tea.MouseWheelDown)
-	if tree.Scroll != wheelStep || a.win().Focus != 1 {
-		t.Fatalf("tree scroll %d, focus %d", tree.Scroll, a.win().Focus)
+	if tree.top != wheelStep || tree.cursor != wheelStep || a.win().Focus != 1 {
+		t.Fatalf("tree top %d cursor %d, focus %d", tree.top, tree.cursor, a.win().Focus)
 	}
 	// inside the border: the filter line and its rule, then the tables
 	first := strings.Split(a.render().String(), "\n")[a.layout()[0].Min.Y+3]
-	if !strings.Contains(first, " "+fakeTables[wheelStep].name+" ") {
+	if !strings.Contains(first, " mt_task ") {
 		t.Errorf("the tree should start %d tables down: %q", wheelStep, first)
 	}
+	wheel(0, tea.MouseWheelDown)
+	if tree.top != 14-11 {
+		t.Fatalf("the last table stops at the bottom: top %d", tree.top)
+	}
+	tree.cursor = 13
 	wheel(0, tea.MouseWheelUp)
 	wheel(0, tea.MouseWheelUp)
-	if tree.Scroll != 0 {
-		t.Fatalf("scrolling up stops at the top, got %d", tree.Scroll)
+	if tree.top != 0 || tree.cursor != 10 {
+		t.Fatalf("scrolling up stops at the top: top %d, cursor %d kept in view", tree.top, tree.cursor)
 	}
 }
 
@@ -246,8 +252,8 @@ func TestSidebarSchemaTitle(t *testing.T) {
 		t.Errorf("the button covers the whole title: %v", r)
 	}
 	click(a, uv.Pos(r.Min.X+5, 0))
-	if a.win().Focus != 0 {
-		t.Error("clicking the title focuses the sidebar (tree.schema itself is M1's)")
+	if a.win().Focus != 0 || a.menu == nil {
+		t.Error("clicking the title focuses the sidebar and opens the schema dropdown")
 	}
 }
 

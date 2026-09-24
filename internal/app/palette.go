@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"sqlmux/internal/db"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -78,8 +79,7 @@ func (a *App) paletteScope() (scope int, query string) {
 }
 
 // paletteItems is every candidate, recent ones first and the rest in kind
-// order: windows, panes by ⟨n⟩, tables as the sidebar lists them, commands
-// by action id (§12).
+// order: windows, panes by ⟨n⟩, tables, commands by action id (§12).
 func (a *App) paletteItems() []paletteItem {
 	var items []paletteItem
 	for i, w := range a.sess.Windows {
@@ -93,8 +93,13 @@ func (a *App) paletteItems() []paletteItem {
 		}
 		items = append(items, paletteItem{itemPane, strconv.Itoa(p.ID), a.kindIcon(p.Kind), name, win})
 	}
-	for _, t := range fakeTables { // ponytail: M0's one fake schema; M1 lists the catalog's
-		items = append(items, paletteItem{itemTable, t.name, a.icons.Table, t.name, a.sess.Name + ".public"})
+	// the tree's schema first, as the tree lists it, then the others (§12)
+	for _, here := range []bool{true, false} {
+		for _, t := range a.sess.Tables {
+			if (t.Schema == a.sess.Schema) == here {
+				items = append(items, paletteItem{itemTable, t.Schema + "." + t.Name, a.icons.Table, t.Name, a.sess.Name + "." + t.Schema})
+			}
+		}
 	}
 	var ids []string
 	for id, act := range actions {
@@ -230,7 +235,9 @@ func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 	case itemCommand:
 		return a.run(it.id, 0)
 	case itemTable:
-		a.openTable(it.id, newTab)
+		if i := slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Schema+"."+t.Name == it.id }); i >= 0 {
+			a.openTable(a.sess.Tables[i], newTab)
+		}
 	case itemPane:
 		id, _ := strconv.Atoi(it.id)
 		a.showPane(id)
@@ -238,24 +245,9 @@ func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 	return nil
 }
 
-// paletteKey edits the palette's input. Its own editing keys are not
-// bindings, as with any input.
+// paletteKey edits the palette's input.
 func (a *App) paletteKey(k keymap.Key) {
-	in := &a.palette.input
-	switch k {
-	case "<Left>":
-		in.Left()
-		return
-	case "<Right>":
-		in.Right()
-		return
-	case "<BS>":
-		in.Backspace()
-	default:
-		if keymap.Text(k) == "" {
-			return
-		}
-		in.Insert(keymap.Text(k))
+	if editInput(&a.palette.input, k) {
+		a.palette.sel, a.palette.top = 0, 0
 	}
-	a.palette.sel, a.palette.top = 0, 0
 }

@@ -23,8 +23,9 @@ const (
 	KindNumber                   // a pane under SPC q's numbers (I: its ⟨n⟩)
 	KindBorder                   // a split's drag handle (I: the split's index)
 	KindBackdrop                 // behind an overlay: a click closes it
-	KindRow                      // a palette candidate (I: its index): hover selects, click runs
+	KindRow                      // a candidate in an overlay's list (I: its index): click picks it
 	KindTreeEdge                 // the gap right of the sidebar: drag to set its width
+	KindTable                    // a table in the schema tree (I: its index): click opens it
 )
 
 // Target is what a click on a hit region resolves to. Targets compare with

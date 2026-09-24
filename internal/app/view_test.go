@@ -122,10 +122,10 @@ func TestSidebarHintRow(t *testing.T) {
 		bind string
 		want string
 	}{
-		{160, "", "│ j/k move  ↵ open  t tab"},
-		{160, `"<CR>" = ""`, "│ j/k move  t tab"},
-		{160, `"j" = ""`, "│ ↵ open  t tab"},
-		{80, "", "│ j/k move  ↵ open"}, // "t tab" doesn't fit whole
+		{160, "", "│ j/k move · ↵ open · t tab"},
+		{160, `"<CR>" = ""`, "│ j/k move · t tab"},
+		{160, `"j" = ""`, "│ ↵ open · t tab"},
+		{80, "", "│ j/k move · ↵ open"}, // "t tab" doesn't fit whole
 	} {
 		if got := strings.TrimRight(row(configured(t, c.w, 45, "[keys.tree]\n"+c.bind)), " │"); got != c.want {
 			t.Errorf("w=%d %s: %q, want %q", c.w, c.bind, got, c.want)

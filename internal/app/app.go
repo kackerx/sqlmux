@@ -23,9 +23,10 @@ type App struct {
 	res   *keymap.Resolver
 	sess  *Session
 
-	palette  *palette  // non-nil while the command palette is open (COMMAND mode)
-	recent   []itemKey // what was run from the palette, most recent first (§12)
-	whichKey bool      // the which-key overlay is up (§6.5)
+	palette  *palette    // non-nil while the command palette is open (COMMAND mode)
+	menu     *schemaMenu // non-nil while the schema dropdown is open (§8.6)
+	recent   []itemKey   // what was run from the palette, most recent first (§12)
+	whichKey bool        // the which-key overlay is up (§6.5)
 	// paneNumbers is SPC q's overlay: the next key picks a pane by its ⟨n⟩.
 	paneNumbers bool
 
@@ -76,17 +77,22 @@ func New(cfg *config.Config, keys *keymap.Map, sess *Session, warning string) *A
 // TestRendererUsesGraphemeWidths still passes, and whether a real option
 // has appeared.
 func (a *App) Init() tea.Cmd {
-	cmd := func() tea.Msg { return tea.ModeReportMsg{Mode: ansi.ModeUnicodeCore, Value: ansi.ModeSet} }
-	if a.warning != "" {
-		return tea.Batch(cmd, a.showToast(a.warning, toastTTL))
+	cmds := []tea.Cmd{
+		func() tea.Msg { return tea.ModeReportMsg{Mode: ansi.ModeUnicodeCore, Value: ansi.ModeSet} },
+		a.loadCatalog(),
 	}
-	return cmd
+	if a.warning != "" {
+		cmds = append(cmds, a.showToast(a.warning, toastTTL))
+	}
+	return tea.Batch(cmds...)
 }
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
+	case catalogMsg:
+		return a, a.gotCatalog(msg)
 	case toastExpired:
 		if msg.seq == a.toastSeq {
 			a.toast = ""
@@ -108,8 +114,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseReleaseMsg:
 		a.drag, a.dragTree = nil, false
 	case tea.MouseClickMsg:
-		if m := msg.Mouse(); m.Button == tea.MouseLeft {
+		switch m := msg.Mouse(); m.Button {
+		case tea.MouseLeft:
 			return a, a.click(uv.Pos(m.X, m.Y))
+		case tea.MouseMiddle: // a table in the tree opens in a new tab (§7.8)
+			if t, _ := ui.HitAt(a.hits, uv.Pos(m.X, m.Y)); t.Kind == ui.KindTable {
+				a.win().tree.cursor = t.I
+				return a, a.run("tree.open.tab", 0)
+			}
 		}
 	case tea.MouseWheelMsg:
 		a.wheel(msg.Mouse())
@@ -163,10 +175,17 @@ func (a *App) click(p uv.Position) tea.Cmd {
 	case ui.KindNumber:
 		a.jumpToPane(keymap.Key(strconv.Itoa(t.I)))
 	case ui.KindBackdrop: // outside an overlay: close it
-		a.whichKey, a.paneNumbers, a.palette = false, false, nil
+		a.whichKey, a.paneNumbers, a.palette, a.menu = false, false, nil, nil
 		a.res.Reset()
 	case ui.KindRow:
+		if a.menu != nil {
+			a.menuPick(t.I)
+			return nil
+		}
 		return a.paletteRun(t.I, false)
+	case ui.KindTable:
+		a.win().tree.cursor = t.I
+		return a.run("tree.open", 0)
 	case ui.KindItem:
 		if next := a.res.Next(); t.I < len(next) {
 			return a.press(next[t.I].Key)
@@ -211,9 +230,16 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 	for _, r := range out {
 		if r.Action != "" {
 			cmds = append(cmds, a.run(r.Action, r.Count))
-		} else if a.palette != nil {
-			for _, k := range r.Keys {
+			continue
+		}
+		for _, k := range r.Keys { // unbound keys go to the input that has them
+			switch {
+			case a.palette != nil:
 				a.paletteKey(k)
+			case a.menu != nil:
+				a.menuKey(k)
+			case a.win().tree.filtering:
+				a.filterKey(k)
 			}
 		}
 	}
@@ -221,19 +247,26 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 }
 
 // mode is derived from state, never stored (§3 principle 3).
-// ponytail: only NORMAL and COMMAND exist until inputs (M1) and the console
-// editor (M3) arrive.
+// ponytail: no VISUAL until the console editor (M3).
 func (a *App) mode() keymap.Mode {
-	if a.palette != nil {
+	switch {
+	case a.palette != nil:
 		return keymap.Command
+	case a.menu != nil || a.win().tree.filtering:
+		return keymap.Insert
 	}
 	return keymap.Normal
 }
 
 // context tells the keymap which scopes apply to the next key (§6.4).
 func (a *App) context() keymap.Context {
-	if a.mode() == keymap.Command {
+	switch {
+	case a.palette != nil:
 		return keymap.Context{Overlay: "palette", Mode: keymap.Command}
+	case a.menu != nil:
+		return keymap.Context{Overlay: "schema", Mode: keymap.Insert}
+	case a.win().tree.filtering:
+		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Insert}
 	}
 	return keymap.Context{Focus: []string{a.paneScope()}, Pane: a.paneScope()}
 }

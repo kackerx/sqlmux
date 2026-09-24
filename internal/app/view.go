@@ -112,6 +112,13 @@ func (a *App) render() *ui.Frame {
 		t := " " + a.toast + " "
 		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Bar})
 	}
+	if a.menu != nil {
+		d := a.menuView()
+		box, rows := a.menuBox(len(d.Items))
+		if c := d.Draw(f, box, rows); c.X >= 0 {
+			f.Cursor = &c
+		}
+	}
 	if a.palette != nil {
 		if c := a.paletteView().Draw(f, a.window()); c.X >= 0 {
 			f.Cursor = &c
@@ -167,75 +174,50 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
 }
 
-// drawSidebar paints the ⟨0⟩ schema tree placeholder (§7.8).
+// drawSidebar paints the ⟨0⟩ schema tree (§7.8).
 func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
-	th := f.Theme
-	p := a.win().Tree
-	if !a.win().TreeOpen {
+	win := a.win()
+	if !win.TreeOpen {
 		a.drawThinBar(f, r)
 		return
 	}
-	paneRegions(f, p.ID, r)
+	paneRegions(f, win.Tree.ID, r)
 	b := ui.Block{
-		Num:         a.icons.Number(0),
-		Icon:        a.icons.Schema,
-		Object:      "public", // ponytail: M0's fake schema; M1 F1.2 shows the tree's own
-		Suffix:      " ▾",
-		ObjectFirst: true,
-		// the whole title opens the schema dropdown (§7.8)
-		TitleAction: "tree.schema",
-		Hints:       bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
-		Focused:     a.win().Focus == p.ID,
-		Pane:        p.ID,
+		Num:     a.icons.Number(0),
+		Icon:    a.icons.Schema,
+		Hints:   bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
+		Focused: win.Focus == win.Tree.ID,
+		Pane:    win.Tree.ID,
+	}
+	if a.sess.Schema != "" { // the whole title opens the schema dropdown (§7.8)
+		b.Object, b.Suffix, b.ObjectFirst, b.TitleAction = a.sess.Schema, " ▾", true, "tree.schema"
 	}
 	in := b.Draw(f, r)
-	if in.Dy() < 1 {
-		return
+	ts, ms := a.treeTables()
+	t := ui.Tree{
+		Total:     len(ts),
+		Filter:    win.tree.filter,
+		Filtering: win.tree.filtering,
+		Focused:   b.Focused,
+		Icons:     a.icons,
+		Hints: bound(
+			ui.Hint{Key: a.hints("tree", "/", "tree.down", "tree.up"), Label: "move"},
+			ui.Hint{Key: a.keys.Hint("tree.open", "tree"), Label: "open", Action: "tree.open"},
+			ui.Hint{Key: a.keys.Hint("tree.open.tab", "tree"), Label: "tab", Action: "tree.open.tab"},
+		),
+		Pane: win.Tree.ID,
 	}
-	x, y, right := in.Min.X+1, in.Min.Y, in.Max.X-1
-	info := uv.Style{Fg: th.Info, Bg: th.PaneBg}
-	x = f.Text(x, y, right, a.icons.Filter.Text, a.icons.Filter.On(info))
-	x = f.Text(x, y, right, " ", info)
-	if l := a.label("/"); l != "" {
-		x = f.Text(x, y, right, l+" ", uv.Style{Fg: th.Fg, Bg: th.PaneBg})
+	t.Cursor, t.Top = treeView(win.tree.cursor, win.tree.top, len(ms), ui.TreeRows(in.Dy()))
+	open := "" // the table ↵ would land on (§7.8)
+	if p := a.openTarget(); p != nil {
+		open = p.Object()
 	}
-	f.Text(x, y, right, fmt.Sprintf("%d tables", len(fakeTables)), uv.Style{Fg: th.Dim, Bg: th.PaneBg})
-
-	sep := func(y int) {
-		f.Text(in.Min.X, y, in.Max.X, strings.Repeat("─", in.Dx()), uv.Style{Fg: th.Sep, Bg: th.PaneBg})
+	for _, m := range ms {
+		tb := ts[m.Index]
+		t.Items = append(t.Items, ui.TreeItem{Name: tb.Name, Rows: tb.Rows, Pos: m.Pos, Open: tb.Name == open})
 	}
-	sep(y + 1)
-	list := uv.Rect(in.Min.X, y+2, in.Dx(), max(in.Dy()-4, 0))
-	for i := 0; i < list.Dy() && p.Scroll+i < len(fakeTables); i++ {
-		t := fakeTables[p.Scroll+i]
-		row := list.Min.Y + i
-		bg, icon := th.PaneBg, th.Func
-		if t.name == "t_order" { // the table open in ⟨1⟩
-			bg, icon = th.Select, th.Focus
-			f.Fill(uv.Rect(list.Min.X, row, list.Dx(), 1), uv.Style{Bg: bg})
-		}
-		cx := right - ui.Width(t.rows)
-		ist := uv.Style{Fg: icon, Bg: bg}
-		x := f.Text(list.Min.X+1, row, right, a.icons.Table.Text, a.icons.Table.On(ist))
-		x = f.Text(x, row, right, " ", ist)
-		f.Text(x, row, cx-1, t.name, uv.Style{Fg: th.Fg, Bg: bg})
-		f.Text(cx, row, right, t.rows, uv.Style{Fg: th.Border, Bg: bg})
-	}
-	if in.Dy() >= 4 {
-		sep(in.Max.Y - 2)
-		hx := in.Min.X + 1
-		for _, h := range []struct{ key, label string }{
-			{a.hints("tree", "/", "tree.down", "tree.up"), "move"},
-			{a.keys.Hint("tree.open", "tree"), "open"},
-			{a.keys.Hint("tree.open.tab", "tree"), "tab"},
-		} {
-			// Unbound actions get no hint (§6.7); an item that doesn't fit whole is left out.
-			if h.key == "" || hx+ui.Width(h.key+" "+h.label) > right {
-				continue
-			}
-			hx = f.Text(hx, in.Max.Y-1, right, h.key, uv.Style{Fg: th.Focus, Bg: th.PaneBg, Attrs: uv.AttrBold})
-			hx = f.Text(hx, in.Max.Y-1, right, " "+h.label+"  ", uv.Style{Fg: th.Dim, Bg: th.PaneBg})
-		}
+	if c := t.Draw(f, in); c.X >= 0 {
+		f.Cursor = &c
 	}
 }
 
