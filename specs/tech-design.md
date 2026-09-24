@@ -487,11 +487,23 @@ type Hit struct {
   3. 还放不下就横向滚动。
 - **宽度计算**：按字素簇计算（§7.1「宽度」），CJK 字符和 emoji 都能正确处理。
 - **单元格显示**：
-  - 按列的类型分类着色（§7.3）：数值（int、numeric、float 等）用 `number` 色，并且右对齐；字符串用 `string`；时间（date、time、timestamp、timestamptz、interval）用 `time`；布尔用 `bool`；json / jsonb 用 `json`；其余类型用 `fg`。
+  - 按列的类型分类着色（§7.3），分类按 catalog 的 `format_type`：
+    - `number`（右对齐）：smallint、integer、bigint、numeric(…)、real、double precision、oid；
+    - `time`：date、time…、timestamp…（含 with time zone）、interval；
+    - `bool`：boolean；
+    - `json`：json、jsonb；
+    - `string`：text、character varying(…)、character(…)、"char"、name、citext；
+    - 其余用 `fg`：枚举（不算字符串类型）、uuid、数组、bytea 等。
   - NULL 显示为 `dim` 色的 `<null>`；超长内容用 `…` 截断；主键列的表头带钥匙图标。
-  - 显示前清理控制字符：换行显示为 `dim` 色的 `↵`，Tab 显示为一个空格，其余控制字符（包括 ESC）直接去掉，避免把终端控制序列画到屏幕上。截断按字素簇进行。完整的值在单元格编辑（M2）里看。
+  - 显示前清理控制字符：换行显示为 `dim` 色的 `↵`，Tab 显示为一个空格，其余 C0、DEL、C1 控制字符直接去掉，避免把终端控制序列画到屏幕上。替换之后再按字素簇截断。完整的值在单元格编辑（M2）里看。已知上限：数据里本来就有的 `↵` 字符也会画成 dim 色，不作区分。
+  - 空串显示为空白。
+  - **数据库报错**（权限不足、WHERE 写错等）：在 pane 内容区第一行用 `error` 色显示错误，这时不画表格。
+  - **取数中**：pane 里保留上一次的数据，不画「加载中」占位；忙碌提示和取消见 §8.3。
+  - **点击单元格**：命中区 Kind 为 `cell`，点击等于依次执行 `pane.focus` 和 `grid.goto r c`（§7.4），M1 F1.3 就做。
   - 已修改的单元格用 `warn` 色文字、`edited_bg` 底色、点状下划线（SGR 4:4）。终端不支持点状下划线时，退化为普通下划线。
-- **转置（G-05）只影响渲染**：`GridState` 始终保存数据坐标，按键时把屏幕方向换算成数据方向，所以光标位置和修改标记在两种视图之间自然保持。
+- **转置（G-05）只影响渲染**：`GridState` 始终保存数据坐标（游标 Row / Col 和视图偏移 Top / Left 都是），按键时把屏幕方向换算成数据方向，所以光标位置、视图和修改标记在两种视图之间自然保持。转置后：表头行是记录的行号（当前记录的行号用绿色），第一列是字段名（`func` 色，主键带钥匙图标），每一行按字段的类型着色；`j` / `k` 在字段间移动，`h` / `l` 在记录间移动，`0` / `$` 到第一条 / 最后一条记录，`gg` / `G` 到第一个 / 最后一个字段。
+- **视图跟随光标**：光标移出视图时视图跟着滚，保证光标所在的列完整可见；这个计算在 `ui.Grid` 里，app 每次移动后调用并把结果存下来，这样上移时视图不会跳回顶部（与 vim 相同）。滚轮只滚视图：纵向每格 3 行，最多滚到最后一行贴底；Shift + 滚轮和横向滚轮每格 1 列；两种滚动都把光标夹回视图内（与树一致）。
+- **数据结构**：`Pane.Tabs` 是 `[]Tab`，`Tab{Name; Data *dataTab}`，M3 再加 `Console *consoleTab`，不用接口。`ui.Grid` 的行直接用 `[][]db.Val`，`ui` 只为这个类型 import `db`，`db` 不 import `ui`，不成环；这样每帧不用拷贝整页数据。
 - **网格样式**：按用户要求，行和列都要有清晰的分隔（参考 DataGrip 的表格）。
   - **列**：
     - 相邻两列之间用 `│`（`sep` 色）分隔；
@@ -587,7 +599,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
       - COMMAND：不显示，匹配的命令在命令面板里。
     - ` <搜索图标> `：`info` 色，点击打开命令面板；ascii 图标下显示为 ` ~ C-p `（§7.7）；
     - ` <键盘图标> 待输入序列 `：序列用 `warn` 色粗体。没有待输入的键时，显示 `dim` 色的 `·`；这一块始终占着位置，序列部分至少 3 列宽（放得下 `SPC`），内容靠左，这样按键时右侧各块不会左右跳动，序列超过 3 列时才变宽；
-    - ` 行,列 `：`fg_muted` 色；
+    - ` 行,列 `：`fg_muted` 色。只在焦点所在的 data pane 有已加载的表时显示：行号是绝对行号（页偏移 + 1），列号从 1 起；树聚焦、空 pane、空表都不显示这一块（M0 的 `1,1` 占位就此去掉）；
     - ` <图标> sqlmux@localhost:5432 `：`info` 色，`sep` 底。内容是 `<用户>@<host>:<port>`，引擎已由 session 块的图标表示，所以 `@` 前面放数据库用户名；unix socket 时 host 就是目录，照样显示，如 `ctw@/tmp:5432`。设计稿里的 `pg@` 按此理解；
     - ` NORMAL `：模式色底、`bg` 色字、粗体。
   - 窗口太窄、放不下时，按下面的顺序依次省略：
@@ -655,7 +667,7 @@ type Result struct {
 
 ### 8.3 取消、超时、过期响应
 
-- **取消**：`Main` 忙碌时，状态栏显示 `busy · C-c 取消`，这段文字可以点击。
+- **取消**：连接忙碌时（`Main` 上的 console 执行，或 `Meta` 上的表格取数），状态栏在模式块左边显示 ` busy · C-c 取消 `（`warn` 色，键位文字从 keymap 读），点击执行 Action `cancel`。`C-c` 在本 session 有请求执行中时取消它，空闲时照旧是连按两次退出（§6.8）。取消后 toast 显示「查询已取消」，tab 保留之前的数据，第一次打开就是空表。
   - PG：取消请求的 ctx。pgconn 默认的 `DeadlineContextWatcherHandler` 会在 context 取消时给连接设 deadline，连接随之断开。每个 session 只有两条长连接，所以改用 `CancelRequestContextWatcherHandler`，由它发 CancelRequest，取消之后连接还能继续用。`DeadlineDelay` 取 5s：取消发出 5 秒后服务端还没停，就断开连接；断开的连接不自动重连，M1 不做，代码里用 `ponytail:` 注释标出。
   - MySQL（M5）：`Query` 自己监听 ctx，取消时另开一条临时连接执行 `KILL QUERY <connection_id>`，id 在建连时记录。只取消 context 的话，驱动会关掉连接，但服务端上的查询会继续跑。
 - **超时**：建连 10s。计数查询 3s：PG 用 `SET LOCAL statement_timeout`，MySQL 用 `MAX_EXECUTION_TIME` hint。
