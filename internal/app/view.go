@@ -173,7 +173,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		}
 		body.Min.Y++
 		ui.Grid{
-			Cols: fakeCols, Rows: p.Rows, Top: p.Scroll, Row: 0, Col: 0, // ponytail: M0 has no cell cursor to move
+			Cols: fakeCols, Rows: p.Rows, Top: p.Scroll, Row: 0, Col: 0, // ponytail: M0 has no cell cursor to move; M1 F1.3 adds it
 			Focused: a.win().Focus == p.ID, Key: a.icons.Key,
 		}.Draw(f, body)
 		return
@@ -326,7 +326,7 @@ func (a *App) statusLine() ui.StatusLine {
 	s.Right = []ui.Segment{
 		{Runs: iconRuns(ic.Search, bar(th.Info), strings.TrimRight(" "+a.label(a.keys.Hint("palette.open", "global")), " ")+" "), Action: "palette.open"},
 		{Runs: append(iconRuns(ic.Keys, bar(th.FgMuted), " "), pending, ui.Run{Text: " ", Style: bar(th.FgMuted)})},
-		{Runs: []ui.Run{{Text: " 1,1 ", Style: bar(th.FgMuted)}}, Drop: dropCursor}, // ponytail: M0 has no cursor yet
+		{Runs: []ui.Run{{Text: " 1,1 ", Style: bar(th.FgMuted)}}, Drop: dropCursor}, // ponytail: M0 has no cursor yet; M1 F1.3 shows its row,col
 		{Runs: iconRuns(ic.Conn, conn, " "+a.sess.Addr+" "), Drop: dropConn},
 		{Runs: []ui.Run{{Text: " " + strings.ToUpper(mode.String()) + " ", Style: uv.Style{Fg: th.Bg, Bg: modeColor, Attrs: uv.AttrBold}}}},
 	}

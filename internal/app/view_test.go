@@ -138,8 +138,8 @@ func TestSidebarHintRow(t *testing.T) {
 	}
 }
 
-// §F0.4: the window's only pane, once its last tab is closed, is empty: no
-// placeholder text, title "⟨n⟩ <icon> type", and a tab bar holding just a
+// The window's only pane, once its last tab is closed, is empty: no
+// placeholder text, the title just "⟨n⟩ <icon>", and a tab bar holding just a
 // clickable +.
 func TestEmptyPane(t *testing.T) {
 	a := sized(160, 45, "nerd")

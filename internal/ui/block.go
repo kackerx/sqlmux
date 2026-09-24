@@ -37,10 +37,13 @@ func (h Hint) titleText() string {
 //
 //	┌─ ⟨1⟩ data · t_order ──────── hint hint ─┐
 type Block struct {
-	Num    string // ⟨n⟩ or ①, from Icons.Number
-	Icon   Icon
-	Title  string // after the icon: the pane type with ascii icons (§7.7), the sidebar's schema
-	Object string // "· object" part; truncated first
+	Num   string // ⟨n⟩ or ①, from Icons.Number
+	Icon  Icon
+	Title string // after the icon: the pane type, with ascii icons only (§7.7)
+	// Object follows " · " (the icon, with no Title): a pane's tab or the
+	// sidebar's schema. It is cut to fit: in a pane title before any hint is
+	// dropped, with ObjectFirst only once they all are.
+	Object string
 	Suffix string // stays after the object even when it is cut, and goes with it: the sidebar's " ▾"
 	// ObjectFirst gives the object its room before the hints: the sidebar's
 	// schema is its switch and the only place it shows (§7.8).

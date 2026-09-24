@@ -94,8 +94,9 @@ func init() {
 		"pane.resize.up":    {Title: "向上调整大小", Run: do(func(a *App, args Args) { a.resizePane(Vert, -1, args.Count) })},
 		"pane.resize.right": {Title: "向右调整大小", Run: do(func(a *App, args Args) { a.resizePane(Horiz, 1, args.Count) })},
 	}
-	// Bound by default.toml but built by later features: titled already, so
-	// which-key can name them; running them does nothing yet.
+	// Built by later features but titled already: which-key names the ones
+	// default.toml binds, the palette lists them all (§6.8); running them
+	// does nothing yet.
 	for id, title := range map[string]string{
 		"save":         "保存",
 		"session.list": "session 列表", "session.new": "新建连接",

@@ -7,7 +7,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 )
 
-// Backspace and the cursor go by grapheme cluster (F0.13, as F0.4 did).
+// Backspace and the cursor go by grapheme cluster, as in nvim.
 func TestInputGraphemes(t *testing.T) {
 	for _, g := range []string{"é", "👍🏽", "👨‍👩‍👧"} {
 		in := Input{}
