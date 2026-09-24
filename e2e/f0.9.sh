@@ -46,7 +46,7 @@ check "表头下画横线，与竖线交叉处为 ┼（行号列之后第一处
 check "竖线、┼、表头的列位置逐行一致" aligned
 check "每个单元格左右各留 1 列空白" padded
 check "竖线和横线为 sep 色" sep_color
-heads_func() { local n c; for n in id user_id status created_at; do c=$(e2e_find "$n" $HY); style_has ${c%% *} $HY fg=$FUNC || return 1; done; }
+heads_func() { local n c; for n in id user_id status created_at; do c=$(e2e_find "$n" $HY | tr ' ' '\n' | awk '$1 > 34 { print; exit }'); style_has $c $HY fg=$FUNC || return 1; done; }   # ① only: the sidebar has names too
 check "表头为 func 色：id / user_id / status / created_at" eval 'heads_func && text_is 40 47 $HY "│ $NF_KEY id │"'
 check "主键列 id 的表头带钥匙图标 U+F084" text_is 42 42 $HY "$NF_KEY"
 check "斑马纹：偶数行 row_alt、奇数行 pane_bg，当前行（第 1 行）row" zebra 60

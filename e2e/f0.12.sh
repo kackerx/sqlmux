@@ -17,7 +17,7 @@ NF_DATA=$(printf '\xef\x87\x80')   # U+F1C0
 ICON=39 ICON_ASCII=41             # data title icon column: nerd ┌─ ① <icon> …; ascii ┌─ ⟨1⟩ <icon> … (⟨1⟩ is 3 wide, F0.16)
 # cell NAME N — "X Y" of column NAME's value on data row N (-1: the header): text starts under the header name,
 # numbers end under its last letter (right-aligned)
-cell() { local hy=$(( $(grid_y) - 1 )) c; c=$(e2e_find "$1" $hy); c=${c%% *}
+cell() { local hy=$(( $(grid_y) - 1 )) c; c=$(e2e_find "$1" $hy | tr ' ' '\n' | awk '$1 > 34 { print; exit }')   # ① only: the sidebar has names too
   [[ $1 == id || $1 == amount ]] && c=$((c + ${#1} - 1)); echo "$c $(( hy + 1 + $2 ))"; }
 fg_at() { style_has $(cell "$1" "$2") "fg=$3"; }   # NAME N COLOR
 
