@@ -95,9 +95,18 @@ func (t *dataTab) acceptCompletion() {
 	t.comp = nil
 }
 
+// completeMove moves the selection by d; with none picked yet, down picks
+// the first and up the last, as vim's popup menu does.
 func (t *dataTab) completeMove(d int) {
 	c := t.comp
-	c.sel = max(min(c.sel+d, len(c.items)-1), 0)
+	switch {
+	case c.chosen:
+		c.sel = max(min(c.sel+d, len(c.items)-1), 0)
+	case d > 0:
+		c.sel = 0
+	default:
+		c.sel = len(c.items) - 1
+	}
 	c.chosen = true
 }
 

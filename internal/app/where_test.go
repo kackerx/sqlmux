@@ -20,6 +20,9 @@ func TestWhereCompletion(t *testing.T) {
 	}
 	f := a.render()
 	feed(t, a, "<C-n>") // picked: lit as the selection too
+	if tab.comp.sel != 0 {
+		t.Fatalf("the first C-n picks the first: %d", tab.comp.sel)
+	}
 	at := a.whereAt(a.focused(), tab)
 	row := strings.Split(f.String(), "\n")[at.Y+2] // under the input and the list's border
 	if i := strings.Index(row, "status"); i < 0 || f.Buf.CellAt(ui.Width(row[:i]), at.Y+2).Style.Bg != a.theme.Warn {
@@ -37,13 +40,18 @@ func TestWhereCompletion(t *testing.T) {
 	if strings.Join(labels, " ") != "pending running done failed" {
 		t.Fatalf("values: %v", labels)
 	}
-	feed(t, a, "<C-n><CR>")
-	if tab.where.Text != "status = 'running'" || tab.applied != "" {
+	feed(t, a, "<C-p>")
+	if tab.comp.sel != len(tab.comp.items)-1 {
+		t.Fatalf("with none picked, C-p picks the last: %d", tab.comp.sel)
+	}
+	tab.comp.chosen = false
+	feed(t, a, "<C-n><CR>") // the first C-n picks the first
+	if tab.where.Text != "status = 'pending'" || tab.applied != "" {
 		t.Fatalf("↵ on a chosen value: %q applied %q", tab.where.Text, tab.applied)
 	}
 	feed(t, a, " and pa")
 	feed(t, a, "<CR>")
-	if tab.applied != "status = 'running' and pa" || tab.typing != "" {
+	if tab.applied != "status = 'pending' and pa" || tab.typing != "" {
 		t.Errorf("↵ with nothing chosen runs: %q", tab.applied)
 	}
 	feed(t, a, "/ i<Esc>")
