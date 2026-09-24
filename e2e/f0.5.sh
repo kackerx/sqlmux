@@ -14,17 +14,17 @@ bar_is()    { local got; got=$(bar); [[ $got == "$1" ]] || { echo "  bar: '$got'
 bar_has()   { local got; got=$(bar); [[ $got == *"$1"* ]] || { echo "  bar lacks '$1': '$got'"; false; }; }
 bar_lacks() { local got; got=$(bar); [[ $got != *"$1"* ]] || { echo "  bar has '$1': '$got'"; false; }; }
 at() { local c; c=$(e2e_find "$1" "$(H)"); [[ -n $c ]] || { echo "  '$1' not on status bar"; return 1; }; style_has "$((${c%% *} + ${3:-0}))" "$(H)" "$2"; }  # TEXT STYLE [DX]
-pending_is() { local c; c=$(e2e_find "C-p" "$(H)"); text_is $((c + 7)) $((c + 6 + $(strwidth "$1"))) "$(H)" "$1"; }   # " @ C-p " 之后是 " @ <序列> "
+pending_is() { local c; c=$(pending_col); text_is $c $((c - 1 + $(strwidth "$1"))) "$(H)" "$1"; }   # F0.16：入口只剩搜索图标
 BAR=#292e42 FOCUS=#9ece6a BG=#1f2335 FG=#c0caf5 DIM=#565f89 WARN=#e0af68 INFO=#7dcfff MUTED=#a9b1d6 SEP=#2f3549
 
 # ---- 160 宽 NORMAL：内容与顺序
 start
-check "160 宽状态栏" bar_is " @ doraemon ▾  0: data*  1: report $(printf '%77s') @ C-p  @ ·    1,1  @ pg@localhost:5432  NORMAL "
+check "160 宽状态栏（F0.16：命令面板入口只有图标）" bar_is " @ doraemon ▾  0: data*  1: report $(printf '%81s') @  @ ·    1,1  @ pg@localhost:5432  NORMAL "
 check "状态栏底色 #292e42" eval 'style_has 40 45 bg=$BAR && style_has 100 45 bg=$BAR'
 check "session 块：focus 底、bg 字、粗体" eval 'at doraemon bg=$FOCUS && at doraemon fg=$BG && at doraemon bold && style_has 1 45 bg=$FOCUS'
 check "当前 window：#3b4261 底、fg 字" eval 'at "0: data*" bg=#3b4261 && at "0: data*" fg=$FG && at "0: data*" bg=#3b4261 -1'
 check "其余 window：dim 字、无底色" eval 'at "1: report" fg=$DIM && at "1: report" bg=$BAR'
-check "C-p 入口：info 色" eval 'at "C-p" fg=$INFO && at "C-p" fg=$INFO -2'
+check "命令面板入口（搜索图标）：info 色" eval 'style_has $(search_col) 45 fg=$INFO'
 check "待输入序列空闲时为 dim 色的 ·" eval 'pending_is "·" && at "·" fg=$DIM'
 check "光标位置 1,1：fg_muted" at "1,1" fg=$MUTED
 check "连接地址：info 色、sep 底（含图标与内边距）" eval 'at "pg@localhost:5432" fg=$INFO && at "pg@localhost:5432" bg=$SEP && at "pg@localhost:5432" bg=$SEP -3'
@@ -53,38 +53,38 @@ check "80 宽：面板打开时模式块 COMMAND 仍然可见" eval '[[ $(bar) =
 e2e_keys Escape; sleep 0.2
 
 # ---- NORMAL 逐步变窄：连接地址 → 非当前 window → 光标位置 → 截短 session 名
-start -x 83; check "83 宽：全部显示" bar_has "1: report  @ C-p  @ ·    1,1  @ pg@localhost:5432  NORMAL "
-start -x 82; check "82 宽：先省略连接地址" eval 'bar_lacks pg@ && bar_has "1: report" && bar_has "1,1"'
-start -x 60; check "60 宽：去掉非当前 window" eval 'bar_lacks "1: report" && bar_has "1,1"'
-start -x 51; check "51 宽：光标位置还在" bar_has "1,1  NORMAL "
-start -x 50; check "50 宽：去掉光标位置，session 名完整" eval 'bar_lacks "1,1" && bar_has " doraemon ▾"'
-start -x 45; check "45 宽：截短 session 名" bar_has " doraem… ▾"
+start -x 79; check "79 宽：全部显示" bar_has "1: report  @  @ ·    1,1  @ pg@localhost:5432  NORMAL "
+start -x 78; check "78 宽：先省略连接地址" eval 'bar_lacks pg@ && bar_has "1: report" && bar_has "1,1"'
+start -x 57; check "57 宽：去掉非当前 window" eval 'bar_lacks "1: report" && bar_has "1,1"'
+start -x 47; check "47 宽：光标位置还在" bar_has "1,1  NORMAL "
+start -x 46; check "46 宽：去掉光标位置，session 名完整" eval 'bar_lacks "1,1" && bar_has " doraemon ▾"'
+start -x 41; check "41 宽：截短 session 名" bar_has " doraem… ▾"
 monotonic() {  # 省略顺序：有连接地址 ⇒ 有 1: report ⇒ 有 1,1 ⇒ session 名完整；且必留的块都在
   local b; b=$(bar)
   local c=0 r=0 p=0 s=0
   [[ $b == *pg@localhost* ]] && c=1; [[ $b == *"1: report"* ]] && r=1; [[ $b == *"1,1"* ]] && p=1; [[ $b == *" doraemon ▾"* ]] && s=1
   ((c <= r && r <= p && p <= s)) || { echo "  width $(W): order broken: '$b'"; return 1; }
-  [[ $b == *"▾  0: data*"*"@ C-p  @ ·   "*" NORMAL " ]] || { echo "  width $(W): a kept block is missing: '$b'"; return 1; }
+  [[ $b == *"▾  0: data*"*" @  @ ·   "*" NORMAL " ]] || { echo "  width $(W): a kept block is missing: '$b'"; return 1; }
 }
-ok=1; for w in 160 120 100 90 83 82 70 62 61 60 58 52 51 50 48 46 45 44 42 40; do start -x $w -y 12; monotonic || ok=0; done
-check "160…40 宽：省略顺序正确，session 块 / 0: data* / C-p / 待输入 / 模式块始终都在" test $ok = 1
+ok=1; for w in 160 120 100 90 80 79 78 70 60 58 57 50 48 47 46 44 42 41 40 38; do start -x $w -y 12; monotonic || ok=0; done
+check "160…38 宽：省略顺序正确，session 块 / 0: data* / C-p / 待输入 / 模式块始终都在" test $ok = 1
 
-# ---- C-p 入口的键位文字取自 keymap
-printf '[keys.global]\n"<C-p>" = ""\n"<C-k>" = "palette.open"\n' >| "$CFG/config.toml"; start -c "$CFG/config.toml"
-check "改绑 palette.open 为 C-k：状态栏显示 C-k" eval 'bar_has "@ C-k  @ ·" && bar_lacks "C-p"'
+# ---- 命令面板入口的键位文字取自 keymap（只有 ascii 图标下才显示文字，F0.16）
+printf 'icons = "ascii"\n[keys.global]\n"<C-p>" = ""\n"<C-k>" = "palette.open"\n' >| "$CFG/config.toml"; start -c "$CFG/config.toml"
+check "ascii 下改绑 palette.open 为 C-k：状态栏显示 ~ C-k" eval 'bar_has " ~ C-k " && bar_lacks "C-p"'
 
 # ---- 待输入块至少 3 列、内容靠左：3 列以内时 C-p 不动（§7.8）
 start
-cp0=$(e2e_find "C-p" 45)
-check "空闲时 · 后补 2 格" bar_has "@ C-p  @ ·    1,1"
-still() { local c; c=$(e2e_find "C-p" 45); [[ $c == "$cp0" ]] || { echo "  C-p at $c, idle at $cp0 ($1)"; false; }; }
+cp0=$(search_col)
+check "空闲时 · 后补 2 格" bar_has " @  @ ·    1,1"
+still() { local c; c=$(search_col); [[ $c == "$cp0" ]] || { echo "  palette entry at $c, idle at $cp0 ($1)"; false; }; }
 ok=1
 e2e_keys Space; sleep 0.2; still SPC || ok=0; pending_is "SPC" || ok=0; e2e_keys Escape; sleep 0.2
 e2e_type g; sleep 0.2; still g || ok=0; pending_is "g  " || ok=0; e2e_keys Escape; sleep 0.2
 e2e_type 5; sleep 0.2; still 5 || ok=0; e2e_type 2; sleep 0.2; still 52 || ok=0; pending_is "52 " || ok=0; e2e_keys Escape; sleep 0.2
-check "按 SPC / g / 5 / 52：C-p 位置不变，序列靠左" test $ok = 1
+check "按 SPC / g / 5 / 52：命令面板入口位置不变，序列靠左" test $ok = 1
 e2e_type 5; e2e_keys Space; sleep 0.2
-check "序列超过 3 列（5 SPC）时才变宽" eval 'pending_is "5 SPC" && (( $(e2e_find "C-p" 45) < cp0 ))'
+check "序列超过 3 列（5 SPC）时才变宽" eval 'pending_is "5 SPC" && (( $(search_col) < cp0 ))'
 e2e_keys Escape; sleep 0.2
 
 e2e_done

@@ -56,14 +56,14 @@ e2e_keys Escape; sleep 0.2
 start; pal "@t_user"
 check "a table selected: footer says ↵ 打开 · C-t 新 tab" eval '[[ $(footer) == *"↵ 打开 · C-t 新 tab " ]]'
 e2e_keys Enter; sleep 0.3
-check "↵ opens t_user in the current tab" eval 'closed && text_has 34 103 1 "data · t_user" && [[ $(data_tabs) == "│ 1:t_user* │ 2:t_user- │ +"* ]]'
+check "↵ opens t_user in the current tab" eval 'closed && text_has 34 103 1 " t_user ─" && [[ $(data_tabs) == "│ 1:t_user* │ 2:t_user- │ +"* ]]'
 pal "@goal"; e2e_keys C-t; sleep 0.3
 check "C-t opens it in a new tab; the old one is marked -" eval 'closed && [[ $(data_tabs) == "│ 1:t_user- │ 2:t_user │ 3:goal* │ +"* ]]'
 pal ">split"; e2e_keys C-t; sleep 0.3
 check "C-t with a command selected: nothing happens, the palette stays" eval 'is_open && (( $(e2e_panes | awk "\$1 != \"-\"" | wc -l) == 3 ))'
 e2e_keys Escape; sleep 0.2
 e2e_keys C-l; sleep 0.2; pal "@agent"; e2e_keys Enter; sleep 0.3
-check "focus on console → the table opens in the first data pane, focus moves there" eval '[[ $(focused) == 1 ]] && text_has 34 103 1 "data · agent"'
+check "focus on console → the table opens in the first data pane, focus moves there" eval '[[ $(focused) == 1 ]] && text_has 34 103 1 " agent ─"'
 
 # ---- panes and windows
 pal "%console"; e2e_keys Enter; sleep 0.3
@@ -78,7 +78,7 @@ pal "%t_order"; e2e_keys Enter; sleep 0.3
 check "console zoomed, %t_order ↵: zoom ends, focus on the data pane" eval '(( $(e2e_panes | awk "\$1 != \"-\"" | wc -l) == 3 )) && [[ $(focused) == 1 ]]'
 e2e_keys Space; e2e_type z; sleep 0.3
 pal "@goal"; e2e_keys Enter; sleep 0.3
-check "data zoomed, open a table: stays zoomed (it is the target)" eval '(( $(e2e_panes | awk "\$1 != \"-\"" | wc -l) == 1 )) && [[ $(focused) == 1 ]] && text_has 1 160 1 "data · goal"'
+check "data zoomed, open a table: stays zoomed (it is the target)" eval '(( $(e2e_panes | awk "\$1 != \"-\"" | wc -l) == 1 )) && [[ $(focused) == 1 ]] && text_has 1 160 1 " goal ─"'
 e2e_keys Space; e2e_type z; sleep 0.3
 
 # ---- an emptied data pane: opening a table gives one tab, no - mark

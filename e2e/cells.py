@@ -108,7 +108,7 @@ def main():
     if sys.argv[1] == "strwidth":
         return print(sum(w for _, w in cells_of(sys.argv[2])))
     g = grid(sys.stdin.read())
-    cmd, args = sys.argv[1], [int(a) for a in sys.argv[2:] if a.isdigit()]
+    cmd, args = sys.argv[1], [int(a) for a in sys.argv[2:] if a.isascii() and a.isdigit()]
     if cmd == "style":
         x, y = args
         _, fg, bg, attrs = g[y - 1][x - 1] if x <= len(g[y - 1]) else (" ", "-", "-", ())

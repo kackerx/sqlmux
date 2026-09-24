@@ -62,7 +62,7 @@ check ": opens the palette with > already typed" input_is '>'
 e2e_type q; sleep 0.3
 check ":q ranks 关闭 tab first" eval '[[ $(selected) == "关闭 tab  tab.close"* ]]'
 e2e_keys Enter; sleep 0.3
-check ":q↵ closes the current tab (t_order → t_user)" eval 'closed && text_has 34 103 1 "data · t_user"'
+check ":q↵ closes the current tab (t_order → t_user)" eval 'closed && text_has 34 103 1 " t_user ─"'
 e2e_type ':qa'; sleep 0.3
 check ":qa ranks 退出 first" eval '[[ $(selected) == "退出  quit"* ]]'
 e2e_keys Enter

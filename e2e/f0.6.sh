@@ -14,7 +14,7 @@ W() { e2e_flag pane_width; }
 top_row() { e2e_plain | python3 -c 'import sys; print(next((i + 1 for i, l in enumerate(sys.stdin) if l.startswith("┌─ " + sys.argv[1])), ""))' "$1"; }
 shown()  { [[ -n $(top_row "$1 ") ]]; }
 hidden() { ! shown "$1" || { echo "  which-key '$1' is showing"; false; }; }
-pending_is() { local c; c=$(e2e_find "C-p" "$(H)"); text_is $((c + 7)) $((c + 6 + $(strwidth "$1"))) "$(H)" "$1"; }
+pending_is() { local c; c=$(pending_col); text_is $c $((c - 1 + $(strwidth "$1"))) "$(H)" "$1"; }
 palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }   # F0.13: : opens the command palette
 running() { flag_is alternate_on 1 && ! screen_has '[e2e-exit'; }
 # 浮层里的键，按列读（先竖后横）：每一格是「键 → 标题」

@@ -12,7 +12,7 @@ conf() { rm -rf "$D"/*; printf "$1" > "$D/config.toml"; [[ -n $2 ]] && { mkdir -
 start() { e2e_start -C "$D" "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 fails() { e2e_start -C "$D" "$E2E_BIN"; wait_for 3 screen_has '[e2e-exit 1]' || return 1; screen_has "$1" || { echo "  error lacks '$1':"; e2e_plain | grep sqlmux: | sed 's/^/    /'; false; }; }
 NF_CONSOLE=$(printf '\xef\x92\x89')   # U+F489
-ICON=112                              # console title: ┌─ ⟨2⟩ <icon> console … (column of the icon)
+ICON=110                              # console title: ┌─ ② <icon> console_1 … (column of the icon; F0.16)
 
 # ---- defaults: console icon, column colors
 conf ''; start
@@ -40,7 +40,7 @@ conf 'theme = "nope"\n';                        check "theme not found → error
 
 # ---- [icon] overrides (yazi-style)
 conf 'theme = "x"\n' '[icon]\nconsole = { text = "C", fg = "#ff0000" }\n'; start
-check "[icon] console text+fg: red C, rest of the title unchanged" eval 'text_is $ICON $ICON 1 C && style_has $ICON 1 fg=#ff0000 && style_has $((ICON + 2)) 1 fg=#565f89 && style_has 108 1 fg=#565f89'
+check "[icon] console text+fg: red C, rest of the title unchanged" eval 'text_is $ICON $ICON 1 C && style_has $ICON 1 fg=#ff0000 && style_has $((ICON + 2)) 1 fg=#565f89 && style_has 108 1 fg=#565f89   # console_1, ②'
 conf 'theme = "x"\n' '[icon]\nconsole = { fg = "#00ff00" }\n'; start
 check "[icon] fg only: same glyph, new color" eval 'text_is $ICON $ICON 1 "$NF_CONSOLE" && style_has $ICON 1 fg=#00ff00'
 conf 'theme = "x"\nicons = "ascii"\n' '[icon]\nconsole = { text = "C", fg = "#ff0000" }\n'; start

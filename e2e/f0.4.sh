@@ -18,21 +18,21 @@ quit_clean() {  # 退出码 0，终端标志位按 F0.1 复原
     flag_is mouse_sgr_flag 0 && flag_is bracket_paste_flag 0 && flag_is cursor_flag 1
 }
 empty_body() { local y; for y in $(seq 2 42); do [[ -z $(e2e_text 35 159 $y | tr -d " ") ]] || { echo "  row $y: $(e2e_text 35 159 $y)"; return 1; }; done; }
-NF_CONSOLE=$(printf '\xef\x92\x89')     # U+F489（F0.12 起）
+NF_DATA=$(printf '\xef\x87\x80') NF_CONSOLE=$(printf '\xef\x92\x89')     # U+F489（F0.12 起）
 EMPTY_TABS="│ +$(printf '%123s')│"      # 34..160 列：只有 +
 
 # ---- :q 关 tab → 关 pane → 空 pane（默认布局：data 两个 tab，console 一个）
 start
 cmd q
-check ":q 关掉当前 tab，回到上一个 tab（t_user）" eval 'text_has 34 103 1 "data · t_user" && text_has 34 103 43 "1:t_user*" && ! text_has 34 103 43 t_order >/dev/null'
+check ":q 关掉当前 tab，回到上一个 tab（t_user）" eval 'text_has 34 103 1 "① $NF_DATA t_user" && text_has 34 103 43 "1:t_user*" && ! text_has 34 103 43 t_order >/dev/null'
 cmd q
-check "关掉 data 的最后一个 tab：pane 关闭，console 占满并成为 ⟨1⟩" eval '[[ $(e2e_find ┌ 1) == "1 34" && $(e2e_find ┐ 1) == "32 160" ]] && text_has 34 160 1 "⟨1⟩" && text_has 34 160 1 "console · console_1"'
+check "关掉 data 的最后一个 tab：pane 关闭，console 占满并成为 ⟨1⟩" eval '[[ $(e2e_find ┌ 1) == "1 34" && $(e2e_find ┐ 1) == "32 160" ]] && text_has 34 160 1 "① $NF_CONSOLE console_1"'
 check "console 获得焦点（focus 色边框）" style_has 34 1 fg=#9ece6a
 cmd q
-check "唯一的 pane 关掉最后一个 tab：保留为空 pane，标题只有 ⟨1⟩ <图标> console" text_is 34 51 1 "┌─ ⟨1⟩ $NF_CONSOLE console ─"
+check "唯一的 pane 关掉最后一个 tab：保留为空 pane，标题只有 ① <图标>（F0.16）" text_is 34 41 1 "┌─ ① $NF_CONSOLE ─"
 check "空 pane：内容区为空" empty_body
 check "空 pane：tab 栏只有 +，前面没有 │，右侧没有提示" text_is 34 160 43 "$EMPTY_TABS"
-check "空 pane：标题栏右侧没有任何提示（§7.8 空 pane）" eval '[[ $(e2e_text 34 160 1) == "┌─ ⟨1⟩ $NF_CONSOLE console "*"─┐" && $(e2e_text 52 160 1) =~ ^─+┐$ ]] || { echo "  title: $(e2e_text 34 160 1)"; false; }'
+check "空 pane：标题栏右侧没有任何提示（§7.8 空 pane）" eval '[[ $(e2e_text 34 160 1) == "┌─ ① $NF_CONSOLE "*"─┐" && $(e2e_text 40 160 1) =~ ^─+┐$ ]] || { echo "  title: $(e2e_text 34 160 1)"; false; }'
 check "空 pane：程序不退出" running
 cmd q
 check "空 pane 上再 :q：不退出、画面不变" eval 'running && text_is 34 160 43 "$EMPTY_TABS"'
