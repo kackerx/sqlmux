@@ -17,7 +17,7 @@ widths_are() { local got; got=$(e2e_widths | sed '/^0$/d' | sort -u | tr '\n' ' 
 start; two_tabs; two_panes
 check "titles: ⓪ <icon> public ▾ · ① <icon> t_order · ② <icon>" eval 'text_has 1 32 1 "┌─ ⓪ $NF_SCHEMA public ▾ " && text_has 34 96 1 "┌─ ① $NF_DATA t_order ─" && text_has 98 160 1 "┌─ ② $NF_DATA ─"'
 check "no data / console words in the titles" eval '[[ $(e2e_text 34 160 1) != *" data "* && $(e2e_text 34 160 1) != *"console · "* ]]'
-check "filter row: icon then the table count, no /" text_is 2 14 2 " $NF_FILTER 14 tables "
+check "filter row: icon then the table count, no /" text_is 2 13 2 " $NF_FILTER 8 tables "
 check "status bar: the palette entry is only the search icon" eval '[[ $(e2e_text 1 160 45) != *C-p* ]] && text_is $(( $(search_col) - 1 )) $(( $(search_col) + 1 )) 45 " $SEARCH_ICON "'
 e2e_click $(search_col) 45; sleep 0.3
 check "clicking the search icon opens the palette" is_open
@@ -56,7 +56,7 @@ check "sidebar 16–22 wide: ⓪ <icon> stays, the schema name shrinks to pub…
 # ---- ascii: the screen is as before F0.16
 printf 'icons = "ascii"\n' > "$D/config.toml"; start -C "$D"; two_tabs
 check "ascii: titles keep ⟨n⟩ and the type words" eval 'text_has 1 32 1 "⟨0⟩ # public ▾" && text_has 34 160 1 "⟨1⟩ = data · t_order"'
-check "ascii: the palette entry still reads ~ C-p, the filter row keeps /" eval 'text_has 1 160 45 " ~ C-p " && text_has 1 32 2 "? / 14 tables"'
+check "ascii: the palette entry still reads ~ C-p, the filter row keeps /" eval 'text_has 1 160 45 " ~ C-p " && text_has 1 32 2 "? / 8 tables"'
 
 # ---- the palette: commands only useful while editing a cell are not candidates
 start; pal '>'

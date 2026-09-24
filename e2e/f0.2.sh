@@ -41,11 +41,11 @@ check "其他 tab：dim 字、bg 底；分隔符 #2f3549" eval 'at "1:t_user-" 4
 check "tab 后有 +，右端 dim 键位提示" eval 'text_has 34 160 43 "│ +" && text_ends 34 160 43 "gt/gT │" && at "gt/gT │" 43 fg=$DIM'
 
 # ---- 侧栏内部（§7.8）
-check "过滤行：图标 U+F0B0 info 色、表数 dim（F0.16：nerd 下没有 /）" eval 'text_is 3 3 2 "$NF_FILTER" && style_has 3 2 fg=#7dcfff && text_is 4 14 2 " 14 tables " && at "14 tables" 2 fg=$DIM'
+check "过滤行：图标 U+F0B0 info 色、表数 dim（F0.16：nerd 下没有 /）" eval 'text_is 3 3 2 "$NF_FILTER" && style_has 3 2 fg=#7dcfff && text_is 4 13 2 " 8 tables " && at "8 tables" 2 fg=$DIM'
 check "分隔线 #2f3549" eval 'style_has 2 3 fg=$SEP && style_has 31 3 fg=$SEP'
-check "表项：图标 func、行数 border 色" eval 'style_has 3 4 fg=#7aa2f7 && at "124" 4 fg=$BORDER'
-check "当前表 t_order：图标 focus、整行 select 底" eval 'y=$(for y in $(seq 4 20); do [[ $(e2e_text 1 32 $y) == *" t_order "* ]] && echo $y && break; done); style_has 3 $y fg=$FOCUS && style_has 2 $y bg=#364a82 && style_has 31 $y bg=#364a82'
-check "提示行：键名 focus 粗体、说明 dim" eval 'at "j/k" 43 fg=$FOCUS && at "j/k" 43 bold && at "move" 43 fg=$DIM'
+check "表项：图标 func、行数 border 色" eval 'style_has 3 4 fg=#7aa2f7 && at "400" 8 fg=$BORDER'
+check "当前表 t_order（F1.2：与光标行分开画）：图标和表名 focus 色，行不是 select 底" eval 'y=$(for y in $(seq 4 20); do [[ $(e2e_text 1 32 $y) == *" t_order "* ]] && echo $y && break; done); style_has 3 $y fg=$FOCUS && at t_order $y fg=$FOCUS && style_has 2 $y bg=$PANE_BG && style_has 31 $y bg=$PANE_BG'
+check "提示行（F1.2：hintRow）：全部 dim 色，· 分隔" eval 'text_is 1 32 43 "│ j/k move · ↵ open · t tab    │" && at "j/k" 43 fg=$DIM && at "move" 43 fg=$DIM && at "↵ open" 43 fg=$DIM'
 
 # ---- 80x24：侧栏 24 列、截断、不越界
 start -x 80 -y 24

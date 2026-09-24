@@ -10,11 +10,12 @@ H() { e2e_flag pane_height; }
 # column where each list row's location starts (the second column after the icon)
 loc_cols() {
   local t l s1 s2; t=$(top); l=$(left); read s1 s2 <<<"$(seps)"
-  e2e_rows $((l + 4)) $(( $(right) - 1 )) $((s1 + 1)) $((s2 - 1)) $((l + 2)) | python3 -c '
+  e2e_rows $((l + 4)) $(( $(right) - 1 )) $((s1 + 1)) $((s2 - 1)) $((l + 2)) | python3 -B -c '
 import re, sys
+sys.path.insert(0, sys.argv[1]); from cells import cells_of
 for r in sys.stdin:
     m = re.search(r"\S( {2,})\S", r.split("|")[0])    # end of the name column: the first run of 2+ spaces
-    print(m.end(1) if m else -1)' | sort -u | tr '\n' ' '
+    print(sum(w for _, w in cells_of(r[:m.end(1)])) if m else -1)' "$E2E_ROOT/e2e" | sort -u | tr '\n' ' '
 }
 
 # ---- size and position: width min(100, W-4), centred, top at (H-1)/6, at most 12 rows
