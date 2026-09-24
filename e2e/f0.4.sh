@@ -32,7 +32,7 @@ cmd q
 check "唯一的 pane 关掉最后一个 tab：保留为空 pane，标题只有 ① <图标>（F0.16）" text_is 34 41 1 "┌─ ① $NF_CONSOLE ─"
 check "空 pane：内容区为空" empty_body
 check "空 pane：tab 栏只有 +，前面没有 │，右侧没有提示" text_is 34 160 43 "$EMPTY_TABS"
-check "空 pane：标题栏右侧没有任何提示（§7.8 空 pane）" eval '[[ $(e2e_text 34 160 1) == "┌─ ① $NF_CONSOLE "*"─┐" && $(e2e_text 40 160 1) =~ ^─+┐$ ]] || { echo "  title: $(e2e_text 34 160 1)"; false; }'
+check "空 pane：标题栏右侧没有任何提示（§7.8 空 pane）" eval '[[ $(e2e_text 34 160 1) == "┌─ ① $NF_CONSOLE "*"─┐" && $(e2e_text 41 160 1) =~ ^─+┐$ ]] || { echo "  title: $(e2e_text 34 160 1)"; false; }'
 check "空 pane：程序不退出" running
 cmd q
 check "空 pane 上再 :q：不退出、画面不变" eval 'running && text_is 34 160 43 "$EMPTY_TABS"'

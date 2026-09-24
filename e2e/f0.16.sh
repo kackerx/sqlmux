@@ -49,9 +49,9 @@ NAME=public ok=1
 for w in 22 20 19 18 17 16; do
   e2e_down $(( $(side_w) + 1 )) 20; e2e_drag_to $(( w + 1 )) 20; e2e_up $(( w + 1 )) 20; sleep 0.3
   t=$(e2e_text 1 "$(side_w)" 1); exp=$(want_title "$(side_w)")
-  [[ $t == "$exp"* && $t == *┐ ]] || { echo "  width $(side_w): '$t', want it to start with '$exp'"; ok=0; }
+  [[ $t == "$exp"* && $t == *┐ && $t != *SPC* ]] || { echo "  width $(side_w): '$t', want it to start with '$exp' and no SPC b"; ok=0; }
 done
-check "sidebar 16–22 wide: ⓪ <icon> stays, the schema name shrinks to pub… ▾" test $ok = 1
+check "sidebar 16–22 wide: ⓪ <icon> stays, the schema name shrinks to pub… ▾, SPC b gives way first" test $ok = 1
 
 # ---- ascii: the screen is as before F0.16
 printf 'icons = "ascii"\n' > "$D/config.toml"; start -C "$D"
