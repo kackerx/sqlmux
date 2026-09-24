@@ -26,7 +26,7 @@ for s in "160 45" "100 30" "60 20"; do
   # "1/4 of the window": the window is the area above the status bar, H-1 rows
   check "${SW}x$SH: width $w, centered, top at row $(( (SH - 1) / 6 + 1 ))" eval '[[ $(top) == $(( (SH - 1) / 6 + 1 )) && $(left) == $(( (SW - w) / 2 + 1 )) ]] && [[ $(e2e_text $(( (SW - w) / 2 + w )) $(( (SW - w) / 2 + w )) $(top)) == ┐ ]]'
 done
-start; pal
+start; two_panes; pal   # F1.1: ① | ② in place of M0's data | console
 check "empty input: at most 12 rows" eval '(( $(nrows) == 12 ))'
 e2e_type '>'; sleep 0.3   # a command selected (F0.14: a window row would say ↵ 切换)
 check "footer: ↑/↓ 移动 · … esc 关闭 … ↵ 执行" eval '[[ $(footer) == " ↑/↓ 移动 · "*"esc 关闭"*"↵ 执行 " ]]'
@@ -42,10 +42,10 @@ check "the action id is dim" eval 'y=$(row_y 1); c=$(e2e_find pane.split.below $
 check "matched characters get a warn background" eval 'y=$(row_y 1); c=$(e2e_find pane.split.below $y); style_has $((c + 5)) $y bg=#e0af68 && style_has $((c + 9)) $y bg=#e0af68 && ! style_has $((c + 1)) $y bg=#e0af68 >/dev/null'
 e2e_keys Enter; sleep 0.3
 check "↵ runs the selected command (split below) and closes" eval 'closed && [[ $(e2e_panes | awk "{printf \"%s \", \$1}") == "0 1 3 2 " ]]'
-start; pal resize
+start; two_panes; pal resize
 check "resize: 4 commands, no keys in the right column" eval '(( $(nrows) == 4 )) && [[ $(list | cut -d"|" -f1 | grep -cE "pane\.resize\.[a-z]+( +命令)?$") == 4 ]]'
 clear_input; e2e_type resize.left; sleep 0.3; e2e_keys Enter; sleep 0.3
-check "↵ runs an unbound command (resize left: data 70 → 64 columns)" eval '[[ $(e2e_panes | awk "\$1 == 1 { print \$4 }") == 64 ]]'
+check "↵ runs an unbound command (resize left: ① 63 → 57 columns)" eval '[[ $(e2e_panes | awk "\$1 == 1 { print \$4 }") == 57 ]]'
 
 # ---- smartcase
 pal limit; check "all-lowercase is case-insensitive: limit finds LIMIT" row_has "LIMIT  grid.limit"
@@ -55,13 +55,13 @@ clear_input; e2e_type SPLIT; sleep 0.3; check "SPLIT (has uppercase) is case-sen
 e2e_keys Escape; sleep 0.2
 
 # ---- : opens the command scope; ex aliases
-start
+start; two_tabs
 e2e_type ':'; sleep 0.3
 check ": opens the palette with > already typed" input_is '>'
 e2e_type q; sleep 0.3
 check ":q ranks 关闭 tab first" eval '[[ $(selected) == "关闭 tab  tab.close"* ]]'
 e2e_keys Enter; sleep 0.3
-check ":q↵ closes the current tab (t_order → t_user)" eval 'closed && text_has 34 103 1 " t_user ─"'
+check ":q↵ closes the current tab (t_order → t_user)" eval 'closed && text_has 34 160 1 " t_user ─"'
 e2e_type ':qa'; sleep 0.3
 check ":qa ranks 退出 first" eval '[[ $(selected) == "退出  quit"* ]]'
 e2e_keys Enter
@@ -85,7 +85,7 @@ check "after toggling from a scrolled list, the selected row is still visible" e
 e2e_keys Enter; sleep 0.3; e2e_keys Escape; sleep 0.2
 
 # ---- mouse: hover selects, click runs, click outside / footer
-start; pal split
+start; two_panes; pal split
 y=$(row_y 2); e2e_move 60 $y; sleep 0.3
 check "hover moves the selection" eval '[[ $(selected) == 左右分割* ]]'
 e2e_click 60 $y; sleep 0.3
@@ -94,7 +94,7 @@ pal; e2e_click 5 5; sleep 0.3
 check "click outside closes" closed
 pal split; y=$(foot_y); c=$(e2e_find "esc 关闭" $y); e2e_click $c $y; sleep 0.3
 check "click esc 关闭 in the footer closes" closed
-start; pal split; y=$(foot_y); c=$(e2e_find "↵ 执行" $y); e2e_click $c $y; sleep 0.3
+start; two_panes; pal split; y=$(foot_y); c=$(e2e_find "↵ 执行" $y); e2e_click $c $y; sleep 0.3
 check "click ↵ 执行 in the footer runs the selection" eval 'closed && (( $(e2e_panes | wc -l) == 4 ))'
 
 # ---- the input: grapheme backspace, visible cursor, long input

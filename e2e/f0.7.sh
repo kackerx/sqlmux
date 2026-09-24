@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # F0.7 布局树与 pane 操作（键盘）（specs/m0-skeleton/task.md F0.7；tech-design §5「布局树」、§7.8）
 # 鼠标操作属于 F0.8。
+# F1.1 起默认只有一个 data pane：two_panes 分出 ① | ② 代替 M0 的 data | console（127 列的主区域各占 63 列）。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 
@@ -24,19 +25,19 @@ width_of() { local g; g=($(geom "$1")); echo "${g[2]}"; }
 NF_DATA=$(printf '\xef\x87\x80')   # U+F1C0
 
 # ---- 分割（§5）：同类型的空 pane，获得焦点，按树的遍历顺序编号
-start
+start; two_panes
 L '"'
-check 'SPC "：data 上下分割，⟨1⟩ data / ⟨2⟩ data（新）/ ⟨3⟩ console' eval 'geom_is 1 "34 1 70 22" && geom_is 2 "34 23 70 22" && geom_is 3 "105 1 56 44"'
+check 'SPC "：⟨1⟩ 上下分割，⟨1⟩ / ⟨2⟩（新）/ 右边的 ⟨3⟩' eval 'geom_is 1 "34 1 63 22" && geom_is 2 "34 23 63 22" && geom_is 3 "98 1 63 44"'
 check "新 pane 是同类型的空 pane，标题只有 ② <图标>（F0.16）" eval '[[ $(title_of 2) == "┌─ ② $NF_DATA ─"*"─┐" ]] && empty_pane 2'
 check "新 pane 获得焦点" focus_is 2
-start
+start; two_panes
 L %
-check "SPC %：左右分割，⟨1⟩ data / ⟨2⟩ data（新）/ ⟨3⟩ console，新 pane 聚焦" eval 'geom_is 1 "34 1 35 44" && geom_is 2 "70 1 34 44" && geom_is 3 "105 1 56 44" && focus_is 2 && empty_pane 2'
+check "SPC %：左右分割，⟨1⟩ / ⟨2⟩（新）/ 右边的 ⟨3⟩，新 pane 聚焦" eval 'geom_is 1 "34 1 31 44" && geom_is 2 "66 1 31 44" && geom_is 3 "98 1 63 44" && focus_is 2 && empty_pane 2'
 
 # ---- 按方向切焦点（§5）：相邻且有重叠；多个候选时选最近获得过焦点的；到边上不绕回
-start_keys
+start_keys; two_panes
 L '"'                                   # ⟨1⟩ 左上、⟨2⟩ 左下（新，聚焦）、⟨3⟩ 右
-key C-l; check "左下 C-l → 右边的 console ⟨3⟩" focus_is 3
+key C-l; check "左下 C-l → 右边的 ⟨3⟩" focus_is 3
 key C-h; check "再 C-h：回到刚离开的左下 ⟨2⟩" focus_is 2
 key C-k; check "C-k → 上面的 ⟨1⟩" focus_is 1
 key C-l; key C-h; check "从左上 C-l 再 C-h：回到左上 ⟨1⟩" focus_is 1
@@ -48,78 +49,78 @@ L h; check "（config 绑定）SPC h 与 C-h 相同（回到最近用过的 ⟨2
 key C-j; check "最下面再 C-j：焦点不动（不绕回）" focus_is 2
 key C-k; key C-k; check "最上面再 C-k：焦点不动" focus_is 1
 key C-l; key C-l; check "最右边再 C-l：焦点不动" focus_is 3
-key C-h; key C-h; check "左边的 data 再 C-h → 侧栏 ⟨0⟩" focus_is 0
+key C-h; key C-h; check "左边的 pane 再 C-h → 侧栏 ⟨0⟩" focus_is 0
 key C-h; check "侧栏再 C-h：焦点不动" focus_is 0
 e2e_click 60 30; sleep 0.3; key C-l; key C-h
 check "鼠标点过的 ⟨2⟩ 也算最近获得焦点：C-l 再 C-h 回到 ⟨2⟩" focus_is 2
 L q; e2e_type 1; sleep 0.3; key C-l; key C-h
 check "SPC q 跳过的 ⟨1⟩ 也算：C-l 再 C-h 回到 ⟨1⟩" focus_is 1
-key C-l; L '"'                          # console 分成 ⟨3⟩ 上、⟨4⟩ 下（新，聚焦）
+key C-l; L '"'                          # 右边分成 ⟨3⟩ 上、⟨4⟩ 下（新，聚焦）
 L K; L K; L K                           # 右边的分界线上移 15%：⟨4⟩ 同时和左边的 ⟨1⟩、⟨2⟩ 相邻
 key C-h; check "右下 ⟨4⟩ C-h：左边两个候选里回到最近用过的 ⟨1⟩" focus_is 1
 key C-l; check "左上 C-l：去最近用过的右边 pane ⟨4⟩，而不是重叠更长的 ⟨3⟩" focus_is 4
 
 # ---- 关闭（§5）：兄弟 pane 占满；侧栏和唯一的 pane 关不掉
-start
+start; two_panes
 L '"'; L x
-check "SPC x：关掉新 pane，⟨1⟩ data 恢复原来的大小" eval 'geom_is 1 "34 1 70 44" && [[ $(nums) == "0 1 2 " ]]'
+check "SPC x：关掉新 pane，⟨1⟩ 恢复原来的大小" eval 'geom_is 1 "34 1 63 44" && [[ $(nums) == "0 1 2 " ]]'
 L x
-check "关掉 data：console 占满主区域并获得焦点" eval 'geom_is 1 "34 1 127 44" && focus_is 1 && [[ $(title_of 1) == *console* ]]'
+check "关掉 ⟨1⟩：兄弟 pane 占满主区域并获得焦点" eval 'geom_is 1 "34 1 127 44" && focus_is 1'
 L x
 check "唯一的 pane：SPC x 不关闭" eval 'geom_is 1 "34 1 127 44" && flag_is alternate_on 1'
 key C-h; L x
 check "侧栏：SPC x 不关闭" eval 'geom_is 0 "1 1 32 44" && focus_is 0'
 
 # ---- 缩放（§5 / P-03）：占满状态栏以上的整个区域，侧栏也被盖住；再按还原
-start
+start; two_panes
 L z
 check "SPC z：⟨1⟩ 占满 160×44，侧栏不画" eval 'geom_is 1 "1 1 160 44" && [[ $(nums) == "1 " ]]'
 L z
-check "再 SPC z：还原" eval '[[ $(nums) == "0 1 2 " ]] && geom_is 1 "34 1 70 44" && focus_is 1'
+check "再 SPC z：还原" eval '[[ $(nums) == "0 1 2 " ]] && geom_is 1 "34 1 63 44" && focus_is 1'
 L z; L '"'; check "缩放中分割：退出缩放，照常分割" eval '[[ $(nums) == "0 1 3 2 " ]] && focus_is 2'
-L z; L x; check "缩放中关闭：退出缩放，照常关闭" eval '[[ $(nums) == "0 1 2 " ]] && geom_is 1 "34 1 70 44"'
+L z; L x; check "缩放中关闭：退出缩放，照常关闭" eval '[[ $(nums) == "0 1 2 " ]] && geom_is 1 "34 1 63 44"'
 L z; L q; e2e_type 2; sleep 0.3; check "缩放中按编号跳转：退出缩放，跳到 ⟨2⟩" eval '[[ $(nums) == "0 1 2 " ]] && focus_is 2'
-start
+start; two_tabs; two_panes              # ⟨1⟩ 有 t_user、t_order 两个 tab
 L z; e2e_type ':q'; e2e_keys Enter; sleep 0.3; e2e_type ':q'; e2e_keys Enter; sleep 0.3
-check "回归：缩放中用 :q 关掉 data 的最后一个 tab，画面正常、console 占满" eval '[[ $(nums) == "0 1 " ]] && geom_is 1 "34 1 127 44" && [[ $(title_of 1) == *console* ]]'
+check "回归：缩放中用 :q 关掉 ⟨1⟩ 的最后一个 tab，画面正常、⟨2⟩ 占满" eval '[[ $(nums) == "0 1 " ]] && geom_is 1 "34 1 127 44" && [[ $(title_of 1) != *t_* ]]'
 
 # ---- 调整大小（§5）：每次 5%，次数前缀，10%–90%；方向与 tmux resize-pane 相同（F0.11 起用 config 绑定的 SPC HJKL）
-start_keys
-check "准备：data 70 列（主区域 127 列）" eval '[[ $(width_of 1) == 70 ]]'
-L H; check "SPC H：分割线左移约 5%（6 列）" eval '[[ $(width_of 1) == 64 ]]'
-L L; check "SPC L：移回" eval '[[ $(width_of 1) == 70 ]]'
-e2e_type 3; L H; check "3 SPC H：一次左移约 15%" eval '[[ $(width_of 1) == 51 ]]'
+start_keys; two_panes
+check "准备：⟨1⟩ 63 列（主区域 127 列）" eval '[[ $(width_of 1) == 63 ]]'
+L H; check "SPC H：分割线左移约 5%（6 列）" eval '[[ $(width_of 1) == 57 ]]'
+L L; check "SPC L：移回" eval '[[ $(width_of 1) == 63 ]]'
+e2e_type 3; L H; check "3 SPC H：一次左移约 15%" eval '[[ $(width_of 1) == 44 ]]'
 for i in $(seq 20); do L H; done
 check "一直 SPC H：停在 10%" eval '(( $(width_of 1) * 100 / 127 == 10 ))'
 for i in $(seq 25); do L L; done
 check "一直 SPC L：停在 90%" eval 'w=$(width_of 1); (( (w + 1) * 100 / 127 >= 89 && w * 100 / 127 <= 90 ))'
-start_keys
+start_keys; two_panes
 key C-l; L H
-check "焦点在右边的 console 时 SPC H 也是分割线左移（与 tmux 相同）" eval '[[ $(width_of 1) == 64 ]]'
+check "焦点在右边的 ⟨2⟩ 时 SPC H 也是分割线左移（与 tmux 相同）" eval '[[ $(width_of 1) == 57 ]]'
 L J; check "没有上下分割时 SPC J 不起作用" eval '[[ $(e2e_panes | awk "{print \$5}" | sort -u) == 44 ]]'
 key C-h; L '"'; L J
-check "上下分割后 SPC J：分割线下移" eval 'geom_is 2 "34 25 64 20"'
-L K; L K; check "SPC K ×2：分割线上移" eval 'geom_is 2 "34 21 64 24"'
+check "上下分割后 SPC J：分割线下移" eval 'geom_is 2 "34 25 57 20"'
+L K; L K; check "SPC K ×2：分割线上移" eval 'geom_is 2 "34 21 57 24"'
 
 # ---- 按编号跳转（§5）：编号一直显示；数字跳转；其他键只关闭编号
-start
+start; two_panes
 L q
-check "SPC q：每个 pane 中央显示编号（侧栏为 0）" eval '[[ $(e2e_text 16 16 23) == 0 && $(e2e_text 68 68 23) == 1 && $(e2e_text 132 132 23) == 2 ]]'
-sleep 2; check "编号不会自动消失" eval '[[ $(e2e_text 132 132 23) == 2 ]]'
-e2e_type 2; sleep 0.3; check "按 2：跳到 ⟨2⟩，编号消失" eval 'focus_is 2 && [[ $(e2e_text 132 132 23) != 2 ]]'
+check "SPC q：每个 pane 中央显示编号（侧栏为 0）" eval '[[ $(e2e_text 16 16 23) == 0 && $(e2e_text 65 65 23) == 1 && $(e2e_text 129 129 23) == 2 ]]'
+sleep 2; check "编号不会自动消失" eval '[[ $(e2e_text 129 129 23) == 2 ]]'
+e2e_type 2; sleep 0.3; check "按 2：跳到 ⟨2⟩，编号消失" eval 'focus_is 2 && [[ $(e2e_text 129 129 23) != 2 ]]'
 L q; e2e_type 0; sleep 0.3; check "SPC q 0：跳到侧栏" focus_is 0
 L q; e2e_type 7; sleep 0.3; check "不存在的编号：焦点不动" focus_is 0
 L q; e2e_type ':'; sleep 0.3
 check "按其他键（:）：只关闭编号，不打开命令行" eval 'focus_is 0 && [[ $(e2e_text 16 16 23) != 0 ]] && [[ $(e2e_text 1 160 45) != *COMMAND* ]]'
 
 # ---- 折叠侧栏（§7.8）：3 列细栏，» 加竖排 schema · SPC b；再按恢复
-start
+start; two_panes
 L b
-check "SPC b：侧栏折叠成 3 列宽的细栏" eval '[[ $(e2e_text 1 3 1) == "┌─┐" && $(e2e_text 1 3 44) == "└─┘" ]] && geom_is 1 "5 1 86 44"'
+check "SPC b：侧栏折叠成 3 列宽的细栏" eval '[[ $(e2e_text 1 3 1) == "┌─┐" && $(e2e_text 1 3 44) == "└─┘" ]] && geom_is 1 "5 1 78 44"'
 check "细栏：顶部 »，下面竖排 schema · SPC b" eval 's=""; for y in $(seq 2 16); do s+=$(e2e_text 2 2 $y); done; [[ $s == "»schema · SPC b" ]] || { echo "  got: $s"; false; }'
 key C-h; check "折叠后 C-h 进不去侧栏" focus_is 1
 L q; e2e_type 0; sleep 0.3; check "折叠后 SPC q 0 也跳不过去" focus_is 1
-L b; check "再 SPC b：恢复 32 列" eval 'geom_is 0 "1 1 32 44" && geom_is 1 "34 1 70 44"'
+L b; check "再 SPC b：恢复 32 列" eval 'geom_is 0 "1 1 32 44" && geom_is 1 "34 1 63 44"'
 key C-h; L b; check "焦点在侧栏时折叠：焦点移到主区域" eval '[[ $(focused) == 1 ]]'
 
 e2e_done
