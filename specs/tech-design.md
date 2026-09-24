@@ -593,7 +593,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
   - **ORDER**（`go`）：通用下拉框列出所有列，第一项「默认」即按行标识列排。在当前排序列上按 `↵` 翻转方向，在别的列上按 `↵` 按它升序；只支持单列（Q-03）。SQL 为 `ORDER BY <列> <方向>, <行标识列>`，行标识列作 tiebreaker 保证分页稳定，选的就是行标识列时不重复。换了排序后回到第 1 页（和 LIMIT 一样）。chip 默认显示行标识列 `id ↑`，没有行标识列时显示 `—`。
   - **LIMIT**（`gl`）：同一个下拉框，100 / 500 / 1000，换了之后回到第 1 页。
   - **PAGE**（`gp`）：chip 原地变成页码输入框 `PAGE [3_]/60`（INSERT），`↵` 跳页（超出范围夹到边界），`esc` 放弃。总页数在计数未知时是 `?`，估计值加 `~`。`]` / `[` 翻页：已是最后一页（没有下一页）时 `]` 不起作用，第 1 页时 `[` 不起作用。翻页后光标的行、列保留，夹在新页范围内。
-  - **COLS**（`gc`）：打开时焦点在列表上：`j` / `k` 移动、`space` 勾选、`a` / `A` 全选 / 全不选、`esc` 先清空过滤再关闭；`/` 进过滤框（INSERT），`↵` 或 `esc` 回列表，过滤文字保留。每行 `[x] 列名  类型` 加主键标记，顶部显示匹配数。隐藏的列按 tab 记住；隐藏的正好是光标所在列时，光标挪到最近的可见列。chip 显示 `可见列数/总列数`。键位在 `[keys.cols]`。
+  - **COLS**（`gc`）：打开时焦点在列表上：`j` / `k` 移动、`space` 勾选、`a` / `A` 全选 / 全不选、`esc` 先清空过滤再关闭；`/` 进过滤框（模式仍是 COMMAND），`↵` 或 `esc` 回列表，过滤文字保留。每行 `[x] 列名  类型` 加主键标记，顶部显示匹配数。隐藏的列按 tab 记住；隐藏的正好是光标所在列时，光标挪到最近的可见列。chip 显示 `可见列数/总列数`。键位在 `[keys.cols]`。
   - **WHERE**：`↵` 应用输入、回到第 1 页、重新取数和计数、焦点回表格；`esc` 回表格，输入框恢复成当前生效的那条，所以输入框显示的总是正在生效的条件。报错显示在 pane 内容区第一行（§7.6），查询条仍在上面，方便改了再执行。
   - **`R`**（`grid.refresh`）：按当前 WHERE / ORDER / LIMIT / PAGE 重新取当前页并重新计数。
 - **tab 栏**：
@@ -625,7 +625,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
     5. 截短 session 名。
 
     始终保留的是：session 块（名称可以被截短）、当前 window、`C-p` 入口、待输入序列、模式块。
-- **COMMAND 模式**：命令面板打开时，模式块显示 COMMAND。状态栏里不再有命令行：M0 用户体验后改由命令面板取代（§12），`:` 打开面板的命令范围。
+- **COMMAND 模式**：命令面板打开时，模式块显示 COMMAND；接管按键的浮层（schema / ORDER / LIMIT 下拉、COLS 列表）打开时也是 COMMAND，不论焦点在列表还是过滤框，因为它们和面板一样把 normal 作用域的键（leader、`C-hjkl`）挡在浮层外，不另设模式名；keymap 里 COMMAND 和 INSERT 一样算「在打字」，没绑定的可打印字符照样进过滤框。which-key 不算：它不是作用域（§6.5），弹出时序列还没按完，剩下的键仍在 normal 里解析，所以照旧显示 NORMAL。状态栏里不再有命令行：M0 用户体验后改由命令面板取代（§12），`:` 打开面板的命令范围。
 - **toast**：显示在状态栏上方一行的右侧，默认 3 秒后消失；「再按一次 C-c 退出」这一条显示 2 秒，正好是连按的窗口（§6.8）。样式为 `warn` 色字、#292e42 底、左右各留 1 列。设计稿里没有 toast，这个样式是后定的。加底色是因为那一行正好是 pane 的下边框，不加底色，文字会和边框混在一起。data pane 中保存 / 刷新的结果按 Q-06 的要求显示在查询条的右侧，不通过 toast 显示。
 
 ## 8. 数据访问
@@ -685,7 +685,7 @@ type Result struct {
 - **取消**：连接忙碌时（`Main` 上的 console 执行，或 `Meta` 上的表格取数），状态栏在模式块左边显示 ` busy · C-c 取消 `（`warn` 色，键位文字从 keymap 读），点击执行 Action `cancel`。`C-c` 在本 session 有请求执行中时取消它，空闲时照旧是连按两次退出（§6.8）。取消后 toast 显示「查询已取消」，tab 保留之前的数据，第一次打开就是空表。
   - PG：取消请求的 ctx。pgconn 默认的 `DeadlineContextWatcherHandler` 会在 context 取消时给连接设 deadline，连接随之断开。每个 session 只有两条长连接，所以改用 `CancelRequestContextWatcherHandler`，由它发 CancelRequest，取消之后连接还能继续用。`DeadlineDelay` 取 5s：取消发出 5 秒后服务端还没停，就断开连接；断开的连接不自动重连，M1 不做，代码里用 `ponytail:` 注释标出。
   - MySQL（M5）：`Query` 自己监听 ctx，取消时另开一条临时连接执行 `KILL QUERY <connection_id>`，id 在建连时记录。只取消 context 的话，驱动会关掉连接，但服务端上的查询会继续跑。
-- **超时**：建连 10s。计数查询 3s，用 ctx 超时实现：取消由 `CancelRequestContextWatcherHandler` 发出，返回 ErrCanceled 后显示 `?`。不用 `SET LOCAL statement_timeout`：那要 begin / set / count / rollback 四次往返，且必须在 Worker 同一把锁里执行，否则别的请求会插进事务，等于要给 Worker 加 Tx；ctx 的做法引擎无关，MySQL 也能用。计数用 `tea.Sequence` 排在取数之后，3s 从页面数据回来后才开始算；计数不算 busy，不显示忙碌提示。
+- **超时**：建连 10s。计数查询 3s，用 ctx 超时实现：取消由 `CancelRequestContextWatcherHandler` 发出，返回 `context.DeadlineExceeded` 后显示 `?`（用户按 `C-c` 取消返回的是 `context.Canceled`）。不用 `SET LOCAL statement_timeout`：那要 begin / set / count / rollback 四次往返，且必须在 Worker 同一把锁里执行，否则别的请求会插进事务，等于要给 Worker 加 Tx；ctx 的做法引擎无关，MySQL 也能用。计数用 `tea.Sequence` 排在取数之后，3s 从页面数据回来后才开始算；计数不算 busy，不显示忙碌提示。
 - **过期响应**：每个 tab 维护一个递增的 `seq`，请求时带上。结果回来时 `seq` 已经不是最新的就丢弃，避免快速翻页时旧结果覆盖新结果。
 
 ### 8.4 元数据
@@ -742,7 +742,7 @@ catalog 按 session 缓存。console 执行 DDL 后（由 §9.3 的判定得知�
 - **入口**：console pane 标题的右侧显示 `doraemon.public ▾`，位于 `▶ run ↵` 旁边。
   - 点击它，或在 console 的 NORMAL 模式下按 `gs`，打开 schema 下拉框。
   - 下拉框列出当前库的 schema，系统 schema（`pg_catalog`、`information_schema` 等）不列出。顶部有过滤输入框，支持模糊匹配（§9.7）。
-  - 下拉框照命令面板的做法：打开后输入直接进过滤框（INSERT），`C-n` / `C-p` / `↑` / `↓` 移动，`↵` 选中，`esc` 关闭；`j` / `k` 会被当成输入，所以不用。鼠标：点选，点浮层外部关闭，悬停 `row` 底。
+  - 下拉框照命令面板的做法：打开后输入直接进过滤框（模式为 COMMAND，§7.8），`C-n` / `C-p` / `↑` / `↓` 移动，`↵` 选中，`esc` 关闭；`j` / `k` 会被当成输入，所以不用。鼠标：点选，点浮层外部关闭，悬停 `row` 底。
   - 位置在入口（侧栏标题或 console 标题的 schema 按钮）下方、与入口左对齐，宽度取 max(最长 schema 名 + 边距, 入口所在栏的右边界 − 入口起点 x)，这样右边框和所在栏的右边框对齐；仍放不下时向左移。当前所在的 schema 用 `pk` 色标出（§7.3 里 pk 也用于 schema 值）。键位在 `[keys.dropdown]`，Action 为 `dropdown.up` / `dropdown.down` / `dropdown.select` / `dropdown.close`，ORDER、LIMIT 下拉框共用（F1.2 时叫 `schema.*`，F1.4 改名），只在浮层里用，不带标题。
   - 树上选中之后：树切到新 schema，光标回到第一项，过滤清空，侧栏标题跟着变。组件放在 `ui` 里，M1 先给树用，console 复用。
   - 命令面板里也有对应的「Switch schema…」命令。
