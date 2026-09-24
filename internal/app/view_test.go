@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"sqlmux/internal/config"
@@ -26,7 +26,7 @@ func TestFocusColors(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	f, rects := a.render(), a.layout()
 	th := ui.TokyonightStorm
-	if th.Focus != lipgloss.Color("#9ece6a") {
+	if th.Focus != ansi.XParseColor("#9ece6a") {
 		t.Fatalf("focus token = %v", th.Focus)
 	}
 	for id, want := range map[int][2]color.Color{
