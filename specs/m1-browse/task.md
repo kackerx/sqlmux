@@ -16,7 +16,7 @@
 
 ---
 
-## F1.1 测试数据库与连接 · 状态：reviewing
+## F1.1 测试数据库与连接 · 状态：testing
 
 - **依赖**：M0
 - **涉及**：`docker-compose.yml`、`testdata/seed/pg.sql`、`internal/db`（Conn、Worker、postgres）、`internal/config`（connections.toml）
