@@ -33,7 +33,7 @@ e2e_start() {
   while [[ $1 == -[xykcC] ]]; do
     case $1 in -x) w=$2; shift ;; -y) h=$2; shift ;; -c) conf=$2; shift ;; -C) confdir=$2; shift ;; -k) keys=on ;; esac; shift
   done
-  e2e_stop
+  _e2e_kill
   E2E_TMP=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e.XXXXXX")
   mkdir -p "$E2E_TMP"/{config/sqlmux,state,data}
   (umask 077; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s"\n' "$SQLMUX_TEST_PG" >"$E2E_TMP/config/sqlmux/connections.toml")
@@ -45,10 +45,23 @@ e2e_start() {
     -e E2E_CMD="$1" 'sh -c '\''export TERM=xterm-256color; eval "$E2E_CMD"; echo "[e2e-exit $?]"; exec sh'\'''
 }
 
-e2e_stop() {
+_e2e_kill() {
   local sock; sock=$(t display -p '#{socket_path}' 2>/dev/null)
   t kill-server 2>/dev/null; [[ -n $sock ]] && rm -f "$sock"   # tmux leaves the socket file
   [[ -n $E2E_TMP ]] && rm -rf "$E2E_TMP"; E2E_TMP=
+}
+# e2e_stop: what every script's EXIT trap runs — the tmux server, and e2e_own_db's database.
+e2e_stop() {
+  _e2e_kill
+  [[ -n $E2E_DB ]] && PGOPTIONS="-c client_min_messages=warning" psql "$SQLMUX_TEST_PG" -qAt -c "drop database if exists sqlmux_e2e_$$ with (force)"; E2E_DB=
+}
+
+# e2e_own_db: a private copy of the seed, sqlmux_e2e_<pid>, for tests that lock tables or write
+# (AGENTS.md「集成测试环境」: the shared sqlmux database stays read-only). E2E_DB is its DSN.
+e2e_own_db() {
+  E2E_DB=$(python3 -c 'import sys, urllib.parse as u; print(u.urlsplit(sys.argv[1])._replace(path="/" + sys.argv[2]).geturl())' "$SQLMUX_TEST_PG" "sqlmux_e2e_$$")
+  PGOPTIONS="-c client_min_messages=warning" psql "$SQLMUX_TEST_PG" -qAt -c "drop database if exists sqlmux_e2e_$$ with (force)" -c "create database sqlmux_e2e_$$" &&
+    psql "$E2E_DB" -q -v ON_ERROR_STOP=1 -f "$E2E_ROOT/testdata/seed/pg.sql" >/dev/null
 }
 
 e2e_keys() { t send-keys -t t "$@"; }          # tmux key names: C-c Escape Enter Space ...
@@ -120,6 +133,10 @@ two_tabs() { local t; for t in "@t_user Enter" "@t_order C-t"; do e2e_keys C-p; 
 # two_panes: split the focused pane right (SPC %) and move back — "① | ②" side by side with ① focused,
 # in place of M0's data | console.
 two_panes() { e2e_keys Space; e2e_type %; sleep 0.3; e2e_keys C-h; sleep 0.3; }
+# grid_y: the row of the first table's header rule (┼); its header is one above, its first data row one below.
+grid_y() { e2e_plain | awk '/┼/ { print NR; exit }'; }
+# open_table NAME: open a table from the palette into the focused data pane (↵) and wait for its grid.
+open_table() { e2e_keys C-p; sleep 0.3; e2e_type "@$1"; sleep 0.3; e2e_keys Enter; wait_for 5 eval '[[ -n $(grid_y) && $(e2e_plain | head -1) == *" $1 ─"* ]]'; }
 focused() { e2e_panes | awk '$6 == 1 && $1 != "-" { print $1 }'; }   # the focused pane's number (a folded strip or the palette box has none)
 palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }
 
