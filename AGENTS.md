@@ -198,7 +198,8 @@ sqlmux/
 
 **pruner 的规则**：
 
-- **什么时候干活**：里程碑的 feature 和改进项全部 `passed` 之后、最终回归之前。这段时间 worker 不写代码，main 只由 pruner 提交。
+- **什么时候干活**：第 1 步的只读审计可以在最后几个 feature 测试期间提前开始；动手提交要等里程碑的 feature 和改进项全部 `passed` 之后、最终回归之前。这段时间 worker 不写代码，main 只由 pruner 提交。
+- **不碰 `e2e/`**：那是 tester 的目录。觉得 e2e 脚本需要精简的，发给 tester。
 - **每个里程碑新开一个会话**（名为 `sqlmux-pruner`），不需要 worker 交接。
   - 从本文件、`specs/`、代码和 git 历史读起；
   - 决策者会在开工消息里给出这个里程碑的起点 commit，以及还没处理的审查「建议」。

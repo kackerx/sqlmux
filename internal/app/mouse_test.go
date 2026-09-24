@@ -244,3 +244,27 @@ func TestSidebarSchemaTitle(t *testing.T) {
 		t.Error("clicking the title focuses the sidebar (tree.schema itself is M1's)")
 	}
 }
+
+// A narrow sidebar keeps ⓪ <icon> and cuts the schema before it gives up
+// SPC b's room (§7.8); ascii at 24 columns still reads public ▾ whole.
+func TestSidebarTitleNarrow(t *testing.T) {
+	sch := ui.NerdIcons.Schema.Text
+	for _, c := range []struct {
+		icons string
+		w     int
+		want  string
+	}{
+		{"nerd", 16, "┌─ ⓪ " + sch + " pub… ▾ ─┐"},
+		{"nerd", 17, "┌─ ⓪ " + sch + " publ… ▾ ─┐"},
+		{"nerd", 18, "┌─ ⓪ " + sch + " public ▾ ─┐"},
+		{"nerd", 22, "┌─ ⓪ " + sch + " public ▾ ─────┐"},
+		{"nerd", 26, "┌─ ⓪ " + sch + " public ▾ ─ SPC b ─┐"},
+		{"ascii", 24, "┌─ ⟨0⟩ # public ▾ ─────┐"},
+	} {
+		a := sized(160, 45, c.icons)
+		a.win().TreeW = c.w
+		if top := string([]rune(strings.Split(a.render().String(), "\n")[0])[:c.w]); top != c.want {
+			t.Errorf("%s %d: %q, want %q", c.icons, c.w, top, c.want)
+		}
+	}
+}

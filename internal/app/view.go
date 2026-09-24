@@ -193,9 +193,11 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	}
 	paneRegions(f, p.ID, r)
 	b := ui.Block{
-		Num:   a.icons.Number(0),
-		Icon:  a.icons.Schema,
-		Title: "public ▾", // ponytail: M0's fake schema; M1 F1.2 shows the tree's own
+		Num:         a.icons.Number(0),
+		Icon:        a.icons.Schema,
+		Object:      "public", // ponytail: M0's fake schema; M1 F1.2 shows the tree's own
+		Suffix:      " ▾",
+		ObjectFirst: true,
 		// the whole title opens the schema dropdown (§7.8)
 		TitleAction: "tree.schema",
 		Hints:       bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),

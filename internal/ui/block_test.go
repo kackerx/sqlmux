@@ -47,3 +47,29 @@ func TestBlockFitWithoutType(t *testing.T) {
 		}
 	}
 }
+
+// The sidebar's schema: the object takes its room before the hints, the ▾
+// stays after a cut name and goes with it (§7.8).
+func TestBlockFitObjectFirst(t *testing.T) {
+	b := Block{Num: "⓪", Icon: Icon{Text: "#"}, Object: "public", Suffix: " ▾", ObjectFirst: true, Hints: []Hint{{Key: "SPC b"}}}
+	for room, want := range map[int]string{
+		20: "⓪ # public ▾ + hint", // 12 + " SPC b"
+		12: "⓪ # public ▾",
+		11: "⓪ # publ… ▾",
+		8:  "⓪ # p… ▾",
+		7:  "⓪ #",
+		2:  "⓪",
+	} {
+		title, hints := b.fit(room)
+		if len(hints) > 0 {
+			title += " + hint"
+		}
+		if title != want {
+			t.Errorf("room %d: %q, want %q", room, title, want)
+		}
+	}
+	b.ObjectFirst = false // a pane's order: the hint first, then what's left
+	if title, hints := b.fit(16); title != "⓪ # pu… ▾" || len(hints) != 1 {
+		t.Errorf("hints first: %q %v", title, hints)
+	}
+}
