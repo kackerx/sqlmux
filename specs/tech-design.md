@@ -9,7 +9,7 @@
 
 | 项 | 决定 |
 |---|---|
-| 语言 / 框架 | Go 1.26 + Bubble Tea v2 + Lip Gloss v2 + Ultraviolet（已确认） |
+| 语言 / 框架 | Go 1.26 + Bubble Tea v2 + Ultraviolet（已确认）。Lip Gloss v2 原本在列，但最终只用到解析颜色这一处，M0 修剪时去掉了 |
 | 渲染 | 立即模式：每帧把画面画进一块 cell 缓冲区，同时生成鼠标命中表 |
 | 输入 | 键盘、鼠标、命令面板统一转成 Action。默认键位只用所有终端都能区分的键，不依赖 kitty 键盘协议，也不假设用户在用 tmux |
 | 键位模型 | 不做 tmux 式的全局前缀键。NORMAL 模式下用空格（`SPC`）作 leader，按下后弹出可点击的键位提示（已确认） |
@@ -36,13 +36,13 @@
 选型依据：
 
 - **团队熟悉 Go。**
-- **框架能力足够。** Bubble Tea v2 和 Lip Gloss v2 原生支持：
+- **框架能力足够。** Bubble Tea v2 与 Ultraviolet（Lip Gloss v2 的底层）原生支持：
   - 按 cell 读写的缓冲区；
   - 带 z 序的图层和点击命中测试；
   - 带坐标的鼠标事件，包括悬停；
   - 约束布局（`ultraviolet/layout`，与 ratatui 的 Layout 同构）。
 
-  版本线为 bubbletea v2.0.9、lipgloss v2.0.6。
+  版本线为 bubbletea v2.0.9。lipgloss 最初也在依赖里，M0 修剪时去掉了，颜色改用 `ansi.XParseColor` 解析。
 - **性能不是瓶颈。** 数据库 TUI 只在有输入或数据回来时才重绘，画一帧 200×60 的界面远不到 1ms。真正影响体验的是数据量，靠两点解决：表格只渲染可见行（§7.6），结果集设行数上限（§11）。
 
 Go 生态相对 Rust 缺三样东西，对策如下：
@@ -102,7 +102,7 @@ sqlmux/
 
 依赖：
 
-- 界面：`charm.land/bubbletea/v2`、`charm.land/lipgloss/v2`、`github.com/charmbracelet/ultraviolet`。不用 bubbles 的 textinput：它按 rune 删字，退格会把 é、👍🏽 这类字素簇拆开（M1 核对时实测）。单行输入框在 F0.4 命令行的输入处理上扩展。
+- 界面：`charm.land/bubbletea/v2`、`github.com/charmbracelet/ultraviolet`，以及 `github.com/charmbracelet/x/ansi`（宽度计算、颜色解析）。不用 bubbles 的 textinput：它按 rune 删字，退格会把 é、👍🏽 这类字素簇拆开（M1 核对时实测）。单行输入框在 F0.4 命令行的输入处理上扩展。
 - 数据库驱动：`github.com/jackc/pgx/v5`、`github.com/go-sql-driver/mysql`
 - 格式化：`github.com/dop251/goja`
 - 模糊匹配：`github.com/junegunn/fzf/src/algo`
@@ -198,12 +198,10 @@ Window
 ### 6.1 Action
 
 ```go
-type Action struct {
-    ID    string                        // "pane.split.right"
-    Title string                        // 命令面板和 which-key 显示的名字
-    Scope string                        // 可用范围，用于提示与面板过滤
-    Run   func(*App, Args) tea.Cmd      // Args 含参数与次数 Count
-    State func(*App) *bool              // 开关类命令返回当前值（K-04 的 ON/OFF）
+type Action struct {                // 注册表是 map[id]Action，id 如 "pane.split.right"
+    Title string                    // which-key 和命令面板显示的名字；只在浮层、cell、input 里用的 Action 没有标题（§12）
+    Run   func(*App, Args) tea.Cmd  // Args 含参数与次数 Count；还没实现的 Action 只有标题，没有 Run
+    On    func(*App) bool           // 开关类命令的当前状态（K-04 的 ON/OFF）
 }
 ```
 
@@ -382,14 +380,15 @@ console 里的 `x` 是 vim 的删除字符，所以 console 的 tab 用 `:q` 关
 
 ```go
 type Frame struct {
-    Buf    *uv.ScreenBuffer      // Ultraviolet 的 cell 缓冲区（lipgloss.Canvas 只是在它外面包了一层，还不暴露 FillArea，所以直接用它）
+    Buf    uv.ScreenBuffer       // Ultraviolet 的 cell 缓冲区（lipgloss.Canvas 只是在它外面包了一层，还不暴露 FillArea，所以直接用它）
     Hits   []Hit                 // 按绘制顺序追加；查找时倒序，后画的在上层
     Mouse  uv.Position           // 当前指针位置，用于悬停样式
     Theme  *Theme
-    Keys   *keymap.Map           // 查询键位提示
+    Cursor *uv.Position          // 输入框获得焦点时，终端光标的位置（§12）
 }
 ```
 
+- **键位提示**：Frame 不持有 keymap。键位文字由 app 通过 `keymap.Hint` 取好，再传给各个组件。
 - **组件接口**：每个组件实现 `Draw(f *Frame, area uv.Rectangle)`。区域由 `ultraviolet/layout` 切分，文字用 `uv.NewStyledString(s).Draw(buf, rect)` 画进去。
 - **View()**：依次画 pane、状态栏、浮层，把 `Hits` 存进 model 的缓存指针，然后返回：
 
@@ -429,7 +428,7 @@ string  = "#ffd866"
 time    = "#fc9867"
 ```
 
-终端不支持真彩时，lipgloss 的 colorprofile 会自动降级。
+终端不支持真彩时，Bubble Tea 的渲染器会按终端能力（colorprofile）自动降级。
 
 | token | 值 | 用途 |
 |---|---|---|
@@ -455,7 +454,7 @@ time    = "#fc9867"
 ```go
 type Hit struct {
     Rect   uv.Rectangle
-    Target Target   // {Kind: cell|rowno|tab|chip|pane|title|border|item|hint|segment|backdrop, Pane, I, J, Action}
+    Target Target   // {Kind, Pane, I, Action}。M0 的 Kind：pane、title、tab、hint、button、item、number、border、backdrop、row、treeedge；cell、rowno、chip、segment 等随后面的功能加入
 }
 ```
 
