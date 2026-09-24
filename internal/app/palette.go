@@ -141,9 +141,9 @@ func (a *App) paletteMatches() (items []paletteItem, ms []ui.Match) {
 func (a *App) paletteView() ui.Palette {
 	items, ms := a.paletteMatches()
 	scope, _ := a.paletteScope()
-	p := ui.Palette{Input: a.palette.input, Scope: scope, Sel: a.palette.sel, Top: a.palette.top}
+	p := ui.Palette{Search: a.icons.Search, Input: a.palette.input, Scope: scope, Sel: a.palette.sel, Top: a.palette.top}
 	for _, s := range scopes {
-		p.Scopes = append(p.Scopes, s.label)
+		p.Scopes = append(p.Scopes, strings.TrimSpace(s.label+" "+s.prefix)) // "表 @": the tab says what to type
 	}
 	for _, m := range ms {
 		it := items[m.Index]

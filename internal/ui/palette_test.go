@@ -1,0 +1,47 @@
+package ui
+
+import (
+	"strings"
+	"testing"
+
+	uv "github.com/charmbracelet/ultraviolet"
+)
+
+// Every row's location starts in one column: as wide as the widest name, at
+// most 40% of the box, longer names cut with … (§12).
+func TestPaletteColumns(t *testing.T) {
+	long := strings.Repeat("x", 60)
+	p := Palette{Search: Icon{Text: "~"}, Rows: []PaletteRow{
+		{Icon: Icon{Text: "+"}, Name: "t_user", Where: "w-one", Tag: "表"},
+		{Icon: Icon{Text: "[]"}, Name: "0: data", Where: "w-two", Tag: "窗口"},
+		{Icon: Icon{Text: ":"}, Name: long, Where: "w-three", Tag: "命令", Pos: []int{59}},
+	}}
+	f := NewFrame(160, 45, TokyonightStorm)
+	box, _ := PaletteBox(uv.Rect(0, 0, 160, 44), len(p.Rows))
+	p.Draw(f, uv.Rect(0, 0, 160, 44))
+	lines := strings.Split(f.String(), "\n")
+	var starts []int
+	for _, w := range []string{"w-one", "w-two", "w-three"} {
+		for _, l := range lines {
+			if i := strings.Index(l, w); i >= 0 {
+				starts = append(starts, Width(l[:i]))
+			}
+		}
+	}
+	// border, padding, the widest icon ("[]") and a space, 40 name columns, two spaces
+	want := box.Min.X + 2 + 2 + 1 + 40 + 2
+	if len(starts) != 3 || starts[0] != want || starts[1] != want || starts[2] != want {
+		t.Errorf("location columns %v, want all at %d", starts, want)
+	}
+	for y, l := range lines {
+		if !strings.Contains(l, "w-three") {
+			continue
+		}
+		if !strings.Contains(l, strings.Repeat("x", 39)+"… ") {
+			t.Errorf("the long name is cut to 40 with …: %q", l)
+		}
+		if f.Buf.CellAt(want-3, y).Style.Bg == TokyonightStorm.Warn {
+			t.Error("a match cut off by the … must not light the … up")
+		}
+	}
+}

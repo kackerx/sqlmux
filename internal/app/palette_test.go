@@ -163,11 +163,11 @@ func TestPaletteToggleKeepsSelectionShown(t *testing.T) {
 func TestPaletteMoves(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>"+strings.Repeat("<Down>", 12))
-	if p := a.palette; p.sel != 12 || p.top != 3 {
+	if p := a.palette; p.sel != 12 || p.top != 1 { // 12 rows show
 		t.Fatalf("12 down: sel %d top %d, want the list scrolled to show it", p.sel, p.top)
 	}
 	feed(t, a, "<Up><C-p><C-n>")
-	if p := a.palette; p.sel != 11 || p.top != 3 {
+	if p := a.palette; p.sel != 11 || p.top != 1 {
 		t.Fatalf("up, up, down: sel %d top %d", p.sel, p.top)
 	}
 	feed(t, a, "x")
@@ -196,7 +196,7 @@ func TestPaletteMouse(t *testing.T) {
 
 	feed(t, a, "<C-p>")
 	box, _ := ui.PaletteBox(a.window(), len(rowsOf(a)))
-	click(a, uv.Pos(box.Min.X+3, box.Min.Y+1)) // the input row
+	click(a, uv.Pos(box.Min.X+3, box.Min.Y+2)) // the input row
 	if a.palette == nil {
 		t.Fatal("a click inside the box is not outside")
 	}
@@ -211,7 +211,8 @@ func TestPaletteCursor(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>ab<Left>")
 	box, _ := ui.PaletteBox(a.window(), len(rowsOf(a)))
-	if c := a.View().Cursor; c == nil || c.X != box.Min.X+2+1 || c.Y != box.Min.Y+1 {
+	// the input row, below the scope tabs; after the search icon and a space
+	if c := a.View().Cursor; c == nil || c.X != box.Min.X+2+ui.Width(ui.NerdIcons.Search.Text)+1+1 || c.Y != box.Min.Y+2 {
 		t.Fatalf("cursor %+v, box %v", c, box)
 	}
 	if feed(t, a, "<Esc>"); a.View().Cursor != nil {
@@ -341,6 +342,29 @@ func TestPaletteFocusUnzooms(t *testing.T) {
 		feed(t, a, c.keys)
 		if a.win().Focus != 1 || a.win().Zoom != c.zoom {
 			t.Errorf("%s: focus %d zoom %d, want focus 1 zoom %d", c.name, a.win().Focus, a.win().Zoom, c.zoom)
+		}
+	}
+}
+
+// §12: min(100, W-4) wide, top edge at (H-1)/6; scope tabs with their
+// prefixes above the input, which a search icon leads.
+func TestPaletteLayout(t *testing.T) {
+	for _, c := range []struct{ w, h, width, top int }{{160, 45, 100, 7}, {80, 24, 76, 3}} {
+		a := sized(c.w, c.h, "nerd")
+		feed(t, a, "<C-p>")
+		if box, _ := ui.PaletteBox(a.window(), len(rowsOf(a))); box.Dx() != c.width || box.Min.Y != c.top {
+			t.Errorf("%dx%d: box %v, want %d wide at row %d", c.w, c.h, box, c.width, c.top)
+		}
+	}
+	for icons, search := range map[string]string{"nerd": ui.NerdIcons.Search.Text, "ascii": "~"} {
+		a := sized(160, 45, icons)
+		feed(t, a, "<C-p>ab")
+		lines := strings.Split(a.render().String(), "\n")
+		if tabs := lines[8]; !strings.Contains(tabs, " 所有   窗口·Pane %   表 @   命令 > ") {
+			t.Errorf("%s: scope tabs row %q", icons, tabs)
+		}
+		if in := lines[9]; !strings.Contains(in, "│ "+search+" ab ") {
+			t.Errorf("%s: input row %q", icons, in)
 		}
 	}
 }
