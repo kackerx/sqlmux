@@ -133,22 +133,22 @@ func TestOrderAndLimit(t *testing.T) {
 		t.Errorf("the dropdown opens under its chip: %v, chip %v", box, chip)
 	}
 	feed(t, a, "stat<CR>")
-	answer(a, tab, false)
+	answer(a, tab)
 	if tab.order != "status" || tab.desc || tab.pageNo != 0 || a.drop != nil {
 		t.Fatalf("status: order %q desc %v page %d", tab.order, tab.desc, tab.pageNo)
 	}
 	feed(t, a, "gostat<CR>")
-	answer(a, tab, false)
+	answer(a, tab)
 	if !tab.desc || !strings.Contains(a.render().String(), " ORDER status ↓ ") {
 		t.Errorf("status again: desc %v", tab.desc)
 	}
 	feed(t, a, "go默认<CR>")
-	answer(a, tab, false)
+	answer(a, tab)
 	if tab.order != "" || !strings.Contains(a.render().String(), " ORDER id ↑ ") {
 		t.Errorf("default: order %q", tab.order)
 	}
 	feed(t, a, "gl<C-n><CR>")
-	answer(a, tab, false)
+	answer(a, tab)
 	if tab.limit != 500 || !strings.Contains(a.render().String(), " LIMIT 500 ") {
 		t.Errorf("gl: limit %d", tab.limit)
 	}
@@ -237,19 +237,22 @@ func TestCount(t *testing.T) {
 	if !strings.HasPrefix(right(), "auto · 6000 行") || !strings.Contains(a.render().String(), " PAGE 1/60 ") {
 		t.Errorf("counted: %q", right())
 	}
-	answer(a, tab, true)
+	a.fetch(tab, true)
+	answer(a, tab)
 	a.Update(countMsg{tab: tab, seq: tab.countSeq - 1, n: 1})
 	a.Update(countMsg{tab: tab, seq: tab.countSeq, err: context.DeadlineExceeded})
 	if !strings.HasPrefix(right(), "auto · ? 行") || !strings.Contains(a.render().String(), " PAGE 1/? ") {
 		t.Errorf("timed out: %q", right())
 	}
 	tab.table.Rows = 2.5e6
-	answer(a, tab, true)
+	a.fetch(tab, true)
+	answer(a, tab)
 	if tab.counted != estimated || !strings.HasPrefix(right(), "auto · ~2.5m 行") || !strings.Contains(a.render().String(), " PAGE 1/~25000 ") {
 		t.Errorf("estimated: %q", right())
 	}
 	tab.applied = "id > 1"
-	answer(a, tab, true)
+	a.fetch(tab, true)
+	answer(a, tab)
 	if tab.counted != counting {
 		t.Error("a WHERE is counted for real")
 	}
@@ -272,9 +275,11 @@ func TestRowHoverAndNumber(t *testing.T) {
 	}
 }
 
-// answer is the database answering t's last request with the rows it had.
-func answer(a *App, t *dataTab, recount bool) {
-	a.Update(pageMsg{tab: t, seq: t.seq, cols: t.cols, page: t.page, next: t.next, recount: recount})
+// answer is the database answering t's last request with the rows it had;
+// what it returns is what the app does next (a count, say).
+func answer(a *App, t *dataTab) tea.Cmd {
+	_, cmd := a.Update(pageMsg{tab: t, seq: t.seq, cols: t.cols, page: t.page, next: t.next})
+	return cmd
 }
 
 // Until a page is in, what is on screen stays whole: its rows, row numbers
@@ -296,7 +301,7 @@ func TestFetchKeepsWhatIsShown(t *testing.T) {
 		t.Errorf("] after the cancel asks for page 2: %d", tab.pageNo+1)
 	}
 	feed(t, a, "R")
-	a.Update(pageMsg{tab: tab, seq: tab.seq, err: context.Canceled, recount: true})
+	a.Update(pageMsg{tab: tab, seq: tab.seq, err: context.Canceled})
 	if tab.counted != countDone || !strings.HasPrefix(a.queryBar(a.focused(), tab).Right, "auto · 6000 行") {
 		t.Errorf("a cancelled R keeps the count: %v", tab.counted)
 	}
@@ -309,5 +314,25 @@ func TestOrderDefaultKeyFlips(t *testing.T) {
 	feed(t, a, "go<C-n><CR>") // id
 	if tab.order != "id" || !tab.desc {
 		t.Errorf("order %q desc %v", tab.order, tab.desc)
+	}
+}
+
+// A WHERE's count is owed by the tab: a request that takes the WHERE's
+// place before it is in still counts once its page is (§8.3).
+func TestRecountOutlivesAStaleRequest(t *testing.T) {
+	a, tab, _ := withRecorder(t, 160, 45)
+	tab.count, tab.counted, tab.next = 6000, countDone, true
+	feed(t, a, "/id < 3<CR>")
+	s1 := tab.seq
+	feed(t, a, "]")
+	a.Update(pageMsg{tab: tab, seq: s1, cols: tab.cols, page: tab.page})
+	if tab.counted != countDone {
+		t.Fatal("the stale answer starts nothing")
+	}
+	if cmd := answer(a, tab); cmd == nil || tab.counted != counting {
+		t.Errorf("the newer page's answer counts the new WHERE: counted %v", tab.counted)
+	}
+	if answer(a, tab) != nil {
+		t.Error("and only once")
 	}
 }

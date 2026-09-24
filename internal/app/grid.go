@@ -48,6 +48,7 @@ type dataTab struct {
 	typing   string          // the input that has the keys: "where", "page" or ""
 	comp     *completion     // the WHERE's candidates, while typed (§9.7)
 	hist     *histMenu       // the WHERE's history and favorites, while open (Q-02)
+	recount  bool            // a count is owed once a page is in: a request asked for one (§8.3)
 	count    int64           // the rows the WHERE keeps, as far as counted says
 	counted  countState
 	countSeq int // the last count's; older ones are dropped
@@ -94,8 +95,6 @@ type pageMsg struct {
 	page db.Result
 	next bool
 	err  error
-	// recount: count the rows again once the page is in (§8.3)
-	recount bool
 }
 
 // countMsg answers a count.
@@ -116,10 +115,12 @@ func (t *dataTab) query() postgres.Query {
 
 // fetch reads the page t.request asks for on Meta, after the table's
 // columns when the catalog hasn't got them yet: they give the row identity
-// it orders by (§8.4, §10.1). recount counts the rows again once the page
-// is in (§8.3).
+// it orders by (§8.4, §10.1). recount counts the rows again once a page
+// is in (§8.3): owed by the tab, so a newer request taking this one's
+// place still pays it.
 func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
 	t.seq++
+	t.recount = t.recount || recount
 	a.busy++
 	seq, table, meta, q := t.seq, t.table, a.sess.Meta, t.query()
 	cols, cached := a.sess.cols[idOf(table)]
@@ -134,7 +135,7 @@ func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
 		q := q
 		q.Key = cols.Key()
 		r, next, err := postgres.Page(ctx, meta, q)
-		return pageMsg{tab: t, seq: seq, cols: cols, page: r, next: next, err: err, recount: recount}
+		return pageMsg{tab: t, seq: seq, cols: cols, page: r, next: next, err: err}
 	}
 	return page
 }
@@ -152,20 +153,21 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	switch {
 	case m.seq != t.seq: // a newer request is on its way
 		return nil
-	case errors.Is(m.err, context.Canceled):
-		t.request = t.shown
+	case errors.Is(m.err, context.Canceled): // shown's count is still right: none owed
+		t.request, t.recount = t.shown, false
 		if t.typing != "where" {
 			t.where = ui.Input{Text: t.applied, Pos: len(t.applied)}
 		}
 		return a.showToast("查询已取消", toastTTL)
-	case m.err != nil: // on screen now: the error, for the request to be fixed
+	case m.err != nil: // on screen now: the error, for the request to be fixed; the count stays owed
 		t.err, t.shown = m.err.Error(), t.request
-	default:
-		t.err, t.cols, t.page, t.next, t.shown = "", m.cols, m.page, m.next, t.request
-		t.row = max(min(t.row, len(t.page.Rows)-1), 0)
-		t.col = max(min(t.col, len(t.shownCols())-1), 0)
+		return nil
 	}
-	if m.recount {
+	t.err, t.cols, t.page, t.next, t.shown = "", m.cols, m.page, m.next, t.request
+	t.row = max(min(t.row, len(t.page.Rows)-1), 0)
+	t.col = max(min(t.col, len(t.shownCols())-1), 0)
+	if t.recount {
+		t.recount = false
 		return a.count(t)
 	}
 	return nil
