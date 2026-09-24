@@ -37,13 +37,17 @@ func (h Hint) titleText() string {
 //
 //	┌─ ⟨1⟩ data · t_order ──────── hint hint ─┐
 type Block struct {
-	Num     string // ⟨n⟩ or ①, from Icons.Number
-	Icon    Icon
-	Title   string // after the icon: the pane type with ascii icons (§7.7), the sidebar's schema
-	Object  string // "· object" part; truncated first
-	Hints   []Hint // in drawing order
-	Focused bool
-	Pane    int
+	Num    string // ⟨n⟩ or ①, from Icons.Number
+	Icon   Icon
+	Title  string // after the icon: the pane type with ascii icons (§7.7), the sidebar's schema
+	Object string // "· object" part; truncated first
+	Suffix string // stays after the object even when it is cut, and goes with it: the sidebar's " ▾"
+	// ObjectFirst gives the object its room before the hints: the sidebar's
+	// schema is its switch and the only place it shows (§7.8).
+	ObjectFirst bool
+	Hints       []Hint // in drawing order
+	Focused     bool
+	Pane        int
 	// TitleAction makes the drawn title a button (the sidebar's schema, §7.8).
 	TitleAction string
 }
@@ -94,7 +98,8 @@ func (b Block) Draw(f *Frame, r uv.Rectangle) uv.Rectangle {
 // fit shares the top border per §7.8: reserve the shortest title
 // "⟨n⟩ <icon> [type]", place hints greedily from the highest priority (one that
 // doesn't fit is skipped, the next is still tried), give what's left to the
-// object name, and fall back to "⟨n⟩" alone.
+// object name, and fall back to "⟨n⟩" alone. With ObjectFirst the object
+// takes its room before the hints.
 func (b Block) fit(room int) (string, []Hint) {
 	n := b.Num
 	head := n
@@ -110,6 +115,36 @@ func (b Block) fit(room int) (string, []Hint) {
 	if Width(head) > room {
 		return Truncate(n, room), nil
 	}
+	// withObject is the title with as much of the object as avail allows.
+	withObject := func(avail int) string {
+		switch obj := avail - Width(head+sep+b.Suffix); {
+		case b.Object == "":
+			return head
+		case Width(head+sep+b.Object+b.Suffix) <= avail:
+			return head + sep + b.Object + b.Suffix
+		case obj >= 2: // at least "x…"
+			return head + sep + Truncate(b.Object, obj) + b.Suffix
+		}
+		return head
+	}
+	title := head
+	if b.ObjectFirst {
+		title = withObject(room)
+	}
+	hints, used := b.placeHints(room - Width(title))
+	if !b.ObjectFirst {
+		avail := room
+		if len(hints) > 0 {
+			avail -= used + 1
+		}
+		title = withObject(avail)
+	}
+	return title, hints
+}
+
+// placeHints keeps hints by priority while they fit in free columns beside
+// the title, and returns them in drawing order with the columns they take.
+func (b Block) placeHints(free int) ([]Hint, int) {
 	order := make([]int, len(b.Hints))
 	for i := range order {
 		order[i] = i
@@ -122,7 +157,7 @@ func (b Block) fit(room int) (string, []Hint) {
 			continue
 		}
 		// +1: the space between the title and the first hint.
-		if w := 1 + Width(b.Hints[i].titleText()); Width(head)+1+used+w <= room {
+		if w := 1 + Width(b.Hints[i].titleText()); 1+used+w <= free {
 			keep[i], used = true, used+w
 		}
 	}
@@ -132,20 +167,7 @@ func (b Block) fit(room int) (string, []Hint) {
 			hints = append(hints, h)
 		}
 	}
-	avail := room
-	if len(hints) > 0 {
-		avail -= used + 1
-	}
-	full := head + sep + b.Object
-	switch obj := avail - Width(head+sep); {
-	case b.Object == "":
-		return head, hints
-	case Width(full) <= avail:
-		return full, hints
-	case obj >= 2: // at least "x…"
-		return head + sep + Truncate(b.Object, obj), hints
-	}
-	return head, hints
+	return hints, used
 }
 
 func hintsWidth(hs []Hint) int {
