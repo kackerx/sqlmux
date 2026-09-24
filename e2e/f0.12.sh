@@ -12,14 +12,14 @@ conf() { rm -rf "$D"/*; printf "$1" > "$D/config.toml"; [[ -n $2 ]] && { mkdir -
 start() { e2e_start -C "$D" "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 fails() { e2e_start -C "$D" "$E2E_BIN"; wait_for 3 screen_has '[e2e-exit 1]' || return 1; screen_has "$1" || { echo "  error lacks '$1':"; e2e_plain | grep sqlmux: | sed 's/^/    /'; false; }; }
 NF_CONSOLE=$(printf '\xef\x92\x89')   # U+F489
-ICON=110                              # console title: ┌─ ② <icon> console_1 … (column of the icon; F0.16)
+ICON=110 ICON_ASCII=112               # console title icon column: nerd ┌─ ② <icon> …; ascii ┌─ ⟨2⟩ <icon> … (⟨2⟩ is 3 wide, F0.16)
 
 # ---- defaults: console icon, column colors
 conf ''; start
 check "nerd: console icon is U+F489" text_is $ICON $ICON 1 "$NF_CONSOLE"
 check "data columns: id number, biz_type string (= fg), created_at time (= fg)" eval 'style_has 42 5 fg=#ff9e64 && style_has 48 5 fg=#c0caf5 && style_has 69 5 fg=#c0caf5'
 conf 'icons = "ascii"\n'; start
-check "ascii: console icon is still >" text_is $ICON $ICON 1 ">"
+check "ascii: console icon is still >" text_is $ICON_ASCII $ICON_ASCII 1 ">"
 
 # ---- a theme file with six tokens: those apply, nothing else moves; bar stays #292e42
 conf 'theme = "x"\n' 'pane_bg = "#101010"\nrow = "#202020"\ncursor = "#303030"\nnumber = "#404040"\nstring = "#505050"\ntime = "#606060"\n'
@@ -44,7 +44,7 @@ check "[icon] console text+fg: red C, rest of the title unchanged" eval 'text_is
 conf 'theme = "x"\n' '[icon]\nconsole = { fg = "#00ff00" }\n'; start
 check "[icon] fg only: same glyph, new color" eval 'text_is $ICON $ICON 1 "$NF_CONSOLE" && style_has $ICON 1 fg=#00ff00'
 conf 'theme = "x"\nicons = "ascii"\n' '[icon]\nconsole = { text = "C", fg = "#ff0000" }\n'; start
-check "[icon] still applies with icons = ascii" eval 'text_is $ICON $ICON 1 C && style_has $ICON 1 fg=#ff0000'
+check "[icon] still applies with icons = ascii" eval 'text_is $ICON_ASCII $ICON_ASCII 1 C && style_has $ICON_ASCII 1 fg=#ff0000'
 conf 'theme = "x"\n' '[icon]\nconn = { fg = "#ff00ff" }\n'; start
 check "[icon] conn: the status bar connection icon changes color" eval 'c=$(e2e_find pg@localhost 45); style_has $((c - 2)) 45 fg=#ff00ff && style_has $c 45 fg=#7dcfff'
 conf 'theme = "x"\n' '[icon]\nfoo = { text = "F" }\n';            check "[icon] unknown name → error" fails "foo"
