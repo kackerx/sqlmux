@@ -44,7 +44,7 @@ pal
 wrow() { list | grep -n "^0: data  doraemon .*窗口|" | cut -d: -f1; }   # the window row's number (the recent tables come first)
 check "window row: 0: data, located in doraemon, labelled 窗口, window icon" eval 'n=$(wrow); [[ -n $n && $(icon_of $n) == "$NF_WINDOW" ]]'
 check "pane row: ⟨1⟩ data · t_order, located in 0: data, labelled Pane" eval 'row_has "data · t_order  0: data" && list | grep -q "data · t_order  0: data .*Pane|"'
-check "table row: located in doraemon.public, labelled 表" eval 'list | grep -q "^agent  doraemon.public .*表|"'
+check "table row: located in doraemon.public, labelled 表" eval 'list | grep -q "^mv_order_by_status  doraemon.public .*表|"'
 check "the location is dim; the type label is dim and right-aligned (ends one column before │)" eval 'y=$(row_y $(wrow)); c=$(e2e_find doraemon $y); style_has $c $y fg=#565f89 && text_is $(( $(right) - 5 )) $(right) $y "窗口 │" && style_has $(( $(right) - 5 )) $y fg=#565f89'
 check "所有, empty input: recent first (t_order, t_user), then window → pane → table → command" eval 'clear_input; o=$(list | cut -d"|" -f1 | awk "{print \$NF}" | uniq | tr "\n" " "); [[ $o == "表 窗口 Pane 表 "* && $(list | head -2 | cut -d" " -f1 | tr "\n" " ") == "t_order t_user " ]] || { echo "  order: $o"; false; }'
 seen=""; clear_input; for i in $(seq 24); do seen+=" $(kinds)"; e2e_keys Down; sleep 0.05; done
