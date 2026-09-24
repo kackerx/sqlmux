@@ -154,7 +154,6 @@ type Next struct {
 	Key    Key
 	Action string // "" for a mapping or a further prefix
 	RHS    []Key  // set for a mapping
-	Prefix bool   // more keys can follow
 }
 
 // Next lists what can follow the pending keys, in binding order (§6.5
@@ -166,7 +165,7 @@ func (r *Resolver) Next() []Next {
 	out := make([]Next, 0, len(r.node.order))
 	for _, k := range r.node.order {
 		n := r.node.next[k]
-		out = append(out, Next{Key: k, Action: n.action, RHS: n.rhs, Prefix: len(n.next) > 0})
+		out = append(out, Next{Key: k, Action: n.action, RHS: n.rhs})
 	}
 	return out
 }
