@@ -66,7 +66,7 @@
 - [x] 没有 `connections.toml` 时，错误里写明配置文件的路径；`sqlmux <名字>` 的名字不存在时，列出已有的连接名。
 - [x] `connections.toml` 中写有明文密码且权限为 0644 时，出现警告。
 
-## F1.2 catalog 与 schema 树 · 状态：reviewing
+## F1.2 catalog 与 schema 树 · 状态：testing
 
 - **依赖**：F1.1
 - **涉及**：`internal/db`（catalog）、`internal/ui`（tree）
