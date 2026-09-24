@@ -4,9 +4,7 @@
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 L() { e2e_keys Space; e2e_type "$1"; sleep 0.3; }
-focused() { e2e_panes | awk '$6 == 1 { print $1 }'; }
 geom() { e2e_panes | awk -v n="$1" '$1 == n { print $2, $3, $4, $5 }'; }
 nums() { e2e_panes | awk '{ printf "%s ", $1 }'; }
 focus_is() { local f; f=$(focused); [[ $f == "$1" ]] || { echo "  focused ⟨${f}⟩, want ⟨$1⟩"; false; }; }
@@ -17,7 +15,6 @@ at() { local c; c=$(e2e_find "$1" "$2"); echo "${c%% *} $2"; }   # TEXT Y → "X
 SELECT=#364a82 WARN=#e0af68
 wk_open() { e2e_plain | grep -q '^┌─ SPC '; }
 pending_idle() { [[ $(e2e_text $(pending_col) $(pending_col) 45) == "·" ]]; }
-palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }   # F0.13: : opens the command palette
 numbers_shown() { [[ $(e2e_text 16 16 23) == 0 ]]; }
 
 # ---- 点击获得焦点；双击标题缩放 / 还原

@@ -11,9 +11,7 @@ cols_are() { local got; got=$(e2e_find "$1" "$2"); [[ $got == "$3" ]] || { echo 
 widths_are() { local got; got=$(e2e_widths | sed '/^0$/d' | sort -u | tr '\n' ' '); [[ $got == "$1 " ]] || { echo "  row widths: $got"; false; }; }
 # 最后一行是状态栏（F0.5 起有内容）：没有 pane 的边框，底色 #292e42
 status_row() { ! e2e_text 1 "$1" "$2" | python3 -c 'import sys; sys.exit(0 if set(sys.stdin.read()) & set("│┌┐└┘─") else 1)' && style_has $(($1 / 2)) "$2" bg=#292e42; }
-running() { flag_is alternate_on 1 && ! screen_has '[e2e-exit'; }
 at() { local c; c=$(e2e_find "$1" "$2"); style_has "$((${c%% *} + ${4:-0}))" "$2" "$3"; }  # TEXT Y STYLE [DX]
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 
 # ---- 160x45 nerd：布局（§7.8）
 start

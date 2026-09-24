@@ -5,10 +5,8 @@ e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 H() { e2e_flag pane_height; }
 . "$(dirname "$0")/palette.sh"
-focused() { e2e_panes | awk '$6 == 1 && $1 != "-" { print $1 }'; }
 data_tabs() { e2e_text 34 103 43; }
 kinds() { list | cut -d'|' -f1 | awk '{ print $NF }' | sort -u | tr '\n' ' '; }   # type labels in the list
 # which scope tab is highlighted (focus background) on the tab row

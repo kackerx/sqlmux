@@ -7,12 +7,8 @@ e2e_build || exit 1
 
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$CFG"' EXIT
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 start_with() { printf "$1" >| "$CFG/config.toml"; start -c "$CFG/config.toml"; }
-exited()  { screen_has '[e2e-exit'; }
-running() { flag_is alternate_on 1 && ! exited; }
 cmd() { e2e_type ":$1"; e2e_keys Enter; sleep 0.3; }
-palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }
 quit_clean() {  # 退出码 0，终端标志位按 F0.1 复原
   wait_for 3 screen_has '[e2e-exit 0]' && flag_is alternate_on 0 && flag_is mouse_all_flag 0 &&
     flag_is mouse_sgr_flag 0 && flag_is bracket_paste_flag 0 && flag_is cursor_flag 1

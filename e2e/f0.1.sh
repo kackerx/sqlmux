@@ -3,8 +3,6 @@
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 
-exited()  { screen_has '[e2e-exit'; }
-running() { flag_is alternate_on 1 && ! exited; }
 no_toast() { ! screen_has '再按一次 C-c 退出'; }
 same_as() { [[ $(e2e_plain) == "$1" ]] || { diff <(echo "$1") <(e2e_plain); false; }; }
 colored() { e2e_cap -e | grep -qF -- "$1"; }

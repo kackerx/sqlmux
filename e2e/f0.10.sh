@@ -6,7 +6,6 @@ e2e_build || exit 1
 
 OUT=$(mktemp "${TMPDIR:-/tmp}/sqlmux-e2e-out.XXXXXX")
 trap 'e2e_stop; rm -f "$OUT"' EXIT
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 bar_end_is() { local got; got=$(e2e_text 150 160 45); [[ $got == *" $1 " ]] || { echo "  status tail: '$got'"; false; }; }
 # F0.13 起「未知命令」toast 没了，改在命令面板的输入行里放这些字形：输入行的右边框要还在原位
 input_row_ok() {

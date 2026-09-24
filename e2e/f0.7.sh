@@ -4,14 +4,12 @@
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 # F0.11 起 SPC hjkl / HJKL 不再是默认键：用 config 绑回去来测这些 Action
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); trap 'e2e_stop; rm -rf "$CFG"' EXIT
 printf '[keys.normal]\n"<Leader>h" = "pane.focus.left"\n"<Leader>j" = "pane.focus.down"\n"<Leader>k" = "pane.focus.up"\n"<Leader>l" = "pane.focus.right"\n"<Leader>H" = "pane.resize.left"\n"<Leader>J" = "pane.resize.down"\n"<Leader>K" = "pane.resize.up"\n"<Leader>L" = "pane.resize.right"\n' > "$CFG/keys.toml"
 start_keys() { start -c "$CFG/keys.toml" "$@"; }
 L() { e2e_keys Space; e2e_type "$1"; sleep 0.3; }         # SPC <key>
 key() { e2e_keys "$1"; sleep 0.25; }
-focused() { e2e_panes | awk '$6 == 1 { print $1 }'; }     # 聚焦 pane 的编号
 geom() { e2e_panes | awk -v n="$1" '$1 == n { print $2, $3, $4, $5 }'; }   # ⟨n⟩ 的 X Y W H
 nums() { e2e_panes | awk '{ printf "%s ", $1 }'; }        # 按出现顺序（行优先）列出编号
 focus_is() { local f; f=$(focused); [[ $f == "$1" ]] || { echo "  focused ⟨${f}⟩, want ⟨$1⟩"; false; }; }

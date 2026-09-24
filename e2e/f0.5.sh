@@ -5,7 +5,6 @@ e2e_build || exit 1
 
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$CFG"' EXIT
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 H() { e2e_flag pane_height; }
 W() { e2e_flag pane_width; }
 # 状态栏文字；Nerd Font 图标（私有区）换成 @，便于逐字比较

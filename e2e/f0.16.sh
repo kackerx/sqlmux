@@ -7,7 +7,6 @@ e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 H() { e2e_flag pane_height; }
 . "$(dirname "$0")/palette.sh"
 NF_SCHEMA=$(printf '\xef\x83\xa8') NF_DATA=$(printf '\xef\x87\x80') NF_CONSOLE=$(printf '\xef\x92\x89') NF_FILTER=$(printf '\xef\x82\xb0')

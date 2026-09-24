@@ -6,9 +6,7 @@ e2e_build || exit 1
 
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); mkdir -p "$CFG/sqlmux"
 trap 'e2e_stop; rm -rf "$CFG"' EXIT
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 L() { e2e_keys Space; e2e_type "$1"; sleep 0.3; }
-focused() { e2e_panes | awk '$6 == 1 { print $1 }'; }
 wk_row() { e2e_plain | grep "$1"; }
 
 # ---- sqlmux keys: the removed defaults are gone

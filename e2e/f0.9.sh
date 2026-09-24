@@ -6,7 +6,6 @@ e2e_build || exit 1
 
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$CFG"' EXIT
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 SEP=#2f3549 FUNC=#7aa2f7 NUMBER=#ff9e64 PANE_BG=#24283b ROW_ALT=#1f2335 ROW=#292e42 CURSOR=#3d59a1 CURSOR_BLUR=#2f3549
 data() { e2e_panes | awk '$1 == 1 { print $2, $3, $4, $5 }'; }   # ⟨1⟩ data 的 X Y W H
 # 表格区的列范围：data pane 内部（不含边框）

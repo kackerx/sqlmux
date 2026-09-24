@@ -103,4 +103,11 @@ text_is()    { [[ $(e2e_text "$1" "$2" "$3") == "$4" ]] || { echo "  [$1..$2,$3]
 text_has()   { local got; got=$(e2e_text "$1" "$2" "$3"); [[ $got == *"$4"* ]] || { echo "  [$1..$2,$3] '$got' lacks '$4'"; false; }; }
 text_ends()  { local got; got=$(e2e_text "$1" "$2" "$3"); [[ $got == *"$4" ]] || { echo "  [$1..$2,$3] '$got' doesn't end with '$4'"; false; }; }
 
+# ---- helpers the f0.*.sh scripts share
+start()   { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }   # [e2e_start options] — launch sqlmux, wait for its screen
+exited()  { screen_has '[e2e-exit'; }
+running() { flag_is alternate_on 1 && ! exited; }
+focused() { e2e_panes | awk '$6 == 1 && $1 != "-" { print $1 }'; }   # the focused pane's number (a folded strip or the palette box has none)
+palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }
+
 e2e_done() { echo "== $E2E_PASS passed, $E2E_FAIL failed"; e2e_stop; ((E2E_FAIL == 0)); }

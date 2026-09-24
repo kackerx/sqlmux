@@ -6,7 +6,6 @@ e2e_build || exit 1
 
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$CFG"' EXIT
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 start_with() { printf "$1" >| "$CFG/config.toml"; start -c "$CFG/config.toml"; }
 H() { e2e_flag pane_height; }
 W() { e2e_flag pane_width; }
@@ -15,8 +14,6 @@ top_row() { e2e_plain | python3 -c 'import sys; print(next((i + 1 for i, l in en
 shown()  { [[ -n $(top_row "$1 ") ]]; }
 hidden() { ! shown "$1" || { echo "  which-key '$1' is showing"; false; }; }
 pending_is() { local c; c=$(pending_col); text_is $c $((c - 1 + $(strwidth "$1"))) "$(H)" "$1"; }
-palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }   # F0.13: : opens the command palette
-running() { flag_is alternate_on 1 && ! screen_has '[e2e-exit'; }
 # 浮层里的键，按列读（先竖后横）：每一格是「键 → 标题」
 items() {
   local t b; t=$(top_row "$1 "); b=$(($(H) - 2))

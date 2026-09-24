@@ -3,11 +3,9 @@
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 L() { e2e_keys Space; e2e_type "$1"; sleep 0.3; }
 side_w() { e2e_panes | awk '$1 == 0 || $1 == "-" { print $4; exit }'; }        # sidebar box width
 side_is() { local w; w=$(side_w); [[ $w == "$1" ]] || { echo "  sidebar width $w, want $1"; false; }; }
-focused() { e2e_panes | awk '$6 == 1 { print $1 }'; }
 drag_side() { e2e_down $(( $(side_w) + 1 )) 20; e2e_drag_to "$1" 20; sleep 0.3; }   # the gap column is width + 1
 
 # ---- drag the gap right of the sidebar

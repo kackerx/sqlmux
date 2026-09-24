@@ -4,7 +4,6 @@
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 
-start() { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
 W() { e2e_flag pane_width; }
 H() { e2e_flag pane_height; }
 . "$(dirname "$0")/palette.sh"
