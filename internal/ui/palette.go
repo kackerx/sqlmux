@@ -111,27 +111,8 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 	}
 	rule(y)
 	y++
-	footerHints(f, x0, y, x1, p.Footer)
-	w := -3
-	for _, h := range p.Enter {
-		w += Width(h.tabText()) + 3
-	}
-	footerHints(f, x1-w, y, x1, p.Enter)
+	// the footer reads like a tab bar's hints
+	hintRow(f, x0, y, x1, p.Footer, dim, Target{Kind: KindButton})
+	hintRow(f, x1-hintRowWidth(p.Enter), y, x1, p.Enter, dim, Target{Kind: KindButton})
 	return cursor
-}
-
-// footerHints draws "key label" items as the tab bar does, " · " between
-// them, each clickable as its action.
-func footerHints(f *Frame, x, y, right int, hs []Hint) {
-	dim := uv.Style{Fg: f.Theme.Dim, Bg: f.Theme.PaneBg}
-	for i, h := range hs {
-		if i > 0 {
-			x = f.Text(x, y, right, " · ", dim)
-		}
-		st := dim
-		if h.Action != "" && f.Region(uv.Rect(x, y, min(Width(h.tabText()), right-x), 1), Target{Kind: KindButton, Action: h.Action}) {
-			st.Bg = f.Theme.Select
-		}
-		x = f.Text(x, y, right, h.tabText(), st)
-	}
 }

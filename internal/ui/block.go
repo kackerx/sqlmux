@@ -19,7 +19,7 @@ type Hint struct {
 }
 
 // titleText is how a hint reads on a border: "Label Key". It must match what
-// titleHintText draws: layout and the hit region are measured from it.
+// drawTitleHint draws: layout and the hit region are measured from it.
 func (h Hint) titleText() string {
 	switch {
 	case h.Button:
@@ -181,13 +181,8 @@ func hintsWidth(hs []Hint) int {
 // drawTitleHint draws h at x as a button: its hit region is what it covers,
 // and it lights up under the pointer.
 func drawTitleHint(f *Frame, x, y, right int, h Hint, pane int) int {
-	r := uv.Rect(x, y, min(Width(h.titleText()), right-x), 1)
-	hover := f.Region(r, Target{Kind: KindHint, Pane: pane, Action: h.Action})
-	return titleHintText(f, x, y, right, h, hover)
-}
-
-func titleHintText(f *Frame, x, y, right int, h Hint, hover bool) int {
 	th := f.Theme
+	hover := f.Region(uv.Rect(x, y, min(Width(h.titleText()), right-x), 1), Target{Kind: KindHint, Pane: pane, Action: h.Action})
 	bg := th.PaneBg
 	if hover {
 		bg = th.Select
