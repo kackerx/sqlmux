@@ -179,7 +179,7 @@
 - [ ] 悬停行有底色且光标不动；点击行号后光标移到该行、列号不变。
 - [ ] 查询条的 golden 测试通过。
 
-## F1.5 WHERE 补全与历史 / 收藏 · 状态：reviewing
+## F1.5 WHERE 补全与历史 / 收藏 · 状态：testing
 
 - **依赖**：F1.4
 - **涉及**：`internal/sqlkit`（补全上下文的 WHERE 部分）、`internal/ui`（补全列表、WHERE 下拉）、`internal/config`（state.json）
