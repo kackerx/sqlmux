@@ -131,6 +131,8 @@ func (a *App) dropPick(i int) tea.Cmd {
 			t.order, t.desc = "", false
 		case item == t.order: // the current column again: the other way
 			t.desc = !t.desc
+		case t.order == "" && slices.Equal(t.cols.Key(), []string{item}): // the key the chip shows is the current column
+			t.order, t.desc = item, true
 		default:
 			t.order, t.desc = item, false
 		}

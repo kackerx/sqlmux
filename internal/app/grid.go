@@ -37,13 +37,12 @@ type dataTab struct {
 	seq       int    // the last request's; older answers are dropped (§8.3)
 	err       string // the last request's error, drawn instead of the table
 
-	// The query bar's.
+	// The query bar's. request is what the last request asked for, shown
+	// what the rows on screen came from: row numbers and chips are shown's,
+	// and a cancelled request goes back to it (§7.6).
+	request
+	shown    request
 	where    ui.Input        // the WHERE input
-	applied  string          // the WHERE in effect: the input shows it unless typing
-	order    string          // the column sorted by; "" for the row identity
-	desc     bool            // ORDER's direction
-	limit    int             // rows a page: 100, 500 or 1000 (§8.5)
-	pageNo   int             // from 0
 	hidden   map[string]bool // columns COLS hides
 	pageIn   ui.Input        // PAGE's page number, while typed
 	typing   string          // the input that has the keys: "where", "page" or ""
@@ -52,6 +51,15 @@ type dataTab struct {
 	count    int64           // the rows the WHERE keeps, as far as counted says
 	counted  countState
 	countSeq int // the last count's; older ones are dropped
+}
+
+// request is a page of a table as asked for.
+type request struct {
+	applied string // the WHERE in effect: the input shows it unless typing
+	order   string // the column sorted by; "" for the row identity
+	desc    bool   // ORDER's direction
+	limit   int    // rows a page: 100, 500 or 1000 (§8.5)
+	pageNo  int    // from 0
 }
 
 type countState int
@@ -70,7 +78,8 @@ var countTimeout = 3 * time.Second
 const bigTable = 1_000_000
 
 func newDataTab(t db.Table) *dataTab {
-	return &dataTab{table: t, limit: limits[0], hidden: map[string]bool{}}
+	r := request{limit: limits[0]}
+	return &dataTab{table: t, request: r, shown: r, hidden: map[string]bool{}}
 }
 
 type tableID struct{ schema, name string }
@@ -85,6 +94,8 @@ type pageMsg struct {
 	page db.Result
 	next bool
 	err  error
+	// recount: count the rows again once the page is in (§8.3)
+	recount bool
 }
 
 // countMsg answers a count.
@@ -103,10 +114,10 @@ func (t *dataTab) query() postgres.Query {
 	}
 }
 
-// fetch reads t's page on Meta, after its columns when the catalog hasn't
-// got them yet: they give the row identity it orders by (§8.4, §10.1).
-// recount counts the rows again once the page is in (§8.3), unless an
-// estimate stands for them (§8.5).
+// fetch reads the page t.request asks for on Meta, after the table's
+// columns when the catalog hasn't got them yet: they give the row identity
+// it orders by (§8.4, §10.1). recount counts the rows again once the page
+// is in (§8.3).
 func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
 	t.seq++
 	a.busy++
@@ -123,27 +134,15 @@ func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
 		q := q
 		q.Key = cols.Key()
 		r, next, err := postgres.Page(ctx, meta, q)
-		return pageMsg{tab: t, seq: seq, cols: cols, page: r, next: next, err: err}
+		return pageMsg{tab: t, seq: seq, cols: cols, page: r, next: next, err: err, recount: recount}
 	}
-	switch {
-	case !recount:
-		return page
-	case strings.TrimSpace(t.applied) == "" && table.Rows > bigTable:
-		t.count, t.counted = int64(table.Rows), estimated
-		return page
-	}
-	t.countSeq++
-	t.counted = counting
-	cseq := t.countSeq
-	count := func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
-		defer cancel()
-		n, err := postgres.Count(ctx, meta, q)
-		return countMsg{tab: t, seq: cseq, n: n, err: err}
-	}
-	return tea.Sequence(page, count) // the timeout starts once the page is in
+	return page
 }
 
+// gotPage takes a page in: the rows, their request as what is shown, and
+// then a count if one was asked for. An answer to an older request is
+// dropped; a cancelled one goes back to what is shown, rows and all, with
+// its count as it was (§7.6, §8.3).
 func (a *App) gotPage(m pageMsg) tea.Cmd {
 	a.busy--
 	if m.cols.Cols != nil {
@@ -152,16 +151,42 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	t := m.tab
 	switch {
 	case m.seq != t.seq: // a newer request is on its way
-	case errors.Is(m.err, context.Canceled): // the old rows stay (§8.3)
+		return nil
+	case errors.Is(m.err, context.Canceled):
+		t.request = t.shown
+		if t.typing != "where" {
+			t.where = ui.Input{Text: t.applied, Pos: len(t.applied)}
+		}
 		return a.showToast("查询已取消", toastTTL)
-	case m.err != nil:
-		t.err = m.err.Error()
+	case m.err != nil: // on screen now: the error, for the request to be fixed
+		t.err, t.shown = m.err.Error(), t.request
 	default:
-		t.err, t.cols, t.page, t.next = "", m.cols, m.page, m.next
+		t.err, t.cols, t.page, t.next, t.shown = "", m.cols, m.page, m.next, t.request
 		t.row = max(min(t.row, len(t.page.Rows)-1), 0)
-		t.col = max(min(t.col, len(t.shown())-1), 0)
+		t.col = max(min(t.col, len(t.shownCols())-1), 0)
+	}
+	if m.recount {
+		return a.count(t)
 	}
 	return nil
+}
+
+// count counts the rows t's WHERE keeps, bounded by countTimeout (§8.3),
+// unless an estimate stands for them: no WHERE on a big table (§8.5).
+func (a *App) count(t *dataTab) tea.Cmd {
+	if strings.TrimSpace(t.applied) == "" && t.table.Rows > bigTable {
+		t.count, t.counted = int64(t.table.Rows), estimated
+		return nil
+	}
+	t.countSeq++
+	t.counted = counting
+	seq, meta, q := t.countSeq, a.sess.Meta, t.query()
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
+		defer cancel()
+		n, err := postgres.Count(ctx, meta, q)
+		return countMsg{tab: t, seq: seq, n: n, err: err}
+	}
 }
 
 func (a *App) gotCount(m countMsg) {
@@ -178,11 +203,11 @@ func (t *dataTab) pages() (int64, bool) {
 	if t.counted != countDone && t.counted != estimated {
 		return 0, false
 	}
-	return max((t.count+int64(t.limit)-1)/int64(t.limit), 1), true
+	return max((t.count+int64(t.shown.limit)-1)/int64(t.shown.limit), 1), true
 }
 
-// shown is the columns COLS lets through, as indexes into the page's.
-func (t *dataTab) shown() []int {
+// shownCols is the columns COLS lets through, as indexes into the page's.
+func (t *dataTab) shownCols() []int {
 	var out []int
 	for i, c := range t.page.Cols {
 		if !t.hidden[c.Name] {
@@ -194,7 +219,7 @@ func (t *dataTab) shown() []int {
 
 // fieldAt is the page's index of shown column i, or -1.
 func (t *dataTab) fieldAt(i int) int {
-	if s := t.shown(); i >= 0 && i < len(s) {
+	if s := t.shownCols(); i >= 0 && i < len(s) {
 		return s[i]
 	}
 	return -1
@@ -203,7 +228,7 @@ func (t *dataTab) fieldAt(i int) int {
 // nearestShown is the shown index of page column field, or of the first
 // shown one after it, or else the last shown one.
 func (t *dataTab) nearestShown(field int) int {
-	s := t.shown()
+	s := t.shownCols()
 	if i := slices.IndexFunc(s, func(f int) bool { return f >= field }); i >= 0 {
 		return i
 	}
@@ -249,10 +274,10 @@ func gridRect(r uv.Rectangle) uv.Rectangle {
 // catalog said of them.
 func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 	g := ui.Grid{
-		Row: t.row, Col: t.col, Top: t.top, Left: t.left, Transpose: t.transpose, First: t.pageNo * t.limit,
+		Row: t.row, Col: t.col, Top: t.top, Left: t.left, Transpose: t.transpose, First: t.shown.pageNo * t.shown.limit,
 		Focused: a.win().Focus == p.ID, Key: a.icons.Key, Pane: p.ID,
 	}
-	shown := t.shown()
+	shown := t.shownCols()
 	for _, i := range shown {
 		name := t.page.Cols[i].Name
 		g.Cols = append(g.Cols, ui.GridCol{Name: name, PK: slices.Contains(t.cols.PK, name), Type: colType(t.typeOf(name))})
@@ -271,11 +296,11 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	ic := a.icons
 	order := "—" // no row identity to sort by
-	switch key := t.cols.Key(); {
-	case t.order != "" && t.desc:
-		order = t.order + " ↓"
-	case t.order != "":
-		order = t.order + " ↑"
+	switch s, key := t.shown, t.cols.Key(); {
+	case s.order != "" && s.desc:
+		order = s.order + " ↓"
+	case s.order != "":
+		order = s.order + " ↑"
 	case key != nil:
 		order = strings.Join(key, ",") + " ↑"
 	}
@@ -286,7 +311,7 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 			pages = "~" + pages
 		}
 	}
-	page := ui.Chip{Label: "PAGE", Value: fmt.Sprintf("%d/%s", t.pageNo+1, pages), Action: "grid.page"}
+	page := ui.Chip{Label: "PAGE", Value: fmt.Sprintf("%d/%s", t.shown.pageNo+1, pages), Action: "grid.page"}
 	if t.typing == "page" {
 		page.Input, page.Suffix = &t.pageIn, "/"+pages
 	}
@@ -307,9 +332,9 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 		Where: t.where, Typing: t.typing == "where", Pane: p.ID, Right: right,
 		Chips: []ui.Chip{
 			{Label: "ORDER", Value: order, Action: "grid.order"},
-			{Label: "LIMIT", Value: strconv.Itoa(t.limit), Action: "grid.limit"},
+			{Label: "LIMIT", Value: strconv.Itoa(t.shown.limit), Action: "grid.limit"},
 			page,
-			{Label: "COLS", Value: fmt.Sprintf("%d/%d", len(t.shown()), len(t.page.Cols)), Action: "grid.cols"},
+			{Label: "COLS", Value: fmt.Sprintf("%d/%d", len(t.shownCols()), len(t.page.Cols)), Action: "grid.cols"},
 		},
 		Buttons: []ui.Button{
 			{Icon: ic.Save}, // ponytail: does nothing until saving (M2)
@@ -329,7 +354,7 @@ func (a *App) chipRect(p *Pane, t *dataTab, action string) uv.Rectangle {
 func (a *App) focusedGrid() (*Pane, *dataTab, bool) {
 	p := a.focused()
 	t := dataOf(p)
-	return p, t, t != nil && t.err == "" && len(t.shown()) > 0
+	return p, t, t != nil && t.err == "" && len(t.shownCols()) > 0
 }
 
 // typingTab is the focused table whose query bar input has the keys.
@@ -348,7 +373,7 @@ func (a *App) gridMove(to func(r, c, rows, cols int) (int, int)) {
 	if !ok {
 		return
 	}
-	rows, cols := len(t.page.Rows), len(t.shown())
+	rows, cols := len(t.page.Rows), len(t.shownCols())
 	r, c := t.row, t.col
 	if t.transpose {
 		rows, cols, r, c = cols, rows, c, r
@@ -383,7 +408,7 @@ func (a *App) gridTranspose() {
 // scrollGrid is the wheel over pane p: dr rows and dc columns of the view,
 // the cursor pulled along (§7.6).
 func (a *App) scrollGrid(p *Pane, dr, dc int) {
-	if t := dataOf(p); t != nil && len(t.shown()) > 0 {
+	if t := dataOf(p); t != nil && len(t.shownCols()) > 0 {
 		t.top, t.left, t.row, t.col = a.grid(p, t).Scroll(gridRect(a.layout()[p.ID]), dr, dc)
 	}
 }

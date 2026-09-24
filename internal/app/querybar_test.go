@@ -133,18 +133,22 @@ func TestOrderAndLimit(t *testing.T) {
 		t.Errorf("the dropdown opens under its chip: %v, chip %v", box, chip)
 	}
 	feed(t, a, "stat<CR>")
+	answer(a, tab, false)
 	if tab.order != "status" || tab.desc || tab.pageNo != 0 || a.drop != nil {
 		t.Fatalf("status: order %q desc %v page %d", tab.order, tab.desc, tab.pageNo)
 	}
 	feed(t, a, "gostat<CR>")
+	answer(a, tab, false)
 	if !tab.desc || !strings.Contains(a.render().String(), " ORDER status ↓ ") {
 		t.Errorf("status again: desc %v", tab.desc)
 	}
 	feed(t, a, "go默认<CR>")
+	answer(a, tab, false)
 	if tab.order != "" || !strings.Contains(a.render().String(), " ORDER id ↑ ") {
 		t.Errorf("default: order %q", tab.order)
 	}
 	feed(t, a, "gl<C-n><CR>")
+	answer(a, tab, false)
 	if tab.limit != 500 || !strings.Contains(a.render().String(), " LIMIT 500 ") {
 		t.Errorf("gl: limit %d", tab.limit)
 	}
@@ -233,19 +237,19 @@ func TestCount(t *testing.T) {
 	if !strings.HasPrefix(right(), "auto · 6000 行") || !strings.Contains(a.render().String(), " PAGE 1/60 ") {
 		t.Errorf("counted: %q", right())
 	}
-	a.fetch(tab, true)
+	answer(a, tab, true)
 	a.Update(countMsg{tab: tab, seq: tab.countSeq - 1, n: 1})
 	a.Update(countMsg{tab: tab, seq: tab.countSeq, err: context.DeadlineExceeded})
 	if !strings.HasPrefix(right(), "auto · ? 行") || !strings.Contains(a.render().String(), " PAGE 1/? ") {
 		t.Errorf("timed out: %q", right())
 	}
 	tab.table.Rows = 2.5e6
-	a.fetch(tab, true)
+	answer(a, tab, true)
 	if tab.counted != estimated || !strings.HasPrefix(right(), "auto · ~2.5m 行") || !strings.Contains(a.render().String(), " PAGE 1/~25000 ") {
 		t.Errorf("estimated: %q", right())
 	}
 	tab.applied = "id > 1"
-	a.fetch(tab, true)
+	answer(a, tab, true)
 	if tab.counted != counting {
 		t.Error("a WHERE is counted for real")
 	}
@@ -265,5 +269,45 @@ func TestRowHoverAndNumber(t *testing.T) {
 	click(a, r.Min)
 	if tab.row != 4 || tab.col != 1 {
 		t.Errorf("row number: at %d,%d", tab.row, tab.col)
+	}
+}
+
+// answer is the database answering t's last request with the rows it had.
+func answer(a *App, t *dataTab, recount bool) {
+	a.Update(pageMsg{tab: t, seq: t.seq, cols: t.cols, page: t.page, next: t.next, recount: recount})
+}
+
+// Until a page is in, what is on screen stays whole: its rows, row numbers
+// and PAGE; a cancel goes back to it, count and all (§7.6, §8.3).
+func TestFetchKeepsWhatIsShown(t *testing.T) {
+	a, tab, _ := withRecorder(t, 160, 45)
+	tab.next = true
+	tab.count, tab.counted = 6000, countDone
+	feed(t, a, "]")
+	if f := a.render().String(); !strings.Contains(f, " PAGE 1/60 ") || !strings.Contains(f, "│   1 │") || !strings.Contains(statusRow(a), " 1,1 ") {
+		t.Fatalf("while page 2 loads:\n%s", f)
+	}
+	a.Update(pageMsg{tab: tab, seq: tab.seq, err: context.Canceled})
+	if tab.pageNo != 0 || tab.counted != countDone {
+		t.Fatalf("cancelled: page %d counted %v", tab.pageNo, tab.counted)
+	}
+	feed(t, a, "]")
+	if tab.pageNo != 1 {
+		t.Errorf("] after the cancel asks for page 2: %d", tab.pageNo+1)
+	}
+	feed(t, a, "R")
+	a.Update(pageMsg{tab: tab, seq: tab.seq, err: context.Canceled, recount: true})
+	if tab.counted != countDone || !strings.HasPrefix(a.queryBar(a.focused(), tab).Right, "auto · 6000 行") {
+		t.Errorf("a cancelled R keeps the count: %v", tab.counted)
+	}
+}
+
+// With the default order, the chip's key column is the one sorted by:
+// picking it turns it the other way (§7.8).
+func TestOrderDefaultKeyFlips(t *testing.T) {
+	a, tab, _ := withRecorder(t, 160, 45)
+	feed(t, a, "go<C-n><CR>") // id
+	if tab.order != "id" || !tab.desc {
+		t.Errorf("order %q desc %v", tab.order, tab.desc)
 	}
 }

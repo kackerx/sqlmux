@@ -155,7 +155,7 @@ func init() {
 		})},
 		"grid.page": {Title: "PAGE", Run: do(func(a *App, _ Args) {
 			if t := dataOf(a.focused()); t != nil && t.page.Cols != nil {
-				n := strconv.Itoa(t.pageNo + 1)
+				n := strconv.Itoa(t.shown.pageNo + 1)
 				t.typing, t.pageIn = "page", ui.Input{Text: n, Pos: len(n)}
 			}
 		})},
