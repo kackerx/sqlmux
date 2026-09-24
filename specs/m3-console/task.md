@@ -107,6 +107,11 @@
   - 拖动能选中文本；
   - 文件保存到隔离后的 `XDG_DATA_HOME` 下；
   - 在 NORMAL 下粘贴，内容作为文本插入。
+- [ ] 补回 M0 里因 F1.1 去掉假 console 而删掉的 22 项 e2e（tester 在 F1.1 结论里列出，2026-09-24）：
+  - f0.2：data:console = 5:4；console 未聚焦的边框 / 标题色；160 与 200 宽的 console 标题（对象名 + `doraemon.public ▾` + `▶ run ↵`）及其样式；140 / 130 / 100 / 60 宽的退让；80–110 宽仍显示 `▶ run ↵`；65–85 宽不单独出现 `↵`；220…60 宽 no_wasted_room；80 宽 console 标题；
+  - f0.3：改绑 `console.run` 为 `R` 后标题显示 `▶ run R`；
+  - f0.8：点击 `▶ run` 先让 console 获得焦点；悬停 `▶ run` 为 warn 底、移开恢复；指针在 console 上滚动只滚 console、焦点不变；
+  - f0.12：nerd 下 console 图标 U+F489，ascii 下为 `>`。
 
 ## F3.5 执行与结果区 · 状态：draft
 

@@ -106,7 +106,7 @@
 - [ ] 取数：
   - 查询语句为 `SELECT * FROM "schema"."table" ORDER BY <行标识列> LIMIT n OFFSET m`；
   - 走 Meta 连接和扩展协议；用 seq 丢弃过期的响应；
-  - 打开表时先查列缓存，没有就在 Meta 上查 TableColumns 并缓存（§8.4），再算行标识列（§10.1）拼查询；没有行标识列时不加 ORDER BY；两次往返放在同一个 Cmd 里；
+  - 打开表时先查列缓存，没有就在 Meta 上查 TableColumns 并缓存（§8.4），再算行标识列（§10.1）拼查询；没有行标识列时不加 ORDER BY；两次往返放在同一个 Cmd 里；建列缓存时，F1.2 的 `R` 要一并清掉它；
   - 拼 SQL 的函数放在 `db/postgres`，标识符用 `pgx.Identifier{}.Sanitize()`，F1.4 往里加 WHERE、ORDER；F1.3 只取第 0 页；
   - 每页默认 100 行，多取一行来判断还有没有下一页（§8.5）；
   - 从命令面板打开表（`↵` / `C-t`）和从树里打开走同一条路径，真正取数，取代 M0 里只改 tab 名的做法。
@@ -136,6 +136,7 @@
   - 配置 `[map.grid.normal] L = "5l"` 后，按 `L` 右移 5 列；
   - 按 `l` 或 `$` 把光标移到可视区域右边以外时，表格横向滚动，光标所在的列完整可见；
   - seed 里含换行、Tab、ESC 的那一行显示为 `↵` 和空格，屏幕上不出现 ESC 引起的错乱。
+- [ ] 补回 M0 里因 F1.1 去掉假表格而删掉的 23 项 e2e（tester 在 F1.1 结论里列出）：f0.9 整个脚本（`┼`、对齐、留白、sep 色、表头 func 色、主键钥匙图标、斑马纹、cursor / cursor_blur、数值右对齐、滚动后表头固定、80 宽裁列、ascii 下显示 `* id`，17 项）；f0.8 表格滚轮每格 3 行、滚到顶停住；f0.12 列按类型着色及 row / cursor / number·string·time token 生效（4 项）。
 - [ ] 长查询（例如 WHERE 中带 `pg_sleep(3) is not null`）执行时显示忙碌提示；按 `C-c` 后查询被取消，并有提示。
 - [ ] 表格渲染的 golden 测试通过（160×45，固定数据：一个打开了 t_order 的 data tab，含 NULL、枚举、json、timestamptz、带换行的文本各一列；外加一张转置视图）。
 

@@ -39,6 +39,7 @@
 - [ ] e2e：
   - 新建、切换、重命名、关闭 window 都正确；
   - 各 window 的布局互不影响。
+- [ ] 补回 M0 里因 F1.1 去掉第二个 window 而删掉的 3 项 e2e（tester 在 F1.1 结论里列出，2026-09-24）：f0.5 其余 window 为 dim 字、无底色；窄宽度下省略非当前 window（含省略顺序单调性检查里的这一环）；f0.14 window 范围 `↵`（`%report`）。
 
 ## F5.3 只读 session 与事务模式 · 状态：draft
 

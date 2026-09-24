@@ -728,7 +728,7 @@ catalog 按 session 缓存。console 执行 DDL 后（由 §9.3 的判定得知�
   - 点击它，或在 console 的 NORMAL 模式下按 `gs`，打开 schema 下拉框。
   - 下拉框列出当前库的 schema，系统 schema（`pg_catalog`、`information_schema` 等）不列出。顶部有过滤输入框，支持模糊匹配（§9.7）。
   - 下拉框照命令面板的做法：打开后输入直接进过滤框（INSERT），`C-n` / `C-p` / `↑` / `↓` 移动，`↵` 选中，`esc` 关闭；`j` / `k` 会被当成输入，所以不用。鼠标：点选，点浮层外部关闭，悬停 `row` 底。
-  - 位置在入口（侧栏标题或 console 标题的 schema 按钮）下方、与入口左对齐，宽度取 max(最长 schema 名 + 边距, 入口所在栏的宽度)。当前所在的 schema 用 `pk` 色标出（§7.3 里 pk 也用于 schema 值）。键位在 `[keys.schema]`，Action 为 `schema.up` / `schema.down` / `schema.select` / `schema.close`，只在浮层里用，不带标题。
+  - 位置在入口（侧栏标题或 console 标题的 schema 按钮）下方、与入口左对齐，宽度取 max(最长 schema 名 + 边距, 入口所在栏的右边界 − 入口起点 x)，这样右边框和所在栏的右边框对齐；仍放不下时向左移。当前所在的 schema 用 `pk` 色标出（§7.3 里 pk 也用于 schema 值）。键位在 `[keys.schema]`，Action 为 `schema.up` / `schema.down` / `schema.select` / `schema.close`，只在浮层里用，不带标题。
   - 树上选中之后：树切到新 schema，光标回到第一项，过滤清空，侧栏标题跟着变。组件放在 `ui` 里，M1 先给树用，console 复用。
   - 命令面板里也有对应的「Switch schema…」命令。
 - **默认值**：新建的 console，默认使用 schema 树当前所在的 schema；之后两者互不影响。
@@ -1138,7 +1138,7 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
 
 - 连接定义单独放一个文件，是因为应用改写 TOML 时会丢掉注释，所以不能去改用户手写的 config.toml。
 - `name`、`engine`、`dsn` 必填。`engine` 在 M1 只接受 `postgres`，其他值报错「目前只支持 postgres」。
-- **启动时找不到连接**：没有 `connections.toml`、文件里没有连接，或者 `sqlmux <名字>` 找不到这个名字时，在终端打印一行错误就退出（退出码 1），不进入界面。错误里写明配置文件的路径；名字找不到时列出已有的连接名。连接失败（比如密码错误）也一样，打印数据库返回的错误后退出。在界面里新建连接（S-03）要到 M5。
+- **启动时找不到连接**：没有 `connections.toml`、文件里没有连接，或者 `sqlmux <名字>` 找不到这个名字时，在终端打印错误就退出（退出码 1），不进入界面。错误里写明配置文件的路径；名字找不到时列出已有的连接名。连接失败（比如密码错误）也一样，打印驱动返回的错误后退出；pgconn 逐个地址尝试时会打出多行（标题一行，每个地址一行），照样输出，不压成一行。在界面里新建连接（S-03）要到 M5。
 - state 文件先写到临时文件，再 rename 过去，保证原子性。
 
 ```toml
