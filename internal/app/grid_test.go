@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -107,7 +108,7 @@ func TestGridCancelAndError(t *testing.T) {
 	if a.quitToast != 0 {
 		t.Fatal("C-c while a query runs cancels it, not the first of two to quit")
 	}
-	a.Update(pageMsg{tab: tab, seq: tab.seq, err: db.ErrCanceled})
+	a.Update(pageMsg{tab: tab, seq: tab.seq, err: context.Canceled})
 	if a.toast != "查询已取消" || len(tab.page.Rows) != 3 || tab.err != "" {
 		t.Fatalf("cancelled: toast %q rows %d err %q", a.toast, len(tab.page.Rows), tab.err)
 	}
@@ -234,6 +235,22 @@ func TestGridCells(t *testing.T) {
 	}
 	if strings.Contains(f.String(), "\x1b") || !strings.Contains(f.String(), "line two after tab [31") {
 		t.Error("control characters go, tabs are spaces")
+	}
+}
+
+// Clearing the column cache (R) leaves open tables as they are: each keeps
+// the columns it was fetched with.
+func TestGridKeepsItsColumns(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	loadOrders(t, a, 3)
+	before := styleOf(t, a.render(), "1.99")
+	a.run("tree.refresh", 0)
+	if len(a.sess.cols) != 0 {
+		t.Fatal("R clears the cache")
+	}
+	f := a.render()
+	if st := styleOf(t, f, "1.99"); st.Fg != before.Fg || st.Fg != a.theme.Number || !strings.Contains(f.String(), a.icons.Key.Text+" id") {
+		t.Errorf("after R: fg %v, want %v, and the key icon", st.Fg, before.Fg)
 	}
 }
 

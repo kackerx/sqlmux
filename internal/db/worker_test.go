@@ -59,7 +59,7 @@ func TestWorkerCancelsOnlyTheRunningRequest(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 	w.Cancel()
-	if err := <-done; !errors.Is(err, ErrCanceled) {
+	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled request: %v", err)
 	}
 }

@@ -25,10 +25,11 @@ type Tab struct {
 // data's, transposed or not.
 type dataTab struct {
 	table     db.Table
-	page      db.Result // the rows on screen
-	next      bool      // a page follows (§8.5)
-	row, col  int       // the cursor
-	top, left int       // the first record and field shown
+	cols      db.Columns // the catalog's, as fetched: PK and types for the grid
+	page      db.Result  // the rows on screen
+	next      bool       // a page follows (§8.5)
+	row, col  int        // the cursor
+	top, left int        // the first record and field shown
 	transpose bool
 	seq       int    // the last request's; older answers are dropped (§8.3)
 	err       string // the last request's error, drawn instead of the table
@@ -80,12 +81,12 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	t := m.tab
 	switch {
 	case m.seq != t.seq: // a newer request is on its way
-	case errors.Is(m.err, db.ErrCanceled): // the old rows stay (§8.3)
+	case errors.Is(m.err, context.Canceled): // the old rows stay (§8.3)
 		return a.showToast("查询已取消", toastTTL)
 	case m.err != nil:
 		t.err = m.err.Error()
 	default:
-		t.err, t.page, t.next = "", m.page, m.next
+		t.err, t.cols, t.page, t.next = "", m.cols, m.page, m.next
 		t.row = max(min(t.row, len(t.page.Rows)-1), 0)
 		t.col = max(min(t.col, len(t.page.Cols)-1), 0)
 	}
@@ -107,9 +108,9 @@ func bodyRect(r uv.Rectangle) uv.Rectangle {
 }
 
 // grid is t as pane p draws it, its columns the page's with what the
-// catalog says of them.
+// catalog said of them.
 func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
-	cols := a.sess.cols[idOf(t.table)]
+	cols := t.cols
 	g := ui.Grid{
 		Rows: t.page.Rows, Row: t.row, Col: t.col, Top: t.top, Left: t.left, Transpose: t.transpose,
 		Focused: a.win().Focus == p.ID, Key: a.icons.Key, Pane: p.ID,
@@ -184,11 +185,8 @@ func colType(t string) ui.ColType {
 	if strings.HasSuffix(t, "[]") {
 		return ui.ColOther
 	}
-	for strings.Contains(t, "(") { // "numeric(10,2)", "timestamp(3) with time zone"
-		i, j := strings.Index(t, "("), strings.Index(t, ")")
-		if j < i {
-			break
-		}
+	// format_type puts one modifier at most: "numeric(10,2)", "timestamp(3) with time zone"
+	if i, j := strings.Index(t, "("), strings.Index(t, ")"); 0 <= i && i < j {
 		t = t[:i] + t[j+1:]
 	}
 	switch t {

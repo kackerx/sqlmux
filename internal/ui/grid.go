@@ -40,7 +40,6 @@ const (
 type Grid struct {
 	Cols      []GridCol
 	Rows      [][]db.Val
-	First     int // the row number before Rows[0]: the page's offset
 	Row, Col  int // the current cell; -1 for none
 	Top, Left int // the first record and field shown
 	Transpose bool
@@ -125,7 +124,7 @@ func (v view) label(r int) string {
 	return v.g.number(r)
 }
 
-func (g Grid) number(rec int) string { return strconv.Itoa(g.First + rec + 1) }
+func (g Grid) number(rec int) string { return strconv.Itoa(rec + 1) }
 
 func (g Grid) header(col GridCol) string {
 	if col.PK && g.Key.Text != "" {

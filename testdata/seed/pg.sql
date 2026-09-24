@@ -5,6 +5,8 @@
 create schema agentable;
 
 create type order_status as enum ('pending', 'running', 'done', 'failed');
+-- sorts before running but has the newest oid: labels go by enumsortorder (§8.4)
+alter type order_status add value 'queued' before 'running';
 
 -- single-column primary key
 create table t_user (

@@ -63,7 +63,7 @@ func TestTableColumns(t *testing.T) {
 	}
 	for name, want := range map[string]db.Column{
 		"id":         {Name: "id", Type: "bigint", NotNull: true, Default: "nextval('t_order_id_seq'::regclass)"},
-		"status":     {Name: "status", Type: "order_status", NotNull: true, Default: "'pending'::order_status", Enum: []string{"pending", "running", "done", "failed"}},
+		"status":     {Name: "status", Type: "order_status", NotNull: true, Default: "'pending'::order_status", Enum: []string{"pending", "queued", "running", "done", "failed"}},
 		"amount":     {Name: "amount", Type: "numeric(10,2)", NotNull: true},
 		"paid":       {Name: "paid", Type: "boolean"},
 		"meta":       {Name: "meta", Type: "jsonb"},
