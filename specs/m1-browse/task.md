@@ -66,7 +66,7 @@
 - [x] 没有 `connections.toml` 时，错误里写明配置文件的路径；`sqlmux <名字>` 的名字不存在时，列出已有的连接名。
 - [x] `connections.toml` 中写有明文密码且权限为 0644 时，出现警告。
 
-## F1.2 catalog 与 schema 树 · 状态：testing
+## F1.2 catalog 与 schema 树 · 状态：passed（f0a7db2；e2e a65a8cf）
 
 - **依赖**：F1.1
 - **涉及**：`internal/db`（catalog）、`internal/ui`（tree）
@@ -90,8 +90,8 @@
 - [x] 从树里打开表之后，焦点移到 data pane（§7.8，已定）。
 
 **验收**
-- [ ] 集成测试：catalog 返回的主键、唯一索引、枚举、可空、默认值都与 seed 一致；分区表只列父表，物化视图在列表里。
-- [ ] e2e：
+- [x] 集成测试：catalog 返回的主键、唯一索引、枚举、可空、默认值都与 seed 一致；分区表只列父表，物化视图在列表里。
+- [x] e2e：
   - 树列出 seed 中 `public` 下的表，行数量级格式正确；
   - `/` 过滤后高亮匹配字符；
   - 用 `↵`、`t` 和鼠标都能打开表（data pane 标题显示表名）；
