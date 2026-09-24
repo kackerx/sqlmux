@@ -1,12 +1,14 @@
 package app
 
 import (
-	"fmt"
+	"context"
 	"slices"
 	"strconv"
 
+	"sqlmux/internal/config"
+	"sqlmux/internal/db"
+	"sqlmux/internal/db/postgres"
 	"sqlmux/internal/keymap"
-	"sqlmux/internal/ui"
 )
 
 // PaneKind is what a pane shows.
@@ -26,10 +28,8 @@ type Pane struct {
 	ID        int // stable; the sidebar is 0
 	Kind      PaneKind
 	Tabs      []string
-	Cur, Prev int        // tab bar * and - (T-01)
-	Lines     []string   // M0 placeholder content
-	Rows      [][]string // data pane: the placeholder table under Lines
-	Scroll    int        // first placeholder line (or row) shown; the mouse wheel moves it
+	Cur, Prev int // tab bar * and - (T-01)
+	Scroll    int // the sidebar's first table shown; the mouse wheel moves it
 }
 
 // Object is the title's "· name" part: the current tab.
@@ -66,33 +66,54 @@ func (w *Window) focus(id int) {
 
 // Session is one connection (tech-design §5).
 type Session struct {
-	Name, Engine string
-	Addr         string // shown in the status bar, e.g. pg@localhost:5432
-	Windows      []*Window
-	Active       int
+	Name       string
+	Addr       string     // shown in the status bar, e.g. ctw@localhost:5432
+	Main, Meta *db.Worker // §8.2
+	Windows    []*Window
+	Active     int
 }
 
 func (a *App) win() *Window { return a.sess.Windows[a.sess.Active] }
 
-// fakeSession is M0's stand-in workspace: no database behind it.
-func fakeSession() *Session {
-	data := &Pane{ID: 1, Kind: KindData, Tabs: []string{"t_order", "t_user"}, Prev: 1,
-		Lines: []string{"WHERE deleted_at is null"}, Rows: fakeGrid()}
-	cons := &Pane{ID: 2, Kind: KindConsole, Tabs: []string{"console_1"}, Prev: -1, Lines: fakeSQL}
-	main := &Window{
+// newSession is a session's default workspace (§5): one window, data, with
+// the sidebar and an empty data pane.
+func newSession(name, addr string, main, meta *db.Worker) *Session {
+	w := &Window{
 		Name:     "data",
 		TreeOpen: true,
 		Tree:     &Pane{ID: 0, Kind: KindSchema},
-		Root:     &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(cons)}, // data : console = 5 : 4 (§7.8)
-		Focus:    1,
-		lastID:   2,
+		Root:     leaf(&Pane{ID: 1, Kind: KindData, Prev: -1}),
+		lastID:   1,
 	}
-	// ponytail: the second window only shows in the status bar's window list;
-	// switching windows is M5.
-	return &Session{Name: "doraemon", Engine: "postgres", Addr: "pg@localhost:5432",
-		Windows: []*Window{main, {Name: "report"}}}
+	w.focus(1)
+	return &Session{Name: name, Addr: addr, Main: main, Meta: meta, Windows: []*Window{w}}
 }
 
+// Open connects a session's Main and then its Meta (§8.2).
+func Open(ctx context.Context, c config.Connection) (*Session, error) {
+	pw, err := c.Secret()
+	if err != nil {
+		return nil, err
+	}
+	main, err := postgres.Connect(ctx, c.DSN, pw, false)
+	if err != nil {
+		return nil, err
+	}
+	meta, err := postgres.Connect(ctx, c.DSN, pw, true)
+	if err != nil {
+		main.Close()
+		return nil, err
+	}
+	return newSession(c.Name, main.Addr, db.NewWorker(main), db.NewWorker(meta)), nil
+}
+
+func (s *Session) Close() {
+	s.Main.Close()
+	s.Meta.Close()
+}
+
+// fakeTables stand in for the catalog in the sidebar and the palette.
+// ponytail: F1.2 lists the catalog's tables instead.
 type fakeTable struct{ name, rows string }
 
 var fakeTables = []fakeTable{
@@ -103,36 +124,10 @@ var fakeTables = []fakeTable{
 	{"t_user_address", "52k"}, {"t_user_profile", "38k"},
 }
 
-// fakeCols and fakeGrid are the data pane's M0 stand-in table.
-var fakeCols = []ui.GridCol{
-	{Name: "id", PK: true, Type: ui.ColNumber}, {Name: "biz_type", Type: ui.ColString},
-	{Name: "status", Type: ui.ColString}, {Name: "created_at", Type: ui.ColTime},
-}
-
-func fakeGrid() [][]string {
-	status := []string{"running", "done", "failed", "pending"}
-	biz := []string{"goal", "task", "report"}
-	var rows [][]string
-	for i := range 60 {
-		rows = append(rows, []string{fmt.Sprint(689 + i), biz[i%3], status[i%4], fmt.Sprintf("2026-09-21 10:%02d:00", i)})
-	}
-	return rows
-}
-
-var fakeSQL = []string{
-	"select * from mt_task",
-	"where status = 'running';",
-	"",
-	"select id, biz_type, status",
-	"from t_order",
-	"where deleted_at is null",
-	"order by created_at desc;",
-}
-
 // openTable shows table t in the focused data pane, else the window's first
 // one, and focuses it (§12): in place of its current tab, or in a new tab it
 // switches to.
-// ponytail: M0 only renames the tab; M1 opens the table's data.
+// ponytail: it only names the tab; F1.3 fetches the table's data.
 func (a *App) openTable(t string, newTab bool) {
 	p := a.focused()
 	if p.Kind != KindData {
@@ -298,22 +293,13 @@ func (a *App) focusPane(id int) {
 	}
 }
 
-// wheelStep is how many placeholder lines one wheel notch scrolls.
+// wheelStep is how many rows one wheel notch scrolls (§7.4).
 const wheelStep = 3
 
 // scrollPane scrolls pane id by notches (negative: up), within its content.
+// ponytail: only the sidebar has content to scroll; F1.3's grid adds the data pane.
 func (a *App) scrollPane(id, notches int) {
-	for _, p := range a.panesByNumber() {
-		if p.ID != id {
-			continue
-		}
-		n := len(p.Lines)
-		switch p.Kind {
-		case KindSchema:
-			n = len(fakeTables)
-		case KindData:
-			n = len(p.Rows)
-		}
-		p.Scroll = min(max(p.Scroll+notches*wheelStep, 0), max(n-1, 0))
+	if p := a.win().Tree; p.ID == id {
+		p.Scroll = min(max(p.Scroll+notches*wheelStep, 0), max(len(fakeTables)-1, 0))
 	}
 }

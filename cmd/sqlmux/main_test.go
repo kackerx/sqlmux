@@ -41,3 +41,12 @@ func TestKeysFormats(t *testing.T) {
 		}
 	}
 }
+
+// Startup errors name the file to fix (§14).
+func TestOpenWithoutConnections(t *testing.T) {
+	writeConfig(t, "")
+	_, _, err := open("")
+	if err == nil || !strings.Contains(err.Error(), filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "sqlmux", "connections.toml")) {
+		t.Fatalf("no connections.toml: %v", err)
+	}
+}

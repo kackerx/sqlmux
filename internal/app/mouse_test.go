@@ -32,7 +32,7 @@ func click(a *App, p uv.Position) tea.Cmd {
 }
 
 func TestClickFocusesPane(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	r := a.layout()[2]
 	click(a, uv.Pos(r.Min.X+5, r.Min.Y+5))
 	if a.win().Focus != 2 {
@@ -41,7 +41,7 @@ func TestClickFocusesPane(t *testing.T) {
 }
 
 func TestDoubleClickTitleZooms(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	title := find(t, a, ui.Target{Kind: ui.KindTitle, Pane: 2}).Min
 	click(a, title)
 	if a.win().Zoom != 0 || a.win().Focus != 2 {
@@ -65,7 +65,7 @@ func TestDoubleClickTitleZooms(t *testing.T) {
 }
 
 func TestDragBorder(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	gap := find(t, a, ui.Target{Kind: ui.KindBorder, I: 0})
 	before := a.layout()[1].Dx()
 	a.View()
@@ -125,7 +125,7 @@ func TestClickOutsideOverlayCloses(t *testing.T) {
 }
 
 func TestHover(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	run := find(t, a, ui.Target{Kind: ui.KindHint, Pane: 2, Action: "console.run"})
 	before := a.render().Buf.CellAt(run.Min.X, run.Min.Y).Style.Bg
 	a.Update(tea.MouseMotionMsg{X: run.Min.X, Y: run.Min.Y})
@@ -137,22 +137,28 @@ func TestHover(t *testing.T) {
 // The wheel scrolls the pane under the pointer, whatever has focus.
 func TestWheelScrollsPaneUnderPointer(t *testing.T) {
 	a := sized(160, 45, "nerd")
-	a.win().Focus = 2
-	r := a.layout()[1]
-	a.Update(tea.MouseWheelMsg{X: r.Min.X + 5, Y: r.Min.Y + 5, Button: tea.MouseWheelDown})
-	data, cons := a.win().Root.Leaves()[0], a.win().Root.Leaves()[1]
-	if data.Scroll != wheelStep || cons.Scroll != 0 {
-		t.Fatalf("data scroll %d, console %d", data.Scroll, cons.Scroll)
+	tree := a.win().Tree
+	wheel := func(id int, b tea.MouseButton) {
+		r := a.layout()[id]
+		a.Update(tea.MouseWheelMsg{X: r.Min.X + 5, Y: r.Min.Y + 5, Button: b})
 	}
-	// inside the border: the WHERE line, the grid's header and rule, then rows
-	first := strings.Split(a.render().String(), "\n")[r.Min.Y+4]
-	if !strings.Contains(first, " "+data.Rows[wheelStep][0]+" ") {
-		t.Errorf("the data pane should start %d rows down: %q", wheelStep, first)
+	wheel(1, tea.MouseWheelDown) // the data pane, focused, has nothing to scroll yet
+	if tree.Scroll != 0 {
+		t.Fatalf("the wheel over the data pane scrolled the tree to %d", tree.Scroll)
 	}
-	a.Update(tea.MouseWheelMsg{X: r.Min.X + 5, Y: r.Min.Y + 5, Button: tea.MouseWheelUp})
-	a.Update(tea.MouseWheelMsg{X: r.Min.X + 5, Y: r.Min.Y + 5, Button: tea.MouseWheelUp})
-	if data.Scroll != 0 {
-		t.Fatalf("scrolling up stops at the top, got %d", data.Scroll)
+	wheel(0, tea.MouseWheelDown)
+	if tree.Scroll != wheelStep || a.win().Focus != 1 {
+		t.Fatalf("tree scroll %d, focus %d", tree.Scroll, a.win().Focus)
+	}
+	// inside the border: the filter line and its rule, then the tables
+	first := strings.Split(a.render().String(), "\n")[a.layout()[0].Min.Y+3]
+	if !strings.Contains(first, " "+fakeTables[wheelStep].name+" ") {
+		t.Errorf("the tree should start %d tables down: %q", wheelStep, first)
+	}
+	wheel(0, tea.MouseWheelUp)
+	wheel(0, tea.MouseWheelUp)
+	if tree.Scroll != 0 {
+		t.Fatalf("scrolling up stops at the top, got %d", tree.Scroll)
 	}
 }
 
@@ -169,7 +175,7 @@ func TestClickUnderPaneNumbers(t *testing.T) {
 		{"sidebar", func(a *App) uv.Position { return uv.Pos(5, 10) }, 0},
 		{"status bar", func(*App) uv.Position { return statusBar }, 1},
 	} {
-		a := sized(160, 45, "nerd")
+		a := twoPanes(160, 45, "nerd")
 		feed(t, a, "<Space>q")
 		click(a, c.at(a))
 		if a.paneNumbers || a.win().Focus != c.focus {

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image/color"
 	"reflect"
 	"strings"
 	"testing"
@@ -114,5 +115,23 @@ func TestGridWidths(t *testing.T) {
 	}
 	if got := g.widths(20); got[0] < 1 || got[1] < len("long header") || got[1] > 40 {
 		t.Errorf("squeezed: %v, never below the header", got)
+	}
+}
+
+// Values take their column type's color (§7.6).
+func TestGridColorsByType(t *testing.T) {
+	th := TokyonightStorm
+	g := Grid{
+		Cols: []GridCol{{Name: "n", Type: ColNumber}, {Name: "s", Type: ColString}, {Name: "t", Type: ColTime}},
+		Rows: [][]string{{"689", "goal", "2026-09-21 10:00:00"}}, Row: -1, Col: -1,
+	}
+	f := NewFrame(60, 4, th)
+	g.Draw(f, f.Bounds())
+	row := strings.Split(f.String(), "\n")[2] // under the header and its rule
+	for s, want := range map[string]color.Color{"689": th.Number, "goal": th.String, "2026-09-21 10:00:00": th.Time} {
+		x := Width(row[:strings.Index(row, s)])
+		if fg := f.Buf.CellAt(x, 2).Style.Fg; fg != want {
+			t.Errorf("%q: %v, want %v", s, fg, want)
+		}
 	}
 }

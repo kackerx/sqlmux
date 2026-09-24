@@ -16,44 +16,44 @@
 
 ---
 
-## F1.1 测试数据库与连接 · 状态：todo
+## F1.1 测试数据库与连接 · 状态：reviewing
 
 - **依赖**：M0
 - **涉及**：`docker-compose.yml`、`testdata/seed/pg.sql`、`internal/db`（Conn、Worker、postgres）、`internal/config`（connections.toml）
 
 **开发**
-- [ ] `docker-compose.yml`：
+- [x] `docker-compose.yml`：
   - 包含 postgres:17 与 mysql:8.4（MySQL 在 M5 用）；
   - 端口避开本机默认端口，PG 用 55432、MySQL 用 53306。
-- [ ] `testdata/seed/pg.sql`：建两个 schema（`public`、`agentable`），表要覆盖以下情况：
+- [x] `testdata/seed/pg.sql`：建两个 schema（`public`、`agentable`），表要覆盖以下情况：
   - 单列主键、复合主键、只有非空唯一索引、无主键；
   - enum、boolean、timestamptz、json / jsonb 类型；
   - 可空列、有默认值的列；
   - 至少一张 5000 行以上的表（用于测分页和计数）；
   - 一个视图、一张物化视图、一张分区表（含两个分区），用来测 catalog 的列表规则（§8.4）；
   - 一行含换行、Tab 和 ESC 字符的文本，用来测单元格的控制字符清理（§7.6）。
-- [ ] 读取 `connections.toml`（§14）：
+- [x] 读取 `connections.toml`（§14）：
   - 字段：`name`、`engine`、`dsn`、`password_cmd`、`password_env`、`password`、`read_only`；前三个必填，`engine` 只接受 `postgres`；`~/.pgpass` 由 pgconn 自动读取；
   - 密码来源的优先级、`password_cmd` 的执行方式按 §13「凭据」；
   - 文件中写有明文 `password`，且对同组或其他用户可读时，进入界面后用 toast 警告（§13）。
-- [ ] PG 版 `db.Conn`（§8.1）：
+- [x] PG 版 `db.Conn`（§8.1）：
   - `Exec` 走简单协议，结果为文本；
   - `Query` 走扩展协议，参数按文本传、OID 传 0，结果为文本；
   - `Close`；取消走 ctx，不单设 `Cancel` 方法（§8.1）；
   - 值用 `Val{S, Null}` 表示；`Col.Type` 用 pgtype 的 OID 表转成类型名，认不出的留空（§8.1）；
   - 连接参数用 `pgconn.ParseConfig` 解析，环境变量和 `~/.pgpass` 交给它；没写 `application_name` 时补成 `sqlmux`，没写连接超时时补成 10s（§8.1）；
   - ContextWatcherHandler 改用 `CancelRequestContextWatcherHandler`（`DeadlineDelay` 5s）：pgconn 默认的 handler 在 context 取消时会断开连接（§8.3）。
-- [ ] `db.Worker`（§8.2）：
+- [x] `db.Worker`（§8.2）：
   - 每条连接一个 Worker，用互斥锁串行执行请求；`Cancel()` 取消当前请求的 ctx；
   - 每个 session 有 Main 和 Meta 两条连接；
   - 建连超时 10s；`main` 里同步建连，先 Main 后 Meta，都连上才进界面（§8.2）；
   - 建连时通过 RuntimeParams 设置 `DateStyle = ISO, YMD`（§8.1），建连后记录原始 `search_path`；
   - `Meta` 的 RuntimeParams 另加 `default_transaction_read_only = on`，设为只读（§8.2）。
-- [ ] 启动方式：`sqlmux <连接名>`，未指定时使用第一个连接。找不到连接或者连接失败时，在终端打印错误后退出，退出码为 1，不进入界面（§14「启动时找不到连接」）。
-- [ ] 默认 window 名为 `data`，只有侧栏和一个占满其余宽度的空 data pane（§5）。去掉 M0 的假 session、假 console、第二个 window `report`，以及 data pane 的假 WHERE 行和假表格；假的表列表留到 F1.2 换成 catalog。从面板打开表仍只建 tab，取数在 F1.3。初始焦点仍在 data pane，经由 `Window.focus()` 设置（M0 审查留下的建议）。`PaneKind` console 及其标题提示保留，M3 要用，现有测试自己构造 console pane 覆盖，不算死代码。M0 的 e2e 里依赖这些假数据的用例（如命令面板里的 `%report`），提测时告诉 tester 一起调整。
+- [x] 启动方式：`sqlmux <连接名>`，未指定时使用第一个连接。找不到连接或者连接失败时，在终端打印错误后退出，退出码为 1，不进入界面（§14「启动时找不到连接」）。
+- [x] 默认 window 名为 `data`，只有侧栏和一个占满其余宽度的空 data pane（§5）。去掉 M0 的假 session、假 console、第二个 window `report`，以及 data pane 的假 WHERE 行和假表格；假的表列表留到 F1.2 换成 catalog。从面板打开表仍只建 tab，取数在 F1.3。初始焦点仍在 data pane，经由 `Window.focus()` 设置（M0 审查留下的建议）。`PaneKind` console 及其标题提示保留，M3 要用，现有测试自己构造 console pane 覆盖，不算死代码。M0 的 e2e 里依赖这些假数据的用例（如命令面板里的 `%report`），提测时告诉 tester 一起调整。
   - M0 修剪时留下的观察：按 ID 找 pane 的写法已经有三份（`focused()`、`scrollPane`、`openTable`），换成真实 session 和 tab 后如果再多出来，就提一个 `pane(id)` 辅助函数。
-- [ ] 集成测试用环境变量 `SQLMUX_TEST_PG` 指定连接串；没有设置时，`-tags integration` 的测试直接 skip。
-- [ ] 状态栏改为显示真实的 session 名（`connections.toml` 里的 `name`）和地址 `<用户>@<host>:<port>`（§7.8）。
+- [x] 集成测试用环境变量 `SQLMUX_TEST_PG` 指定连接串；没有设置时，`-tags integration` 的测试直接 skip。
+- [x] 状态栏改为显示真实的 session 名（`connections.toml` 里的 `name`）和地址 `<用户>@<host>:<port>`（§7.8）。
 
 **验收**
 - [ ] 集成测试覆盖：

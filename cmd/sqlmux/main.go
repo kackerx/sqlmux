@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -17,18 +19,50 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "keys" {
 		os.Exit(keysCmd(os.Args[2:], os.Stdout, os.Stderr))
 	}
-	cfg, err := config.Load()
-	if err != nil {
+	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "sqlmux:", err)
 		os.Exit(1)
 	}
+}
+
+// run is `sqlmux [connection]`. Whatever fails before the UI is up ends the
+// program with the error on the terminal (§14「启动时找不到连接」).
+func run(args []string) error {
+	name := ""
+	switch len(args) {
+	case 0:
+	case 1:
+		name = args[0]
+	default:
+		return errors.New("用法：sqlmux [连接名]")
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	sess, warning, err := open(name)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
 	// ponytail: problems are only reported by `sqlmux keys --check`; the startup
 	// conflict overlay (§6.7) is M6.
 	keys, _ := keymap.New(cfg)
-	if _, err := tea.NewProgram(app.New(cfg, keys)).Run(); err != nil {
-		fmt.Fprintln(os.Stderr, "sqlmux:", err)
-		os.Exit(1)
+	_, err = tea.NewProgram(app.New(cfg, keys, sess, warning)).Run()
+	return err
+}
+
+// open connects to connection name, or the first one when name is "".
+func open(name string) (*app.Session, string, error) {
+	c, warning, err := config.LoadConnection(name)
+	if err != nil {
+		return nil, "", err
 	}
+	sess, err := app.Open(context.Background(), c)
+	if err != nil {
+		return nil, "", fmt.Errorf("%s: %w", c.Name, err)
+	}
+	return sess, warning, nil
 }
 
 // keysCmd is `sqlmux keys [--format md|toml] [--check]` (§6.7).

@@ -26,6 +26,26 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// testSession is the default workspace with no database behind it.
+func testSession() *Session { return newSession("doraemon", "pg@localhost:5432", nil, nil) }
+
+// m0Layout gives a M0's layout, for the tests of panes, tabs and windows
+// that need more than the default one empty data pane: ⟨1⟩ data with the
+// tabs t_order and t_user, ⟨2⟩ a console beside it at 5 : 4 (§7.8), and a
+// second window.
+func m0Layout(a *App) *App {
+	win := a.win()
+	data := win.Root.Pane
+	data.Tabs, data.Cur, data.Prev = []string{"t_order", "t_user"}, 0, 1
+	cons := &Pane{ID: 2, Kind: KindConsole, Tabs: []string{"console_1"}, Prev: -1}
+	win.Root, win.lastID = &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(cons)}, 2
+	a.sess.Windows = append(a.sess.Windows, &Window{Name: "report"})
+	return a
+}
+
+// twoPanes is sized with m0Layout.
+func twoPanes(w, h int, icons string) *App { return m0Layout(sized(w, h, icons)) }
+
 func sized(w, h int, icons string) *App {
 	c := config.Default()
 	c.Icons = ui.IconSet(icons)
@@ -34,7 +54,7 @@ func sized(w, h int, icons string) *App {
 
 func sizedWith(w, h int, c *config.Config) *App {
 	keys, _ := keymap.New(c)
-	a := New(c, keys)
+	a := New(c, keys, testSession(), "")
 	a.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return a
 }
@@ -156,7 +176,7 @@ func TestDoubleCtrlCQuits(t *testing.T) {
 }
 
 func TestCloseTab(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	data := a.focused()
 	feed(t, a, ":q<CR>")
 	if !reflect.DeepEqual(data.Tabs, []string{"t_user"}) || data.Cur != 0 {
@@ -203,7 +223,7 @@ func TestKeysRunActions(t *testing.T) {
 // With the palette open, keys go to it, not to the focused pane's scope: ↵
 // runs the command instead of console.run.
 func TestPaletteShadowsPaneKeys(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	a.win().Focus = 2 // console
 	if ctx := a.context(); ctx.Mode != keymap.Normal || ctx.Focus[0] != "console" {
 		t.Fatalf("console context %+v", ctx)
@@ -383,7 +403,7 @@ func titles(a *App) []string {
 }
 
 func TestSplitAndClosePanes(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	feed(t, a, `<Space>"`) // split ⟨1⟩ data below
 	if got := strings.Join(titles(a), " "); got != "⟨1⟩data ⟨2⟩data ⟨3⟩console" {
 		t.Fatalf("after SPC \": %s", got)
@@ -412,7 +432,7 @@ func TestSplitAndClosePanes(t *testing.T) {
 }
 
 func TestFocusFollowsGeometry(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	feed(t, a, `<Space>"`) // 1 over 3, console 2 on the right
 	for _, c := range []struct {
 		keys string
@@ -436,7 +456,7 @@ func TestFocusFollowsGeometry(t *testing.T) {
 }
 
 func TestZoom(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	before := a.layout()
 	feed(t, a, "<Space>z")
 	if r := a.layout(); len(r) != 1 || r[1] != uv.Rect(0, 0, 160, 44) {
@@ -467,7 +487,7 @@ func TestUserLeaderKeys(t *testing.T) {
 }
 
 func TestResizeKeys(t *testing.T) {
-	a := configured(t, 160, 45, "[keys.normal]\n\"<Leader>H\" = \"pane.resize.left\"\n\"<Leader>L\" = \"pane.resize.right\"")
+	a := m0Layout(configured(t, 160, 45, "[keys.normal]\n\"<Leader>H\" = \"pane.resize.left\"\n\"<Leader>L\" = \"pane.resize.right\""))
 	r0 := a.win().Root.Ratio
 	feed(t, a, "<Space>L")
 	if got := a.win().Root.Ratio; math.Abs(got-r0-resizeStep) > 1e-9 {
@@ -477,13 +497,13 @@ func TestResizeKeys(t *testing.T) {
 	if got := a.win().Root.Ratio; math.Abs(got-r0+2*resizeStep) > 1e-9 {
 		t.Fatalf("3 SPC H: ratio %v", got)
 	}
-	if a.layout()[1].Dx() >= sized(160, 45, "nerd").layout()[1].Dx() {
+	if a.layout()[1].Dx() >= twoPanes(160, 45, "nerd").layout()[1].Dx() {
 		t.Error("the data pane should have narrowed")
 	}
 }
 
 func TestPaneNumbers(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	feed(t, a, "<Space>q")
 	if !a.paneNumbers || !strings.Contains(a.render().String(), " 2 ") {
 		t.Fatal("SPC q should show the numbers")
@@ -534,7 +554,7 @@ func TestFoldSidebar(t *testing.T) {
 // Closing a zoomed pane (here with :q) ends the zoom: the zoom must never
 // point at a pane that is gone.
 func TestCloseZoomedPane(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	feed(t, a, "<Space>z:q<CR>:q<CR>")
 	if a.win().Zoom != 0 || len(a.layout()) != 2 || !strings.Contains(a.render().String(), "console") {
 		t.Fatalf("zoom %d, layout %v", a.win().Zoom, a.layout())
@@ -571,12 +591,24 @@ func TestRendererUsesGraphemeWidths(t *testing.T) {
 	keys, _ := keymap.New(c)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // Init stopped sending it
 	defer cancel()
-	p := tea.NewProgram(quitOnMode{New(c, keys)}, tea.WithContext(ctx), tea.WithInput(nil), tea.WithOutput(&out),
+	p := tea.NewProgram(quitOnMode{New(c, keys, testSession(), "")}, tea.WithContext(ctx), tea.WithInput(nil), tea.WithOutput(&out),
 		tea.WithWindowSize(80, 24), tea.WithEnvironment([]string{"TERM=xterm-256color"}))
 	if _, err := p.Run(); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), ansi.SetModeUnicodeCore) {
 		t.Fatal("the renderer never switched to grapheme widths")
+	}
+}
+
+// A startup warning, such as a readable plain password (§13), is a toast.
+func TestStartupWarningIsAToast(t *testing.T) {
+	c := config.Default()
+	keys, _ := keymap.New(c)
+	a := New(c, keys, testSession(), "careful")
+	a.Init()
+	a.Update(tea.WindowSizeMsg{Width: 160, Height: 45})
+	if row := strings.Split(a.render().String(), "\n")[43]; !strings.HasSuffix(row, " careful ┘") {
+		t.Fatalf("toast row %q", row)
 	}
 }

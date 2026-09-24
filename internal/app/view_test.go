@@ -23,7 +23,7 @@ func TestGolden80x24ASCII(t *testing.T) {
 }
 
 func TestFocusColors(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	f, rects := a.render(), a.layout()
 	th := ui.TokyonightStorm
 	if th.Focus != ansi.XParseColor("#9ece6a") {
@@ -85,7 +85,7 @@ func TestSmallSizes(t *testing.T) {
 // §7.8: at 160×45 the console title keeps both the schema dropdown and
 // "▶ run ↵", cutting the object name instead.
 func TestConsoleTitleAt160(t *testing.T) {
-	top := strings.Split(sized(160, 45, "nerd").render().String(), "\n")[0]
+	top := strings.Split(twoPanes(160, 45, "nerd").render().String(), "\n")[0]
 	// no "console" beside its icon (§7.7), so the tab name fits whole
 	for _, want := range []string{"② " + ui.NerdIcons.Console.Text + " console_1 ─", "doraemon.public ▾", " ▶ run  ↵ ─┐"} {
 		if !strings.Contains(top, want) {
@@ -94,21 +94,16 @@ func TestConsoleTitleAt160(t *testing.T) {
 	}
 }
 
-// §7.8: sidebar 32 cols (24 below 100), data : console = 5 : 4, 1-col gaps.
+// §7.8: sidebar 32 cols (24 below 100), then a 1-col gap; the data pane
+// takes the rest (§5).
 func TestLayoutSizes(t *testing.T) {
-	for _, c := range []struct{ w, side, data, cons int }{
-		{160, 32, 70, 56},
-		{100, 32, 37, 29},
-		{99, 24, 41, 32},
-		{80, 24, 30, 24},
-	} {
+	for _, c := range []struct{ w, side int }{{160, 32}, {100, 32}, {99, 24}, {80, 24}} {
 		r := sized(c.w, 45, "nerd").layout()
-		side, data, cons := r[0], r[1], r[2]
-		if side.Min.X != 0 || side.Dx() != c.side || data.Min.X != side.Max.X+1 ||
-			cons.Min.X != data.Max.X+1 || cons.Max.X != c.w || data.Dx() != c.data || cons.Dx() != c.cons {
-			t.Errorf("w=%d: side %v data %v console %v; want widths %d/%d/%d", c.w, side, data, cons, c.side, c.data, c.cons)
+		side, data := r[0], r[1]
+		if len(r) != 2 || side.Min.X != 0 || side.Dx() != c.side || data.Min.X != side.Max.X+1 || data.Max.X != c.w {
+			t.Errorf("w=%d: %v; want the sidebar %d wide, then data to the edge", c.w, r, c.side)
 		}
-		if side.Dy() != 44 || data.Dy() != 44 || cons.Dy() != 44 {
+		if side.Dy() != 44 || data.Dy() != 44 {
 			t.Errorf("w=%d: panes must fill every row above the status bar", c.w)
 		}
 	}
@@ -142,7 +137,7 @@ func TestSidebarHintRow(t *testing.T) {
 // placeholder text, the title just "⟨n⟩ <icon>", and a tab bar holding just a
 // clickable +.
 func TestEmptyPane(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	feed(t, a, ":q<CR>:q<CR>:q<CR>") // both data tabs, then the console's
 	p := a.win().Root.Leaves()[0]
 	if len(a.win().Root.Leaves()) != 1 || len(p.Tabs) != 0 {
@@ -244,7 +239,7 @@ func TestStatusNarrowing(t *testing.T) {
 		{55, []string{"doraemon ▾", " 0: data* ", " 1,1 "}, []string{" 1: report "}},
 		{40, []string{" 0: data* ", "·", " NORMAL "}, []string{" 1,1 ", "doraemon"}},
 	} {
-		row := statusRow(sized(c.w, 24, "nerd"))
+		row := statusRow(twoPanes(c.w, 24, "nerd"))
 		// the palette entry is its icon alone (§7.7)
 		for _, s := range append(c.has, " 0: data* ", " "+ui.NerdIcons.Search.Text+" ", "·", " NORMAL ") {
 			if !strings.Contains(row, s) {
@@ -263,9 +258,6 @@ func TestStatusNarrowing(t *testing.T) {
 func TestThemeColors(t *testing.T) {
 	th, ic, err := ui.ParseTheme(`
 row = "#6c6a6d"
-number = "#ab9df2"
-string = "#ffd866"
-time = "#fc9867"
 [icon]
 console = { text = "C", fg = "#ff0000" }
 table = { fg = "#a9dc76" }
@@ -275,7 +267,7 @@ table = { fg = "#a9dc76" }
 	}
 	c := config.Default()
 	c.Theme, c.Icons = th, ic
-	a := sizedWith(160, 45, c)
+	a := m0Layout(sizedWith(160, 45, c))
 	f := a.render()
 	lines := strings.Split(f.String(), "\n")
 	// cell finds s on row y and returns its cell style
@@ -289,11 +281,6 @@ table = { fg = "#a9dc76" }
 	}
 	if bg := f.Buf.CellAt(80, a.h-1).Style.Bg; bg != th.Bar || th.Bar == th.Row {
 		t.Errorf("status bar %v, want bar %v whatever row is", bg, th.Bar)
-	}
-	for s, want := range map[string]color.Color{"689": th.Number, "goal": th.String, "2026-09-21 10:00:00": th.Time} {
-		if st := cell(4, s); st.Fg != want { // the first data row: id, biz_type, created_at
-			t.Errorf("%q: %v, want %v", s, st.Fg, want)
-		}
 	}
 	if st := cell(0, " C console"); st.Fg != th.Dim {
 		t.Fatal("the title around the icon keeps its color")

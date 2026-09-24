@@ -1,0 +1,31 @@
+# Databases for the integration tests and e2e (tech-design §15). Ports stay
+# off the local defaults so a developer's own PG / MySQL keeps running.
+#   docker compose up -d --wait
+#   SQLMUX_TEST_PG='postgres://sqlmux:sqlmux@localhost:55432/sqlmux?sslmode=disable' go test -tags integration ./...
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: sqlmux
+      POSTGRES_PASSWORD: sqlmux
+      POSTGRES_DB: sqlmux
+    ports: ["55432:5432"]
+    volumes: ["./testdata/seed/pg.sql:/docker-entrypoint-initdb.d/pg.sql:ro"]
+    healthcheck:
+      # over TCP: while the seed runs, the image's init server only listens on the socket
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "sqlmux", "-d", "sqlmux"]
+      interval: 1s
+      retries: 30
+
+  mysql: # M5
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: sqlmux
+      MYSQL_USER: sqlmux
+      MYSQL_PASSWORD: sqlmux
+      MYSQL_DATABASE: sqlmux
+    ports: ["53306:3306"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-usqlmux", "-psqlmux"]
+      interval: 2s
+      retries: 30

@@ -38,7 +38,7 @@ func TestPaletteOpensAndCloses(t *testing.T) {
 
 // Titles are Chinese; the action id after them is what `split` finds (§12).
 func TestPaletteFindsByID(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	feed(t, a, "<C-p>split")
 	if got := strings.Join(rowsOf(a), " "); got != `pane.split.below=SPC " pane.split.right=SPC %` {
 		t.Fatalf("split: %s", got)
@@ -49,7 +49,7 @@ func TestPaletteFindsByID(t *testing.T) {
 		t.Fatal("↵ should split and close the palette")
 	}
 
-	a = sized(160, 45, "nerd")
+	a = twoPanes(160, 45, "nerd")
 	feed(t, a, "<C-p>resize")
 	if got := strings.Join(rowsOf(a), " "); strings.Count(got, "pane.resize.") != 4 || strings.Count(got, "= ") != 3 || !strings.HasSuffix(got, "=") {
 		t.Fatalf("resize has no default keys: %s", got)
@@ -60,7 +60,7 @@ func TestPaletteFindsByID(t *testing.T) {
 		t.Error("the unbound resize ran from the palette")
 	}
 
-	a = sized(160, 45, "nerd")
+	a = twoPanes(160, 45, "nerd")
 	if feed(t, a, "<C-p>Split"); len(rowsOf(a)) != 0 {
 		t.Errorf("smartcase: an upper-case letter matches case: %v", rowsOf(a))
 	}
@@ -254,12 +254,12 @@ func TestPaletteScopesFilter(t *testing.T) {
 		"@ord": "表:t_order 表:t_order_item",
 		"%con": "Pane:② console · console_1",
 	} {
-		a := sized(160, 45, "nerd")
+		a := twoPanes(160, 45, "nerd")
 		if feed(t, a, "<C-p>"+in); strings.Join(namesOf(a), " ") != want {
 			t.Errorf("%s: %v", in, namesOf(a))
 		}
 	}
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	feed(t, a, "<C-p>")
 	all := strings.Join(namesOf(a), " ")
 	for _, s := range []string{"窗口:0: data", "Pane:① data · t_order", "表:t_user", "命令:左右分割"} {
@@ -274,7 +274,7 @@ func TestPaletteScopesFilter(t *testing.T) {
 
 // A table opens in the focused data pane, else the window's first (§12).
 func TestPaletteOpensTables(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	data := a.focused()
 	feed(t, a, "<C-p>@t_user<CR>")
 	if a.palette != nil || strings.Join(data.Tabs, " ") != "t_user t_user" || data.Cur != 0 {
@@ -300,7 +300,7 @@ func TestPaletteOpensTables(t *testing.T) {
 		t.Error("a window's ↵ only closes the palette until M5")
 	}
 
-	a = sized(160, 45, "nerd")
+	a = twoPanes(160, 45, "nerd")
 	data = a.focused()
 	data.Tabs, data.Cur, data.Prev = nil, 0, -1 // an empty data pane
 	feed(t, a, "<C-p>@t_user<CR>")
@@ -308,7 +308,7 @@ func TestPaletteOpensTables(t *testing.T) {
 		t.Errorf("into an empty pane: tabs %v cur %d prev %d, want no previous tab", data.Tabs, data.Cur, data.Prev)
 	}
 
-	a = sized(160, 45, "nerd")
+	a = twoPanes(160, 45, "nerd")
 	feed(t, a, ":q<CR>:q<CR>") // no data pane left
 	feed(t, a, "<C-p>@t_user<CR>")
 	if leaves := a.win().Root.Leaves(); len(leaves) != 1 || leaves[0].Kind != KindConsole || leaves[0].Object() != "console_1" {
@@ -317,7 +317,7 @@ func TestPaletteOpensTables(t *testing.T) {
 }
 
 func TestPaletteFocusesPanes(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := twoPanes(160, 45, "nerd")
 	feed(t, a, "<C-p>%console<CR>")
 	if a.palette != nil || a.win().Focus != 2 {
 		t.Fatalf("focus %d, want the console", a.win().Focus)
@@ -336,7 +336,7 @@ func TestPaletteFocusUnzooms(t *testing.T) {
 		{"table into the zoomed data pane", "<C-p>@t_user<CR>", 1, 1},
 		{"pane hidden by the zoom", "<C-p>%t_order<CR>", 2, 0},
 	} {
-		a := sized(160, 45, "nerd")
+		a := twoPanes(160, 45, "nerd")
 		a.win().focus(c.zoomed)
 		feed(t, a, "<Space>z")
 		feed(t, a, c.keys)

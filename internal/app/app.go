@@ -31,7 +31,8 @@ type App struct {
 
 	toast     string
 	toastSeq  int
-	quitToast int // toastSeq of the "press C-c again" toast
+	quitToast int    // toastSeq of the "press C-c again" toast
+	warning   string // shown as a toast on start
 
 	// Mouse (§7.4).
 	hits        []ui.Hit    // the last frame's hit table
@@ -41,6 +42,9 @@ type App struct {
 	lastClick   ui.Target   // with lastClickAt, to spot a double click
 	lastClickAt time.Time
 }
+
+// toastTTL is how long a toast stays up (§7.8).
+const toastTTL = 3 * time.Second
 
 // doubleClick is how soon a second click on the same target makes a double (§7.4).
 const doubleClick = 400 * time.Millisecond
@@ -54,11 +58,12 @@ type (
 // whichKeyDelay is how long a pure prefix waits before which-key shows (§6.5).
 var whichKeyDelay = 400 * time.Millisecond
 
-func New(cfg *config.Config, keys *keymap.Map) *App {
+// New is the app over sess; warning, if not "", shows as a toast on start.
+func New(cfg *config.Config, keys *keymap.Map, sess *Session, warning string) *App {
 	return &App{
 		theme: cfg.Theme, icons: cfg.Icons,
-		keys: keys, res: keymap.NewResolver(keys), sess: fakeSession(),
-		mouse: uv.Pos(-1, -1),
+		keys: keys, res: keymap.NewResolver(keys), sess: sess,
+		mouse: uv.Pos(-1, -1), warning: warning,
 	}
 }
 
@@ -71,7 +76,11 @@ func New(cfg *config.Config, keys *keymap.Map) *App {
 // TestRendererUsesGraphemeWidths still passes, and whether a real option
 // has appeared.
 func (a *App) Init() tea.Cmd {
-	return func() tea.Msg { return tea.ModeReportMsg{Mode: ansi.ModeUnicodeCore, Value: ansi.ModeSet} }
+	cmd := func() tea.Msg { return tea.ModeReportMsg{Mode: ansi.ModeUnicodeCore, Value: ansi.ModeSet} }
+	if a.warning != "" {
+		return tea.Batch(cmd, a.showToast(a.warning, toastTTL))
+	}
+	return cmd
 }
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
