@@ -97,6 +97,23 @@ leader = "<Space>"
 "<CR>" = "dropdown.select"
 "<Esc>" = "dropdown.close"
 
+[keys.complete] # §9.7: ↵ and esc are the input's
+"<C-n>" = "complete.down"
+"<C-p>" = "complete.up"
+"<Down>" = "complete.down"
+"<Up>" = "complete.up"
+"<Tab>" = "complete.accept"
+
+[keys.where] # Q-02: the WHERE typed filters it
+"<C-n>" = "where.down"
+"<C-p>" = "where.up"
+"<CR>" = "where.apply"
+"<C-f>" = "where.star"
+"<Esc>" = "where.close"
+
+[keys.input] # every input
+"<C-r>" = "where.history" # does something in the WHERE input only
+
 [keys.cols] # Q-04: the list has the keys until / gives them to the filter
 "j" = "cols.down"
 "k" = "cols.up"

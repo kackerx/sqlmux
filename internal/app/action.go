@@ -96,13 +96,27 @@ func init() {
 		"dropdown.down":   {Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(1); return nil })},
 		"dropdown.select": {Run: when(inDrop, func(a *App) tea.Cmd { return a.dropPick(a.drop.sel) })},
 		"dropdown.close":  {Run: when(inDrop, func(a *App) tea.Cmd { a.drop = nil; return nil })},
-		"cols.up":         {Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(-1); return nil })},
-		"cols.down":       {Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(1); return nil })},
-		"cols.toggle":     {Run: when(inCols, func(a *App) tea.Cmd { a.colsToggle(a.cols.sel); return nil })},
-		"cols.all":        {Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(true); return nil })},
-		"cols.none":       {Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(false); return nil })},
-		"cols.filter":     {Run: when(inCols, func(a *App) tea.Cmd { a.cols.typing = true; return nil })},
-		"cols.close":      {Run: when(inCols, func(a *App) tea.Cmd { a.colsEsc(); return nil })},
+		"complete.up":     {Run: when(inComplete, func(a *App) tea.Cmd { a.typingTab().completeMove(-1); return nil })},
+		"complete.down":   {Run: when(inComplete, func(a *App) tea.Cmd { a.typingTab().completeMove(1); return nil })},
+		"complete.accept": {Run: when(inComplete, func(a *App) tea.Cmd { a.typingTab().acceptCompletion(); return nil })},
+		"where.up":        {Run: when(inHist, func(a *App) tea.Cmd { a.histMove(a.typingTab(), -1); return nil })},
+		"where.down":      {Run: when(inHist, func(a *App) tea.Cmd { a.histMove(a.typingTab(), 1); return nil })},
+		"where.apply":     {Run: when(inHist, func(a *App) tea.Cmd { t := a.typingTab(); return a.histApply(t, t.hist.sel) })},
+		"where.star":      {Run: when(inHist, func(a *App) tea.Cmd { return a.histStar(a.typingTab()) })},
+		"where.close":     {Run: when(inHist, func(a *App) tea.Cmd { a.typingTab().hist = nil; return nil })},
+		// C-r in the WHERE input, or a click on its ▾ from the grid (Q-02).
+		"where.history": {Run: do(func(a *App, _ Args) {
+			if t := dataOf(a.focused()); t != nil && t.page.Cols != nil && a.drop == nil && a.cols == nil && t.typing != "page" {
+				t.typing, t.comp, t.hist = "where", nil, &histMenu{}
+			}
+		})},
+		"cols.up":     {Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(-1); return nil })},
+		"cols.down":   {Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(1); return nil })},
+		"cols.toggle": {Run: when(inCols, func(a *App) tea.Cmd { a.colsToggle(a.cols.sel); return nil })},
+		"cols.all":    {Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(true); return nil })},
+		"cols.none":   {Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(false); return nil })},
+		"cols.filter": {Run: when(inCols, func(a *App) tea.Cmd { a.cols.typing = true; return nil })},
+		"cols.close":  {Run: when(inCols, func(a *App) tea.Cmd { a.colsEsc(); return nil })},
 
 		// "pane.focus <id>" is what a click runs; untitled, it stays out of the palette.
 		"pane.focus": {Run: do(func(a *App, args Args) {
@@ -196,6 +210,14 @@ func when(open func(*App) bool, f func(*App) tea.Cmd) func(*App, Args) tea.Cmd {
 func inPalette(a *App) bool { return a.palette != nil }
 func inDrop(a *App) bool    { return a.drop != nil }
 func inCols(a *App) bool    { return a.cols != nil }
+func inComplete(a *App) bool {
+	t := a.typingTab()
+	return t != nil && t.comp != nil
+}
+func inHist(a *App) bool {
+	t := a.typingTab()
+	return t != nil && t.hist != nil
+}
 
 // by is a grid move of dr rows and dc columns.
 func by(dr, dc int) func(r, c, _, _ int) (int, int) {

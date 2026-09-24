@@ -24,7 +24,11 @@ import (
 
 func TestMain(m *testing.M) {
 	whichKeyDelay, quitWindow = time.Millisecond, time.Millisecond
-	os.Exit(m.Run())
+	dir, _ := os.MkdirTemp("", "sqlmux-app-test")
+	os.Setenv("XDG_STATE_HOME", dir) // saves the state from the Cmds tests run go here, not the user's
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
 }
 
 // noDB answers every query with nothing. The tests set their catalog up
@@ -90,7 +94,7 @@ func sized(w, h int, icons string) *App {
 
 func sizedWith(w, h int, c *config.Config) *App {
 	keys, _ := keymap.New(c)
-	a := New(c, keys, testSession(), "")
+	a := New(c, keys, testSession(), &config.State{}, "")
 	a.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return a
 }
@@ -630,7 +634,7 @@ func TestRendererUsesGraphemeWidths(t *testing.T) {
 	keys, _ := keymap.New(c)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // Init stopped sending it
 	defer cancel()
-	p := tea.NewProgram(quitOnMode{New(c, keys, testSession(), "")}, tea.WithContext(ctx), tea.WithInput(nil), tea.WithOutput(&out),
+	p := tea.NewProgram(quitOnMode{New(c, keys, testSession(), &config.State{}, "")}, tea.WithContext(ctx), tea.WithInput(nil), tea.WithOutput(&out),
 		tea.WithWindowSize(80, 24), tea.WithEnvironment([]string{"TERM=xterm-256color"}))
 	if _, err := p.Run(); err != nil {
 		t.Fatal(err)
@@ -644,7 +648,7 @@ func TestRendererUsesGraphemeWidths(t *testing.T) {
 func TestStartupWarningIsAToast(t *testing.T) {
 	c := config.Default()
 	keys, _ := keymap.New(c)
-	a := New(c, keys, testSession(), "careful")
+	a := New(c, keys, testSession(), &config.State{}, "careful")
 	a.Init()
 	a.Update(tea.WindowSizeMsg{Width: 160, Height: 45})
 	if row := strings.Split(a.render().String(), "\n")[43]; !strings.HasSuffix(row, " careful ┘") {

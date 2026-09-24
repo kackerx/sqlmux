@@ -112,6 +112,16 @@ func (a *App) render() *ui.Frame {
 		t := " " + a.toast + " "
 		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Bar})
 	}
+	if t := a.typingTab(); t != nil { // the WHERE's lists (§9.7)
+		switch p := a.focused(); {
+		case t.hist != nil:
+			v, box, rows := a.histView(p, t)
+			v.Draw(f, box, rows)
+		case t.comp != nil:
+			v, box, rows := a.completeView(p, t)
+			v.Draw(f, box, rows)
+		}
+	}
 	if a.drop != nil {
 		d := a.dropView()
 		box, rows := a.dropBox(d)

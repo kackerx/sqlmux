@@ -1,0 +1,59 @@
+package sqlkit
+
+import "testing"
+
+func TestWhereContext(t *testing.T) {
+	for _, c := range []struct {
+		in          string // | is the cursor
+		prefix, col string
+		ok          bool
+	}{
+		{"sta|", "sta", "", true},
+		{"id > 5 and st|", "st", "", true},
+		{"|", "", "", true},
+		{"status = |", "", "status", true},
+		{"status = 'do|", "'do", "status", true},
+		{"status <> d|", "d", "status", true},
+		{"paid = tr|", "tr", "paid", true},
+		{"status in (|", "", "status", true},
+		{"status IN ('done', 'fa|", "'fa", "status", true},
+		{"status in ('done', |", "", "status", true},
+		{"status in ('don''t', |", "", "status", true},
+		{"note like 'a|", "", "", false}, // a string, but not a column's value
+		{"x = 1 -- sta|", "", "", false}, // in a comment
+		{`"weird col|`, "", "", false},   // a quoted identifier
+		{"a = 1 and b = |", "", "b", true},
+		{"f(x) = |", "", "", true}, // not a plain column
+		{"id >= |", "", "", true},
+		{"名前 = |", "", "名前", true},
+	} {
+		pos := len(c.in) - len("|")
+		for i := range c.in {
+			if c.in[i] == '|' {
+				pos = i
+			}
+		}
+		s := c.in[:pos] + c.in[pos+1:]
+		w := WhereContext(s, pos)
+		if w.Prefix != c.prefix || w.Column != c.col || w.OK != c.ok || w.OK && w.Start != pos-len(c.prefix) {
+			t.Errorf("%q: %+v, want prefix %q column %q ok %v", c.in, w, c.prefix, c.col, c.ok)
+		}
+	}
+}
+
+func TestTokens(t *testing.T) {
+	s := `a='it''s'--x` + "\n" + `/*c*/"q""q">=1`
+	var kinds []Kind
+	for _, tk := range Tokens(s) {
+		kinds = append(kinds, tk.Kind)
+	}
+	want := []Kind{Word, Op, String, Comment, Space, Comment, Quoted, Op, Number}
+	if len(kinds) != len(want) {
+		t.Fatalf("%v, want %v", kinds, want)
+	}
+	for i := range want {
+		if kinds[i] != want[i] {
+			t.Fatalf("%v, want %v", kinds, want)
+		}
+	}
+}

@@ -77,7 +77,13 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 	dim := uv.Style{Fg: th.Dim, Bg: th.PaneBg}
 	f.Region(uv.Rect(r.Min.X, r.Min.Y, r.Dx(), 1), Target{Kind: KindHint, Pane: q.Pane, Action: "grid.where"}) // a click types in it (Q-01)
 	x := f.Text(r.Min.X+1, r.Min.Y, r.Max.X-1, "WHERE", uv.Style{Fg: th.Keyword, Bg: th.PaneBg, Attrs: uv.AttrBold})
-	if c := q.Where.Draw(f, uv.Rect(x+1, r.Min.Y, max(r.Max.X-1-x-1, 0), 1), bg); q.Typing {
+	vx := r.Max.X - 2 // ▾: the history and favorites (Q-02)
+	vst := dim
+	if f.Region(uv.Rect(vx, r.Min.Y, 1, 1), Target{Kind: KindHint, Pane: q.Pane, Action: "where.history"}) {
+		vst.Bg = th.Select
+	}
+	f.Text(vx, r.Min.Y, r.Max.X, "▾", vst)
+	if c := q.Where.Draw(f, uv.Rect(x+1, r.Min.Y, max(vx-x-2, 0), 1), bg); q.Typing {
 		cursor = c
 	}
 	if r.Dy() < 2 {

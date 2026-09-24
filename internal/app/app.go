@@ -26,12 +26,14 @@ type App struct {
 	palette  *palette  // non-nil while the command palette is open (COMMAND mode)
 	drop     *dropdown // non-nil while a one-pick dropdown is open (§8.6, §7.8)
 	cols     *colsMenu // non-nil while the COLS list is open (Q-04)
-	recent   []itemKey // what was run from the palette, most recent first (§12)
 	whichKey bool      // the which-key overlay is up (§6.5)
 	// paneNumbers is SPC q's overlay: the next key picks a pane by its ⟨n⟩.
 	paneNumbers bool
 
 	busy int // table requests out on Meta (§8.3)
+
+	state     *config.State // kept between runs (§14)
+	stateTick int           // the last snapshot's, for config.SaveState
 
 	toast     string
 	toastSeq  int
@@ -62,12 +64,13 @@ type (
 // whichKeyDelay is how long a pure prefix waits before which-key shows (§6.5).
 var whichKeyDelay = 400 * time.Millisecond
 
-// New is the app over sess; warning, if not "", shows as a toast on start.
-func New(cfg *config.Config, keys *keymap.Map, sess *Session, warning string) *App {
+// New is the app over sess and the state kept from before; warning, if
+// not "", shows as a toast on start.
+func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, warning string) *App {
 	return &App{
 		theme: cfg.Theme, icons: cfg.Icons,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess,
-		mouse: uv.Pos(-1, -1), warning: warning,
+		mouse: uv.Pos(-1, -1), warning: warning, state: st,
 	}
 }
 
@@ -100,6 +103,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotPage(msg)
 	case countMsg:
 		a.gotCount(msg)
+	case stateErr:
+		return a, a.showToast(msg.err.Error(), toastTTL)
 	case toastExpired:
 		if msg.seq == a.toastSeq {
 			a.toast = ""
@@ -115,8 +120,13 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.dragTree {
 			a.win().TreeW = treeWidth(a.mouse.X, a.w)
 		}
-		if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow && a.palette != nil { // hover selects (K-03)
-			a.palette.sel = t.I
+		if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow { // hover selects (K-03, §9.7)
+			switch tab := a.typingTab(); {
+			case a.palette != nil:
+				a.palette.sel = t.I
+			case tab != nil && tab.comp != nil:
+				tab.comp.sel, tab.comp.chosen = t.I, true
+			}
 		}
 	case tea.MouseReleaseMsg:
 		a.drag, a.dragTree = nil, false
@@ -185,7 +195,13 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols = false, false, nil, nil, nil
 		a.res.Reset()
 	case ui.KindRow:
-		switch {
+		switch tab := a.typingTab(); {
+		case tab != nil && tab.comp != nil:
+			tab.comp.sel = t.I
+			tab.acceptCompletion()
+			return nil
+		case tab != nil && tab.hist != nil:
+			return a.histApply(tab, a.histIndex(tab, t.I))
 		case a.drop != nil:
 			return a.dropPick(t.I)
 		case a.cols != nil: // a column's row: show or hide it (Q-04)
@@ -280,8 +296,8 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 // mode is derived from state, never stored (§3 principle 3).
 // ponytail: no VISUAL until the console editor (M3).
 func (a *App) mode() keymap.Mode {
-	switch {
-	case a.palette != nil, a.drop != nil, a.cols != nil: // an overlay has the keys (§7.8)
+	switch t := a.typingTab(); {
+	case a.palette != nil, a.drop != nil, a.cols != nil, t != nil && t.hist != nil: // an overlay has the keys (§7.8)
 		return keymap.Command
 	case a.win().tree.filtering, a.typingTab() != nil:
 		return keymap.Insert
@@ -300,6 +316,10 @@ func (a *App) context() keymap.Context {
 		return keymap.Context{Overlay: "cols", Mode: keymap.Command}
 	case a.cols != nil: // its filter: unbound keys are text
 		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Command}
+	case a.typingTab() != nil && a.typingTab().hist != nil: // filtered by the WHERE typed
+		return keymap.Context{Overlay: "where", Focus: []string{"input"}, Mode: keymap.Command}
+	case a.typingTab() != nil && a.typingTab().comp != nil:
+		return keymap.Context{Overlay: "complete", Focus: []string{"input"}, Mode: keymap.Insert}
 	case a.win().tree.filtering, a.typingTab() != nil:
 		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Insert}
 	}

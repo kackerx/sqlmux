@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"sqlmux/internal/config"
 	"sqlmux/internal/db"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
@@ -59,6 +60,15 @@ type itemKey struct {
 }
 
 func (it paletteItem) key() itemKey { return itemKey{it.kind, it.id} }
+
+// recent is how state.json keeps it (§14).
+func (it paletteItem) recent() config.Recent {
+	kind := [...]string{itemWindow: "window", itemPane: "pane", itemTable: "table", itemCommand: "command"}[it.kind]
+	return config.Recent{Kind: kind, ID: it.id}
+}
+
+// recentRows is how many palette picks state.json keeps.
+const recentRows = 50
 
 // exAliases rank their command first when typed exactly in the command
 // scope, so :q↵ and :qa↵ work as they always have (§12).
@@ -112,10 +122,10 @@ func (a *App) paletteItems() []paletteItem {
 		items = append(items, paletteItem{itemCommand, id, a.icons.Command, actions[id].Title, id})
 	}
 	recent := func(it paletteItem) int {
-		if i := slices.Index(a.recent, it.key()); i >= 0 {
+		if i := slices.Index(a.state.Recent, it.recent()); i >= 0 {
 			return i
 		}
-		return len(a.recent)
+		return len(a.state.Recent)
 	}
 	slices.SortStableFunc(items, func(x, y paletteItem) int { return recent(x) - recent(y) })
 	return items
@@ -222,10 +232,17 @@ func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 	if newTab && it.kind != itemTable {
 		return nil
 	}
-	a.recent = slices.Insert(slices.DeleteFunc(a.recent, func(k itemKey) bool { return k == it.key() }), 0, it.key())
+	r := it.recent()
+	a.state.Recent = slices.Insert(slices.DeleteFunc(a.state.Recent, func(k config.Recent) bool { return k == r }), 0, r)
+	a.state.Recent = a.state.Recent[:min(len(a.state.Recent), recentRows)]
+	return tea.Batch(a.saveState(), a.paletteDo(it, newTab))
+}
+
+// paletteDo does what candidate it stands for.
+func (a *App) paletteDo(it paletteItem, newTab bool) tea.Cmd {
 	if it.kind == itemCommand && actions[it.id].On != nil {
 		cmd := a.run(it.id, 0)
-		items, ms = a.paletteMatches() // it may have moved up among the recent ones
+		items, ms := a.paletteMatches() // it may have moved up among the recent ones
 		a.palette.sel = slices.IndexFunc(ms, func(m ui.Match) bool { return items[m.Index].key() == it.key() })
 		a.paletteMove(0) // and the list scrolls to it
 		return cmd

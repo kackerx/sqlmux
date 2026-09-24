@@ -47,6 +47,8 @@ type dataTab struct {
 	hidden   map[string]bool // columns COLS hides
 	pageIn   ui.Input        // PAGE's page number, while typed
 	typing   string          // the input that has the keys: "where", "page" or ""
+	comp     *completion     // the WHERE's candidates, while typed (§9.7)
+	hist     *histMenu       // the WHERE's history and favorites, while open (Q-02)
 	count    int64           // the rows the WHERE keeps, as far as counted says
 	counted  countState
 	countSeq int // the last count's; older ones are dropped
@@ -219,7 +221,7 @@ func (t *dataTab) typeOf(name string) string {
 // stopTyping gives the keys back to the grid, the WHERE input showing what
 // is in effect again (§7.8).
 func (t *dataTab) stopTyping() {
-	t.typing, t.where = "", ui.Input{Text: t.applied, Pos: len(t.applied)}
+	t.typing, t.where, t.comp, t.hist = "", ui.Input{Text: t.applied, Pos: len(t.applied)}, nil, nil
 }
 
 // dataOf is pane p's current table, or nil.
@@ -401,14 +403,19 @@ func (a *App) turnPage(d int) tea.Cmd {
 func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 	switch k {
 	case keymap.Esc:
+		if t.comp != nil || t.hist != nil { // a list goes first, then the input (§9.7)
+			t.comp, t.hist = nil, nil
+			return nil
+		}
 		t.stopTyping()
 		return nil
 	case "<CR>":
+		if t.comp != nil && t.comp.chosen { // only a candidate picked on purpose (§9.7)
+			t.acceptCompletion()
+			return nil
+		}
 		if t.typing == "where" {
-			t.applied = t.where.Text
-			t.stopTyping()
-			t.pageNo = 0
-			return a.fetch(t, true)
+			return a.runWhere(t)
 		}
 		n, err := strconv.Atoi(strings.TrimSpace(t.pageIn.Text))
 		t.stopTyping()
@@ -421,11 +428,14 @@ func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 		t.pageNo = max(n-1, 0)
 		return a.fetch(t, false)
 	}
-	in := &t.where
 	if t.typing == "page" {
-		in = &t.pageIn
+		editInput(&t.pageIn, k)
+		return nil
 	}
-	editInput(in, k)
+	editInput(&t.where, k)
+	if t.hist == nil {
+		a.complete(t)
+	}
 	return nil
 }
 

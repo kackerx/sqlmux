@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -45,10 +46,14 @@ func run(args []string) error {
 		return err
 	}
 	defer sess.Close()
+	st, err := config.LoadState()
+	if err != nil { // the broken file is kept aside; start empty (§14)
+		warning = strings.TrimPrefix(warning+"；"+err.Error(), "；")
+	}
 	// ponytail: problems are only reported by `sqlmux keys --check`; the startup
 	// conflict overlay (§6.7) is M6.
 	keys, _ := keymap.New(cfg)
-	_, err = tea.NewProgram(app.New(cfg, keys, sess, warning)).Run()
+	_, err = tea.NewProgram(app.New(cfg, keys, sess, st, warning)).Run()
 	return err
 }
 
