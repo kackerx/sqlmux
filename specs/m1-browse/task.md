@@ -97,7 +97,7 @@
   - 用 `↵`、`t` 和鼠标都能打开表（data pane 标题显示表名）；
   - 用 `gs` 切换到 `agentable` 后，列出该 schema 下的表。
 
-## F1.3 data pane 表格（只读） · 状态：testing
+## F1.3 data pane 表格（只读） · 状态：passed（febd031；e2e 766323c）
 
 - **依赖**：F1.2
 - **涉及**：`internal/ui`（grid）、`internal/app`（DataTab）、`internal/db`
@@ -128,7 +128,7 @@
 - [x] 查询执行中状态栏显示忙碌提示；按 `C-c` 或点击提示可取消查询，取消后 toast 提示（§8.3）。
 
 **验收**
-- [ ] e2e：
+- [x] e2e：
   - 打开 seed 中的表后，显示第一页数据；
   - 各种类型的值显示正确；
   - 光标移动后，状态栏的行,列与光标一致；
@@ -136,9 +136,9 @@
   - 配置 `[map.grid.normal] L = "5l"` 后，按 `L` 右移 5 列；
   - 按 `l` 或 `$` 把光标移到可视区域右边以外时，表格横向滚动，光标所在的列完整可见；
   - seed 里含换行、Tab、ESC 的那一行显示为 `↵` 和空格，屏幕上不出现 ESC 引起的错乱。
-- [ ] 补回 M0 里因 F1.1 去掉假表格而删掉的 23 项 e2e（tester 在 F1.1 结论里列出）：f0.9 整个脚本（`┼`、对齐、留白、sep 色、表头 func 色、主键钥匙图标、斑马纹、cursor / cursor_blur、数值右对齐、滚动后表头固定、80 宽裁列、ascii 下显示 `* id`，17 项）；f0.8 表格滚轮每格 3 行、滚到顶停住；f0.12 列按类型着色及 row / cursor / number·string·time token 生效（4 项）。
-- [ ] 长查询（例如 WHERE 中带 `pg_sleep(3) is not null`）执行时显示忙碌提示；按 `C-c` 后查询被取消，并有提示。
-- [ ] 表格渲染的 golden 测试通过（160×45，固定数据：一个打开了 t_order 的 data tab，含 NULL、枚举、json、timestamptz、带换行的文本各一列；外加一张转置视图）。
+- [x] 补回 M0 里因 F1.1 去掉假表格而删掉的 23 项 e2e（tester 在 F1.1 结论里列出）：f0.9 整个脚本（`┼`、对齐、留白、sep 色、表头 func 色、主键钥匙图标、斑马纹、cursor / cursor_blur、数值右对齐、滚动后表头固定、80 宽裁列、ascii 下显示 `* id`，17 项）；f0.8 表格滚轮每格 3 行、滚到顶停住；f0.12 列按类型着色及 row / cursor / number·string·time token 生效（4 项）。
+- [x] 长查询（例如 WHERE 中带 `pg_sleep(3) is not null`）执行时显示忙碌提示；按 `C-c` 后查询被取消，并有提示。
+- [x] 表格渲染的 golden 测试通过（160×45，固定数据：一个打开了 t_order 的 data tab，含 NULL、枚举、json、timestamptz、带换行的文本各一列；外加一张转置视图）。
 
 ## F1.4 查询条 · 状态：reviewing
 
@@ -216,6 +216,7 @@
   - 新增 Action `tab.new`，没有默认键；`+` 的命中区改为执行它，不再用 `KindTab I:-1`（M0 审查留下的建议）。
 - [ ] 打开表时，如果这个 pane 里已经有这张表的 tab：`↵` 直接切过去，不再替换当前 tab；`C-t` 照样新开一个 tab，同一张表可以开两个 tab，分别用不同的 WHERE。树和命令面板都走这条规则（tester 在 M0 F0.14 中提出）。
 - [ ] tab 栏：当前 tab 标 `*`，上一个 tab 标 `-`；右侧显示键位提示（T-03）。
+- [ ] 顺带修 F1.2 遗留：树里的表名放不下时加 `…`（§7.8），窄侧栏（24 列）下 `mv_order_by_status` 目前被直接截掉。
 
 **验收**
 - [ ] e2e：
