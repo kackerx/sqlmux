@@ -38,9 +38,9 @@ create table t_order_item (
     primary key (order_id, line_no)
 );
 
--- no primary key, only unique indexes. code and title (its INCLUDE column
--- doesn't count) can identify a row; the nullable, partial and expression
--- ones can't (§8.4).
+-- no primary key, only unique indexes. code, title (its INCLUDE column
+-- doesn't count) and (title, code), keyed out of column order, can identify
+-- a row; the nullable, partial and expression ones can't (§8.4).
 create table t_sku (
     code    text not null,
     barcode text,
@@ -52,6 +52,7 @@ create unique index t_sku_barcode on t_sku (barcode);
 create unique index t_sku_title_priced on t_sku (title) where price is not null;
 create unique index t_sku_lower_title on t_sku (lower(title));
 create unique index t_sku_title on t_sku (title) include (barcode);
+create unique index t_sku_title_code on t_sku (title, code);
 
 -- no primary key and no unique index; one row carries control characters (§7.6)
 create table t_log (
@@ -65,12 +66,13 @@ create view v_paid_order as
 create materialized view mv_order_by_status as
     select status, count(*) as n from t_order group by status;
 
--- only the parent is listed, not its partitions (§8.4)
+-- only the parent is listed, not its partitions (§8.4); the primary key's
+-- order is not the columns' order
 create table t_event (
     id          bigint not null,
     occurred_at timestamptz not null,
     kind        text not null,
-    primary key (id, occurred_at)
+    primary key (occurred_at, id)
 ) partition by range (occurred_at);
 create table t_event_2025 partition of t_event for values from ('2025-01-01') to ('2026-01-01');
 create table t_event_2026 partition of t_event for values from ('2026-01-01') to ('2027-01-01');

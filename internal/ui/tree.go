@@ -93,7 +93,7 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 		// A hint that doesn't fit whole is left out; the next may still fit.
 		var hs []Hint
 		for _, h := range t.Hints {
-			if in.Min.X+1+hintRowWidth(hs)+3+Width(h.tabText()) <= right {
+			if in.Min.X+1+hintRowWidth(append(hs, h)) <= right {
 				hs = append(hs, h)
 			}
 		}

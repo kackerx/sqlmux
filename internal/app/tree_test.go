@@ -188,8 +188,8 @@ func TestSchemaMenu(t *testing.T) {
 		t.Fatal("clicking the title opens the dropdown")
 	}
 	row := find(t, a, ui.Target{Kind: ui.KindRow, I: 1})
-	if box, _ := a.menuBox(2); row.Min.Y != box.Min.Y+4 || box.Min.X != r.Min.X || box.Dx() != 32 {
-		t.Errorf("the dropdown opens under the title, left aligned, as wide as the sidebar: %v", box)
+	if box, _ := a.menuBox(2); row.Min.Y != box.Min.Y+4 || box.Min.X != r.Min.X || box.Max.X != a.sidebarRect().Max.X {
+		t.Errorf("the dropdown opens under the title, left aligned, its right edge on the sidebar's: %v", box)
 	}
 	click(a, row.Min)
 	if a.menu != nil || a.sess.Schema != "public" {

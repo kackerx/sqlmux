@@ -27,8 +27,8 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// noDB answers every query with nothing: the tests' catalog is set up
-// front, and a load that Init starts finds nothing to add.
+// noDB answers every query with nothing. The tests set their catalog up
+// front and don't run Init's Cmd; run, its load would empty the catalog.
 type noDB struct{}
 
 func (noDB) Exec(context.Context, string, int) ([]db.Result, error)      { return nil, nil }

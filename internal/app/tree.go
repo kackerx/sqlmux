@@ -132,7 +132,7 @@ func (a *App) filterKey(k keymap.Key) {
 	t := &a.win().tree
 	switch k {
 	case "<CR>":
-		t.filtering = false
+		t.filtering, t.cursor, t.top = false, 0, 0
 	case keymap.Esc:
 		_, ms := a.treeTables()
 		at := -1
@@ -162,15 +162,17 @@ func (a *App) openSchemaMenu() {
 // menuMatches is the schemas that pass the menu's filter, best first.
 func (a *App) menuMatches() []ui.Match { return ui.Filter(a.menu.input.Text, a.sess.Schemas) }
 
-// menuBox is where the menu opens: under the sidebar's title, as wide as the
-// longest schema or the sidebar (§8.6).
+// menuBox is where the menu opens (§8.6): under the sidebar's title, left
+// aligned with it, and reaching the sidebar's right edge or further for a
+// long schema name.
 func (a *App) menuBox(n int) (uv.Rectangle, int) {
 	side := a.sidebarRect()
-	w := side.Dx()
+	entry := uv.Rect(side.Min.X+2, side.Min.Y, 1, 1) // where Block draws the title
+	w := side.Max.X - entry.Min.X                    // right border on the sidebar's
 	for _, s := range a.sess.Schemas {
 		w = max(w, ui.Width(s)+4) // border and padding on both sides
 	}
-	return ui.DropdownBox(a.window(), uv.Rect(side.Min.X+2, side.Min.Y, 1, 1), w, n)
+	return ui.DropdownBox(a.window(), entry, w, n)
 }
 
 func (a *App) menuMove(d int) {

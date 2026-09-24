@@ -81,13 +81,13 @@ func TestTableColumns(t *testing.T) {
 		t.Errorf("t_order keys: pk %v unique %v", order.PK, order.Unique)
 	}
 
-	// the primary key in key order, not column order
-	if item := cols("t_order_item"); !reflect.DeepEqual(item.PK, []string{"order_id", "line_no"}) {
-		t.Errorf("composite pk %v", item.PK)
+	// keys in key order, not column order
+	if ev := cols("t_event"); !reflect.DeepEqual(ev.PK, []string{"occurred_at", "id"}) {
+		t.Errorf("composite pk %v", ev.PK)
 	}
-	// code and title (INCLUDE barcode) can identify a row; the nullable
-	// barcode, the partial and the expression index can't
-	if sku := cols("t_sku"); sku.PK != nil || !reflect.DeepEqual(sku.Unique, [][]string{{"code"}, {"title"}}) {
+	// code, title (INCLUDE barcode) and (title, code) can identify a row; the
+	// nullable barcode, the partial and the expression index can't
+	if sku := cols("t_sku"); sku.PK != nil || !reflect.DeepEqual(sku.Unique, [][]string{{"code"}, {"title"}, {"title", "code"}}) {
 		t.Errorf("t_sku keys: pk %v unique %v", sku.PK, sku.Unique)
 	}
 	if log := cols("t_log"); log.PK != nil || log.Unique != nil || len(log.Cols) != 2 {
