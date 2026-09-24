@@ -55,6 +55,8 @@ sqlmux/
 
 凭记忆拿不准的数据库行为，比如驱动的取消语义、类型的文本格式、information_schema 在不同版本间的差异，不要猜。写一个最小的集成测试，在 `docker compose` 起的 PG / MySQL 上跑一遍，以结果为准。
 
+**集成测试环境**：`docker compose` 只在主工作区（`/Users/ctw/proj/sqlmux`）起一份，由 worker 负责 `docker compose up -d`。其他 worktree（e2e / review / verify）不要执行 `up`：compose 按目录名取项目名，会再起一套容器抢同一个端口；加 `-p sqlmux` 也不行，seed 的挂载路径不同会让它重建主工作区的容器。其他 worktree 直接用 `SQLMUX_TEST_PG` 连它，M1 全程只读，共用没有问题；M2 有写库的测试时再看要不要各用各的库。seed 只在数据卷为空时导入一次，改了 `testdata/seed/*.sql` 要 `docker compose up -d -V` 才会生效，worker 改完 seed 要通知 reviewer 和 tester。
+
 驱动或依赖本身已经提供的能力，直接用，不要重写。例如 PG 的标识符加引号，用 `pgx.Identifier{...}.Sanitize()`。
 
 | 问题 | 先看哪里 |
@@ -182,7 +184,7 @@ sqlmux/
 - **只改 `e2e/` 目录**（e2e 脚本），提交到 `e2e` 分支。worker 会定期把 `e2e` 分支合并进 `main`。
 - **测试分三层**：
   1. `go vet ./... && go test ./...`；
-  2. 涉及数据库的 feature：先 `docker compose up -d`，再跑 `go test -tags integration ./...`；
+  2. 涉及数据库的 feature：按「集成测试环境」连主工作区的 PG，跑 `go test -tags integration ./...`；
   3. 界面行为：用 tmux 做黑盒测试。
 - **tmux 黑盒测试一律通过 `e2e/lib.sh` 进行**：worker 在 main 上、tester 在 e2e worktree 里，会同时跑同一套脚本。
   - `lib.sh` 每次运行都使用独立的 socket `sqlmux-e2e-<pid>`，退出时执行 kill-server 并删除 socket 文件。
