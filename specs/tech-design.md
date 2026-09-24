@@ -73,7 +73,7 @@ Go 生态相对 Rust 缺三样东西，对策如下：
  Mouse*Msg ──► 命中表查找 ────┼─► Action ─► Update（单线程）─► 状态树
  命令面板选中 ────────────────┘                   │   ▲
                                                  ▼   │ resultMsg{tab, seq}
-                                             tea.Cmd ─► db.Worker（每条连接一个 goroutine）
+                                             tea.Cmd ─► db.Worker（每条连接一个，互斥锁串行）
 
  View(): 状态树 ─► Frame（cell 缓冲区 + 命中表）─► Bubble Tea 差分输出
 ```
@@ -581,7 +581,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
     - ` <搜索图标> `：`info` 色，点击打开命令面板；ascii 图标下显示为 ` ~ C-p `（§7.7）；
     - ` <键盘图标> 待输入序列 `：序列用 `warn` 色粗体。没有待输入的键时，显示 `dim` 色的 `·`；这一块始终占着位置，序列部分至少 3 列宽（放得下 `SPC`），内容靠左，这样按键时右侧各块不会左右跳动，序列超过 3 列时才变宽；
     - ` 行,列 `：`fg_muted` 色；
-    - ` <图标> pg@localhost:5432 `：`info` 色，`sep` 底；
+    - ` <图标> sqlmux@localhost:5432 `：`info` 色，`sep` 底。内容是 `<用户>@<host>:<port>`，引擎已由 session 块的图标表示，所以 `@` 前面放数据库用户名；unix socket 时 host 就是目录，照样显示，如 `ctw@/tmp:5432`。设计稿里的 `pg@` 按此理解；
     - ` NORMAL `：模式色底、`bg` 色字、粗体。
   - 窗口太窄、放不下时，按下面的顺序依次省略：
     1. 模式附加信息；
@@ -602,7 +602,6 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
 type Conn interface {
     Exec(ctx context.Context, sql string, maxRows int) ([]Result, error)  // 多语句，走简单协议
     Query(ctx context.Context, sql string, args ...Val) (Result, error)   // 单语句，参数按文本或 NULL 传
-    Cancel(ctx context.Context) error
     Close() error
 }
 
@@ -617,7 +616,9 @@ type Result struct {
 }
 ```
 
-- `postgres`、`mysql` 各实现一份 `Conn`，外加各自的 catalog 查询和方言函数（`QuoteIdent`、`Placeholder(n)`）。
+- `postgres`、`mysql` 各实现一份 `Conn`，外加各自的 catalog 查询和方言函数（`QuoteIdent`、`Placeholder(n)`）。M1 只有 `postgres` 一个实现，接口仍然要有：`db` 里的 Worker 不能 import `db/postgres`，而 `db/postgres` 要用 `db` 的 `Val` / `Result`，接口是断开这个环的办法，M5 的 mysql 是第二个实现。
+- **取消走 context，不单设 Cancel 方法**：取消当前请求的 ctx，由 pgconn 的 `CancelRequestContextWatcherHandler` 发 CancelRequest（§8.3）。直接调 `PgConn.CancelRequest` 有竞态：请求刚结束时发出的取消会打到下一条查询上，pgconn 源码 `HandleCancel` 的注释写明了这一点。
+- `Col.Type` 在 PG 下用 pgtype 内置的 OID 表转成类型名（`int8`、`text`、`jsonb` …），认不出的 OID（枚举等自定义类型）留空；按列着色（F1.3）改用 catalog 的 `format_type`，快速 SQL 里的自定义类型按字符串处理。
 - `Session` 只依赖这些接口。以后接入非 SQL 引擎（如 Redis）时，由引擎决定 window 里能创建哪些 pane。
 
 **值一律按文本处理**：客户端只负责显示和回写，按文本处理可以绕开各类类型的解码问题（枚举、数组、range、geometry 等）。
@@ -632,7 +633,9 @@ type Result struct {
 
 ### 8.2 连接模型
 
-每个 session 两条连接。每条连接由一个 `db.Worker` goroutine 独占，请求通过 channel 串行执行，因为连接对象不能并发使用。
+每个 session 两条连接。每条连接由一个 `db.Worker` 独占，用互斥锁保证同一时刻只跑一个请求，因为连接对象不能并发使用。`tea.Cmd` 本来就各在自己的 goroutine 里执行，所以 Worker 不再单开 goroutine 和 channel；请求的先后由 tab 的 `seq` 兜底（§8.3）。`Worker.Cancel()` 取消当前请求的 ctx。
+
+**启动**：`main` 里同步建连，先 `Main` 后 `Meta`，两条都连上才进入界面，期间不显示提示（每条最多 10s）。任何一步失败都按 §14「启动时找不到连接」处理。
 
 | 连接 | 用途 |
 |---|---|
@@ -646,8 +649,8 @@ type Result struct {
 ### 8.3 取消、超时、过期响应
 
 - **取消**：`Main` 忙碌时，状态栏显示 `busy · C-c 取消`，这段文字可以点击。
-  - PG 调用 `PgConn.CancelRequest`。pgconn 默认的 `DeadlineContextWatcherHandler` 会在 context 取消时给连接设 deadline，连接随之断开。每个 session 只有两条长连接，所以改用 `CancelRequestContextWatcherHandler`（设 `DeadlineDelay`），取消之后连接还能继续用。
-  - MySQL 另开一条临时连接执行 `KILL QUERY <connection_id>`，id 在建连时记录。只取消 context 的话，驱动会关掉连接，但服务端上的查询会继续跑。
+  - PG：取消请求的 ctx。pgconn 默认的 `DeadlineContextWatcherHandler` 会在 context 取消时给连接设 deadline，连接随之断开。每个 session 只有两条长连接，所以改用 `CancelRequestContextWatcherHandler`，由它发 CancelRequest，取消之后连接还能继续用。`DeadlineDelay` 取 5s：取消发出 5 秒后服务端还没停，就断开连接；断开的连接不自动重连，M1 不做，代码里用 `ponytail:` 注释标出。
+  - MySQL（M5）：`Query` 自己监听 ctx，取消时另开一条临时连接执行 `KILL QUERY <connection_id>`，id 在建连时记录。只取消 context 的话，驱动会关掉连接，但服务端上的查询会继续跑。
 - **超时**：建连 10s。计数查询 3s：PG 用 `SET LOCAL statement_timeout`，MySQL 用 `MAX_EXECUTION_TIME` hint。
 - **过期响应**：每个 tab 维护一个递增的 `seq`，请求时带上。结果回来时 `seq` 已经不是最新的就丢弃，避免快速翻页时旧结果覆盖新结果。
 
@@ -1082,7 +1085,9 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
 - **快速 SQL**：只读由数据库事务保证，即使一条会写数据的 select 被判为读，也写不进去。
 - **凭据**：
   - `connections.toml` 支持 `password_cmd`（例如 macOS 的 `security` 命令、`pass`）、`password_env`；PG 还会被 pgconn 自动读取 `~/.pgpass`。
-  - 也允许直接写明文 `password`。但如果此时文件对同组或其他用户可读，启动时会给出警告。
+  - 也允许直接写明文 `password`。但如果此时文件对同组或其他用户可读（`mode & 0o044 != 0`），进入界面后用 toast 警告 3 秒（§7.8），例如「connections.toml 里有明文密码，且其他用户可读，建议 chmod 600」。不打到 stderr，因为 alt screen 会把它盖住。DSN 里写的密码（`postgres://u:p@…`）不检查。
+  - 密码来源的优先级：`password_cmd` > `password_env` > `password` > DSN 里写的 / `~/.pgpass`（后两者交给 pgconn）。写了多个只取优先级最高的，不报错。
+  - `password_cmd` 用 `sh -c` 执行，只执行一次（`Main`、`Meta` 共用），去掉末尾的换行；非 0 退出时报错退出，错误里带上它的 stderr。`password_env` 指的变量没设置或为空时，报错退出。
 - **注入**：值一律参数化，标识符一律按方言加引号。
 - **日志与文件**：
   - 只有带 `--debug` 启动时才写日志，DSN 中的密码会被脱敏。
@@ -1108,6 +1113,7 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
 | `~/.local/share/sqlmux/consoles/` | 由应用写入 | console 的 SQL 文件 |
 
 - 连接定义单独放一个文件，是因为应用改写 TOML 时会丢掉注释，所以不能去改用户手写的 config.toml。
+- `name`、`engine`、`dsn` 必填。`engine` 在 M1 只接受 `postgres`，其他值报错「目前只支持 postgres」。
 - **启动时找不到连接**：没有 `connections.toml`、文件里没有连接，或者 `sqlmux <名字>` 找不到这个名字时，在终端打印一行错误就退出（退出码 1），不进入界面。错误里写明配置文件的路径；名字找不到时列出已有的连接名。连接失败（比如密码错误）也一样，打印数据库返回的错误后退出。在界面里新建连接（S-03）要到 M5。
 - state 文件先写到临时文件，再 rename 过去，保证原子性。
 

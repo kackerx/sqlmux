@@ -33,32 +33,33 @@
   - 一个视图、一张物化视图、一张分区表（含两个分区），用来测 catalog 的列表规则（§8.4）；
   - 一行含换行、Tab 和 ESC 字符的文本，用来测单元格的控制字符清理（§7.6）。
 - [ ] 读取 `connections.toml`（§14）：
-  - 字段：`name`、`engine`、`dsn`、`password_cmd`、`password_env`、`read_only`；`~/.pgpass` 由 pgconn 自动读取；
-  - 文件中写有明文 `password`，且对同组或其他用户可读时，给出警告。
+  - 字段：`name`、`engine`、`dsn`、`password_cmd`、`password_env`、`password`、`read_only`；前三个必填，`engine` 只接受 `postgres`；`~/.pgpass` 由 pgconn 自动读取；
+  - 密码来源的优先级、`password_cmd` 的执行方式按 §13「凭据」；
+  - 文件中写有明文 `password`，且对同组或其他用户可读时，进入界面后用 toast 警告（§13）。
 - [ ] PG 版 `db.Conn`（§8.1）：
   - `Exec` 走简单协议，结果为文本；
   - `Query` 走扩展协议，参数按文本传、OID 传 0，结果为文本；
-  - `Cancel`、`Close`；
-  - 值用 `Val{S, Null}` 表示；
+  - `Close`；取消走 ctx，不单设 `Cancel` 方法（§8.1）；
+  - 值用 `Val{S, Null}` 表示；`Col.Type` 用 pgtype 的 OID 表转成类型名，认不出的留空（§8.1）；
   - 连接参数用 `pgconn.ParseConfig` 解析，环境变量和 `~/.pgpass` 交给它；没写 `application_name` 时补成 `sqlmux`，没写连接超时时补成 10s（§8.1）；
-  - ContextWatcherHandler 改用 `CancelRequestContextWatcherHandler`（设 `DeadlineDelay`）：pgconn 默认的 handler 在 context 取消时会断开连接（§8.3）。
+  - ContextWatcherHandler 改用 `CancelRequestContextWatcherHandler`（`DeadlineDelay` 5s）：pgconn 默认的 handler 在 context 取消时会断开连接（§8.3）。
 - [ ] `db.Worker`（§8.2）：
-  - 每条连接由一个 goroutine 独占，请求串行执行；
+  - 每条连接一个 Worker，用互斥锁串行执行请求；`Cancel()` 取消当前请求的 ctx；
   - 每个 session 有 Main 和 Meta 两条连接；
-  - 建连超时 10s；
+  - 建连超时 10s；`main` 里同步建连，先 Main 后 Meta，都连上才进界面（§8.2）；
   - 建连时通过 RuntimeParams 设置 `DateStyle = ISO, YMD`（§8.1），建连后记录原始 `search_path`；
   - `Meta` 的 RuntimeParams 另加 `default_transaction_read_only = on`，设为只读（§8.2）。
 - [ ] 启动方式：`sqlmux <连接名>`，未指定时使用第一个连接。找不到连接或者连接失败时，在终端打印错误后退出，退出码为 1，不进入界面（§14「启动时找不到连接」）。
-- [ ] 默认 window 名为 `data`，只有侧栏和一个占满其余宽度的 data pane（§5）。去掉 M0 的假数据、假 console 和第二个 window `report`。初始焦点经由 `Window.focus()` 设置（M0 审查留下的建议）。M0 的 e2e 里依赖这些假数据的用例（如命令面板里的 `%report`），提测时告诉 tester 一起调整。
+- [ ] 默认 window 名为 `data`，只有侧栏和一个占满其余宽度的空 data pane（§5）。去掉 M0 的假 session、假 console、第二个 window `report`，以及 data pane 的假 WHERE 行和假表格；假的表列表留到 F1.2 换成 catalog。从面板打开表仍只建 tab，取数在 F1.3。初始焦点仍在 data pane，经由 `Window.focus()` 设置（M0 审查留下的建议）。`PaneKind` console 及其标题提示保留，M3 要用，现有测试自己构造 console pane 覆盖，不算死代码。M0 的 e2e 里依赖这些假数据的用例（如命令面板里的 `%report`），提测时告诉 tester 一起调整。
   - M0 修剪时留下的观察：按 ID 找 pane 的写法已经有三份（`focused()`、`scrollPane`、`openTable`），换成真实 session 和 tab 后如果再多出来，就提一个 `pane(id)` 辅助函数。
 - [ ] 集成测试用环境变量 `SQLMUX_TEST_PG` 指定连接串；没有设置时，`-tags integration` 的测试直接 skip。
-- [ ] 状态栏改为显示真实的 session 名和地址。
+- [ ] 状态栏改为显示真实的 session 名（`connections.toml` 里的 `name`）和地址 `<用户>@<host>:<port>`（§7.8）。
 
 **验收**
 - [ ] 集成测试覆盖：
   - 建连；
   - 各类型的文本值，包括 NULL、enum、json，以及 ISO 格式的 timestamptz；
-  - 用 `pg_sleep` 触发 `Cancel`，确认能取消，并且取消之后同一条连接还能继续查询；
+  - 用 `pg_sleep` 触发 `Worker.Cancel()`，确认能取消，并且取消之后同一条连接还能继续查询；
   - `Meta` 是只读的：在 `Meta` 上执行会写数据的语句（例如 `select nextval('<序列>')`），返回只读事务的错误。
 - [ ] `password_cmd`、`password_env`、`~/.pgpass` 三种方式都能连上。
 - [ ] 密码错误时，终端打印数据库返回的错误，退出码为 1，不 panic。
