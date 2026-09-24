@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 // testSession is the default workspace with no database behind it.
 func testSession() *Session { return newSession("doraemon", "pg@localhost:5432", nil, nil) }
 
-// m0Layout gives a M0's layout, for the tests of panes, tabs and windows
+// m0Layout puts M0's layout into a, for the tests of panes, tabs and windows
 // that need more than the default one empty data pane: ⟨1⟩ data with the
 // tabs t_order and t_user, ⟨2⟩ a console beside it at 5 : 4 (§7.8), and a
 // second window.

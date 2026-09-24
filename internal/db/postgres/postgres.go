@@ -103,7 +103,8 @@ func (c *Conn) Close() error { return c.pg.Close(context.Background()) }
 var types = pgtype.NewMap()
 
 // read collects one result, keeping at most maxRows rows (0: all). The rest
-// is still read off the wire, so the connection is ready for the next request.
+// is read and dropped, not cancelled: cancelling would stop the statement,
+// rolling back a write with RETURNING and skipping Exec's next statements.
 func read(rr *pgconn.ResultReader, maxRows int, start time.Time) (db.Result, error) {
 	var r db.Result
 	for _, f := range rr.FieldDescriptions() {

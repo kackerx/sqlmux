@@ -21,7 +21,6 @@ type Connection struct {
 	PasswordCmd string `toml:"password_cmd"`
 	PasswordEnv string `toml:"password_env"`
 	Password    string `toml:"password"`
-	ReadOnly    bool   `toml:"read_only"` // S-04, M5
 }
 
 // LoadConnection finds connection name in connections.toml, or the first

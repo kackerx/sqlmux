@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,19 +15,9 @@ import (
 	"sqlmux/internal/db"
 )
 
-// testDSN is the seeded database from docker-compose.yml; unset, the tests skip.
-func testDSN(t *testing.T) string {
-	t.Helper()
-	dsn := os.Getenv("SQLMUX_TEST_PG")
-	if dsn == "" {
-		t.Skip("SQLMUX_TEST_PG is not set")
-	}
-	return dsn
-}
-
 func connect(t *testing.T, readOnly bool) *Conn {
 	t.Helper()
-	c, err := Connect(context.Background(), testDSN(t), "", readOnly)
+	c, err := Connect(context.Background(), IntegrationDSN(t), "", readOnly)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +46,7 @@ func TestConnectSetsStartupParams(t *testing.T) {
 	if c.SearchPath != `"$user", public` {
 		t.Fatalf("search_path %q", c.SearchPath)
 	}
-	if cfg, _ := pgconn.ParseConfig(testDSN(t)); c.Addr != fmt.Sprintf("%s@%s:%d", cfg.User, cfg.Host, cfg.Port) {
+	if cfg, _ := pgconn.ParseConfig(IntegrationDSN(t)); c.Addr != fmt.Sprintf("%s@%s:%d", cfg.User, cfg.Host, cfg.Port) {
 		t.Fatalf("addr %q", c.Addr)
 	}
 }

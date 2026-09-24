@@ -8,15 +8,17 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"sqlmux/internal/db/postgres"
 )
 
-// testDB is SQLMUX_TEST_PG split into a DSN without its password, and the
-// password; unset, the tests skip.
+// testDB is the integration database split into a DSN without its
+// password, and the password.
 func testDB(t *testing.T) (dsn, password string) {
 	t.Helper()
-	u, err := url.Parse(os.Getenv("SQLMUX_TEST_PG"))
+	u, err := url.Parse(postgres.IntegrationDSN(t))
 	if err != nil || u.User == nil {
-		t.Skip("SQLMUX_TEST_PG is not set to a postgres:// URL with a password")
+		t.Fatal("SQLMUX_TEST_PG must be a postgres:// URL with a password")
 	}
 	password, _ = u.User.Password()
 	u.User = url.User(u.User.Username())
@@ -32,16 +34,21 @@ func writeConnection(t *testing.T, dsn, extra string) {
 	}
 }
 
-// password_cmd, password_env and ~/.pgpass all connect (§13).
+// password_cmd, password_env and ~/.pgpass all connect (§13); with none of
+// them, nothing else supplies the password.
 func TestOpenPasswordSources(t *testing.T) {
 	dsn, pw := testDB(t)
 	u, _ := url.Parse(dsn)
 	pgpass := filepath.Join(t.TempDir(), "pgpass")
 	os.WriteFile(pgpass, []byte(strings.Join([]string{u.Hostname(), "*", "*", u.User.Username(), pw}, ":")+"\n"), 0o600)
-	for name, c := range map[string]struct{ extra, env, val string }{
+	for name, c := range map[string]struct {
+		extra, env, val string
+		fails           bool
+	}{
 		"password_cmd": {extra: "password_cmd = \"printf '%s\\\\n' '" + pw + "'\"\n"},
 		"password_env": {extra: "password_env = \"SQLMUX_TEST_PW\"\n", env: "SQLMUX_TEST_PW", val: pw},
 		"~/.pgpass":    {env: "PGPASSFILE", val: pgpass},
+		"none":         {fails: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			writeConnection(t, dsn, c.extra)
@@ -49,10 +56,12 @@ func TestOpenPasswordSources(t *testing.T) {
 				t.Setenv(c.env, c.val)
 			}
 			sess, _, err := open("test")
-			if err != nil {
-				t.Fatal(err)
+			if (err != nil) != c.fails {
+				t.Fatalf("error %v, want one: %v", err, c.fails)
 			}
-			sess.Close()
+			if err == nil {
+				sess.Close()
+			}
 		})
 	}
 }
