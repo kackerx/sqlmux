@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # F0.8 命中表与鼠标（specs/m0-skeleton/task.md F0.8；tech-design §7.4、§5「按编号跳转」）
 # 全部用注入的 SGR 鼠标序列（e2e_click / e2e_move / e2e_down …，1 起算的列、行）。
+# F1.1 起默认只有一个 data pane：two_panes 分出 ① [34,96] | ② [98,160] 代替 M0 的 data | console。
+# console 标题的 ▶ run（点击、悬停）到 M3 补回；表格的滚轮到 F1.3 有真实数据后补回。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 
@@ -12,20 +14,20 @@ geom_is()  { local g; g=$(geom "$1"); [[ $g == "$2" ]] || { echo "  ⟨$1⟩ at 
 w_of() { geom "$1" | awk '{ print $3 }'; }
 h_of() { geom "$1" | awk '{ print $4 }'; }
 at() { local c; c=$(e2e_find "$1" "$2"); echo "${c%% *} $2"; }   # TEXT Y → "X Y"（第一处）
-SELECT=#364a82 WARN=#e0af68
+SELECT=#364a82
 wk_open() { e2e_plain | grep -q '^┌─ SPC '; }
 pending_idle() { [[ $(e2e_text $(pending_col) $(pending_col) 45) == "·" ]]; }
 numbers_shown() { [[ $(e2e_text 16 16 23) == 0 ]]; }
 
 # ---- 点击获得焦点；双击标题缩放 / 还原
-start
-e2e_click 130 20; sleep 0.3; check "点击 console 内部：console 获得焦点" focus_is 2
+start; two_panes
+e2e_click 130 20; sleep 0.3; check "点击 ② 内部：② 获得焦点" focus_is 2
 e2e_click 10 20;  sleep 0.3; check "点击侧栏：侧栏获得焦点" focus_is 0
-e2e_click 60 10;  sleep 0.3; check "点击 data：data 获得焦点" focus_is 1
+e2e_click 60 10;  sleep 0.3; check "点击 ①：① 获得焦点" focus_is 1
 e2e_dclick 50 1; sleep 0.3
-check "双击 data 标题：缩放" eval '[[ $(nums) == "1 " ]] && geom_is 1 "1 1 160 44"'
+check "双击 ① 的标题：缩放" eval '[[ $(nums) == "1 " ]] && geom_is 1 "1 1 160 44"'
 e2e_dclick 10 1; sleep 0.3
-check "在左上角的标题上再双击：还原" eval '[[ $(nums) == "0 1 2 " ]] && geom_is 1 "34 1 70 44"'
+check "在左上角的标题上再双击：还原" eval '[[ $(nums) == "0 1 2 " ]] && geom_is 1 "34 1 63 44"'
 e2e_click 50 1; sleep 0.5; e2e_click 50 1; sleep 0.3
 check "两次点击间隔超过 400ms：不算双击" eval '[[ $(nums) == "0 1 2 " ]]'
 sleep 0.5   # 与上一次点击拉开 400ms 以上
@@ -34,11 +36,11 @@ check "连点三次：前两次缩放，第三次重新计数（仍是缩放状�
 e2e_dclick 10 1; sleep 0.3
 
 # ---- 拖动（§7.4）：左右分割拖中间 1 列间隔，上下分割拖上面 pane 的下边框
-start
-e2e_down 104 20; e2e_drag_to 90 20; sleep 0.3
+start; two_panes
+e2e_down 97 20; e2e_drag_to 90 20; sleep 0.3
 check "按住间隔往左拖：比例实时变化" eval '(( $(w_of 1) == 56 ))'
 e2e_drag_to 80 20; e2e_up 80 20; sleep 0.3
-check "松开：data 46 列" eval '(( $(w_of 1) == 46 ))'
+check "松开：① 46 列" eval '(( $(w_of 1) == 46 ))'
 e2e_move 60 20; sleep 0.3
 check "松开后再移动指针：比例不再变化" eval '(( $(w_of 1) == 46 ))'
 e2e_down 80 20; e2e_drag_to 1 20; e2e_up 1 20; sleep 0.3
@@ -52,9 +54,9 @@ check "上下分割：按住上面 pane 的下边框往上拖，比例实时变�
 e2e_up 60 12; sleep 0.3
 y=$(geom 2 | awk '{ print $2 }'); e2e_down 60 $y; e2e_drag_to 60 30; e2e_up 60 30; sleep 0.3
 check "下面 pane 的上边框（标题行）不是拖动柄" eval '(( $(h_of 1) == 12 ))'
-start
-L z; e2e_down 104 20; e2e_drag_to 80 20; e2e_up 80 20; sleep 0.3; L z
-check "缩放时不登记拖动柄：拖动无效" eval '(( $(w_of 1) == 70 ))'
+start; two_panes
+L z; e2e_down 97 20; e2e_drag_to 80 20; e2e_up 80 20; sleep 0.3; L z
+check "缩放时不登记拖动柄：拖动无效" eval '(( $(w_of 1) == 63 ))'
 
 # ---- 细栏、提示、which-key 项：点击执行对应的 Action
 start
@@ -63,21 +65,15 @@ check "点击 3 列宽的细栏：侧栏展开，但不获得焦点" eval 'geom_
 e2e_click $(at "SPC b" 1); sleep 0.3
 check "点击侧栏标题上的 SPC b：折叠侧栏" eval '[[ $(e2e_text 1 3 1) == "┌─┐" ]]'
 e2e_click 2 10; sleep 0.3
-e2e_click $(at "▶ run" 1); sleep 0.3
-check "点击 console 标题的 ▶ run：先让 console 获得焦点" focus_is 2
-e2e_click 60 10; sleep 0.2
 e2e_keys Space; sleep 0.6; e2e_click $(for y in $(seq 30 44); do c=$(e2e_find "b →" $y); [[ -n $c ]] && { echo "$c $y"; break; }; done); sleep 0.3
 check "点击 which-key 里的 b：效果同按 b（折叠侧栏），浮层关闭、待输入清空" eval '[[ $(e2e_text 1 3 1) == "┌─┐" ]] && ! wk_open && pending_idle'
 
-# ---- 悬停（§7.4）：提示、+、状态栏按钮、which-key 项为 select 底；▶ run 为 warn 底
+# ---- 悬停（§7.4）：提示、+、状态栏按钮、which-key 项为 select 底
 start
 hover() { e2e_move $1 $2; sleep 0.3; }
 read x y <<<"$(at "SPC b" 1)"; hover $x $y
 check "悬停侧栏提示 SPC b：select 底" style_has $x $y bg=$SELECT
 hover 60 20; check "移开后恢复" style_has $x $y bg=#24283b
-read x y <<<"$(at "▶ run" 1)"; hover $x $y
-check "悬停 ▶ run：warn 底" style_has $x $y bg=$WARN
-hover 60 20; check "移开后恢复 focus 底" style_has $x $y bg=#9ece6a
 read x y <<<"$(at "│ +" 43)"; x=$((x + 2)); hover $x $y
 check "悬停 tab 栏的 +：select 底" style_has $x $y bg=$SELECT
 x=$(search_col) y=45; hover $x $y
@@ -88,25 +84,18 @@ read x y <<<"$(for y in $(seq 30 44); do c=$(e2e_find "s →" $y); [[ -n $c ]] &
 check "悬停 which-key 的一项：select 底" style_has $x $y bg=$SELECT
 e2e_keys Escape; sleep 0.2
 
-# ---- 滚轮（§7.4）：作用于指针下方的 pane，每格 3 行，到顶停住
+# ---- 滚轮（§7.4）：作用于指针下方的 pane，每格 3 行
 start
 row4() { e2e_text "$1" "$2" "$3"; }
-d0=$(row4 35 60 5); c0=$(row4 106 150 2)   # data 第 5 行是表格的第一行数据（F0.9）
-e2e_wheel 130 20 down; sleep 0.3
-check "指针在 console 上滚动：console 滚动、data 不动、焦点不变" eval '[[ $(row4 106 150 2) != "$c0" && $(row4 35 60 5) == "$d0" ]] && focus_is 1'
-e2e_wheel 60 20 down; sleep 0.3
-check "data 上滚一格：前进 3 行（689 → 692），表头不动" eval '[[ $(row4 35 60 5) == *692* && $(row4 35 60 3) == *biz_type* ]]'
-e2e_wheel 60 20 up; e2e_wheel 60 20 up; e2e_wheel 60 20 up; sleep 0.3
-check "往上滚到顶就停住" eval '[[ $(row4 35 60 5) == *689* ]]'
 s0=$(row4 2 31 4); e2e_wheel 10 10 down; sleep 0.3
-check "侧栏滚动的是表列表（agent → mt_task，3 行）" eval '[[ $s0 == *" agent "* && $(row4 2 31 4) == *mt_task* ]]'
+check "指针在侧栏上滚动：滚动表列表（agent → mt_task，3 行），焦点仍在 ①" eval '[[ $s0 == *" agent "* && $(row4 2 31 4) == *mt_task* ]] && focus_is 1'
 
 # ---- 点击浮层外部（§7.4）
-start
+start; two_panes
 e2e_keys Space; sleep 0.6; e2e_click 60 5; sleep 0.3
 check "which-key 打开时点击任意处：关闭浮层、清空待输入" eval '! wk_open && pending_idle'
 L q; e2e_click 130 20; sleep 0.3
-check "SPC q 时点击 console：跳到 console，编号关闭" eval 'focus_is 2 && ! numbers_shown'
+check "SPC q 时点击 ②：跳到 ②，编号关闭" eval 'focus_is 2 && ! numbers_shown'
 L q; e2e_click 10 30; sleep 0.3
 check "SPC q 时点击侧栏：跳到 ⟨0⟩" eval 'focus_is 0 && ! numbers_shown'
 L q; e2e_click 80 45; sleep 0.3

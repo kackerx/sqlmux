@@ -50,7 +50,7 @@ check "sidebar title shows public ▾" eval '[[ $(e2e_text 1 32 1) == "┌─ �
 e2e_move 10 1; sleep 0.3
 check "hovering anywhere on the title highlights all of it (select)" eval 'style_has 4 1 bg=#364a82 && style_has 10 1 bg=#364a82 && style_has 13 1 bg=#364a82'
 e2e_click 10 1; sleep 0.3
-check "clicking the title focuses the sidebar (tree.schema does nothing yet)" eval '[[ $(focused) == 0 ]] && (( $(e2e_panes | wc -l) == 3 ))'
+check "clicking the title focuses the sidebar (tree.schema does nothing yet)" eval '[[ $(focused) == 0 ]] && (( $(e2e_panes | wc -l) == 2 ))'
 start -x 60
 check "narrow window: the title shrinks by §7.8, the box stays intact" eval 't=$(e2e_text 1 24 1); [[ $t == "┌─ ⓪ "*"┐" && $(e2e_find ┐ 1 | cut -d" " -f1) == 24 ]]'
 

@@ -9,6 +9,11 @@ trap 'e2e_stop' EXIT
 E2E_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 E2E_BIN=${E2E_BIN:-$E2E_ROOT/bin/sqlmux}
 E2E_PASS=0 E2E_FAIL=0
+# sqlmux won't start without a connection (§14): every run needs the seeded PG from
+# docker-compose.yml (AGENTS.md「集成测试环境」) and SQLMUX_TEST_PG pointing at it.
+[[ -n $SQLMUX_TEST_PG ]] || { echo "e2e: SQLMUX_TEST_PG is not set (see docker-compose.yml)" >&2; trap - EXIT; exit 1; }
+# The user's PG* settings and ~/.pgpass stay out of every run.
+unset $(env | sed -n 's/^\(PG[A-Z_]*\)=.*/\1/p'); export PGPASSFILE=/nonexistent/pgpass
 
 t() { tmux -L "$E2E_SOCK" "$@"; }
 
@@ -18,6 +23,7 @@ e2e_build() { (cd "$E2E_ROOT" && go build -o "$E2E_BIN" ./cmd/sqlmux); }
 # -k: turn on tmux extended-keys before CMD starts, so it can negotiate key enhancements.
 # -c: install FILE as $XDG_CONFIG_HOME/sqlmux/config.toml before CMD starts.
 # -C: copy DIR's contents into $XDG_CONFIG_HOME/sqlmux/ (config.toml, themes/ …).
+# connections.toml (0600) has one connection, doraemon → $SQLMUX_TEST_PG; -C can replace it.
 # CMD runs under sh; when it exits the pane prints "[e2e-exit N]" and drops to
 # an sh prompt, so terminal restoration can be checked afterwards.
 # TERM=xterm-256color + COLORTERM: a detached tmux has no client to report RGB,
@@ -30,8 +36,9 @@ e2e_start() {
   e2e_stop
   E2E_TMP=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e.XXXXXX")
   mkdir -p "$E2E_TMP"/{config/sqlmux,state,data}
+  (umask 077; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s"\n' "$SQLMUX_TEST_PG" >"$E2E_TMP/config/sqlmux/connections.toml")
   [[ -n $conf ]] && cp "$conf" "$E2E_TMP/config/sqlmux/config.toml"
-  [[ -n $confdir ]] && cp -R "$confdir"/. "$E2E_TMP/config/sqlmux/"
+  [[ -n $confdir ]] && cp -Rp "$confdir"/. "$E2E_TMP/config/sqlmux/"
   t -f /dev/null set -s extended-keys "$keys" \; new-session -d -s t -x "$w" -y "$h" \
     -e XDG_CONFIG_HOME="$E2E_TMP/config" -e XDG_STATE_HOME="$E2E_TMP/state" \
     -e XDG_DATA_HOME="$E2E_TMP/data" -e COLORTERM=truecolor \
@@ -107,6 +114,12 @@ text_ends()  { local got; got=$(e2e_text "$1" "$2" "$3"); [[ $got == *"$4" ]] ||
 start()   { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }   # [e2e_start options] — launch sqlmux, wait for its screen
 exited()  { screen_has '[e2e-exit'; }
 running() { flag_is alternate_on 1 && ! exited; }
+# F1.1 starts with one empty data pane; M0's had tabs t_order and t_user. two_tabs opens
+# t_user (↵), then t_order in a new tab (C-t), in the focused pane: "1:t_user- │ 2:t_order*".
+two_tabs() { local t; for t in "@t_user Enter" "@t_order C-t"; do e2e_keys C-p; sleep 0.3; e2e_type "${t% *}"; sleep 0.3; e2e_keys "${t#* }"; sleep 0.3; done; }
+# two_panes: split the focused pane right (SPC %) and move back — "① | ②" side by side with ① focused,
+# in place of M0's data | console.
+two_panes() { e2e_keys Space; e2e_type %; sleep 0.3; e2e_keys C-h; sleep 0.3; }
 focused() { e2e_panes | awk '$6 == 1 && $1 != "-" { print $1 }'; }   # the focused pane's number (a folded strip or the palette box has none)
 palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }
 
