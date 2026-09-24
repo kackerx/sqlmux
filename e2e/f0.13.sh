@@ -19,15 +19,15 @@ check "esc closes, the screen is restored" eval 'closed && style_has 1 1 bg=#242
 pal; e2e_keys C-c; sleep 0.3
 check "C-c closes too, without the quit toast" eval 'closed && ! screen_has 再按一次'
 
-# ---- layout: width min(80, W-4), centered, top edge at H/4
+# ---- layout (F0.17): width min(100, W-4), centered, top edge at (H-1)/6
 for s in "160 45" "100 30" "60 20"; do
   set -- $s; SW=$1 SH=$2; start -x $SW -y $SH; pal
-  w=$(( SW - 4 < 80 ? SW - 4 : 80 ))
+  w=$(( SW - 4 < 100 ? SW - 4 : 100 ))
   # "1/4 of the window": the window is the area above the status bar, H-1 rows
-  check "${SW}x$SH: width $w, centered, top at row $(( (SH - 1) / 4 + 1 ))" eval '[[ $(top) == $(( (SH - 1) / 4 + 1 )) && $(left) == $(( (SW - w) / 2 + 1 )) ]] && [[ $(e2e_text $(( (SW - w) / 2 + w )) $(( (SW - w) / 2 + w )) $(top)) == ┐ ]]'
+  check "${SW}x$SH: width $w, centered, top at row $(( (SH - 1) / 6 + 1 ))" eval '[[ $(top) == $(( (SH - 1) / 6 + 1 )) && $(left) == $(( (SW - w) / 2 + 1 )) ]] && [[ $(e2e_text $(( (SW - w) / 2 + w )) $(( (SW - w) / 2 + w )) $(top)) == ┐ ]]'
 done
 start; pal
-check "empty input: at most 10 rows" eval '(( $(nrows) == 10 ))'
+check "empty input: at most 12 rows" eval '(( $(nrows) == 12 ))'
 e2e_type '>'; sleep 0.3   # a command selected (F0.14: a window row would say ↵ 切换)
 check "footer: ↑/↓ 移动 · … esc 关闭 … ↵ 执行" eval '[[ $(footer) == " ↑/↓ 移动 · "*"esc 关闭"*"↵ 执行 " ]]'
 check "palette's own actions are not candidates (palette.up/down/run/close)" eval 'clear_input; e2e_type palette; sleep 0.3; ! row_has palette.up && ! row_has palette.down && ! row_has palette.run && ! row_has palette.close'
@@ -102,8 +102,8 @@ E_ACUTE=$(printf 'e\xcc\x81') THUMB=$(printf '\xf0\x9f\x91\x8d\xf0\x9f\x8f\xbd')
 start; pal
 e2e_type "x${E_ACUTE}"; e2e_keys BSpace; sleep 0.2; check "backspace deletes all of é (e+U+0301)" input_is x
 e2e_type "${THUMB}"; e2e_keys BSpace; sleep 0.2; check "backspace deletes all of 👍🏽" input_is x
-check "the terminal cursor is shown right after the input" eval 'flag_is cursor_flag 1 && [[ $(e2e_flag cursor_y) == $(top) && $(e2e_flag cursor_x) == $(( $(left) + 2 )) ]]'
+check "the terminal cursor is shown right after the input" eval 'flag_is cursor_flag 1 && [[ $(e2e_flag cursor_y) == $(( $(input_y) - 1 )) && $(e2e_flag cursor_x) == $(( $(left) + 4 )) ]]   # 0-based; the input starts after " <search icon> "'
 e2e_type "$(printf '%100s' | tr ' ' a)XYZ"; sleep 0.3
-check "input longer than the box: the typing position stays visible" eval 'y=$(( $(top) + 1 )); [[ $(e2e_text $(left) $(( $(left) + 79 )) $y) == *XYZ*"│" ]] && (( $(e2e_flag cursor_x) < $(left) + 79 ))'
+check "input longer than the box: the typing position stays visible" eval 'y=$(input_y); [[ $(e2e_text $(left) $(right) $y) == *XYZ*"│" ]] && (( $(e2e_flag cursor_x) < $(right) ))'
 
 e2e_done

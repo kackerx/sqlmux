@@ -11,15 +11,15 @@ data_tabs() { e2e_text 34 103 43; }
 kinds() { list | cut -d'|' -f1 | awk '{ print $NF }' | sort -u | tr '\n' ' '; }   # type labels in the list
 # which scope tab is highlighted (focus background) on the tab row
 current_scope() {
-  local t l x; t=$(top); l=$(left)
-  for tab in 所有 窗口·Pane 表 命令; do x=$(e2e_find "$tab" $((t + 2)) | cut -d' ' -f1); [[ -n $x ]] && style_has $x $((t + 2)) bg=#9ece6a >/dev/null && { echo "$tab"; return; }; done
+  local y x; y=$(tabs_y)
+  for tab in 所有 窗口·Pane 表 命令; do x=$(e2e_find "$tab" $y | cut -d' ' -f1); [[ -n $x ]] && style_has $x $y bg=#9ece6a >/dev/null && { echo "$tab"; return; }; done
 }
 icon_of() { local y; y=$(row_y "$1"); e2e_text $(($(left) + 2)) $(($(left) + 2)) $y; }
 NF_WINDOW=$(printf '\xef\x8b\x92') NF_COMMAND=$(printf '\xef\x83\xa7')   # U+F2D2 U+F0E7
 
 # ---- scopes: Tab / S-Tab cycle by rewriting the prefix only
 start; pal
-check "the tab row reads 所有 · 窗口·Pane · 表 · 命令, 所有 highlighted" eval '[[ $(e2e_text $(($(left) + 2)) $(($(left) + 30)) $(($(top) + 2)) | tr -s " ") == " 所有 窗口·Pane 表 命令"* && $(current_scope) == 所有 ]]'
+check "the tab row (above the input, F0.17) reads 所有 · 窗口·Pane % · 表 @ · 命令 >, 所有 highlighted" eval '[[ $(e2e_text $(($(left) + 2)) $(($(left) + 40)) $(tabs_y) | tr -s " ") == " 所有 窗口·Pane % 表 @ 命令 >"* && $(current_scope) == 所有 ]]'
 e2e_type "abc"; e2e_keys Left; sleep 0.2; cx=$(e2e_flag cursor_x)
 e2e_keys Tab; sleep 0.3
 check "Tab → 窗口·Pane: prefix %, the rest kept, cursor keeps its place in the text" eval 'input_is "%abc" && [[ $(current_scope) == 窗口·Pane && $(e2e_flag cursor_x) == $((cx + 1)) ]]'
@@ -27,7 +27,7 @@ e2e_keys Tab; sleep 0.3; check "Tab → 表: prefix @" eval 'input_is "@abc" && 
 e2e_keys Tab; sleep 0.3; check "Tab → 命令: prefix >" eval 'input_is ">abc" && [[ $(current_scope) == 命令 ]]'
 e2e_keys Tab; sleep 0.3; check "Tab → 所有: prefix removed" eval 'input_is "abc" && [[ $(current_scope) == 所有 ]]'
 e2e_keys BTab; sleep 0.3; check "S-Tab goes back: 命令" eval 'input_is ">abc" && [[ $(current_scope) == 命令 ]]'
-x=$(e2e_find "表" $(($(top) + 2)) | cut -d' ' -f1); e2e_click $x $(($(top) + 2)); sleep 0.3
+x=$(e2e_find "表" $(tabs_y) | cut -d' ' -f1); e2e_click $x $(tabs_y); sleep 0.3
 check "clicking a scope tab switches to it" eval 'input_is "@abc" && [[ $(current_scope) == 表 ]]'
 e2e_keys Escape; sleep 0.2
 
@@ -42,7 +42,7 @@ pal
 check "window row: 0: data, located in doraemon, labelled 窗口, window icon" eval 'list | head -1 | grep -q "^0: data  doraemon .*窗口|" && [[ $(icon_of 1) == "$NF_WINDOW" ]]'
 check "pane row: ⟨1⟩ data · t_order, located in 0: data, labelled Pane" eval 'row_has "data · t_order  0: data" && list | grep -q "data · t_order  0: data .*Pane|"'
 check "table row: located in doraemon.public, labelled 表" eval 'list | grep -q "^agent  doraemon.public .*表|"'
-check "the location is dim; the type label is dim and right-aligned (ends one column before │)" eval 'y=$(row_y 1); c=$(e2e_find doraemon $y); style_has $c $y fg=#565f89 && text_is $(($(left) + 74)) $(($(left) + 79)) $y "窗口 │" && style_has $(($(left) + 74)) $y fg=#565f89'
+check "the location is dim; the type label is dim and right-aligned (ends one column before │)" eval 'y=$(row_y 1); c=$(e2e_find doraemon $y); style_has $c $y fg=#565f89 && text_is $(( $(right) - 5 )) $(right) $y "窗口 │" && style_has $(( $(right) - 5 )) $y fg=#565f89'
 check "所有 lists windows, panes, tables and commands (empty input: window → pane → table → command)" eval 'clear_input; o=$(list | cut -d"|" -f1 | awk "{print \$NF}" | uniq | tr "\n" " "); [[ $o == "窗口 Pane 表 "* ]] || { echo "  order: $o"; false; }'
 seen=""; clear_input; for i in $(seq 24); do seen+=" $(kinds)"; e2e_keys Down; sleep 0.05; done
 check "所有 has all four kinds (scrolling through the list)" eval '[[ $seen == *窗口* && $seen == *Pane* && $seen == *表* && $seen == *命令* ]] || { echo "  kinds: $(tr " " "\n" <<<"$seen" | sort -u | tr "\n" " ")"; false; }'
