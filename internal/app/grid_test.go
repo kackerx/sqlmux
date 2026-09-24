@@ -88,7 +88,7 @@ func TestGridFetch(t *testing.T) {
 	if len(tab.page.Rows) != 0 || a.sess.cols[idOf(table)].PK == nil {
 		t.Fatalf("a stale answer: rows %d; its columns are still worth caching", len(tab.page.Rows))
 	}
-	a.fetch(tab)
+	a.fetch(tab, false)
 	a.Update(pageMsg{tab: tab, seq: tab.seq, cols: cols, page: page})
 	if a.busy != 0 || len(tab.page.Rows) != 3 || strings.Contains(statusRow(a), "busy") {
 		t.Fatalf("answered: busy %d, rows %d", a.busy, len(tab.page.Rows))
@@ -103,7 +103,7 @@ func TestGridFetch(t *testing.T) {
 func TestGridCancelAndError(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	tab := loadOrders(t, a, 3)
-	a.fetch(tab)
+	a.fetch(tab, false)
 	feed(t, a, "<C-c>")
 	if a.quitToast != 0 {
 		t.Fatal("C-c while a query runs cancels it, not the first of two to quit")
@@ -112,11 +112,14 @@ func TestGridCancelAndError(t *testing.T) {
 	if a.toast != "查询已取消" || len(tab.page.Rows) != 3 || tab.err != "" {
 		t.Fatalf("cancelled: toast %q rows %d err %q", a.toast, len(tab.page.Rows), tab.err)
 	}
-	a.fetch(tab)
+	a.fetch(tab, false)
 	a.Update(pageMsg{tab: tab, seq: tab.seq, err: fmt.Errorf("permission denied for table t_order")})
 	f := a.render()
 	if st := styleOf(t, f, "permission denied"); st.Fg != a.theme.Error || strings.Contains(f.String(), "note 1") {
 		t.Errorf("error line: %+v", st)
+	}
+	if strings.Contains(statusRow(a), " 1,1 ") {
+		t.Error("no row,col with no table on screen")
 	}
 }
 
@@ -139,11 +142,11 @@ func TestGridMoves(t *testing.T) {
 		}
 	}
 	feed(t, a, "G")
-	if tab.top != 60-14 { // 20 rows less the status bar, the borders, the tab bar, the header and its rule
+	if tab.top != 60-12 { // 20 rows less the status bar, the borders, the tab bar, the query bar, the header and its rule
 		t.Errorf("G: top %d", tab.top)
 	}
 	feed(t, a, "$")
-	body := bodyRect(a.layout()[a.win().Focus])
+	body := gridRect(a.layout()[a.win().Focus])
 	lines := strings.Split(a.render().String(), "\n")
 	if tab.left == 0 || !strings.Contains(lines[body.Min.Y], "created_at") {
 		t.Errorf("$: left %d, header %q", tab.left, lines[body.Min.Y])
@@ -177,7 +180,7 @@ func TestGridTranspose(t *testing.T) {
 // the sideways wheel by a column; the cursor follows into view (§7.6).
 func TestGridWheel(t *testing.T) {
 	a := sized(100, 20, "nerd")
-	tab := loadOrders(t, a, 20) // 14 rows show
+	tab := loadOrders(t, a, 20) // 12 rows show
 	r := a.layout()[1]
 	wheel := func(b tea.MouseButton, mod tea.KeyMod) {
 		a.Update(tea.MouseWheelMsg{X: r.Min.X + 5, Y: r.Min.Y + 5, Button: b, Mod: mod})
@@ -187,7 +190,8 @@ func TestGridWheel(t *testing.T) {
 		t.Fatalf("down: top %d row %d", tab.top, tab.row)
 	}
 	wheel(tea.MouseWheelDown, 0)
-	if tab.top != 6 {
+	wheel(tea.MouseWheelDown, 0)
+	if tab.top != 20-12 {
 		t.Errorf("the last row stops at the bottom: top %d", tab.top)
 	}
 	wheel(tea.MouseWheelDown, tea.ModShift)

@@ -140,33 +140,33 @@
 - [ ] 长查询（例如 WHERE 中带 `pg_sleep(3) is not null`）执行时显示忙碌提示；按 `C-c` 后查询被取消，并有提示。
 - [ ] 表格渲染的 golden 测试通过（160×45，固定数据：一个打开了 t_order 的 data tab，含 NULL、枚举、json、timestamptz、带换行的文本各一列；外加一张转置视图）。
 
-## F1.4 查询条 · 状态：todo
+## F1.4 查询条 · 状态：reviewing
 
 - **依赖**：F1.3
 - **涉及**：`internal/ui`（querybar、dropdown）、`internal/app`
 
 **开发**
-- [ ] WHERE 输入框（§9.6）：
+- [x] WHERE 输入框（§9.6）：
   - 在表格中按 `/` 聚焦输入框，进入 INSERT 模式；`↵` 执行，`esc` 回到表格；
   - 输入是完整的条件表达式，拼接为 `WHERE (\n<输入>\n)`（§9.6）；
   - 只允许一条语句，依靠扩展协议拒绝多语句。
-- [ ] WHERE 输入框复用 F0.13 的单行输入组件：按字素簇处理，显示光标，超宽时保持可见。不用 bubbles 的 textinput，它按 rune 处理退格（worker 核对时实测，textinput.go:606）。
-- [ ] 编辑 WHERE 时，状态栏的模式附加信息显示 `-- editing WHERE --`（§7.8），用上 M0 为它保留的 StatusLine.Info。
-- [ ] 查询条布局按 §7.8「查询条」：两行；第二行是四个 chip、三个图标按钮（图标名进 §7.7）和右侧的 `auto · <计数> 行 · <耗时>`。
-- [ ] 四个 chip（行为细节见 §7.8「查询条」）：
+- [x] WHERE 输入框复用 F0.13 的单行输入组件：按字素簇处理，显示光标，超宽时保持可见。不用 bubbles 的 textinput，它按 rune 处理退格（worker 核对时实测，textinput.go:606）。
+- [x] 编辑 WHERE 时，状态栏的模式附加信息显示 `-- editing WHERE --`（§7.8），用上 M0 为它保留的 StatusLine.Info。
+- [x] 查询条布局按 §7.8「查询条」：两行；第二行是四个 chip、三个图标按钮（图标名进 §7.7）和右侧的 `auto · <计数> 行 · <耗时>`。
+- [x] 四个 chip（行为细节见 §7.8「查询条」）：
   - ORDER（`go`）：通用下拉框选排序列，同列 `↵` 翻转方向；单列；行标识列作 tiebreaker；
   - LIMIT（`gl`）：默认 100，可选 100 / 500 / 1000（§8.5），换了回第 1 页；
   - PAGE（`gp`）：显示 `当前页/总页数`，chip 原地变页码输入框；`]` / `[` 翻页，边界上不起作用；翻页后光标夹在新页内；
   - COLS（`gc`）：打开时焦点在列表上，`/` 进过滤框，`space` 勾选，`a` / `A` 全选与全不选，esc 分两步；隐藏列按 tab 记住。
-- [ ] F1.2 的 `[keys.schema]` / `schema.*` 改名为 `[keys.dropdown]` / `dropdown.*`，schema、ORDER、LIMIT 三种下拉框共用；COLS 用 `[keys.cols]`（§6.8）。
-- [ ] 计数（§8.5、§8.3）：
+- [x] F1.2 的 `[keys.schema]` / `schema.*` 改名为 `[keys.dropdown]` / `dropdown.*`，schema、ORDER、LIMIT 三种下拉框共用；COLS 用 `[keys.cols]`（§6.8）。
+- [x] 计数（§8.5、§8.3）：
   - 在 Meta 连接上用 `tea.Sequence` 排在取数之后异步执行，ctx 超时 3 秒，超时显示 `?`；不算 busy；
   - 没有 WHERE 且估计行数超过 100 万时，显示估计值 `~n`。
-- [ ] 查询条右侧（Q-06）：
+- [x] 查询条右侧（Q-06）：
   - 显示事务模式（M1 固定为 auto）、计数结果（`…` / `?` / `~n` / n）、耗时；
   - `R` 刷新：按当前 WHERE / ORDER / LIMIT / PAGE 重取当前页并重新计数；转置按钮可以使用，保存按钮在 M2 之前先占位。
-- [ ] WHERE 的 `esc` 恢复成当前生效的条件；报错显示在 pane 内容区第一行，查询条仍可编辑（§7.8）。
-- [ ] 补 F1.3 漏掉的两条 PRD 要求（§7.6）：悬停行 `row` 底、不移动光标（G-06）；点击行号把光标移到该行、列不变，命中区 Kind `rowno`（G-04）。
+- [x] WHERE 的 `esc` 恢复成当前生效的条件；报错显示在 pane 内容区第一行，查询条仍可编辑（§7.8）。
+- [x] 补 F1.3 漏掉的两条 PRD 要求（§7.6）：悬停行 `row` 底、不移动光标（G-06）；点击行号把光标移到该行、列不变，命中区 Kind `rowno`（G-04）。
 
 **验收**
 - [ ] e2e：

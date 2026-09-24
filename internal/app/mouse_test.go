@@ -252,7 +252,7 @@ func TestSidebarSchemaTitle(t *testing.T) {
 		t.Errorf("the button covers the whole title: %v", r)
 	}
 	click(a, uv.Pos(r.Min.X+5, 0))
-	if a.win().Focus != 0 || a.menu == nil {
+	if a.win().Focus != 0 || a.drop == nil {
 		t.Error("clicking the title focuses the sidebar and opens the schema dropdown")
 	}
 }

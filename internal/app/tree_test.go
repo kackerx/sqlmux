@@ -157,8 +157,8 @@ func TestTreeFilter(t *testing.T) {
 func TestSchemaMenu(t *testing.T) {
 	a := inTree(160, 45)
 	feed(t, a, "3j/ord<CR>gs")
-	if a.menu == nil || a.mode() != keymap.Insert || a.menuView().Items[a.menu.sel] != "public" {
-		t.Fatalf("gs: menu %+v mode %v", a.menu, a.mode())
+	if a.drop == nil || a.mode() != keymap.Insert || a.dropView().Items[a.drop.sel] != "public" {
+		t.Fatalf("gs: menu %+v mode %v", a.drop, a.mode())
 	}
 	f := a.render()
 	if st := styleOf(t, f, "public   "); st.Fg != a.theme.PK || st.Bg != a.theme.Select {
@@ -166,7 +166,7 @@ func TestSchemaMenu(t *testing.T) {
 	}
 	feed(t, a, "<C-p><CR>")
 	top := strings.Split(a.render().String(), "\n")[0]
-	if a.menu != nil || a.sess.Schema != "agentable" || !strings.Contains(top, " agentable ▾") {
+	if a.drop != nil || a.sess.Schema != "agentable" || !strings.Contains(top, " agentable ▾") {
 		t.Fatalf("↵: schema %q, title %q", a.sess.Schema, top)
 	}
 	if tr := a.win().tree; tr.cursor != 0 || tr.filter.Text != "" || cursorTable(a) != "planner" {
@@ -174,30 +174,30 @@ func TestSchemaMenu(t *testing.T) {
 	}
 
 	feed(t, a, "gspub")
-	if items := a.menuView().Items; len(items) != 1 || items[0] != "public" {
+	if items := a.dropView().Items; len(items) != 1 || items[0] != "public" {
 		t.Fatalf("filtered: %v", items)
 	}
 	feed(t, a, "<Esc>")
-	if a.menu != nil || a.sess.Schema != "agentable" {
+	if a.drop != nil || a.sess.Schema != "agentable" {
 		t.Fatal("esc closes, nothing picked")
 	}
 
 	r := find(t, a, ui.Target{Kind: ui.KindHint, Action: "tree.schema"})
 	click(a, r.Min)
-	if a.menu == nil {
+	if a.drop == nil {
 		t.Fatal("clicking the title opens the dropdown")
 	}
 	row := find(t, a, ui.Target{Kind: ui.KindRow, I: 1})
-	if box, _ := a.menuBox(2); row.Min.Y != box.Min.Y+4 || box.Min.X != r.Min.X || box.Max.X != a.sidebarRect().Max.X {
+	if box, _ := a.dropBox(2); row.Min.Y != box.Min.Y+4 || box.Min.X != r.Min.X || box.Max.X != a.sidebarRect().Max.X {
 		t.Errorf("the dropdown opens under the title, left aligned, its right edge on the sidebar's: %v", box)
 	}
 	click(a, row.Min)
-	if a.menu != nil || a.sess.Schema != "public" {
+	if a.drop != nil || a.sess.Schema != "public" {
 		t.Fatalf("click: schema %q", a.sess.Schema)
 	}
 	feed(t, a, "gs")
 	click(a, uv.Pos(100, 30))
-	if a.menu != nil {
+	if a.drop != nil {
 		t.Error("a click outside closes it")
 	}
 }

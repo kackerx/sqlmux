@@ -5,7 +5,6 @@ import (
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
-	uv "github.com/charmbracelet/ultraviolet"
 
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
@@ -147,68 +146,6 @@ func (a *App) filterKey(k keymap.Key) {
 		}
 	}
 	a.clampTree()
-}
-
-// schemaMenu is the open schema dropdown (§8.6).
-type schemaMenu struct {
-	input    ui.Input
-	sel, top int
-}
-
-func (a *App) openSchemaMenu() {
-	a.menu = &schemaMenu{sel: max(slices.Index(a.sess.Schemas, a.sess.Schema), 0)}
-	a.menuMove(0)
-}
-
-// menuMatches is the schemas that pass the menu's filter, best first.
-func (a *App) menuMatches() []ui.Match { return ui.Filter(a.menu.input.Text, a.sess.Schemas) }
-
-// menuBox is where the menu opens (§8.6): under the sidebar's title, left
-// aligned with it, and reaching the sidebar's right edge or further for a
-// long schema name.
-func (a *App) menuBox(n int) (uv.Rectangle, int) {
-	side := a.sidebarRect()
-	entry := uv.Rect(side.Min.X+2, side.Min.Y, 1, 1) // where Block draws the title
-	w := side.Max.X - entry.Min.X                    // right border on the sidebar's
-	for _, s := range a.sess.Schemas {
-		w = max(w, ui.Width(s)+4) // border and padding on both sides
-	}
-	return ui.DropdownBox(a.window(), entry, w, n)
-}
-
-func (a *App) menuMove(d int) {
-	m := a.menu
-	n := len(a.menuMatches())
-	_, rows := a.menuBox(n)
-	m.sel = max(min(m.sel+d, n-1), 0)
-	m.top = max(min(m.top, m.sel), m.sel-rows+1)
-}
-
-// menuPick switches the tree to the schema at i: its first table, no filter.
-func (a *App) menuPick(i int) {
-	if ms := a.menuMatches(); i < len(ms) {
-		a.sess.Schema = a.sess.Schemas[ms[i].Index]
-		a.win().tree = treeState{}
-	}
-	a.menu = nil
-}
-
-func (a *App) menuKey(k keymap.Key) {
-	if editInput(&a.menu.input, k) {
-		a.menu.sel, a.menu.top = 0, 0
-	}
-}
-
-func (a *App) menuView() ui.Dropdown {
-	d := ui.Dropdown{Search: a.icons.Search, Input: a.menu.input, Mark: -1, Sel: a.menu.sel, Top: a.menu.top}
-	for i, m := range a.menuMatches() {
-		s := a.sess.Schemas[m.Index]
-		if s == a.sess.Schema {
-			d.Mark = i
-		}
-		d.Items, d.Pos = append(d.Items, s), append(d.Pos, m.Pos)
-	}
-	return d
 }
 
 // editInput applies an input's own editing keys to in (they are no

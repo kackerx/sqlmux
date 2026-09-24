@@ -23,10 +23,11 @@ type App struct {
 	res   *keymap.Resolver
 	sess  *Session
 
-	palette  *palette    // non-nil while the command palette is open (COMMAND mode)
-	menu     *schemaMenu // non-nil while the schema dropdown is open (§8.6)
-	recent   []itemKey   // what was run from the palette, most recent first (§12)
-	whichKey bool        // the which-key overlay is up (§6.5)
+	palette  *palette  // non-nil while the command palette is open (COMMAND mode)
+	drop     *dropdown // non-nil while a one-pick dropdown is open (§8.6, §7.8)
+	cols     *colsMenu // non-nil while the COLS list is open (Q-04)
+	recent   []itemKey // what was run from the palette, most recent first (§12)
+	whichKey bool      // the which-key overlay is up (§6.5)
 	// paneNumbers is SPC q's overlay: the next key picks a pane by its ⟨n⟩.
 	paneNumbers bool
 
@@ -97,6 +98,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotCatalog(msg)
 	case pageMsg:
 		return a, a.gotPage(msg)
+	case countMsg:
+		a.gotCount(msg)
 	case toastExpired:
 		if msg.seq == a.toastSeq {
 			a.toast = ""
@@ -179,11 +182,14 @@ func (a *App) click(p uv.Position) tea.Cmd {
 	case ui.KindNumber:
 		a.jumpToPane(keymap.Key(strconv.Itoa(t.I)))
 	case ui.KindBackdrop: // outside an overlay: close it
-		a.whichKey, a.paneNumbers, a.palette, a.menu = false, false, nil, nil
+		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols = false, false, nil, nil, nil
 		a.res.Reset()
 	case ui.KindRow:
-		if a.menu != nil {
-			a.menuPick(t.I)
+		switch {
+		case a.drop != nil:
+			return a.dropPick(t.I)
+		case a.cols != nil: // a column's row: show or hide it (Q-04)
+			a.colsShow(t.I, func(hidden bool) bool { return hidden })
 			return nil
 		}
 		return a.paletteRun(t.I, false)
@@ -196,7 +202,7 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		}
 	case ui.KindButton:
 		return a.run(t.Action, 0)
-	case ui.KindHint, ui.KindCell:
+	case ui.KindHint, ui.KindCell, ui.KindRowNo:
 		return tea.Batch(focus(), a.run(t.Action, 0))
 	case ui.KindTitle:
 		if double {
@@ -252,13 +258,19 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 			continue
 		}
 		for _, k := range r.Keys { // unbound keys go to the input that has them
-			switch {
+			switch t := a.typingTab(); {
 			case a.palette != nil:
 				a.paletteKey(k)
-			case a.menu != nil:
-				a.menuKey(k)
+			case a.drop != nil:
+				a.dropKey(k)
+			case a.cols != nil:
+				if a.cols.typing {
+					a.colsFilterKey(k)
+				}
 			case a.win().tree.filtering:
 				a.filterKey(k)
+			case t != nil:
+				cmds = append(cmds, a.typeKey(t, k))
 			}
 		}
 	}
@@ -269,9 +281,9 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 // ponytail: no VISUAL until the console editor (M3).
 func (a *App) mode() keymap.Mode {
 	switch {
-	case a.palette != nil:
+	case a.palette != nil, a.cols != nil && !a.cols.typing: // lists to pick from
 		return keymap.Command
-	case a.menu != nil || a.win().tree.filtering:
+	case a.drop != nil, a.cols != nil, a.win().tree.filtering, a.typingTab() != nil:
 		return keymap.Insert
 	}
 	return keymap.Normal
@@ -282,9 +294,11 @@ func (a *App) context() keymap.Context {
 	switch {
 	case a.palette != nil:
 		return keymap.Context{Overlay: "palette", Mode: keymap.Command}
-	case a.menu != nil:
-		return keymap.Context{Overlay: "schema", Mode: keymap.Insert}
-	case a.win().tree.filtering:
+	case a.drop != nil:
+		return keymap.Context{Overlay: "dropdown", Mode: keymap.Insert}
+	case a.cols != nil && !a.cols.typing:
+		return keymap.Context{Overlay: "cols", Mode: keymap.Command}
+	case a.cols != nil, a.win().tree.filtering, a.typingTab() != nil:
 		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Insert}
 	}
 	return keymap.Context{Focus: []string{a.paneScope()}, Pane: a.paneScope()}

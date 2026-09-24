@@ -112,9 +112,16 @@ func (a *App) render() *ui.Frame {
 		t := " " + a.toast + " "
 		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Bar})
 	}
-	if a.menu != nil {
-		d := a.menuView()
-		box, rows := a.menuBox(len(d.Items))
+	if a.drop != nil {
+		d := a.dropView()
+		box, rows := a.dropBox(len(d.Items))
+		if c := d.Draw(f, box, rows); c.X >= 0 {
+			f.Cursor = &c
+		}
+	}
+	if a.cols != nil {
+		d := a.colsView()
+		box, rows := a.colsBox(len(d.Items))
 		if c := d.Draw(f, box, rows); c.X >= 0 {
 			f.Cursor = &c
 		}
@@ -176,11 +183,18 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	ui.Tabs{Names: names, Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}.
 		Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
 	// ponytail: a console's body stays empty until its editor (M3)
-	switch t, body := dataOf(p), bodyRect(r); {
-	case t == nil:
+	t := dataOf(p)
+	if t == nil {
+		return
+	}
+	if c := a.queryBar(p, t).Draw(f, bodyRect(r)); c.X >= 0 {
+		f.Cursor = &c
+	}
+	body := gridRect(r)
+	switch {
 	case t.err != "": // what the database said, in place of the table (§7.6)
 		f.Text(body.Min.X+1, body.Min.Y, body.Max.X-1, t.err, uv.Style{Fg: th.Error, Bg: th.PaneBg})
-	default:
+	case t.page.Cols != nil:
 		a.grid(p, t).Draw(f, body)
 	}
 }
@@ -304,9 +318,12 @@ func (a *App) statusLine() ui.StatusLine {
 		{Runs: iconRuns(ic.Search, bar(th.Info), strings.TrimRight(" "+a.label(a.keys.Hint("palette.open", "global")), " ")+" "), Action: "palette.open"},
 		{Runs: append(iconRuns(ic.Keys, bar(th.FgMuted), " "), pending, ui.Run{Text: " ", Style: bar(th.FgMuted)})},
 	}
+	if t := a.typingTab(); t != nil && t.typing == "where" {
+		s.Info = "-- editing WHERE --" // §7.8
+	}
 	// the cursor's row,col, with a table loaded in the focused pane (§7.8)
 	if _, t, ok := a.focusedGrid(); ok && len(t.page.Rows) > 0 {
-		at := fmt.Sprintf(" %d,%d ", t.row+1, t.col+1)
+		at := fmt.Sprintf(" %d,%d ", t.pageNo*t.limit+t.row+1, t.col+1)
 		s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: at, Style: bar(th.FgMuted)}}, Drop: dropCursor})
 	}
 	s.Right = append(s.Right, ui.Segment{Runs: iconRuns(ic.Conn, conn, " "+a.sess.Addr+" "), Drop: dropConn})

@@ -18,7 +18,7 @@ var defaultTOML string
 // in resolution priority order for the export. which-key is no scope: keys
 // pressed over it resolve as without it (§6.5).
 var tables = []string{
-	"keys.palette", "keys.where", "keys.cols", "keys.schema", "keys.sessions",
+	"keys.palette", "keys.where", "keys.cols", "keys.dropdown", "keys.sessions",
 	"keys.complete", "keys.cell", "keys.input",
 	"keys.result", "keys.grid", "keys.tree", "keys.console", "keys.normal", "keys.global",
 	"map.console.normal", "map.console.visual", "map.grid.normal", "map.grid.visual",

@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"sqlmux/internal/keymap"
+	"sqlmux/internal/ui"
 )
 
 // Args is what an action gets from the key press or command that ran it.
@@ -41,13 +42,13 @@ func init() {
 		// Keys inside the palette. Like every overlay's own actions they have
 		// no title, so the palette does not list them (§12); bound elsewhere
 		// in config, they do nothing.
-		"palette.up":         {Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
-		"palette.down":       {Run: inPalette(func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
-		"palette.run":        {Run: inPalette(func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, false) })},
-		"palette.open.tab":   {Run: inPalette(func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, true) })},
-		"palette.close":      {Run: inPalette(func(a *App) tea.Cmd { a.palette = nil; return nil })},
-		"palette.scope.next": {Run: inPalette(func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s + 1); return nil })},
-		"palette.scope.prev": {Run: inPalette(func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s - 1); return nil })},
+		"palette.up":         {Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
+		"palette.down":       {Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
+		"palette.run":        {Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, false) })},
+		"palette.open.tab":   {Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, true) })},
+		"palette.close":      {Run: when(inPalette, func(a *App) tea.Cmd { a.palette = nil; return nil })},
+		"palette.scope.next": {Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s + 1); return nil })},
+		"palette.scope.prev": {Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s - 1); return nil })},
 		// "palette.scope <i>" is a click on a scope tab.
 		"palette.scope": {Run: func(a *App, args Args) tea.Cmd {
 			if i, err := strconv.Atoi(args.Arg); err == nil && a.palette != nil {
@@ -88,13 +89,23 @@ func init() {
 		"tree.open":     {Title: "打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(false) }},
 		"tree.open.tab": {Title: "在新 tab 打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(true) }},
 		"tree.filter":   {Title: "过滤", Run: do(func(a *App, _ Args) { a.treeFilter() })},
-		"tree.schema":   {Title: "切换 schema", Run: do(func(a *App, _ Args) { a.openSchemaMenu() })},
+		"tree.schema":   {Title: "切换 schema", Run: do(func(a *App, _ Args) { a.openDrop(dropSchema) })},
 		"tree.refresh":  {Title: "刷新表列表", Run: func(a *App, _ Args) tea.Cmd { clear(a.sess.cols); return a.loadCatalog() }},
-		// Keys inside the schema dropdown (§8.6): untitled, like the palette's.
-		"schema.up":     {Run: inMenu(func(a *App) { a.menuMove(-1) })},
-		"schema.down":   {Run: inMenu(func(a *App) { a.menuMove(1) })},
-		"schema.select": {Run: inMenu(func(a *App) { a.menuPick(a.menu.sel) })},
-		"schema.close":  {Run: inMenu(func(a *App) { a.menu = nil })},
+		// Keys inside the dropdowns and the COLS list (§6.8): untitled, like the palette's.
+		"dropdown.up":     {Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(-1); return nil })},
+		"dropdown.down":   {Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(1); return nil })},
+		"dropdown.select": {Run: when(inDrop, func(a *App) tea.Cmd { return a.dropPick(a.drop.sel) })},
+		"dropdown.close":  {Run: when(inDrop, func(a *App) tea.Cmd { a.drop = nil; return nil })},
+		"cols.up":         {Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(-1); return nil })},
+		"cols.down":       {Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(1); return nil })},
+		"cols.toggle": {Run: when(inCols, func(a *App) tea.Cmd {
+			a.colsShow(a.cols.sel, func(hidden bool) bool { return hidden })
+			return nil
+		})},
+		"cols.all":    {Run: when(inCols, func(a *App) tea.Cmd { a.colsShow(-1, func(bool) bool { return true }); return nil })},
+		"cols.none":   {Run: when(inCols, func(a *App) tea.Cmd { a.colsShow(-1, func(bool) bool { return false }); return nil })},
+		"cols.filter": {Run: when(inCols, func(a *App) tea.Cmd { a.cols.typing = true; return nil })},
+		"cols.close":  {Run: when(inCols, func(a *App) tea.Cmd { a.colsEsc(); return nil })},
 
 		// "pane.focus <id>" is what a click runs; untitled, it stays out of the palette.
 		"pane.focus": {Run: do(func(a *App, args Args) {
@@ -125,6 +136,29 @@ func init() {
 			a.gridMove(func(r, _, _, cols int) (int, int) { return r, cols - 1 })
 		})},
 		"grid.transpose": {Title: "转置", Run: do(func(a *App, _ Args) { a.gridTranspose() })},
+		// The query bar (§7.8「查询条」).
+		"grid.where": {Title: "WHERE 条件", Run: do(func(a *App, _ Args) {
+			if t := dataOf(a.focused()); t != nil {
+				t.typing, t.where.Pos = "where", len(t.where.Text)
+			}
+		})},
+		"grid.page": {Title: "PAGE", Run: do(func(a *App, _ Args) {
+			if t := dataOf(a.focused()); t != nil && t.page.Cols != nil {
+				n := strconv.Itoa(t.pageNo + 1)
+				t.typing, t.pageIn = "page", ui.Input{Text: n, Pos: len(n)}
+			}
+		})},
+		"grid.order":     {Title: "ORDER", Run: do(func(a *App, _ Args) { a.openDrop(dropOrder) })},
+		"grid.limit":     {Title: "LIMIT", Run: do(func(a *App, _ Args) { a.openDrop(dropLimit) })},
+		"grid.cols":      {Title: "COLS", Run: do(func(a *App, _ Args) { a.openCols() })},
+		"grid.page.next": {Title: "下一页", Run: func(a *App, _ Args) tea.Cmd { return a.turnPage(1) }},
+		"grid.page.prev": {Title: "上一页", Run: func(a *App, _ Args) tea.Cmd { return a.turnPage(-1) }},
+		"grid.refresh": {Title: "刷新", Run: func(a *App, _ Args) tea.Cmd {
+			if t := dataOf(a.focused()); t != nil {
+				return a.fetch(t, true)
+			}
+			return nil
+		}},
 		// "grid.goto <rec> <field>" is a click on a cell.
 		"grid.goto": {Run: do(func(a *App, args Args) { a.gridGoto(args.Arg) })},
 
@@ -142,9 +176,7 @@ func init() {
 		"window.new": "新建 window", "window.rename": "重命名 window", "window.close": "关闭 window",
 		"window.next": "下一个 window", "window.prev": "上一个 window", "window.last": "上次用的 window",
 		"tab.next": "下一个 tab", "tab.prev": "上一个 tab",
-		"grid.edit": "编辑单元格", "grid.refresh": "刷新",
-		"grid.where": "WHERE 条件", "grid.order": "ORDER", "grid.limit": "LIMIT",
-		"grid.page": "PAGE", "grid.cols": "COLS", "grid.page.next": "下一页", "grid.page.prev": "上一页",
+		"grid.edit": "编辑单元格",
 		"grid.yank": "复制单元格", "grid.yank.insert": "复制为 INSERT",
 		"result.pin": "固定结果", "result.close": "关闭结果",
 		"console.run": "执行", "console.format": "格式化", "console.schema": "切换 schema",
@@ -153,25 +185,20 @@ func init() {
 	}
 }
 
-// inPalette adapts an action that only means something with the palette open.
-func inPalette(f func(*App) tea.Cmd) func(*App, Args) tea.Cmd {
+// when adapts an action that only means something while open holds: the
+// overlay it belongs to is up. Bound elsewhere in config, it does nothing.
+func when(open func(*App) bool, f func(*App) tea.Cmd) func(*App, Args) tea.Cmd {
 	return func(a *App, _ Args) tea.Cmd {
-		if a.palette == nil {
+		if !open(a) {
 			return nil
 		}
 		return f(a)
 	}
 }
 
-// inMenu adapts an action that only means something with the schema dropdown open.
-func inMenu(f func(*App)) func(*App, Args) tea.Cmd {
-	return func(a *App, _ Args) tea.Cmd {
-		if a.menu != nil {
-			f(a)
-		}
-		return nil
-	}
-}
+func inPalette(a *App) bool { return a.palette != nil }
+func inDrop(a *App) bool    { return a.drop != nil }
+func inCols(a *App) bool    { return a.cols != nil }
 
 // by is a grid move of dr rows and dc columns.
 func by(dr, dc int) func(r, c, _, _ int) (int, int) {

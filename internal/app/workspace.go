@@ -57,8 +57,8 @@ type Window struct {
 }
 
 // focus moves focus to pane id, remembering when: moving by direction
-// prefers the neighbour focused most recently (§5). Leaving the tree leaves
-// its filter row too.
+// prefers the neighbour focused most recently (§5). Leaving a pane leaves
+// its input too: the tree's filter row, a table's query bar.
 func (w *Window) focus(id int) {
 	if w.focusedAt == nil {
 		w.focusedAt = map[int]int{}
@@ -66,6 +66,11 @@ func (w *Window) focus(id int) {
 	w.focusTick++
 	w.Focus, w.focusedAt[id] = id, w.focusTick
 	w.tree.filtering = w.tree.filtering && id == w.Tree.ID
+	for _, p := range w.Root.Leaves() {
+		if t := dataOf(p); t != nil && p.ID != id {
+			t.stopTyping()
+		}
+	}
 }
 
 // Session is one connection (tech-design §5).
@@ -129,7 +134,7 @@ func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 		return nil
 	}
 	a.showPane(p.ID)
-	tab := Tab{Name: t.Name, Data: &dataTab{table: t}}
+	tab := Tab{Name: t.Name, Data: newDataTab(t)}
 	switch {
 	case !newTab && len(p.Tabs) > 0:
 		p.Tabs[p.Cur] = tab
@@ -141,7 +146,7 @@ func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 		p.Tabs = append(p.Tabs, tab)
 		p.Cur = len(p.Tabs) - 1
 	}
-	return a.fetch(tab.Data)
+	return a.fetch(tab.Data, true)
 }
 
 // closeTab closes the focused pane's current tab (:q). Closing the last tab

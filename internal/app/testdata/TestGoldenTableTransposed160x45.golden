@@ -1,15 +1,15 @@
 ┌─ ⓪  public ▾ ─────── SPC b ─┐ ┌─ ①  t_order ───────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  14 tables                  │ │            │ 1                            │ 2                                   │ 3                            │ 4          │
-│──────────────────────────────│ │────────────┼──────────────────────────────┼─────────────────────────────────────┼──────────────────────────────┼────────────│
-│  agent                  124 │ │  id       │                            1 │                                   2 │                            3 │            │
-│  agent_version          530 │ │ status     │ running                      │ done                                │ failed                       │ pending    │
-│  goal                    57 │ │ amount     │                         1.99 │                                2.99 │                         3.99 │            │
-│  mt_task                812 │ │ paid       │ t                            │ t                                   │ t                            │ t          │
-│  mt_task_log            96k │ │ meta       │ {"n": 1, "tags": ["a", "b"]} │ {"n": 2, "tags": ["a", "b"]}        │ {"n": 3, "tags": ["a", "b"]} │ {"n": 4, "t│
-│  schema_migrations       88 │ │ note       │ note 1                       │ line one↵line two after tab [31mred │ <null>                       │ note 4     │
-│  t_order               1.2m │ │ created_at │ 2026-09-01 00:01:00+00       │ 2026-09-01 00:02:00+00              │ 2026-09-01 00:03:00+00       │ 2026-09-01 │
-│  t_order_item          3.4m │ │                                                                                                                             │
-│  t_payment             410k │ │                                                                                                                             │
+│  14 tables                  │ │ WHERE                                                                                                                       │
+│──────────────────────────────│ │  ORDER id ↑   LIMIT 100   PAGE 1/?   COLS 7/7                                                           auto · … 行 · 0s │
+│  agent                  124 │ │            │ 1                            │ 2                                   │ 3                            │ 4          │
+│  agent_version          530 │ │────────────┼──────────────────────────────┼─────────────────────────────────────┼──────────────────────────────┼────────────│
+│  goal                    57 │ │  id       │                            1 │                                   2 │                            3 │            │
+│  mt_task                812 │ │ status     │ running                      │ done                                │ failed                       │ pending    │
+│  mt_task_log            96k │ │ amount     │                         1.99 │                                2.99 │                         3.99 │            │
+│  schema_migrations       88 │ │ paid       │ t                            │ t                                   │ t                            │ t          │
+│  t_order               1.2m │ │ meta       │ {"n": 1, "tags": ["a", "b"]} │ {"n": 2, "tags": ["a", "b"]}        │ {"n": 3, "tags": ["a", "b"]} │ {"n": 4, "t│
+│  t_order_item          3.4m │ │ note       │ note 1                       │ line one↵line two after tab [31mred │ <null>                       │ note 4     │
+│  t_payment             410k │ │ created_at │ 2026-09-01 00:01:00+00       │ 2026-09-01 00:02:00+00              │ 2026-09-01 00:03:00+00       │ 2026-09-01 │
 │  t_refund               12k │ │                                                                                                                             │
 │  t_sku                 8.1k │ │                                                                                                                             │
 │  t_user                 38k │ │                                                                                                                             │

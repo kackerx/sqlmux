@@ -89,13 +89,22 @@ leader = "<Space>"
 "<C-y>" = "quicksql.copy"
 "<C-e>" = "quicksql.edit"
 
-[keys.schema] # §8.6: typing goes to the filter, so no j/k
-"<Up>" = "schema.up"
-"<Down>" = "schema.down"
-"<C-p>" = "schema.up"
-"<C-n>" = "schema.down"
-"<CR>" = "schema.select"
-"<Esc>" = "schema.close"
+[keys.dropdown] # schema, ORDER, LIMIT (§6.8): typing goes to the filter, so no j/k
+"<Up>" = "dropdown.up"
+"<Down>" = "dropdown.down"
+"<C-p>" = "dropdown.up"
+"<C-n>" = "dropdown.down"
+"<CR>" = "dropdown.select"
+"<Esc>" = "dropdown.close"
+
+[keys.cols] # Q-04: the list has the keys until / gives them to the filter
+"j" = "cols.down"
+"k" = "cols.up"
+"<Space>" = "cols.toggle"
+"a" = "cols.all"
+"A" = "cols.none"
+"/" = "cols.filter"
+"<Esc>" = "cols.close"
 
 [keys.cell] # §10.2
 "<Tab>" = "cell.segment.next"

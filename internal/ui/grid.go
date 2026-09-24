@@ -40,6 +40,7 @@ const (
 type Grid struct {
 	Cols      []GridCol
 	Rows      [][]db.Val
+	First     int // the row number before Rows[0]: the page's offset
 	Row, Col  int // the current cell; -1 for none
 	Top, Left int // the first record and field shown
 	Transpose bool
@@ -124,7 +125,7 @@ func (v view) label(r int) string {
 	return v.g.number(r)
 }
 
-func (g Grid) number(rec int) string { return strconv.Itoa(rec + 1) }
+func (g Grid) number(rec int) string { return strconv.Itoa(g.First + rec + 1) }
 
 func (g Grid) header(col GridCol) string {
 	if col.PK && g.Key.Text != "" {
@@ -259,12 +260,17 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 	seps = seps[:len(cols)]
 	cellX := func(i int) int { return seps[i] + 2 }
 
+	// a row number is a button to its row, the column kept (G-04)
+	rowNo := func(r uv.Rectangle, rec int) {
+		f.Region(r.Intersect(area), Target{Kind: KindRowNo, Pane: g.Pane, Action: "grid.goto " + strconv.Itoa(rec) + " " + strconv.Itoa(max(g.Col, 0))})
+	}
 	y := area.Min.Y
 	for i, c := range cols {
 		right := min(cellX(i)+ws[c], area.Max.X)
 		h := Truncate(v.head(c), ws[c])
 		switch {
 		case g.Transpose:
+			rowNo(uv.Rect(cellX(i)-1, y, ws[c]+2, 1), c)
 			f.Text(cellX(i), y, right, h, num(c == cc, th.PaneBg))
 		default:
 			f.Text(cellX(i), y, right, h, name)
@@ -288,7 +294,7 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 	for r := voff; r < v.rows && y < area.Max.Y; r, y = r+1, y+1 {
 		bg := th.PaneBg
 		switch {
-		case r == cr:
+		case r == cr, f.Mouse.In(uv.Rect(area.Min.X, y, area.Dx(), 1)): // the current row, and the one under the pointer (G-06)
 			bg = th.Row
 		case (r+1)%2 == 0: // even row numbers: zebra
 			bg = th.RowAlt
@@ -303,6 +309,7 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 				f.Text(area.Min.X+1, y, seps[0], g.Key.Text, g.Key.On(st))
 			}
 		} else {
+			rowNo(uv.Rect(area.Min.X, y, labelW+2, 1), r)
 			f.Text(area.Min.X+1+labelW-Width(label), y, seps[0], label, num(r == cr, bg))
 		}
 		for i, c := range cols {

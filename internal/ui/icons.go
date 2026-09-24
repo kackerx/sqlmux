@@ -33,6 +33,8 @@ type Icons struct {
 	Key           Icon // primary key columns
 	Command       Icon // palette rows (K-03)
 	Window        Icon
+	// The query bar's buttons (Q-05)
+	Save, Refresh, Transpose Icon
 	// Labeled sets (ascii) say nothing by themselves, so the words beside
 	// the icons stay: pane types in titles, C-p, the filter's / (§7.7).
 	Labeled bool
@@ -40,32 +42,38 @@ type Icons struct {
 
 // Nerd Font glyphs, all from the BMP private use area.
 var NerdIcons = &Icons{
-	Schema:   Icon{Text: "\uf0e8"}, // nf-fa-sitemap
-	Table:    Icon{Text: "\uf0ce"}, // nf-fa-table
-	Data:     Icon{Text: "\uf1c0"}, // nf-fa-database
-	Console:  Icon{Text: "\uf489"}, // nf-oct-terminal
-	Filter:   Icon{Text: "\uf0b0"}, // nf-fa-filter
-	Postgres: Icon{Text: "\ue76e"}, // nf-dev-postgresql
-	Search:   Icon{Text: "\uf002"}, // nf-fa-search
-	Keys:     Icon{Text: "\uf11c"}, // nf-fa-keyboard_o
-	Conn:     Icon{Text: "\uf1e6"}, // nf-fa-plug
-	Key:      Icon{Text: "\uf084"}, // nf-fa-key
-	Command:  Icon{Text: "\uf0e7"}, // nf-fa-bolt
-	Window:   Icon{Text: "\uf2d2"}, // nf-fa-window_restore
+	Schema:    Icon{Text: "\uf0e8"}, // nf-fa-sitemap
+	Table:     Icon{Text: "\uf0ce"}, // nf-fa-table
+	Data:      Icon{Text: "\uf1c0"}, // nf-fa-database
+	Console:   Icon{Text: "\uf489"}, // nf-oct-terminal
+	Filter:    Icon{Text: "\uf0b0"}, // nf-fa-filter
+	Postgres:  Icon{Text: "\ue76e"}, // nf-dev-postgresql
+	Search:    Icon{Text: "\uf002"}, // nf-fa-search
+	Keys:      Icon{Text: "\uf11c"}, // nf-fa-keyboard_o
+	Conn:      Icon{Text: "\uf1e6"}, // nf-fa-plug
+	Key:       Icon{Text: "\uf084"}, // nf-fa-key
+	Command:   Icon{Text: "\uf0e7"}, // nf-fa-bolt
+	Window:    Icon{Text: "\uf2d2"}, // nf-fa-window_restore
+	Save:      Icon{Text: "\uf0c7"}, // nf-fa-save
+	Refresh:   Icon{Text: "\uf021"}, // nf-fa-refresh
+	Transpose: Icon{Text: "\uf0ec"}, // nf-fa-exchange
 }
 
 var ASCIIIcons = &Icons{
 	Schema: Icon{Text: "#"}, Table: Icon{Text: "+"},
 	Data: Icon{Text: "="}, Console: Icon{Text: ">"},
-	Filter:   Icon{Text: "?"},
-	Postgres: Icon{Text: "pg"},
-	Search:   Icon{Text: "~"},
-	Keys:     Icon{Text: "kb"},
-	Conn:     Icon{Text: "@"},
-	Key:      Icon{Text: "*"},
-	Command:  Icon{Text: ":"},
-	Window:   Icon{Text: "[]"},
-	Labeled:  true,
+	Filter:    Icon{Text: "?"},
+	Postgres:  Icon{Text: "pg"},
+	Search:    Icon{Text: "~"},
+	Keys:      Icon{Text: "kb"},
+	Conn:      Icon{Text: "@"},
+	Key:       Icon{Text: "*"},
+	Command:   Icon{Text: ":"},
+	Window:    Icon{Text: "[]"},
+	Save:      Icon{Text: "[S]"},
+	Refresh:   Icon{Text: "[R]"},
+	Transpose: Icon{Text: "[T]"},
+	Labeled:   true,
 }
 
 // IconSet maps the config value `icons = "nerd" | "ascii"`.
@@ -94,5 +102,6 @@ func (ic *Icons) byName() map[string]*Icon {
 		"schema": &ic.Schema, "table": &ic.Table, "data": &ic.Data, "console": &ic.Console,
 		"filter": &ic.Filter, "search": &ic.Search, "keys": &ic.Keys, "conn": &ic.Conn,
 		"key": &ic.Key, "postgres": &ic.Postgres, "command": &ic.Command, "window": &ic.Window,
+		"save": &ic.Save, "refresh": &ic.Refresh, "transpose": &ic.Transpose,
 	}
 }
