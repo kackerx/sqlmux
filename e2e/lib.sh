@@ -23,15 +23,18 @@ e2e_build() { (cd "$E2E_ROOT" && go build -o "$E2E_BIN" ./cmd/sqlmux); }
 # -k: turn on tmux extended-keys before CMD starts, so it can negotiate key enhancements.
 # -c: install FILE as $XDG_CONFIG_HOME/sqlmux/config.toml before CMD starts.
 # -C: copy DIR's contents into $XDG_CONFIG_HOME/sqlmux/ (config.toml, themes/ …).
+# -S: use DIR (the caller's, kept across starts) as $XDG_STATE_HOME instead of a fresh one.
 # connections.toml (0600) has one connection, doraemon → $SQLMUX_TEST_PG; -C can replace it.
 # CMD runs under sh; when it exits the pane prints "[e2e-exit N]" and drops to
-# an sh prompt, so terminal restoration can be checked afterwards.
+# an sh prompt, so terminal restoration can be checked afterwards. That shell sits in the
+# temp dir with no history file: if CMD dies early, the keys a script goes on sending land
+# there, not in the worktree or the user's ~/.bash_history.
 # TERM=xterm-256color + COLORTERM: a detached tmux has no client to report RGB,
 # so colorprofile would drop to 256 colors and theme hex values couldn't be checked.
 e2e_start() {
-  local w=160 h=45 keys=off conf= confdir=
-  while [[ $1 == -[xykcC] ]]; do
-    case $1 in -x) w=$2; shift ;; -y) h=$2; shift ;; -c) conf=$2; shift ;; -C) confdir=$2; shift ;; -k) keys=on ;; esac; shift
+  local w=160 h=45 keys=off conf= confdir= state=
+  while [[ $1 == -[xykcCS] ]]; do
+    case $1 in -x) w=$2; shift ;; -y) h=$2; shift ;; -c) conf=$2; shift ;; -C) confdir=$2; shift ;; -S) state=$2; shift ;; -k) keys=on ;; esac; shift
   done
   _e2e_kill
   E2E_TMP=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e.XXXXXX")
@@ -40,9 +43,9 @@ e2e_start() {
   [[ -n $conf ]] && cp "$conf" "$E2E_TMP/config/sqlmux/config.toml"
   [[ -n $confdir ]] && cp -Rp "$confdir"/. "$E2E_TMP/config/sqlmux/"
   t -f /dev/null set -s extended-keys "$keys" \; new-session -d -s t -x "$w" -y "$h" \
-    -e XDG_CONFIG_HOME="$E2E_TMP/config" -e XDG_STATE_HOME="$E2E_TMP/state" \
-    -e XDG_DATA_HOME="$E2E_TMP/data" -e COLORTERM=truecolor \
-    -e E2E_CMD="$1" 'sh -c '\''export TERM=xterm-256color; eval "$E2E_CMD"; echo "[e2e-exit $?]"; exec sh'\'''
+    -e XDG_CONFIG_HOME="$E2E_TMP/config" -e XDG_STATE_HOME="${state:-$E2E_TMP/state}" \
+    -e XDG_DATA_HOME="$E2E_TMP/data" -e COLORTERM=truecolor -e HISTFILE=/dev/null -e E2E_DIR="$E2E_TMP" \
+    -e E2E_CMD="$1" 'sh -c '\''export TERM=xterm-256color; eval "$E2E_CMD"; echo "[e2e-exit $?]"; cd "$E2E_DIR"; exec sh'\'''
 }
 
 _e2e_kill() {
@@ -124,7 +127,7 @@ text_has()   { local got; got=$(e2e_text "$1" "$2" "$3"); [[ $got == *"$4"* ]] |
 text_ends()  { local got; got=$(e2e_text "$1" "$2" "$3"); [[ $got == *"$4" ]] || { echo "  [$1..$2,$3] '$got' doesn't end with '$4'"; false; }; }
 
 # ---- helpers the f0.*.sh scripts share
-start()   { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }   # [e2e_start options] — launch sqlmux, wait for its screen
+start()   { e2e_start "$@" "$E2E_BIN"; wait_for 5 flag_is alternate_on 1 || echo "e2e: sqlmux did not start: $(e2e_plain | grep -m1 'sqlmux:')"; sleep 0.3; }   # [e2e_start options] — launch sqlmux, wait for its screen
 exited()  { screen_has '[e2e-exit'; }
 running() { flag_is alternate_on 1 && ! exited; }
 # F1.1 starts with one empty data pane; M0's had tabs t_order and t_user. two_tabs opens
@@ -133,6 +136,18 @@ two_tabs() { local t; for t in "@t_user Enter" "@t_order C-t"; do e2e_keys C-p; 
 # two_panes: split the focused pane right (SPC %) and move back — "① | ②" side by side with ① focused,
 # in place of M0's data | console.
 two_panes() { e2e_keys Space; e2e_type %; sleep 0.3; e2e_keys C-h; sleep 0.3; }
+# e2e_lock TABLE: another session holds an ACCESS EXCLUSIVE lock on TABLE in E2E_DB until e2e_unlock,
+# so the next query on it waits and pg_stat_activity shows its text (e2e_waiting APP).
+e2e_lock() {
+  psql "$E2E_DB" -q -c "begin" -c "lock table $1 in access exclusive mode" -c "select pg_sleep(60)" -c "commit" >/dev/null 2>&1 & E2E_LOCKER=$!
+  wait_for 5 eval "[[ \$(psql \"\$E2E_DB\" -At -c \"select count(*) from pg_locks l join pg_class c on c.oid = l.relation where c.relname = '$1' and l.mode = 'AccessExclusiveLock' and l.granted\") == 1 ]]"
+}
+e2e_unlock() {
+  psql "$E2E_DB" -qAt -c "select pg_terminate_backend(pid) from pg_stat_activity where datname = current_database() and query like '%pg_sleep(60)%' and pid <> pg_backend_pid()" >/dev/null
+  wait "$E2E_LOCKER" 2>/dev/null
+}
+e2e_waiting() { psql "$E2E_DB" -At -c "select query from pg_stat_activity where application_name = '$1' and wait_event_type = 'Lock'" | tr '\n' ' ' | sed 's/ *$//'; }
+
 # grid_y: the row of the first table's header rule (┼); its header is one above, its first data row one below.
 grid_y() { e2e_plain | awk '/┼/ { print NR; exit }'; }
 # open_table NAME: open a table from the palette into the focused data pane (↵) and wait for its grid.

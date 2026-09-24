@@ -102,7 +102,7 @@ key g s
 check "gs 打开下拉框：在标题下方从第 3 列起，右边框与侧栏右边框（第 32 列）对齐" eval '[[ $(dropdown) == "3 2 30 "* ]] || { echo "  dropdown at [$(dropdown)]"; false; }'
 check "列出非系统 schema：agentable、public" eval '[[ $(dd_rows | tr "\n" " ") == "agentable public " ]] || { echo "  $(dd_rows | tr "\n" ",")"; false; }'
 check "当前 schema public 为 pk 色，初始选中它" eval 'y=$(dd_y public); style_has 5 $y fg=$PK && dd_sel public'
-check "下拉框打开时是 INSERT（输入进过滤框）" mode_is INSERT
+check "下拉框打开时是 COMMAND（输入进过滤框，§7.8「COMMAND 模式」）" mode_is COMMAND
 typ jk
 check "j / k 被当成文字：过滤框里是 jk，没有匹配" eval '[[ $(e2e_text 5 12 3) == *jk* && -z $(dd_rows) ]]'
 key BSpace; key BSpace
