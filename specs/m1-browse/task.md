@@ -33,7 +33,7 @@
   - 一个视图、一张物化视图、一张分区表（含两个分区），用来测 catalog 的列表规则（§8.4）；
   - 一行含换行、Tab 和 ESC 字符的文本，用来测单元格的控制字符清理（§7.6）。
 - [x] 读取 `connections.toml`（§14）：
-  - 字段：`name`、`engine`、`dsn`、`password_cmd`、`password_env`、`password`、`read_only`；前三个必填，`engine` 只接受 `postgres`；`~/.pgpass` 由 pgconn 自动读取；
+  - 字段：`name`、`engine`、`dsn`、`password_cmd`、`password_env`、`password`；前三个必填，`engine` 只接受 `postgres`；`~/.pgpass` 由 pgconn 自动读取。`read_only` 到 M5 做 S-04 时再加，M1 没有代码读它（reviewer 的意见）；
   - 密码来源的优先级、`password_cmd` 的执行方式按 §13「凭据」；
   - 文件中写有明文 `password`，且对同组或其他用户可读时，进入界面后用 toast 警告（§13）。
 - [x] PG 版 `db.Conn`（§8.1）：
