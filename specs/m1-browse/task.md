@@ -16,7 +16,7 @@
 
 ---
 
-## F1.1 测试数据库与连接 · 状态：testing
+## F1.1 测试数据库与连接 · 状态：passed（1157e3d；e2e 017f052）
 
 - **依赖**：M0
 - **涉及**：`docker-compose.yml`、`testdata/seed/pg.sql`、`internal/db`（Conn、Worker、postgres）、`internal/config`（connections.toml）
@@ -56,15 +56,15 @@
 - [x] 状态栏改为显示真实的 session 名（`connections.toml` 里的 `name`）和地址 `<用户>@<host>:<port>`（§7.8）。
 
 **验收**
-- [ ] 集成测试覆盖：
+- [x] 集成测试覆盖：
   - 建连；
   - 各类型的文本值，包括 NULL、enum、json，以及 ISO 格式的 timestamptz；
   - 用 `pg_sleep` 触发 `Worker.Cancel()`，确认能取消，并且取消之后同一条连接还能继续查询；
   - `Meta` 是只读的：在 `Meta` 上执行会写数据的语句（例如 `select nextval('<序列>')`），返回只读事务的错误。
-- [ ] `password_cmd`、`password_env`、`~/.pgpass` 三种方式都能连上。
-- [ ] 密码错误时，终端打印数据库返回的错误，退出码为 1，不 panic。
-- [ ] 没有 `connections.toml` 时，错误里写明配置文件的路径；`sqlmux <名字>` 的名字不存在时，列出已有的连接名。
-- [ ] `connections.toml` 中写有明文密码且权限为 0644 时，出现警告。
+- [x] `password_cmd`、`password_env`、`~/.pgpass` 三种方式都能连上。
+- [x] 密码错误时，终端打印数据库返回的错误，退出码为 1，不 panic。
+- [x] 没有 `connections.toml` 时，错误里写明配置文件的路径；`sqlmux <名字>` 的名字不存在时，列出已有的连接名。
+- [x] `connections.toml` 中写有明文密码且权限为 0644 时，出现警告。
 
 ## F1.2 catalog 与 schema 树 · 状态：reviewing
 
