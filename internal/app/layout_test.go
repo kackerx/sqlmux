@@ -7,6 +7,9 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 )
 
+// paneLeaf is a leaf holding a bare pane id.
+func paneLeaf(id int) *Node { return leaf(&Pane{ID: id}) }
+
 func ids(n *Node) (out []int) {
 	for _, p := range n.Leaves() {
 		out = append(out, p.ID)
@@ -15,9 +18,8 @@ func ids(n *Node) (out []int) {
 }
 
 func TestRemove(t *testing.T) {
-	p := func(id int) *Node { return leaf(&Pane{ID: id}) }
 	// (1 | (2 / 3))
-	tree := &Node{Split: Horiz, Ratio: 0.5, A: p(1), B: &Node{Split: Vert, Ratio: 0.3, A: p(2), B: p(3)}}
+	tree := &Node{Split: Horiz, Ratio: 0.5, A: paneLeaf(1), B: &Node{Split: Vert, Ratio: 0.3, A: paneLeaf(2), B: paneLeaf(3)}}
 	for _, c := range []struct {
 		id   int
 		want []int
@@ -35,7 +37,7 @@ func TestRemove(t *testing.T) {
 	if got := ids(tree); len(got) != 3 {
 		t.Errorf("remove must not change the original tree: %v", got)
 	}
-	if root, _ := p(1).remove(1); root != nil {
+	if root, _ := paneLeaf(1).remove(1); root != nil {
 		t.Error("removing the only leaf leaves nothing")
 	}
 	if root, _ := tree.remove(1); root.Ratio != 0.3 {
@@ -44,8 +46,7 @@ func TestRemove(t *testing.T) {
 }
 
 func TestSplit(t *testing.T) {
-	p := func(id int) *Node { return leaf(&Pane{ID: id}) }
-	tree := &Node{Split: Horiz, Ratio: 0.6, A: p(1), B: p(2)}
+	tree := &Node{Split: Horiz, Ratio: 0.6, A: paneLeaf(1), B: paneLeaf(2)}
 	got := tree.split(2, Vert, &Pane{ID: 3})
 	if ids := ids(got); len(ids) != 3 || ids[2] != 3 || got.B.Split != Vert || got.B.Ratio != 0.5 || got.Ratio != 0.6 {
 		t.Fatalf("split: %v %+v", ids, got.B)
@@ -56,9 +57,8 @@ func TestSplit(t *testing.T) {
 }
 
 func TestResize(t *testing.T) {
-	p := func(id int) *Node { return leaf(&Pane{ID: id}) }
 	// (1 | (2 / 3))
-	tree := &Node{Split: Horiz, Ratio: 0.5, A: p(1), B: &Node{Split: Vert, Ratio: 0.5, A: p(2), B: p(3)}}
+	tree := &Node{Split: Horiz, Ratio: 0.5, A: paneLeaf(1), B: &Node{Split: Vert, Ratio: 0.5, A: paneLeaf(2), B: paneLeaf(3)}}
 	if r := tree.resize(3, Horiz, 0.1); r.Ratio != 0.6 || r.B.Ratio != 0.5 {
 		t.Errorf("L on 3 moves the outer border: %v %v", r.Ratio, r.B.Ratio)
 	}
@@ -115,9 +115,8 @@ func TestNeighbor(t *testing.T) {
 }
 
 func TestHandles(t *testing.T) {
-	p := func(id int) *Node { return leaf(&Pane{ID: id}) }
 	// (1 | (2 / 3)) over 41×20: 1 gets 20 cols, gap at x=20, right half 20 cols split 10/10
-	tree := &Node{Split: Horiz, Ratio: 0.5, A: p(1), B: &Node{Split: Vert, Ratio: 0.5, A: p(2), B: p(3)}}
+	tree := &Node{Split: Horiz, Ratio: 0.5, A: paneLeaf(1), B: &Node{Split: Vert, Ratio: 0.5, A: paneLeaf(2), B: paneLeaf(3)}}
 	hs := tree.handles(uv.Rect(0, 0, 41, 20))
 	if len(hs) != 2 || hs[0].rect != uv.Rect(20, 0, 1, 20) || hs[1].rect != uv.Rect(21, 9, 20, 1) {
 		t.Fatalf("handles: %+v", hs)

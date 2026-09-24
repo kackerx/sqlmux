@@ -179,7 +179,8 @@ func (m *Map) Hint(action, scope string) string {
 	return ""
 }
 
-// Actions lists every bound action ID, args stripped, once each.
+// Actions lists every bound action ID, args stripped, once each: app's
+// tests check it against the registry's titles.
 func (m *Map) Actions() []string {
 	var ids []string
 	for _, t := range tables {

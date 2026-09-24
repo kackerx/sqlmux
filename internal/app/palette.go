@@ -86,7 +86,7 @@ func (a *App) paletteItems() []paletteItem {
 		items = append(items, paletteItem{itemWindow, strconv.Itoa(i), a.icons.Window, fmt.Sprintf("%d: %s", i, w.Name), a.sess.Name})
 	}
 	win := fmt.Sprintf("%d: %s", a.sess.Active, a.win().Name)
-	for n, p := range append([]*Pane{a.win().Tree}, a.win().Root.Leaves()...) {
+	for n, p := range a.panesByNumber() {
 		name := a.icons.Number(n) + " " + p.Kind.String()
 		if p.Object() != "" {
 			name += " · " + p.Object()

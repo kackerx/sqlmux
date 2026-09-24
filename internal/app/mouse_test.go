@@ -11,12 +11,12 @@ import (
 	"sqlmux/internal/ui"
 )
 
-// find returns the first hit region matching t's kind, pane and action.
+// find returns the first hit region for want.
 func find(t *testing.T, a *App, want ui.Target) uv.Rectangle {
 	t.Helper()
 	a.View()
 	for _, h := range a.hits {
-		if h.Target.Kind == want.Kind && h.Target.Pane == want.Pane && h.Target.Action == want.Action && h.Target.I == want.I {
+		if h.Target == want {
 			return h.Rect
 		}
 	}

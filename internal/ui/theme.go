@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"slices"
 
-	"charm.land/lipgloss/v2"
 	"github.com/BurntSushi/toml"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Theme holds the semantic color tokens (tech-design §7.3).
@@ -45,7 +45,7 @@ var TokyonightStorm = &Theme{
 // Themes are the built-in themes by name.
 var Themes = map[string]*Theme{"tokyonight-storm": TokyonightStorm}
 
-func c(s string) color.Color { return lipgloss.Color(s) }
+func c(s string) color.Color { return ansi.XParseColor(s) }
 
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 

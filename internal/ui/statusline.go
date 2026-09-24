@@ -39,8 +39,8 @@ type StatusLine struct {
 }
 
 // minInfo is the narrowest the extra info is still worth showing.
-// ponytail: fixed guess (about ":q | :qa" plus padding); make it relative to
-// the info's own width if longer infos read badly when cut.
+// ponytail: a fixed guess, made before any info existed; revisit it with M1
+// F1.4's "-- editing WHERE --", e.g. relative to the info's own width.
 const minInfo = 12
 
 func (s StatusLine) Draw(f *Frame, r uv.Rectangle) {

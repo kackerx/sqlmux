@@ -45,24 +45,33 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 	}
 	x = f.Text(x, y, r.Max.X, " + ", plus)
 
-	w := -3 // " · " before the first item is not drawn
-	for _, h := range t.Hints {
+	if w := hintRowWidth(t.Hints); w > 0 && x+1+w+1 <= r.Max.X {
+		hintRow(f, r.Max.X-1-w, y, r.Max.X, t.Hints, base, Target{Kind: KindHint, Pane: t.Pane})
+	}
+}
+
+// hintRow draws "Key Label" items from x, " · " between them, each clickable
+// as t with its own action.
+func hintRow(f *Frame, x, y, right int, hs []Hint, st uv.Style, t Target) {
+	for i, h := range hs {
+		if i > 0 {
+			x = f.Text(x, y, right, " · ", st)
+		}
+		hst := st
+		if t.Action = h.Action; h.Action != "" && f.Region(uv.Rect(x, y, min(Width(h.tabText()), right-x), 1), t) {
+			hst.Bg = f.Theme.Select
+		}
+		x = f.Text(x, y, right, h.tabText(), hst)
+	}
+}
+
+// hintRowWidth is how wide hintRow draws hs; negative when hs is empty.
+func hintRowWidth(hs []Hint) int {
+	w := -3 // no " · " before the first item
+	for _, h := range hs {
 		w += Width(h.tabText()) + 3
 	}
-	if w <= 0 || x+1+w+1 > r.Max.X {
-		return
-	}
-	hx := r.Max.X - 1 - w
-	for i, h := range t.Hints {
-		if i > 0 {
-			hx = f.Text(hx, y, r.Max.X, " · ", base)
-		}
-		st := base
-		if h.Action != "" && f.Region(uv.Rect(hx, y, Width(h.tabText()), 1), Target{Kind: KindHint, Pane: t.Pane, Action: h.Action}) {
-			st.Bg = th.Select
-		}
-		hx = f.Text(hx, y, r.Max.X, h.tabText(), st)
-	}
+	return w
 }
 
 // tabText is how a hint reads in a tab bar: "Key Label"; its width is the

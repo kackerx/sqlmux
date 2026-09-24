@@ -281,7 +281,6 @@ func (a *App) jumpToPane(k keymap.Key) {
 	a.win().focus(ps[n].ID)
 }
 
-// focusPane gives focus to pane id if it is on screen (a click).
 // showPane focuses pane id where the palette sends the user (§12). A zoom on
 // another pane ends first, as a jump by number ends it (§5): the pane is on
 // screen once it has focus.
@@ -292,6 +291,7 @@ func (a *App) showPane(id int) {
 	a.focusPane(id)
 }
 
+// focusPane gives focus to pane id if it is on screen (a click).
 func (a *App) focusPane(id int) {
 	if _, ok := a.layout()[id]; ok && (id != a.win().Tree.ID || a.win().TreeOpen) {
 		a.win().focus(id)

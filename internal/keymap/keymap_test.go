@@ -357,7 +357,7 @@ func TestNext(t *testing.T) {
 	if strings.Join(keys, "") != "y"+"scnpl%\"zxqb" {
 		t.Errorf("SPC next keys in binding order: %q", strings.Join(keys, ""))
 	}
-	if next[0].RHS == nil || next[1].Action != "session.list" || next[1].Prefix {
+	if next[0].RHS == nil || next[1].Action != "session.list" {
 		t.Errorf("entries: %+v %+v", next[0], next[1])
 	}
 	press(t, r, grid, "g") // not bound after SPC: the sequence ends

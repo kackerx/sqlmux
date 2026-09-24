@@ -19,7 +19,7 @@ type Hint struct {
 }
 
 // titleText is how a hint reads on a border: "Label Key". It must match what
-// titleHintText draws: layout and the hit region are measured from it.
+// drawTitleHint draws: layout and the hit region are measured from it.
 func (h Hint) titleText() string {
 	switch {
 	case h.Button:
@@ -37,10 +37,13 @@ func (h Hint) titleText() string {
 //
 //	┌─ ⟨1⟩ data · t_order ──────── hint hint ─┐
 type Block struct {
-	Num    string // ⟨n⟩ or ①, from Icons.Number
-	Icon   Icon
-	Title  string // after the icon: the pane type with ascii icons (§7.7), the sidebar's schema
-	Object string // "· object" part; truncated first
+	Num   string // ⟨n⟩ or ①, from Icons.Number
+	Icon  Icon
+	Title string // after the icon: the pane type, with ascii icons only (§7.7)
+	// Object follows " · " (the icon, with no Title): a pane's tab or the
+	// sidebar's schema. It is cut to fit: in a pane title before any hint is
+	// dropped, with ObjectFirst only once they all are.
+	Object string
 	Suffix string // stays after the object even when it is cut, and goes with it: the sidebar's " ▾"
 	// ObjectFirst gives the object its room before the hints: the sidebar's
 	// schema is its switch and the only place it shows (§7.8).
@@ -181,13 +184,8 @@ func hintsWidth(hs []Hint) int {
 // drawTitleHint draws h at x as a button: its hit region is what it covers,
 // and it lights up under the pointer.
 func drawTitleHint(f *Frame, x, y, right int, h Hint, pane int) int {
-	r := uv.Rect(x, y, min(Width(h.titleText()), right-x), 1)
-	hover := f.Region(r, Target{Kind: KindHint, Pane: pane, Action: h.Action})
-	return titleHintText(f, x, y, right, h, hover)
-}
-
-func titleHintText(f *Frame, x, y, right int, h Hint, hover bool) int {
 	th := f.Theme
+	hover := f.Region(uv.Rect(x, y, min(Width(h.titleText()), right-x), 1), Target{Kind: KindHint, Pane: pane, Action: h.Action})
 	bg := th.PaneBg
 	if hover {
 		bg = th.Select

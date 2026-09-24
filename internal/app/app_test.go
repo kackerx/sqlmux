@@ -39,6 +39,16 @@ func sizedWith(w, h int, c *config.Config) *App {
 	return a
 }
 
+// configured is an App with toml as the user's config.toml.
+func configured(t *testing.T, w, h int, toml string) *App {
+	t.Helper()
+	c, err := config.Parse(toml)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sizedWith(w, h, c)
+}
+
 // teaKey turns a key in vim notation back into the press a terminal sends.
 func teaKey(k keymap.Key) tea.KeyPressMsg {
 	switch k {
@@ -209,9 +219,7 @@ func TestPaletteShadowsPaneKeys(t *testing.T) {
 
 // An ambiguous binding fires when its timeoutlen tick comes back.
 func TestAmbiguousKeyTimesOut(t *testing.T) {
-	c := config.Default()
-	c.Bindings = []config.Binding{{Table: "keys.normal", Key: "g", Value: "palette.open"}}
-	a := sizedWith(160, 45, c)
+	a := configured(t, 160, 45, "[keys.normal]\ng = \"palette.open\"")
 	if _, cmd := a.Update(teaKey("g")); cmd == nil || a.palette != nil {
 		t.Fatal("g should wait for timeoutlen")
 	}
@@ -254,11 +262,7 @@ func TestPaletteTakesGraphemes(t *testing.T) {
 
 // The quit toast names whatever key cancel is bound to (§6.7).
 func TestQuitToastFollowsKeymap(t *testing.T) {
-	c, err := config.Parse("[keys.global]\n\"<C-c>\" = \"\"\n\"<C-q>\" = \"cancel\"")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := sizedWith(160, 45, c)
+	a := configured(t, 160, 45, "[keys.global]\n\"<C-c>\" = \"\"\n\"<C-q>\" = \"cancel\"")
 	if feed(t, a, "<C-q>") || a.toast != "再按一次 C-q 退出" {
 		t.Fatalf("toast %q", a.toast)
 	}
@@ -333,11 +337,7 @@ func TestWhichKeyNotForQuickKeys(t *testing.T) {
 // Keys typed with the overlay up do what they do without it; esc closes it
 // and clears the pending keys.
 func TestWhichKeyKeys(t *testing.T) {
-	c, err := config.Parse("[keys.normal]\n\"<Leader>:\" = \"palette.command\"")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := sizedWith(160, 45, c)
+	a := configured(t, 160, 45, "[keys.normal]\n\"<Leader>:\" = \"palette.command\"")
 	feed(t, a, "<Space>")
 	due(a)
 	feed(t, a, ":")
@@ -454,11 +454,7 @@ func TestZoom(t *testing.T) {
 // Keys the defaults dropped come back through config.toml, which-key
 // included (§6.8).
 func TestUserLeaderKeys(t *testing.T) {
-	c, err := config.Parse("[keys.normal]\n\"<Leader>h\" = \"pane.focus.left\"")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := sizedWith(160, 45, c)
+	a := configured(t, 160, 45, "[keys.normal]\n\"<Leader>h\" = \"pane.focus.left\"")
 	feed(t, a, "<Space>")
 	due(a)
 	if !slices.Contains(a.whichKeyOverlay().Items, ui.WhichKeyItem{Key: "h", Title: "焦点移到左边"}) {
@@ -471,11 +467,7 @@ func TestUserLeaderKeys(t *testing.T) {
 }
 
 func TestResizeKeys(t *testing.T) {
-	c, err := config.Parse("[keys.normal]\n\"<Leader>H\" = \"pane.resize.left\"\n\"<Leader>L\" = \"pane.resize.right\"")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := sizedWith(160, 45, c)
+	a := configured(t, 160, 45, "[keys.normal]\n\"<Leader>H\" = \"pane.resize.left\"\n\"<Leader>L\" = \"pane.resize.right\"")
 	r0 := a.win().Root.Ratio
 	feed(t, a, "<Space>L")
 	if got := a.win().Root.Ratio; math.Abs(got-r0-resizeStep) > 1e-9 {

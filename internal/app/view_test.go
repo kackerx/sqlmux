@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"sqlmux/internal/config"
@@ -26,7 +26,7 @@ func TestFocusColors(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	f, rects := a.render(), a.layout()
 	th := ui.TokyonightStorm
-	if th.Focus != lipgloss.Color("#9ece6a") {
+	if th.Focus != ansi.XParseColor("#9ece6a") {
 		t.Fatalf("focus token = %v", th.Focus)
 	}
 	for id, want := range map[int][2]color.Color{
@@ -132,18 +132,14 @@ func TestSidebarHintRow(t *testing.T) {
 		{160, `"j" = ""`, "│ ↵ open  t tab"},
 		{80, "", "│ j/k move  ↵ open"}, // "t tab" doesn't fit whole
 	} {
-		cfg, err := config.Parse("[keys.tree]\n" + c.bind)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := strings.TrimRight(row(sizedWith(c.w, 45, cfg)), " │"); got != c.want {
+		if got := strings.TrimRight(row(configured(t, c.w, 45, "[keys.tree]\n"+c.bind)), " │"); got != c.want {
 			t.Errorf("w=%d %s: %q, want %q", c.w, c.bind, got, c.want)
 		}
 	}
 }
 
-// §F0.4: the window's only pane, once its last tab is closed, is empty: no
-// placeholder text, title "⟨n⟩ <icon> type", and a tab bar holding just a
+// The window's only pane, once its last tab is closed, is empty: no
+// placeholder text, the title just "⟨n⟩ <icon>", and a tab bar holding just a
 // clickable +.
 func TestEmptyPane(t *testing.T) {
 	a := sized(160, 45, "nerd")
