@@ -30,6 +30,8 @@ type App struct {
 	// paneNumbers is SPC q's overlay: the next key picks a pane by its ⟨n⟩.
 	paneNumbers bool
 
+	busy int // table requests out on Meta (§8.3)
+
 	toast     string
 	toastSeq  int
 	quitToast int    // toastSeq of the "press C-c again" toast
@@ -93,6 +95,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.w, a.h = msg.Width, msg.Height
 	case catalogMsg:
 		return a, a.gotCatalog(msg)
+	case pageMsg:
+		return a, a.gotPage(msg)
 	case toastExpired:
 		if msg.seq == a.toastSeq {
 			a.toast = ""
@@ -192,7 +196,7 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		}
 	case ui.KindButton:
 		return a.run(t.Action, 0)
-	case ui.KindHint:
+	case ui.KindHint, ui.KindCell:
 		return tea.Batch(focus(), a.run(t.Action, 0))
 	case ui.KindTitle:
 		if double {
@@ -213,12 +217,27 @@ func (a *App) click(p uv.Position) tea.Cmd {
 	return nil
 }
 
-// wheel scrolls the pane under the pointer, not the focused one (§7.4).
+// wheel scrolls the pane under the pointer, not the focused one (§7.4):
+// Shift turns the vertical wheel horizontal, as does a touchpad's sideways
+// swipe (buttons 6 and 7).
 func (a *App) wheel(m tea.Mouse) {
-	notches := map[tea.MouseButton]int{tea.MouseWheelUp: -1, tea.MouseWheelDown: 1}[m.Button]
+	down, right := 0, 0
+	switch m.Button {
+	case tea.MouseWheelUp:
+		down = -1
+	case tea.MouseWheelDown:
+		down = 1
+	case tea.MouseWheelLeft:
+		right = -1
+	case tea.MouseWheelRight:
+		right = 1
+	}
+	if m.Mod.Contains(tea.ModShift) {
+		down, right = 0, down
+	}
 	for id, r := range a.layout() {
-		if notches != 0 && uv.Pos(m.X, m.Y).In(r) {
-			a.scrollPane(id, notches)
+		if uv.Pos(m.X, m.Y).In(r) {
+			a.scrollPane(id, down, right)
 		}
 	}
 }

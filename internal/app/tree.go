@@ -106,11 +106,12 @@ func (a *App) scrollTree(notches int) {
 }
 
 // treeOpen opens the table under the cursor (§7.8).
-func (a *App) treeOpen(newTab bool) {
+func (a *App) treeOpen(newTab bool) tea.Cmd {
 	ts, ms := a.treeTables()
 	if c := a.win().tree.cursor; c < len(ms) {
-		a.openTable(ts[ms[c].Index], newTab)
+		return a.openTable(ts[ms[c].Index], newTab)
 	}
+	return nil
 }
 
 // treeFilter puts the keys in the tree's filter row, showing and focusing

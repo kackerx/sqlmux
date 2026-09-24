@@ -7,17 +7,30 @@ import (
 	"testing"
 
 	uv "github.com/charmbracelet/ultraviolet"
+
+	"sqlmux/internal/db"
 )
+
+// vals is rows of non-NULL values.
+func vals(rows ...[]string) [][]db.Val {
+	out := make([][]db.Val, len(rows))
+	for i, r := range rows {
+		for _, s := range r {
+			out[i] = append(out[i], db.Val{S: s})
+		}
+	}
+	return out
+}
 
 func testGrid() Grid {
 	return Grid{
 		Cols: []GridCol{{Name: "id", PK: true, Type: ColNumber}, {Name: "name"}, {Name: "note"}},
-		Rows: [][]string{
-			{"1", "alpha", "short"},
-			{"22", "b", "a much longer note here"},
-			{"333", "gamma", "mid note"},
-			{"4", "d", ""},
-		},
+		Rows: vals(
+			[]string{"1", "alpha", "short"},
+			[]string{"22", "b", "a much longer note here"},
+			[]string{"333", "gamma", "mid note"},
+			[]string{"4", "d", ""},
+		),
 		Row: 2, Col: 1, Focused: true, Key: Icon{Text: "*"},
 	}
 }
@@ -108,12 +121,12 @@ func TestGridWidths(t *testing.T) {
 		if i == 9 {
 			v = strings.Repeat("x", 60) // one outlier: above the 90th percentile
 		}
-		g.Rows = append(g.Rows, []string{v, strings.Repeat("y", 50)})
+		g.Rows = append(g.Rows, vals([]string{v, strings.Repeat("y", 50)})...)
 	}
-	if got := g.widths(100); !reflect.DeepEqual(got, []int{2, 40}) {
+	if got := g.view().widths(100); !reflect.DeepEqual(got, []int{2, 40}) {
 		t.Errorf("roomy: %v, want p90 2 and the 40 cap", got)
 	}
-	if got := g.widths(20); got[0] < 1 || got[1] < len("long header") || got[1] > 40 {
+	if got := g.view().widths(20); got[0] < 1 || got[1] < len("long header") || got[1] > 40 {
 		t.Errorf("squeezed: %v, never below the header", got)
 	}
 }
@@ -123,7 +136,7 @@ func TestGridColorsByType(t *testing.T) {
 	th := TokyonightStorm
 	g := Grid{
 		Cols: []GridCol{{Name: "n", Type: ColNumber}, {Name: "s", Type: ColString}, {Name: "t", Type: ColTime}},
-		Rows: [][]string{{"689", "goal", "2026-09-21 10:00:00"}}, Row: -1, Col: -1,
+		Rows: vals([]string{"689", "goal", "2026-09-21 10:00:00"}), Row: -1, Col: -1,
 	}
 	f := NewFrame(60, 4, th)
 	g.Draw(f, f.Bounds())
@@ -132,6 +145,36 @@ func TestGridColorsByType(t *testing.T) {
 		x := Width(row[:strings.Index(row, s)])
 		if fg := f.Buf.CellAt(x, 2).Style.Fg; fg != want {
 			t.Errorf("%q: %v, want %v", s, fg, want)
+		}
+	}
+}
+
+// Nothing a value holds reaches the terminal as a control (§7.6).
+func TestCell(t *testing.T) {
+	for v, want := range map[db.Val]string{
+		{Null: true}:                       "<null>",
+		{S: ""}:                            "",
+		{S: "a\nb\tc\x1b[31md\x7f\u0085e"}: "a↵b c[31mde",
+	} {
+		if got := Cell(v); got != want {
+			t.Errorf("Cell(%q) = %q, want %q", v.S, got, want)
+		}
+	}
+}
+
+// View scrolls just enough to show the cursor's column whole, and not at
+// all while it is in view (§7.6).
+func TestGridView(t *testing.T) {
+	var g Grid // headers 10 wide, so squeezing stops short: the rest scrolls
+	for _, h := range []string{"a", "b", "c", "d"} {
+		g.Cols = append(g.Cols, GridCol{Name: strings.Repeat(h, 10)})
+	}
+	g.Rows = vals([]string{"1", "2", "3", "4"})
+	area := uv.Rect(0, 0, 30, 5) // " 1 │ " then 13 a column: two show whole
+	for _, c := range []struct{ col, left, want int }{{0, 0, 0}, {1, 0, 0}, {2, 0, 1}, {3, 0, 2}, {2, 2, 2}, {1, 2, 1}} {
+		g.Col, g.Left = c.col, c.left
+		if _, left := g.View(area); left != c.want {
+			t.Errorf("cursor on %d from left %d: left %d, want %d", c.col, c.left, left, c.want)
 		}
 	}
 }

@@ -21,4 +21,4 @@
 │──────────────────────│ │                                                     │
 │ j/k move · ↵ open    │ │ +                                                   │
 └──────────────────────┘ └─────────────────────────────────────────────────────┘
- pg doraemon ▾  0: data*        ~ C-p  kb ·    1,1  @ pg@localhost:5432  NORMAL 
+ pg doraemon ▾  0: data*             ~ C-p  kb ·    @ pg@localhost:5432  NORMAL 

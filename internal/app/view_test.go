@@ -239,7 +239,9 @@ func TestStatusNarrowing(t *testing.T) {
 		{55, []string{"doraemon ▾", " 0: data* ", " 1,1 "}, []string{" 1: report "}},
 		{40, []string{" 0: data* ", "·", " NORMAL "}, []string{" 1,1 ", "doraemon"}},
 	} {
-		row := statusRow(twoPanes(c.w, 24, "nerd"))
+		a := twoPanes(c.w, 24, "nerd")
+		loadOrders(t, a, 3) // row,col shows with a table loaded (§7.8)
+		row := statusRow(a)
 		// the palette entry is its icon alone (§7.7)
 		for _, s := range append(c.has, " 0: data* ", " "+ui.NerdIcons.Search.Text+" ", "·", " NORMAL ") {
 			if !strings.Contains(row, s) {

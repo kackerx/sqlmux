@@ -108,7 +108,7 @@ func TestCancelKeepsTheConnection(t *testing.T) {
 	time.AfterFunc(200*time.Millisecond, w.Cancel)
 	start := time.Now()
 	_, err := w.Query(context.Background(), "select pg_sleep(10)")
-	if sqlState(err) != "57014" { // query_canceled
+	if !errors.Is(err, db.ErrCanceled) {
 		t.Fatalf("cancelled query: %v", err)
 	}
 	if took := time.Since(start); took > 3*time.Second {

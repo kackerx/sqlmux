@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strconv"
 
+	tea "charm.land/bubbletea/v2"
+
 	"sqlmux/internal/config"
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
@@ -27,14 +29,14 @@ func (k PaneKind) String() string {
 type Pane struct {
 	ID        int // stable; the sidebar is 0
 	Kind      PaneKind
-	Tabs      []string
+	Tabs      []Tab
 	Cur, Prev int // tab bar * and - (T-01)
 }
 
 // Object is the title's "· name" part: the current tab.
 func (p *Pane) Object() string {
 	if p.Cur < len(p.Tabs) {
-		return p.Tabs[p.Cur]
+		return p.Tabs[p.Cur].Name
 	}
 	return ""
 }
@@ -74,6 +76,7 @@ type Session struct {
 	Schema     string     // where the schema tree is (§8.6)
 	Schemas    []string   // the catalog's (§8.4)
 	Tables     []db.Table // every schema's, by schema and name
+	cols       map[tableID]db.Columns
 	Windows    []*Window
 	Active     int
 }
@@ -91,7 +94,7 @@ func newSession(name, addr string, main, meta *db.Worker) *Session {
 		lastID:   1,
 	}
 	w.focus(1)
-	return &Session{Name: name, Addr: addr, Main: main, Meta: meta, Windows: []*Window{w}}
+	return &Session{Name: name, Addr: addr, Main: main, Meta: meta, cols: map[tableID]db.Columns{}, Windows: []*Window{w}}
 }
 
 // Open connects a session's Main and then its Meta (§8.2).
@@ -117,25 +120,28 @@ func (s *Session) Close() {
 	s.Meta.Close()
 }
 
-// openTable shows table t in openTarget's pane and focuses it (§7.8, §12):
-// in place of its current tab, or in a new tab it switches to.
-// ponytail: it only names the tab; F1.3 fetches the table's data.
-func (a *App) openTable(t db.Table, newTab bool) {
+// openTable shows table t in openTarget's pane, focuses it (§7.8, §12) and
+// fetches its first page: in place of its current tab, or in a new tab it
+// switches to.
+func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 	p := a.openTarget()
 	if p == nil {
-		return
+		return nil
 	}
 	a.showPane(p.ID)
-	if !newTab && len(p.Tabs) > 0 {
-		p.Tabs[p.Cur] = t.Name
-		return
+	tab := Tab{Name: t.Name, Data: &dataTab{table: t}}
+	switch {
+	case !newTab && len(p.Tabs) > 0:
+		p.Tabs[p.Cur] = tab
+	default:
+		p.Prev = p.Cur
+		if len(p.Tabs) == 0 { // an empty pane: there is no tab to go back to
+			p.Prev = -1
+		}
+		p.Tabs = append(p.Tabs, tab)
+		p.Cur = len(p.Tabs) - 1
 	}
-	p.Prev = p.Cur
-	if len(p.Tabs) == 0 { // an empty pane: there is no tab to go back to
-		p.Prev = -1
-	}
-	p.Tabs = append(p.Tabs, t.Name)
-	p.Cur = len(p.Tabs) - 1
+	return a.fetch(tab.Data)
 }
 
 // closeTab closes the focused pane's current tab (:q). Closing the last tab
@@ -284,10 +290,16 @@ func (a *App) focusPane(id int) {
 // wheelStep is how many rows one wheel notch scrolls (§7.4).
 const wheelStep = 3
 
-// scrollPane scrolls pane id by notches (negative: up), within its content.
-// ponytail: only the sidebar has content to scroll; F1.3's grid adds the data pane.
-func (a *App) scrollPane(id, notches int) {
+// scrollPane scrolls pane id by down notches and right notches (negative:
+// up, left), within its content.
+func (a *App) scrollPane(id, down, right int) {
 	if id == a.win().Tree.ID {
-		a.scrollTree(notches)
+		a.scrollTree(down)
+		return
+	}
+	for _, p := range a.win().Root.Leaves() {
+		if p.ID == id {
+			a.scrollGrid(p, down*wheelStep, right)
+		}
 	}
 }

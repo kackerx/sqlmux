@@ -23,3 +23,15 @@ type Columns struct {
 	PK     []string   // the primary key, in key order
 	Unique [][]string // unique indexes over not-null columns, in key order (§10.1)
 }
+
+// Key is the columns that identify a row (§10.1): the primary key, else the
+// first unique index over not-null columns; nil when there is neither.
+func (c Columns) Key() []string {
+	if c.PK != nil {
+		return c.PK
+	}
+	if len(c.Unique) > 0 {
+		return c.Unique[0]
+	}
+	return nil
+}

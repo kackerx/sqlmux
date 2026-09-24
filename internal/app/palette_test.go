@@ -277,13 +277,13 @@ func TestPaletteOpensTables(t *testing.T) {
 	a := twoPanes(160, 45, "nerd")
 	data := a.focused()
 	feed(t, a, "<C-p>@t_user<CR>")
-	if a.palette != nil || strings.Join(data.Tabs, " ") != "t_user t_user" || data.Cur != 0 {
-		t.Fatalf("↵: tabs %v cur %d", data.Tabs, data.Cur)
+	if a.palette != nil || tabNames(data) != "t_user t_user" || data.Cur != 0 {
+		t.Fatalf("↵: tabs %v cur %d", tabNames(data), data.Cur)
 	}
 	a.win().focus(2) // from the console: the first data pane
 	feed(t, a, "<C-p>@t_sku<C-t>")
-	if strings.Join(data.Tabs, " ") != "t_user t_user t_sku" || data.Cur != 2 || data.Prev != 0 {
-		t.Fatalf("C-t: tabs %v cur %d prev %d", data.Tabs, data.Cur, data.Prev)
+	if tabNames(data) != "t_user t_user t_sku" || data.Cur != 2 || data.Prev != 0 {
+		t.Fatalf("C-t: tabs %v cur %d prev %d", tabNames(data), data.Cur, data.Prev)
 	}
 	if a.win().Focus != data.ID {
 		t.Errorf("focus %d: the pane the table opened in takes it", a.win().Focus)
@@ -304,15 +304,15 @@ func TestPaletteOpensTables(t *testing.T) {
 	data = a.focused()
 	data.Tabs, data.Cur, data.Prev = nil, 0, -1 // an empty data pane
 	feed(t, a, "<C-p>@t_user<CR>")
-	if strings.Join(data.Tabs, " ") != "t_user" || data.Cur != 0 || data.Prev != -1 {
-		t.Errorf("into an empty pane: tabs %v cur %d prev %d, want no previous tab", data.Tabs, data.Cur, data.Prev)
+	if tabNames(data) != "t_user" || data.Cur != 0 || data.Prev != -1 {
+		t.Errorf("into an empty pane: tabs %v cur %d prev %d, want no previous tab", tabNames(data), data.Cur, data.Prev)
 	}
 
 	a = twoPanes(160, 45, "nerd")
 	feed(t, a, ":q<CR>:q<CR>") // no data pane left
 	feed(t, a, "<C-p>@t_user<CR>")
 	if leaves := a.win().Root.Leaves(); len(leaves) != 1 || leaves[0].Kind != KindConsole || leaves[0].Object() != "console_1" {
-		t.Errorf("with no data pane nothing opens: %v", leaves[0].Tabs)
+		t.Errorf("with no data pane nothing opens: %v", tabNames(leaves[0]))
 	}
 }
 

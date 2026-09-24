@@ -49,12 +49,12 @@ func TestTreeOpens(t *testing.T) {
 	a := inTree(160, 45)
 	data := a.win().Root.Leaves()[0]
 	feed(t, a, "jj<CR>")
-	if strings.Join(data.Tabs, " ") != "goal" || a.win().Focus != data.ID {
-		t.Fatalf("↵: tabs %v, focus %d", data.Tabs, a.win().Focus)
+	if tabNames(data) != "goal" || a.win().Focus != data.ID {
+		t.Fatalf("↵: tabs %v, focus %d", tabNames(data), a.win().Focus)
 	}
 	feed(t, a, "<C-h>jt")
-	if strings.Join(data.Tabs, " ") != "goal mt_task" || data.Cur != 1 {
-		t.Fatalf("t: tabs %v cur %d", data.Tabs, data.Cur)
+	if tabNames(data) != "goal mt_task" || data.Cur != 1 {
+		t.Fatalf("t: tabs %v cur %d", tabNames(data), data.Cur)
 	}
 	a.win().focus(0)
 	f := a.render()
@@ -94,13 +94,13 @@ func TestTreeMouse(t *testing.T) {
 	data := a.win().Root.Leaves()[0]
 	r := find(t, a, ui.Target{Kind: ui.KindTable, Pane: 0, I: 2})
 	click(a, r.Min)
-	if strings.Join(data.Tabs, " ") != "goal" || a.win().Focus != data.ID {
-		t.Fatalf("click: tabs %v, focus %d", data.Tabs, a.win().Focus)
+	if tabNames(data) != "goal" || a.win().Focus != data.ID {
+		t.Fatalf("click: tabs %v, focus %d", tabNames(data), a.win().Focus)
 	}
 	a.View()
 	a.Update(tea.MouseClickMsg{X: r.Min.X, Y: r.Min.Y + 1, Button: tea.MouseMiddle})
-	if strings.Join(data.Tabs, " ") != "goal mt_task" {
-		t.Fatalf("middle click: tabs %v", data.Tabs)
+	if tabNames(data) != "goal mt_task" {
+		t.Fatalf("middle click: tabs %v", tabNames(data))
 	}
 	a.Update(tea.MouseMotionMsg{X: r.Min.X + 3, Y: r.Min.Y + 2})
 	if st := styleOf(t, a.render(), "mt_task_log "); st.Bg != a.theme.Row {
@@ -233,7 +233,7 @@ func TestPaletteTablesFromCatalog(t *testing.T) {
 		t.Errorf("where %q", p.Where)
 	}
 	feed(t, a, "plan<CR>")
-	if data := a.win().Root.Leaves()[0]; strings.Join(data.Tabs, " ") != "planner" {
-		t.Errorf("opened %v", data.Tabs)
+	if data := a.win().Root.Leaves()[0]; tabNames(data) != "planner" {
+		t.Errorf("opened %v", tabNames(data))
 	}
 }

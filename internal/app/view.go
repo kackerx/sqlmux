@@ -169,9 +169,20 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		ui.Tabs{Pane: p.ID}.Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
 		return
 	}
-	// ponytail: the body stays empty; F1.3 draws the data pane's table, M3 the console's editor
-	ui.Tabs{Names: p.Tabs, Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}.
+	names := make([]string, len(p.Tabs))
+	for i, t := range p.Tabs {
+		names[i] = t.Name
+	}
+	ui.Tabs{Names: names, Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}.
 		Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
+	// ponytail: a console's body stays empty until its editor (M3)
+	switch t, body := dataOf(p), bodyRect(r); {
+	case t == nil:
+	case t.err != "": // what the database said, in place of the table (§7.6)
+		f.Text(body.Min.X+1, body.Min.Y, body.Max.X-1, t.err, uv.Style{Fg: th.Error, Bg: th.PaneBg})
+	default:
+		a.grid(p, t).Draw(f, body)
+	}
 }
 
 // drawSidebar paints the ⟨0⟩ schema tree (§7.8).
@@ -292,10 +303,21 @@ func (a *App) statusLine() ui.StatusLine {
 	s.Right = []ui.Segment{
 		{Runs: iconRuns(ic.Search, bar(th.Info), strings.TrimRight(" "+a.label(a.keys.Hint("palette.open", "global")), " ")+" "), Action: "palette.open"},
 		{Runs: append(iconRuns(ic.Keys, bar(th.FgMuted), " "), pending, ui.Run{Text: " ", Style: bar(th.FgMuted)})},
-		{Runs: []ui.Run{{Text: " 1,1 ", Style: bar(th.FgMuted)}}, Drop: dropCursor}, // ponytail: M0 has no cursor yet; M1 F1.3 shows its row,col
-		{Runs: iconRuns(ic.Conn, conn, " "+a.sess.Addr+" "), Drop: dropConn},
-		{Runs: []ui.Run{{Text: " " + strings.ToUpper(mode.String()) + " ", Style: uv.Style{Fg: th.Bg, Bg: modeColor, Attrs: uv.AttrBold}}}},
 	}
+	// the cursor's row,col, with a table loaded in the focused pane (§7.8)
+	if _, t, ok := a.focusedGrid(); ok && len(t.page.Rows) > 0 {
+		at := fmt.Sprintf(" %d,%d ", t.row+1, t.col+1)
+		s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: at, Style: bar(th.FgMuted)}}, Drop: dropCursor})
+	}
+	s.Right = append(s.Right, ui.Segment{Runs: iconRuns(ic.Conn, conn, " "+a.sess.Addr+" "), Drop: dropConn})
+	if a.busy > 0 { // a click cancels it, as C-c does (§8.3)
+		busy := " busy "
+		if k := a.keys.Hint("cancel", "global"); k != "" {
+			busy += "· " + k + " 取消 "
+		}
+		s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: busy, Style: bar(th.Warn)}}, Action: "cancel"})
+	}
+	s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: " " + strings.ToUpper(mode.String()) + " ", Style: uv.Style{Fg: th.Bg, Bg: modeColor, Attrs: uv.AttrBold}}}})
 	return s
 }
 

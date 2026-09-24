@@ -63,11 +63,20 @@ func testSession() *Session {
 func m0Layout(a *App) *App {
 	win := a.win()
 	data := win.Root.Pane
-	data.Tabs, data.Cur, data.Prev = []string{"t_order", "t_user"}, 0, 1
-	cons := &Pane{ID: 2, Kind: KindConsole, Tabs: []string{"console_1"}, Prev: -1}
+	data.Tabs, data.Cur, data.Prev = []Tab{{Name: "t_order"}, {Name: "t_user"}}, 0, 1
+	cons := &Pane{ID: 2, Kind: KindConsole, Tabs: []Tab{{Name: "console_1"}}, Prev: -1}
 	win.Root, win.lastID = &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(cons)}, 2
 	a.sess.Windows = append(a.sess.Windows, &Window{Name: "report"})
 	return a
+}
+
+// tabNames is p's tabs by name, space-separated.
+func tabNames(p *Pane) string {
+	var names []string
+	for _, t := range p.Tabs {
+		names = append(names, t.Name)
+	}
+	return strings.Join(names, " ")
 }
 
 // twoPanes is sized with m0Layout.
@@ -206,8 +215,8 @@ func TestCloseTab(t *testing.T) {
 	a := twoPanes(160, 45, "nerd")
 	data := a.focused()
 	feed(t, a, ":q<CR>")
-	if !reflect.DeepEqual(data.Tabs, []string{"t_user"}) || data.Cur != 0 {
-		t.Fatalf("after :q: tabs %v cur %d", data.Tabs, data.Cur)
+	if tabNames(data) != "t_user" || data.Cur != 0 {
+		t.Fatalf("after :q: tabs %v cur %d", tabNames(data), data.Cur)
 	}
 	feed(t, a, ":q<CR>")
 	if leaves := a.win().Root.Leaves(); len(leaves) != 1 || leaves[0].Kind != KindConsole || a.win().Focus != leaves[0].ID {
@@ -333,10 +342,13 @@ func TestCloseTabPicksNext(t *testing.T) {
 	} {
 		a := sized(160, 45, "nerd")
 		p := a.focused()
-		p.Tabs, p.Cur, p.Prev = slices.Clone(c.tabs), c.cur, c.prev
+		p.Tabs, p.Cur, p.Prev = nil, c.cur, c.prev
+		for _, name := range c.tabs {
+			p.Tabs = append(p.Tabs, Tab{Name: name})
+		}
 		a.closeTab()
-		if !slices.Equal(p.Tabs, c.want) || p.Cur != c.wantCur || p.Prev != -1 {
-			t.Errorf("%v cur %d prev %d: got %v cur %d prev %d; want %v cur %d", c.tabs, c.cur, c.prev, p.Tabs, p.Cur, p.Prev, c.want, c.wantCur)
+		if got := tabNames(p); got != strings.Join(c.want, " ") || p.Cur != c.wantCur || p.Prev != -1 {
+			t.Errorf("%v cur %d prev %d: got %v cur %d prev %d; want %v cur %d", c.tabs, c.cur, c.prev, got, p.Cur, p.Prev, c.want, c.wantCur)
 		}
 	}
 }

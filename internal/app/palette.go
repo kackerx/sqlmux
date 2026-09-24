@@ -236,7 +236,7 @@ func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 		return a.run(it.id, 0)
 	case itemTable:
 		if i := slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Schema+"."+t.Name == it.id }); i >= 0 {
-			a.openTable(a.sess.Tables[i], newTab)
+			return a.openTable(a.sess.Tables[i], newTab)
 		}
 	case itemPane:
 		id, _ := strconv.Atoi(it.id)

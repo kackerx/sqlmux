@@ -59,6 +59,10 @@ func init() {
 			if a.mode() != keymap.Normal { // in any input C-c is esc, as in vim (§6.8)
 				return a.press(keymap.Esc)
 			}
+			if a.busy > 0 { // a query is running: cancel it (§8.3)
+				a.sess.Meta.Cancel()
+				return nil
+			}
 			if a.toast != "" && a.toastSeq == a.quitToast { // the first press's toast is still up
 				return tea.Quit
 			}
@@ -81,11 +85,11 @@ func init() {
 		"tree.up":       {Title: "上移", Run: do(func(a *App, args Args) { a.treeMove(-max(args.Count, 1)) })},
 		"tree.top":      {Title: "第一项", Run: do(func(a *App, _ Args) { a.treeMove(-a.win().tree.cursor) })},
 		"tree.bottom":   {Title: "最后一项", Run: do(func(a *App, _ Args) { _, ms := a.treeTables(); a.treeMove(len(ms)) })}, // clamped to the last
-		"tree.open":     {Title: "打开", Run: do(func(a *App, _ Args) { a.treeOpen(false) })},
-		"tree.open.tab": {Title: "在新 tab 打开", Run: do(func(a *App, _ Args) { a.treeOpen(true) })},
+		"tree.open":     {Title: "打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(false) }},
+		"tree.open.tab": {Title: "在新 tab 打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(true) }},
 		"tree.filter":   {Title: "过滤", Run: do(func(a *App, _ Args) { a.treeFilter() })},
 		"tree.schema":   {Title: "切换 schema", Run: do(func(a *App, _ Args) { a.openSchemaMenu() })},
-		"tree.refresh":  {Title: "刷新表列表", Run: func(a *App, _ Args) tea.Cmd { return a.loadCatalog() }},
+		"tree.refresh":  {Title: "刷新表列表", Run: func(a *App, _ Args) tea.Cmd { clear(a.sess.cols); return a.loadCatalog() }},
 		// Keys inside the schema dropdown (§8.6): untitled, like the palette's.
 		"schema.up":     {Run: inMenu(func(a *App) { a.menuMove(-1) })},
 		"schema.down":   {Run: inMenu(func(a *App) { a.menuMove(1) })},
@@ -103,6 +107,27 @@ func init() {
 		"pane.focus.up":    {Title: "焦点移到上边", Run: do(func(a *App, _ Args) { a.focusSide("up") })},
 		"pane.focus.right": {Title: "焦点移到右边", Run: do(func(a *App, _ Args) { a.focusSide("right") })},
 
+		// The grid moves in screen terms: j is down whichever way it is turned (§7.6).
+		"grid.left":  {Title: "左移", Run: do(func(a *App, args Args) { a.gridMove(by(0, -max(args.Count, 1))) })},
+		"grid.down":  {Title: "下移", Run: do(func(a *App, args Args) { a.gridMove(by(max(args.Count, 1), 0)) })},
+		"grid.up":    {Title: "上移", Run: do(func(a *App, args Args) { a.gridMove(by(-max(args.Count, 1), 0)) })},
+		"grid.right": {Title: "右移", Run: do(func(a *App, args Args) { a.gridMove(by(0, max(args.Count, 1))) })},
+		"grid.top": {Title: "第一行", Run: do(func(a *App, _ Args) {
+			a.gridMove(func(_, c, _, _ int) (int, int) { return 0, c })
+		})},
+		"grid.bottom": {Title: "最后一行", Run: do(func(a *App, _ Args) {
+			a.gridMove(func(_, c, rows, _ int) (int, int) { return rows - 1, c })
+		})},
+		"grid.first": {Title: "第一列", Run: do(func(a *App, _ Args) {
+			a.gridMove(func(r, _, _, _ int) (int, int) { return r, 0 })
+		})},
+		"grid.last": {Title: "最后一列", Run: do(func(a *App, _ Args) {
+			a.gridMove(func(r, _, _, cols int) (int, int) { return r, cols - 1 })
+		})},
+		"grid.transpose": {Title: "转置", Run: do(func(a *App, _ Args) { a.gridTranspose() })},
+		// "grid.goto <rec> <field>" is a click on a cell.
+		"grid.goto": {Run: do(func(a *App, args Args) { a.gridGoto(args.Arg) })},
+
 		"pane.resize.left":  {Title: "向左调整大小", Run: do(func(a *App, args Args) { a.resizePane(Horiz, -1, args.Count) })},
 		"pane.resize.down":  {Title: "向下调整大小", Run: do(func(a *App, args Args) { a.resizePane(Vert, 1, args.Count) })},
 		"pane.resize.up":    {Title: "向上调整大小", Run: do(func(a *App, args Args) { a.resizePane(Vert, -1, args.Count) })},
@@ -117,9 +142,7 @@ func init() {
 		"window.new": "新建 window", "window.rename": "重命名 window", "window.close": "关闭 window",
 		"window.next": "下一个 window", "window.prev": "上一个 window", "window.last": "上次用的 window",
 		"tab.next": "下一个 tab", "tab.prev": "上一个 tab",
-		"grid.left": "左移", "grid.down": "下移", "grid.up": "上移", "grid.right": "右移",
-		"grid.top": "第一行", "grid.bottom": "最后一行", "grid.first": "第一列", "grid.last": "最后一列",
-		"grid.edit": "编辑单元格", "grid.refresh": "刷新", "grid.transpose": "转置",
+		"grid.edit": "编辑单元格", "grid.refresh": "刷新",
 		"grid.where": "WHERE 条件", "grid.order": "ORDER", "grid.limit": "LIMIT",
 		"grid.page": "PAGE", "grid.cols": "COLS", "grid.page.next": "下一页", "grid.page.prev": "上一页",
 		"grid.yank": "复制单元格", "grid.yank.insert": "复制为 INSERT",
@@ -148,6 +171,11 @@ func inMenu(f func(*App)) func(*App, Args) tea.Cmd {
 		}
 		return nil
 	}
+}
+
+// by is a grid move of dr rows and dc columns.
+func by(dr, dc int) func(r, c, _, _ int) (int, int) {
+	return func(r, c, _, _ int) (int, int) { return r + dr, c + dc }
 }
 
 // do adapts an action that only changes state.

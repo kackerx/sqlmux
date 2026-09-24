@@ -26,6 +26,7 @@ const (
 	KindRow                      // a candidate in an overlay's list (I: its index): click picks it
 	KindTreeEdge                 // the gap right of the sidebar: drag to set its width
 	KindTable                    // a table in the schema tree (I: its index): click opens it
+	KindCell                     // a grid cell: focus its pane, then run Action (grid.goto r c)
 )
 
 // Target is what a click on a hit region resolves to. Targets compare with
