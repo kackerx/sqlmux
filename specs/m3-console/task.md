@@ -110,6 +110,8 @@
 
 ## F3.5 执行与结果区 · 状态：draft
 
+> M0 修剪时留下的观察：`PaneKind.String`、`paneScope`、`kindIcon` 是三张按 PaneKind 下标的并行数组。加 result pane 时要同时改三处，届时可以合成一张表。
+
 - **依赖**：F3.4
 - **涉及**：`internal/app`（结果区、日志）、`internal/ui`（结果 tab、工具行）、`internal/db`
 

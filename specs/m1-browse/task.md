@@ -50,6 +50,7 @@
   - `Meta` 的 RuntimeParams 另加 `default_transaction_read_only = on`，设为只读（§8.2）。
 - [ ] 启动方式：`sqlmux <连接名>`，未指定时使用第一个连接。找不到连接或者连接失败时，在终端打印错误后退出，退出码为 1，不进入界面（§14「启动时找不到连接」）。
 - [ ] 默认 window 名为 `data`，只有侧栏和一个占满其余宽度的 data pane（§5）。去掉 M0 的假数据、假 console 和第二个 window `report`。初始焦点经由 `Window.focus()` 设置（M0 审查留下的建议）。M0 的 e2e 里依赖这些假数据的用例（如命令面板里的 `%report`），提测时告诉 tester 一起调整。
+  - M0 修剪时留下的观察：按 ID 找 pane 的写法已经有三份（`focused()`、`scrollPane`、`openTable`），换成真实 session 和 tab 后如果再多出来，就提一个 `pane(id)` 辅助函数。
 - [ ] 集成测试用环境变量 `SQLMUX_TEST_PG` 指定连接串；没有设置时，`-tags integration` 的测试直接 skip。
 - [ ] 状态栏改为显示真实的 session 名和地址。
 
@@ -79,6 +80,7 @@
   - 显示表列表、行数量级（如 `2.1m`、`48k`），高亮当前打开的表；
   - 按键：`j` / `k` 移动；`/` 过滤并高亮匹配字符；`↵` 在当前 tab 打开，`t` 在新 tab 打开；
   - 鼠标：单击在当前 tab 打开，中键在新 tab 打开；支持滚轮（每格 3 行，最多滚到最后一项贴着底边，§7.4）和悬停高亮。
+- [ ] 侧栏底部的提示行（`j/k move  ↵ open …`）复用 ui 的 `hintRow`。M0 里它是在 view.go 手写的，和 pane 标题提示、tab 栏 / 面板底栏已经是三种画法，不要再写第四份（M0 修剪时留下的观察）。
 - [ ] 切换树的 schema：在树里按 `gs`，或点击侧栏标题上的 schema（F0.15 已经画出这个按钮），打开 schema 下拉框。这个下拉组件以后 console 的 schema 选择（§8.6）会复用。
   - 侧栏标题显示树当前所在的 schema，切换后跟着变，不再写死为 `public`。
 - [ ] 命令面板的「表」范围改为列出 catalog 里的表，所在位置显示真实的 `session.schema`（§12），不再用 M0 的假表。
