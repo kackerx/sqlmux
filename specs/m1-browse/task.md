@@ -97,7 +97,7 @@
   - 用 `↵`、`t` 和鼠标都能打开表（data pane 标题显示表名）；
   - 用 `gs` 切换到 `agentable` 后，列出该 schema 下的表。
 
-## F1.3 data pane 表格（只读） · 状态：reviewing
+## F1.3 data pane 表格（只读） · 状态：testing
 
 - **依赖**：F1.2
 - **涉及**：`internal/ui`（grid）、`internal/app`（DataTab）、`internal/db`
