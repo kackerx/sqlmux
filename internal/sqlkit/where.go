@@ -48,7 +48,10 @@ func Tokens(s string) []Token {
 				i = len(s)
 			}
 		case r == '\'' || r == '"':
-			kind = map[rune]Kind{'\'': String, '"': Quoted}[r]
+			kind = String
+			if r == '"' {
+				kind = Quoted
+			}
 			i += n
 			for i < len(s) {
 				if s[i] == byte(r) {
@@ -62,25 +65,13 @@ func Tokens(s string) []Token {
 				i++
 			}
 		case unicode.IsDigit(r):
-			kind = Number
-			for i < len(s) && (unicode.IsDigit(rune(s[i])) || s[i] == '.') {
-				i++
-			}
+			kind, i = Number, advance(s, i, func(r rune) bool { return unicode.IsDigit(r) || r == '.' })
 		case r == '_' || unicode.IsLetter(r):
-			kind = Word
-			for i < len(s) {
-				r, n := utf8.DecodeRuneInString(s[i:])
-				if r != '_' && r != '$' && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-					break
-				}
-				i += n
-			}
+			kind, i = Word, advance(s, i, func(r rune) bool { return r == '_' || r == '$' || unicode.IsLetter(r) || unicode.IsDigit(r) })
 		case strings.ContainsRune("()[],;.", r):
 			kind, i = Punct, i+n
 		case unicode.IsSpace(r):
-			for i < len(s) && unicode.IsSpace(rune(s[i])) {
-				i++
-			}
+			i = advance(s, i, unicode.IsSpace)
 		default:
 			kind = Op
 			for i < len(s) && strings.ContainsRune("=<>!~+-*/%|&^#@:", rune(s[i])) && !strings.HasPrefix(s[i:], "--") {
@@ -93,6 +84,19 @@ func Tokens(s string) []Token {
 		out = append(out, Token{kind, start, i})
 	}
 	return out
+}
+
+// advance is past the runes from i that are in: whole runes, so a
+// full-width space or digit moves it too.
+func advance(s string, i int, in func(rune) bool) int {
+	for i < len(s) {
+		r, n := utf8.DecodeRuneInString(s[i:])
+		if !in(r) {
+			break
+		}
+		i += n
+	}
+	return i
 }
 
 // Where is what the cursor of a WHERE input is at (§9.7): Prefix, from

@@ -32,8 +32,7 @@ type App struct {
 
 	busy int // table requests out on Meta (§8.3)
 
-	state     *config.State // kept between runs (§14)
-	stateTick int           // the last snapshot's, for config.SaveState
+	state *config.State // kept between runs (§14)
 
 	toast     string
 	toastSeq  int
@@ -299,7 +298,7 @@ func (a *App) mode() keymap.Mode {
 	switch t := a.typingTab(); {
 	case a.palette != nil, a.drop != nil, a.cols != nil, t != nil && t.hist != nil: // an overlay has the keys (§7.8)
 		return keymap.Command
-	case a.win().tree.filtering, a.typingTab() != nil:
+	case a.win().tree.filtering, t != nil:
 		return keymap.Insert
 	}
 	return keymap.Normal
@@ -307,7 +306,7 @@ func (a *App) mode() keymap.Mode {
 
 // context tells the keymap which scopes apply to the next key (§6.4).
 func (a *App) context() keymap.Context {
-	switch {
+	switch typing := a.typingTab(); {
 	case a.palette != nil:
 		return keymap.Context{Overlay: "palette", Mode: keymap.Command}
 	case a.drop != nil:
@@ -316,11 +315,11 @@ func (a *App) context() keymap.Context {
 		return keymap.Context{Overlay: "cols", Mode: keymap.Command}
 	case a.cols != nil: // its filter: unbound keys are text
 		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Command}
-	case a.typingTab() != nil && a.typingTab().hist != nil: // filtered by the WHERE typed
+	case typing != nil && typing.hist != nil: // filtered by the WHERE typed
 		return keymap.Context{Overlay: "where", Focus: []string{"input"}, Mode: keymap.Command}
-	case a.typingTab() != nil && a.typingTab().comp != nil:
+	case typing != nil && typing.comp != nil:
 		return keymap.Context{Overlay: "complete", Focus: []string{"input"}, Mode: keymap.Insert}
-	case a.win().tree.filtering, a.typingTab() != nil:
+	case a.win().tree.filtering, typing != nil:
 		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Insert}
 	}
 	return keymap.Context{Focus: []string{a.paneScope()}, Pane: a.paneScope()}

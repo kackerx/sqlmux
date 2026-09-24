@@ -62,25 +62,42 @@ func LoadState() (*State, error) {
 		err = json.Unmarshal(data, s)
 	}
 	if err != nil {
-		os.Rename(statePath(), statePath()+".broken")
+		if rerr := os.Rename(statePath(), statePath()+".broken"); rerr != nil { // the next save will overwrite it
+			err = errors.Join(err, rerr)
+		}
 		return &State{}, fmt.Errorf("%s: %w", statePath(), err)
 	}
 	return s, nil
 }
 
 var (
-	saveMu    sync.Mutex
-	savedTick int // the tick of the snapshot on disk
+	saveMu          sync.Mutex
+	tick, savedTick int // the last snapshot's, and the one on disk's
 )
 
-// SaveState writes a snapshot of the state taken at tick, unless a later one
-// is already on disk: saves run on their own goroutines, in any order. The
-// file is written whole and renamed into place, readable by the user only
-// (§13: history holds literals).
-func SaveState(data []byte, tick int) error {
+// Snapshot serializes s as it is now and returns what writes it (§14):
+// call it in Update, run what it returns on a Cmd's goroutine. Writes run
+// in any order; one of an older snapshot than the file holds does nothing.
+func Snapshot(s *State) func() error {
+	data, err := json.Marshal(s)
+	saveMu.Lock()
+	tick++
+	t := tick
+	saveMu.Unlock()
+	return func() error {
+		if err != nil {
+			return err
+		}
+		return save(data, t)
+	}
+}
+
+// save writes the file whole and renames it into place, readable by the
+// user only (§13: history holds literals).
+func save(data []byte, t int) error {
 	saveMu.Lock()
 	defer saveMu.Unlock()
-	if tick <= savedTick {
+	if t <= savedTick {
 		return nil
 	}
 	if err := os.MkdirAll(StateDir(), 0o700); err != nil {
@@ -101,6 +118,6 @@ func SaveState(data []byte, tick int) error {
 	if err := os.Rename(tmp.Name(), statePath()); err != nil {
 		return err
 	}
-	savedTick = tick
+	savedTick = t
 	return nil
 }

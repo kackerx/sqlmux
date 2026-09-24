@@ -44,6 +44,13 @@ type QueryBar struct {
 // QueryBarRows is how tall a query bar is.
 const QueryBarRows = 2
 
+// InputRect is where the WHERE input goes when the bar is drawn in r: after
+// "WHERE ", short of the ▾.
+func (q QueryBar) InputRect(r uv.Rectangle) uv.Rectangle {
+	x := r.Min.X + 1 + Width("WHERE") + 1
+	return uv.Rect(x, r.Min.Y, max(r.Max.X-2-x-1, 0), 1)
+}
+
 // ChipRect is where the chip running action goes when the bar is drawn in r.
 func (q QueryBar) ChipRect(r uv.Rectangle, action string) uv.Rectangle {
 	for i, c := range q.Chips {
@@ -83,7 +90,7 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 		vst.Bg = th.Select
 	}
 	f.Text(vx, r.Min.Y, r.Max.X, "▾", vst)
-	if c := q.Where.Draw(f, uv.Rect(x+1, r.Min.Y, max(vx-x-2, 0), 1), bg); q.Typing {
+	if c := q.Where.Draw(f, q.InputRect(r), bg); q.Typing {
 		cursor = c
 	}
 	if r.Dy() < 2 {

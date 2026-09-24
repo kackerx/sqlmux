@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -24,15 +23,13 @@ func TestState(t *testing.T) {
 			Favorites: []Query{{Where: "status = 'done'", Order: "amount", Desc: true, Limit: 500, At: at}},
 		}},
 	}
-	save := func(s *State, tick int) {
-		t.Helper()
-		data, _ := json.Marshal(s)
-		if err := SaveState(data, tick); err != nil {
-			t.Fatal(err)
-		}
+	older := Snapshot(&State{})
+	if err := Snapshot(want)(); err != nil {
+		t.Fatal(err)
 	}
-	save(want, 5)
-	save(&State{}, 4) // an older snapshot, saved late
+	if err := older(); err != nil { // an older snapshot, written late
+		t.Fatal(err)
+	}
 	got, err := LoadState()
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %+v %v", got, err)

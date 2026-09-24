@@ -1,7 +1,6 @@
 package app
 
 import (
-	"encoding/json"
 	"slices"
 	"strconv"
 	"strings"
@@ -103,20 +102,23 @@ func (t *dataTab) completeMove(d int) {
 }
 
 // whereAt is where pane p's WHERE input starts: lists open under it.
-func whereAt(r uv.Rectangle) uv.Position {
-	b := bodyRect(r)
-	return uv.Pos(b.Min.X+len("WHERE")+2, b.Min.Y)
+func (a *App) whereAt(p *Pane, t *dataTab) uv.Position {
+	return a.queryBar(p, t).InputRect(bodyRect(a.layout()[p.ID])).Min
 }
 
 func (a *App) completeView(p *Pane, t *dataTab) (ui.Complete, uv.Rectangle, int) {
-	v := ui.Complete{Sel: t.comp.sel}
+	v := ui.Complete{Sel: -1} // nothing looks picked until something is: ↵ runs then (§9.7)
+	if t.comp.chosen {
+		v.Sel = t.comp.sel
+	}
 	w := 20
 	for _, cd := range t.comp.items {
 		v.Items = append(v.Items, ui.CompleteItem{Text: cd.label, Pos: cd.pos, Note: cd.note})
 		w = max(w, ui.Width(cd.label+"  "+cd.note)+4)
 	}
-	at := whereAt(a.layout()[p.ID])
+	at := a.whereAt(p, t)
 	at.X += ui.Width(t.where.Text[:t.comp.start]) // under what it completes
+	// ponytail: off by the input's scroll once the text outgrows it
 	box, rows := ui.CompleteBox(a.window(), at, w, len(v.Items))
 	v.Top = max(0, v.Sel-rows+1)
 	return v, box, rows
@@ -249,7 +251,7 @@ func (a *App) histView(p *Pane, t *dataTab) (ui.Complete, uv.Rectangle, int) {
 		v.Items = append(v.Items, ui.CompleteItem{Text: e.q.Where, Pos: pos[i], Note: note})
 		w = max(w, ui.Width(e.q.Where+"  "+note)+4)
 	}
-	box, rows := ui.CompleteBox(a.window(), whereAt(a.layout()[p.ID]), w, len(v.Items))
+	box, rows := ui.CompleteBox(a.window(), a.whereAt(p, t), w, len(v.Items))
 	v.Top = max(0, v.Sel-rows+1)
 	return v, box, rows
 }
@@ -271,17 +273,12 @@ func queryNote(q config.Query) string {
 	return strings.Join(parts, " · ")
 }
 
-// saveState writes the state out (§14): serialized here, in Update, and
-// written on the Cmd's goroutine; config.SaveState drops a stale snapshot.
+// saveState writes the state out (§14): snapshot here, in Update, written
+// on the Cmd's goroutine.
 func (a *App) saveState() tea.Cmd {
-	a.stateTick++
-	data, err := json.Marshal(a.state)
-	if err != nil {
-		return nil
-	}
-	tick := a.stateTick
+	write := config.Snapshot(a.state)
 	return func() tea.Msg {
-		if err := config.SaveState(data, tick); err != nil {
+		if err := write(); err != nil {
 			return stateErr{err}
 		}
 		return nil

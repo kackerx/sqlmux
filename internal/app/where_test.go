@@ -19,7 +19,8 @@ func TestWhereCompletion(t *testing.T) {
 		t.Fatalf("sta: %+v", tab.comp)
 	}
 	f := a.render()
-	at := whereAt(a.layout()[1])
+	feed(t, a, "<C-n>") // picked: lit as the selection too
+	at := a.whereAt(a.focused(), tab)
 	row := strings.Split(f.String(), "\n")[at.Y+2] // under the input and the list's border
 	if i := strings.Index(row, "status"); i < 0 || f.Buf.CellAt(ui.Width(row[:i]), at.Y+2).Style.Bg != a.theme.Warn {
 		t.Errorf("the match lit: %q", row)
