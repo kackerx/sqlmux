@@ -2,7 +2,7 @@
 # F0.8 命中表与鼠标（specs/m0-skeleton/task.md F0.8；tech-design §7.4、§5「按编号跳转」）
 # 全部用注入的 SGR 鼠标序列（e2e_click / e2e_move / e2e_down …，1 起算的列、行）。
 # F1.1 起默认只有一个 data pane：two_panes 分出 ① [34,96] | ② [98,160] 代替 M0 的 data | console。
-# console 标题的 ▶ run（点击、悬停）到 M3 补回；表格的滚轮到 F1.3 有真实数据后补回。
+# console 标题的 ▶ run（点击、悬停）到 M3 补回。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 
@@ -89,6 +89,12 @@ start -y 12
 row4() { e2e_text "$1" "$2" "$3"; }
 s0=$(row4 2 31 4); e2e_wheel 10 6 down; sleep 0.3
 check "指针在侧栏上滚动：滚动表列表（mv_order_by_status → t_order，3 行），焦点仍在 ①" eval '[[ $s0 == *" mv_order_by_status "* && $(row4 2 31 4) == *" t_order "* ]] && focus_is 1'
+start; open_table t_order
+first() { e2e_text 35 39 $(( $(grid_y) + 1 )) | tr -d ' '; }   # 表格可见的第一行的行号
+e2e_wheel 60 20 down; sleep 0.3
+check "表格上滚一格：前进 3 行（第 1 行 → 第 4 行），表头不动" eval '[[ $(first) == 4 && $(e2e_text 44 45 $(( $(grid_y) - 1 ))) == id ]]'
+e2e_wheel 60 20 up; e2e_wheel 60 20 up; sleep 0.3
+check "往上滚到顶就停住" eval '[[ $(first) == 1 ]]'
 
 # ---- 点击浮层外部（§7.4）
 start; two_panes
