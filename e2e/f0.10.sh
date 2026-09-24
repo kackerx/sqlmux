@@ -11,8 +11,9 @@ bar_end_is() { local got; got=$(e2e_text 150 160 45); [[ $got == *" $1 " ]] || {
 input_row_ok() {
   local t; t=$(e2e_plain | python3 -c 'import sys; print(next(i + 1 for i, l in enumerate(sys.stdin) if "┌─ 命令面板" in l))')
   local l; l=$(e2e_find "┌─ 命令面板" "$t" | cut -d' ' -f1)
-  [[ $(e2e_text $((l + 79)) $((l + 79)) $((t + 1))) == │ && $(e2e_text $((l + 2)) $((l + 20)) $((t + 1))) == ">x$1"* ]] ||
-    { echo "  input row: '$(e2e_text $l $((l + 79)) $((t + 1)))'"; false; }
+  local r; r=$(e2e_find "┐" "$t" | tr ' ' '\n' | awk -v l=$l '$1 > l { print; exit }')   # F0.17: input is on row t+2, after the search icon
+  [[ $(e2e_text $r $r $((t + 2))) == │ && $(e2e_text $((l + 4)) $((l + 22)) $((t + 2))) == ">x$1"* ]] ||
+    { echo "  input row: '$(e2e_text $l $r $((t + 2)))'"; false; }
 }
 # bash 3.2 没有 \u：用 UTF-8 字节写
 declare -a NAMES=("👍🏽（肤色修饰）" "❤️（VS16）" "👨‍👩‍👧（ZWJ）" "1️⃣（keycap）")
