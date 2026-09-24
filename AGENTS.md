@@ -55,7 +55,7 @@ sqlmux/
 
 凭记忆拿不准的数据库行为，比如驱动的取消语义、类型的文本格式、information_schema 在不同版本间的差异，不要猜。写一个最小的集成测试，在 `docker compose` 起的 PG / MySQL 上跑一遍，以结果为准。
 
-**集成测试环境**：`docker compose` 只在主工作区（`/Users/ctw/proj/sqlmux`）起一份，由 worker 负责 `docker compose up -d`。其他 worktree（e2e / review / verify）不要执行 `up`：compose 按目录名取项目名，会再起一套容器抢同一个端口；加 `-p sqlmux` 也不行，seed 的挂载路径不同会让它重建主工作区的容器。其他 worktree 直接用 `SQLMUX_TEST_PG` 连它，M1 全程只读，共用没有问题；M2 有写库的测试时再看要不要各用各的库。seed 只在数据卷为空时导入一次，改了 `testdata/seed/*.sql` 要 `docker compose up -d -V` 才会生效，worker 改完 seed 要通知 reviewer 和 tester。
+**集成测试环境**：`docker compose` 只在主工作区（`/Users/ctw/proj/sqlmux`）起一份，由 worker 负责 `docker compose up -d`。其他 worktree（e2e / review / verify）不要执行 `up`：compose 按目录名取项目名，会再起一套容器抢同一个端口；加 `-p sqlmux` 也不行，seed 的挂载路径不同会让它重建主工作区的容器。其他 worktree 直接用 `SQLMUX_TEST_PG` 连它，只读的测试共用 `sqlmux` 库没有问题。要锁表、写库或者其他会影响别人的测试，在同一个 PG 实例上自己建一个库（如 `sqlmux_e2e_<pid>`），用 `testdata/seed/pg.sql` 导入，只在这个库上操作，退出时 drop 掉；不要在共用的 `sqlmux` 库上加锁或写数据。seed 只在数据卷为空时导入一次，改了 `testdata/seed/*.sql` 要 `docker compose up -d -V` 才会生效，worker 改完 seed 要通知 reviewer 和 tester。
 
 驱动或依赖本身已经提供的能力，直接用，不要重写。例如 PG 的标识符加引号，用 `pgx.Identifier{...}.Sanitize()`。
 
