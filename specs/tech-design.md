@@ -1239,6 +1239,7 @@ read_only    = false
 - **默认键位兼容性测试**：断言 `default.toml` 中没有只能在 kitty 协议下使用的键，也没有 Alt 组合键。
 - **格式化 golden 测试**：几条典型的 PG / MySQL 语句，格式化结果与 golden 文件比对。升级 sql-formatter 时，输出如有变化，这个测试会失败。
 - **渲染 golden 测试**：在固定尺寸 160×45 下渲染 Frame，与 golden 文件比对（`charmbracelet/x/exp/golden` 已是 bubbletea 的依赖）。场景对应设计稿的几种状态：WHERE 下拉、COLS 下拉、命令面板的 SQL 模式、转置、result 在右侧或下方、时间选项浮层、which-key。
+- **e2e（tmux 黑盒）**：只测真实终端才能验证的行为：终端模式、SGR 鼠标、resize、字素宽度、时序（连按、超时、取消）、配置加载，以及真实数据库上的端到端流程。布局、颜色、位置由上面的渲染 golden 覆盖，UI 改动时改 golden，不去重写几十条 e2e 断言（M0 复盘）。
 - **集成测试**：用 `docker compose` 启动 postgres:17 和 mysql:8.4，运行 `go test -tags integration ./internal/db/...`。覆盖以下内容：catalog、文本值、取消、只读拦截、保存时的乐观校验、枚举和可空属性、用唯一索引作为行标识、无主键表只读、按 console 切换 `search_path`。
 - **手工测试矩阵**：Terminal.app、iTerm2、Ghostty、WezTerm、Linux 下的 GNOME Terminal。每个都分别在 tmux 内外测试，重点检查默认键位和鼠标。
 
