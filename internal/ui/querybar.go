@@ -23,14 +23,20 @@ func (c Chip) value() string {
 
 func (c Chip) text() string { return " " + c.Label + " " + c.value() + " " }
 
+// Button is an icon that runs Action when clicked ("": none yet).
+type Button struct {
+	Icon   Icon
+	Action string
+}
+
 // QueryBar is the two rows above a data pane's table (§7.8「查询条」):
-// WHERE and its input, then the chips, the buttons and what the last
+// WHERE and its input, then the chips, the buttons (Q-05) and what the last
 // query returned.
 type QueryBar struct {
 	Where   Input
 	Typing  bool // the WHERE input has the keys
 	Chips   []Chip
-	Buttons []Hint // icons as labels (Q-05)
+	Buttons []Button
 	Right   string // "auto · 6000 行 · 12ms"
 	Pane    int
 }
@@ -38,8 +44,17 @@ type QueryBar struct {
 // QueryBarRows is how tall a query bar is.
 const QueryBarRows = 2
 
-// ChipRects is where each chip goes when the bar is drawn in r.
-func (q QueryBar) ChipRects(r uv.Rectangle) []uv.Rectangle {
+// ChipRect is where the chip running action goes when the bar is drawn in r.
+func (q QueryBar) ChipRect(r uv.Rectangle, action string) uv.Rectangle {
+	for i, c := range q.Chips {
+		if c.Action == action {
+			return q.chipRects(r)[i]
+		}
+	}
+	return uv.Rectangle{}
+}
+
+func (q QueryBar) chipRects(r uv.Rectangle) []uv.Rectangle {
 	var rects []uv.Rectangle
 	x := r.Min.X + 1
 	for _, c := range q.Chips {
@@ -69,7 +84,7 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 		return cursor
 	}
 	y := r.Min.Y + 1
-	for i, cr := range q.ChipRects(r) {
+	for i, cr := range q.chipRects(r) {
 		c := q.Chips[i]
 		chip := uv.Style{Fg: th.Fg, Bg: th.Sep}
 		if f.Region(cr, Target{Kind: KindHint, Pane: q.Pane, Action: c.Action}) {
@@ -82,16 +97,15 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 		}
 	}
 	x = r.Min.X + 1
-	if rects := q.ChipRects(r); len(rects) > 0 {
+	if rects := q.chipRects(r); len(rects) > 0 {
 		x = rects[len(rects)-1].Max.X + 2
 	}
 	for _, b := range q.Buttons {
-		w := Width(b.Label)
 		st := dim
-		if b.Action != "" && f.Region(uv.Rect(x, y, min(w, max(r.Max.X-x, 0)), 1), Target{Kind: KindHint, Pane: q.Pane, Action: b.Action}) {
+		if b.Action != "" && f.Region(uv.Rect(x, y, min(Width(b.Icon.Text), max(r.Max.X-x, 0)), 1), Target{Kind: KindHint, Pane: q.Pane, Action: b.Action}) {
 			st.Bg = th.Select
 		}
-		x = f.Text(x, y, r.Max.X-1, b.Label, st) + 1
+		x = f.Text(x, y, r.Max.X-1, b.Icon.Text, b.Icon.On(st)) + 1 // a theme's color for it wins (§7.7)
 	}
 	if rx := r.Max.X - 1 - Width(q.Right); rx > x {
 		f.Text(rx, y, r.Max.X-1, q.Right, dim)

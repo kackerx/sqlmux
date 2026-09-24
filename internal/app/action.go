@@ -98,14 +98,11 @@ func init() {
 		"dropdown.close":  {Run: when(inDrop, func(a *App) tea.Cmd { a.drop = nil; return nil })},
 		"cols.up":         {Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(-1); return nil })},
 		"cols.down":       {Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(1); return nil })},
-		"cols.toggle": {Run: when(inCols, func(a *App) tea.Cmd {
-			a.colsShow(a.cols.sel, func(hidden bool) bool { return hidden })
-			return nil
-		})},
-		"cols.all":    {Run: when(inCols, func(a *App) tea.Cmd { a.colsShow(-1, func(bool) bool { return true }); return nil })},
-		"cols.none":   {Run: when(inCols, func(a *App) tea.Cmd { a.colsShow(-1, func(bool) bool { return false }); return nil })},
-		"cols.filter": {Run: when(inCols, func(a *App) tea.Cmd { a.cols.typing = true; return nil })},
-		"cols.close":  {Run: when(inCols, func(a *App) tea.Cmd { a.colsEsc(); return nil })},
+		"cols.toggle":     {Run: when(inCols, func(a *App) tea.Cmd { a.colsToggle(a.cols.sel); return nil })},
+		"cols.all":        {Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(true); return nil })},
+		"cols.none":       {Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(false); return nil })},
+		"cols.filter":     {Run: when(inCols, func(a *App) tea.Cmd { a.cols.typing = true; return nil })},
+		"cols.close":      {Run: when(inCols, func(a *App) tea.Cmd { a.colsEsc(); return nil })},
 
 		// "pane.focus <id>" is what a click runs; untitled, it stays out of the palette.
 		"pane.focus": {Run: do(func(a *App, args Args) {

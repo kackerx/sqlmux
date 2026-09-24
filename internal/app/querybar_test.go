@@ -125,11 +125,11 @@ func TestOrderAndLimit(t *testing.T) {
 	a, tab, _ := withRecorder(t, 160, 45)
 	tab.pageNo = 4
 	feed(t, a, "go")
-	if a.drop == nil || a.drop.kind != dropOrder || a.dropView().Items[a.drop.sel] != orderDefault {
+	if a.drop == nil || a.drop.kind != dropOrder || a.dropView().Items[a.drop.sel] != "默认" {
 		t.Fatalf("go: %+v", a.drop)
 	}
-	chip := a.chipRects(a.focused(), tab)[0]
-	if box, _ := a.dropBox(8); box.Min.X != chip.Min.X || box.Min.Y != chip.Max.Y {
+	chip := a.chipRect(a.focused(), tab, "grid.order")
+	if box, _ := a.dropBox(a.dropView()); chip.Empty() || box.Min.X != chip.Min.X || box.Min.Y != chip.Max.Y {
 		t.Errorf("the dropdown opens under its chip: %v, chip %v", box, chip)
 	}
 	feed(t, a, "stat<CR>")
@@ -148,9 +148,37 @@ func TestOrderAndLimit(t *testing.T) {
 	if tab.limit != 500 || !strings.Contains(a.render().String(), " LIMIT 500 ") {
 		t.Errorf("gl: limit %d", tab.limit)
 	}
-	click(a, a.chipRects(a.focused(), tab)[1].Min)
+	click(a, a.chipRect(a.focused(), tab, "grid.limit").Min)
 	if a.drop == nil || a.drop.kind != dropLimit {
 		t.Error("clicking the LIMIT chip opens its dropdown")
+	}
+}
+
+// A column named 默认 sorts by itself, not by the row identity: the first
+// item is the default by its place, not its text.
+func TestOrderByAColumnNamedDefault(t *testing.T) {
+	a, tab, _ := withRecorder(t, 160, 45)
+	tab.page.Cols[1].Name = "默认"
+	feed(t, a, "go<C-n><C-n><CR>") // past the default and id
+	if tab.order != "默认" {
+		t.Fatalf("order %q", tab.order)
+	}
+	feed(t, a, "go")
+	if a.drop.sel != 2 {
+		t.Errorf("the current one is that column: sel %d", a.drop.sel)
+	}
+}
+
+// A theme's color for a button's icon wins (§7.7).
+func TestQueryBarButtonIconColor(t *testing.T) {
+	a, _, _ := withRecorder(t, 160, 45)
+	icons := *a.icons
+	icons.Refresh = ui.Icon{Text: "R", Fg: a.theme.Error}
+	a.icons = &icons
+	f := a.render()
+	r := find(t, a, ui.Target{Kind: ui.KindHint, Pane: 1, Action: "grid.refresh"})
+	if st := f.Buf.CellAt(r.Min.X, r.Min.Y).Style; st.Fg != a.theme.Error {
+		t.Errorf("refresh icon fg %v", st.Fg)
 	}
 }
 
@@ -171,7 +199,7 @@ func TestCols(t *testing.T) {
 		t.Errorf("the chip and the grid:\n%s", f)
 	}
 	feed(t, a, "/at")
-	if a.mode() != keymap.Insert || len(a.colsMatches()) != 3 { // status, amount, created_at
+	if a.mode() != keymap.Command || len(a.colsMatches()) != 3 { // status, amount, created_at
 		t.Fatalf("filter: mode %v, %d matches", a.mode(), len(a.colsMatches()))
 	}
 	if !strings.Contains(a.render().String(), "3/7") {

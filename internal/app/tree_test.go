@@ -157,7 +157,7 @@ func TestTreeFilter(t *testing.T) {
 func TestSchemaMenu(t *testing.T) {
 	a := inTree(160, 45)
 	feed(t, a, "3j/ord<CR>gs")
-	if a.drop == nil || a.mode() != keymap.Insert || a.dropView().Items[a.drop.sel] != "public" {
+	if a.drop == nil || a.mode() != keymap.Command || a.dropView().Items[a.drop.sel] != "public" {
 		t.Fatalf("gs: menu %+v mode %v", a.drop, a.mode())
 	}
 	f := a.render()
@@ -188,7 +188,7 @@ func TestSchemaMenu(t *testing.T) {
 		t.Fatal("clicking the title opens the dropdown")
 	}
 	row := find(t, a, ui.Target{Kind: ui.KindRow, I: 1})
-	if box, _ := a.dropBox(2); row.Min.Y != box.Min.Y+4 || box.Min.X != r.Min.X || box.Max.X != a.sidebarRect().Max.X {
+	if box, _ := a.dropBox(a.dropView()); row.Min.Y != box.Min.Y+4 || box.Min.X != r.Min.X || box.Max.X != a.sidebarRect().Max.X {
 		t.Errorf("the dropdown opens under the title, left aligned, its right edge on the sidebar's: %v", box)
 	}
 	click(a, row.Min)

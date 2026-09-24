@@ -41,15 +41,15 @@ type dataTab struct {
 	where    ui.Input        // the WHERE input
 	applied  string          // the WHERE in effect: the input shows it unless typing
 	order    string          // the column sorted by; "" for the row identity
-	desc     bool            //
+	desc     bool            // ORDER's direction
 	limit    int             // rows a page: 100, 500 or 1000 (§8.5)
 	pageNo   int             // from 0
 	hidden   map[string]bool // columns COLS hides
 	pageIn   ui.Input        // PAGE's page number, while typed
 	typing   string          // the input that has the keys: "where", "page" or ""
-	count    int64           //
-	counted  countState      //
-	countSeq int             // the last count's; older ones are dropped
+	count    int64           // the rows the WHERE keeps, as far as counted says
+	counted  countState
+	countSeq int // the last count's; older ones are dropped
 }
 
 type countState int
@@ -269,9 +269,12 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	ic := a.icons
 	order := "—" // no row identity to sort by
-	if t.order != "" {
-		order = t.order + map[bool]string{false: " ↑", true: " ↓"}[t.desc]
-	} else if key := t.cols.Key(); key != nil {
+	switch key := t.cols.Key(); {
+	case t.order != "" && t.desc:
+		order = t.order + " ↓"
+	case t.order != "":
+		order = t.order + " ↑"
+	case key != nil:
 		order = strings.Join(key, ",") + " ↑"
 	}
 	pages := "?"
@@ -285,10 +288,15 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	if t.typing == "page" {
 		page.Input, page.Suffix = &t.pageIn, "/"+pages
 	}
-	rows := map[countState]string{
-		counting: "…", countLost: "?", countDone: strconv.FormatInt(t.count, 10),
-		estimated: "~" + ui.Magnitude(float64(t.count)),
-	}[t.counted]
+	rows := "…"
+	switch t.counted {
+	case countLost:
+		rows = "?"
+	case countDone:
+		rows = strconv.FormatInt(t.count, 10)
+	case estimated:
+		rows = "~" + ui.Magnitude(float64(t.count))
+	}
 	right := "auto · " + rows + " 行"
 	if t.page.Cols != nil {
 		right += " · " + t.page.Took.Round(time.Millisecond).String()
@@ -301,17 +309,17 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 			page,
 			{Label: "COLS", Value: fmt.Sprintf("%d/%d", len(t.shown()), len(t.page.Cols)), Action: "grid.cols"},
 		},
-		Buttons: []ui.Hint{
-			{Label: ic.Save.Text}, // ponytail: does nothing until saving (M2)
-			{Label: ic.Refresh.Text, Action: "grid.refresh"},
-			{Label: ic.Transpose.Text, Action: "grid.transpose"},
+		Buttons: []ui.Button{
+			{Icon: ic.Save}, // ponytail: does nothing until saving (M2)
+			{Icon: ic.Refresh, Action: "grid.refresh"},
+			{Icon: ic.Transpose, Action: "grid.transpose"},
 		},
 	}
 }
 
-// chipRects is where pane p draws t's chips.
-func (a *App) chipRects(p *Pane, t *dataTab) []uv.Rectangle {
-	return a.queryBar(p, t).ChipRects(bodyRect(a.layout()[p.ID]))
+// chipRect is where pane p draws the chip of t's query bar running action.
+func (a *App) chipRect(p *Pane, t *dataTab, action string) uv.Rectangle {
+	return a.queryBar(p, t).ChipRect(bodyRect(a.layout()[p.ID]), action)
 }
 
 // focusedGrid is the focused pane's table, if it shows one: loaded, not
@@ -394,6 +402,7 @@ func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 	switch k {
 	case keymap.Esc:
 		t.stopTyping()
+		return nil
 	case "<CR>":
 		if t.typing == "where" {
 			t.applied = t.where.Text
@@ -411,9 +420,12 @@ func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 		}
 		t.pageNo = max(n-1, 0)
 		return a.fetch(t, false)
-	default:
-		editInput(map[string]*ui.Input{"where": &t.where, "page": &t.pageIn}[t.typing], k)
 	}
+	in := &t.where
+	if t.typing == "page" {
+		in = &t.pageIn
+	}
+	editInput(in, k)
 	return nil
 }
 

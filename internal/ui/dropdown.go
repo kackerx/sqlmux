@@ -25,17 +25,16 @@ type Dropdown struct {
 
 const dropdownRows = 10
 
-// DropdownBox is where a dropdown of n items opens: under anchor and left
-// aligned with it, w wide, moved left to stay on screen; rows is how many
-// items show. hints adds a row for Hints.
-func DropdownBox(screen, anchor uv.Rectangle, w, n int, hints bool) (box uv.Rectangle, rows int) {
+// Box is where d opens: under anchor and left aligned with it, w wide,
+// moved left to stay on screen; rows is how many of its items show.
+func (d Dropdown) Box(screen, anchor uv.Rectangle, w int) (box uv.Rectangle, rows int) {
 	w = min(w, screen.Dx())
 	x := min(anchor.Min.X, screen.Max.X-w)
 	chrome := 4 // border, input, rule | items | border
-	if hints {
+	if len(d.Hints) > 0 {
 		chrome += 2 // rule, hints
 	}
-	rows = max(min(n, dropdownRows, screen.Max.Y-anchor.Max.Y-chrome), 0)
+	rows = max(min(len(d.Items), dropdownRows, screen.Max.Y-anchor.Max.Y-chrome), 0)
 	return uv.Rect(x, anchor.Max.Y, w, rows+chrome), rows
 }
 

@@ -114,14 +114,14 @@ func (a *App) render() *ui.Frame {
 	}
 	if a.drop != nil {
 		d := a.dropView()
-		box, rows := a.dropBox(len(d.Items))
+		box, rows := a.dropBox(d)
 		if c := d.Draw(f, box, rows); c.X >= 0 {
 			f.Cursor = &c
 		}
 	}
 	if a.cols != nil {
 		d := a.colsView()
-		box, rows := a.colsBox(len(d.Items))
+		box, rows := a.colsBox(d)
 		if c := d.Draw(f, box, rows); c.X >= 0 {
 			f.Cursor = &c
 		}

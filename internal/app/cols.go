@@ -38,32 +38,43 @@ func (a *App) colsMatches() []ui.Match {
 	return ms
 }
 
-func (a *App) colsBox(n int) (uv.Rectangle, int) {
+// colsBox is where v, the list as drawn, opens: under the COLS chip.
+func (a *App) colsBox(v ui.Dropdown) (uv.Rectangle, int) {
 	m := a.cols
 	w := 30
 	for _, c := range m.tab.page.Cols {
 		w = max(w, ui.Width(c.Name+"  "+m.tab.typeOf(c.Name))+10) // box, key, borders, padding
 	}
-	return ui.DropdownBox(a.window(), a.chipRects(m.pane, m.tab)[3], w, n, true) // COLS is the fourth chip
+	return v.Box(a.window(), a.chipRect(m.pane, m.tab, "grid.cols"), w)
 }
 
 func (a *App) colsMove(d int) {
 	m := a.cols
 	n := len(a.colsMatches())
-	_, rows := a.colsBox(n)
+	_, rows := a.colsBox(a.colsView())
 	m.sel = max(min(m.sel+d, n-1), 0)
 	m.top = max(min(m.top, m.sel), m.sel-rows+1)
 }
 
-// colsShow shows or hides the columns the filter lets through: one at i, or
-// all of them for i < 0 (a / A: what the filter shows).
-func (a *App) colsShow(i int, show func(hidden bool) bool) {
+// colsToggle shows or hides the column at row i of the list.
+func (a *App) colsToggle(i int) {
+	if ms := a.colsMatches(); i < len(ms) {
+		name := a.cols.tab.page.Cols[ms[i].Index].Name
+		a.colsSet(func(n string) bool { return n == name }, a.cols.tab.hidden[name])
+	}
+}
+
+// colsSetAll shows or hides every column the filter lets through (a / A).
+func (a *App) colsSetAll(show bool) { a.colsSet(func(string) bool { return true }, show) }
+
+// colsSet shows or hides the listed columns which, and moves the cursor off
+// a column it hides.
+func (a *App) colsSet(which func(name string) bool, show bool) {
 	t := a.cols.tab
 	at := t.fieldAt(t.col)
-	for j, m := range a.colsMatches() {
-		if i < 0 || i == j {
-			name := t.page.Cols[m.Index].Name
-			t.hidden[name] = !show(t.hidden[name])
+	for _, m := range a.colsMatches() {
+		if name := t.page.Cols[m.Index].Name; which(name) {
+			t.hidden[name] = !show
 		}
 	}
 	t.col = t.nearestShown(at)
@@ -98,7 +109,7 @@ func (a *App) colsView() ui.Dropdown {
 	ms := a.colsMatches()
 	v := ui.Dropdown{
 		Search: a.icons.Filter, Input: m.filter, Typing: m.typing, Mark: -1, Sel: m.sel, Top: m.top,
-		Checks: []bool{}, Notes: []string{}, Pane: m.pane.ID,
+		Pane:  m.pane.ID,
 		Count: fmt.Sprintf("%d/%d", len(ms), len(t.page.Cols)),
 		Hints: bound(
 			ui.Hint{Key: a.keys.Hint("cols.all", "cols"), Label: "全选", Action: "cols.all"},

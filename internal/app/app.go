@@ -189,7 +189,7 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		case a.drop != nil:
 			return a.dropPick(t.I)
 		case a.cols != nil: // a column's row: show or hide it (Q-04)
-			a.colsShow(t.I, func(hidden bool) bool { return hidden })
+			a.colsToggle(t.I)
 			return nil
 		}
 		return a.paletteRun(t.I, false)
@@ -281,9 +281,9 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 // ponytail: no VISUAL until the console editor (M3).
 func (a *App) mode() keymap.Mode {
 	switch {
-	case a.palette != nil, a.cols != nil && !a.cols.typing: // lists to pick from
+	case a.palette != nil, a.drop != nil, a.cols != nil: // an overlay has the keys (§7.8)
 		return keymap.Command
-	case a.drop != nil, a.cols != nil, a.win().tree.filtering, a.typingTab() != nil:
+	case a.win().tree.filtering, a.typingTab() != nil:
 		return keymap.Insert
 	}
 	return keymap.Normal
@@ -295,10 +295,12 @@ func (a *App) context() keymap.Context {
 	case a.palette != nil:
 		return keymap.Context{Overlay: "palette", Mode: keymap.Command}
 	case a.drop != nil:
-		return keymap.Context{Overlay: "dropdown", Mode: keymap.Insert}
+		return keymap.Context{Overlay: "dropdown", Mode: keymap.Command}
 	case a.cols != nil && !a.cols.typing:
 		return keymap.Context{Overlay: "cols", Mode: keymap.Command}
-	case a.cols != nil, a.win().tree.filtering, a.typingTab() != nil:
+	case a.cols != nil: // its filter: unbound keys are text
+		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Command}
+	case a.win().tree.filtering, a.typingTab() != nil:
 		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Insert}
 	}
 	return keymap.Context{Focus: []string{a.paneScope()}, Pane: a.paneScope()}
