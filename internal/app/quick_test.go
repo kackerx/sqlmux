@@ -155,8 +155,9 @@ func TestQuickSQLHistory(t *testing.T) {
 }
 
 // The word typed completes from the columns of the tables named, fetched
-// once, then the tree's schema's tables and keywords; ↵ runs unless a
-// candidate was picked, esc closes the list first (§12「补全」, §9.7).
+// once, then the tree's schema's tables and keywords; ↵ takes the pick,
+// Tab moves it while the list is up and switches scopes when it isn't, esc
+// closes the list first (§12「补全」, §9.7).
 func TestQuickSQLCompletion(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	table, cols, _ := ordersTable(0)
@@ -177,9 +178,9 @@ func TestQuickSQLCompletion(t *testing.T) {
 	if c == nil || c.items[0].label != "status" || c.items[0].note != "order_status · t_order" {
 		t.Fatalf("after the columns: %+v", c)
 	}
-	feed(t, a, "<Tab>")
-	if a.palette.input.Text != ";select * from t_order where status" || a.palette.comp != nil {
-		t.Fatalf("Tab: %q", a.palette.input.Text)
+	feed(t, a, "<CR>")
+	if a.palette.input.Text != ";select * from t_order where status" || a.palette.comp != nil || a.palette.quick != nil {
+		t.Fatalf("↵: %q", a.palette.input.Text)
 	}
 	feed(t, a, " = 1 and mt_t")
 	if c := a.palette.comp; c == nil || c.items[0].label != "mt_task" || c.items[0].note != "表" {
@@ -189,13 +190,20 @@ func TestQuickSQLCompletion(t *testing.T) {
 	if a.palette == nil || a.palette.comp != nil {
 		t.Fatal("esc closes the list first")
 	}
-	feed(t, a, "<BS>t<CR>")
-	if a.palette.quick == nil || a.palette.quick.running != "select * from t_order where status = 1 and mt_t" {
-		t.Errorf("↵ with nothing picked runs: %+v", a.palette.quick)
+	feed(t, a, "<BS>t<Tab>")
+	if c := a.palette.comp; c == nil || c.sel != 1 || !strings.HasPrefix(a.palette.input.Text, ";") {
+		t.Fatalf("Tab with the list up moves it: %+v, %q", c, a.palette.input.Text)
 	}
-	feed(t, a, " selec<C-n><CR>")
+	feed(t, a, "<Esc><CR>")
+	if a.palette.quick == nil || a.palette.quick.running != "select * from t_order where status = 1 and mt_t" {
+		t.Errorf("↵ with the list closed runs: %+v", a.palette.quick)
+	}
+	feed(t, a, " selec<CR>")
 	if !strings.HasSuffix(a.palette.input.Text, " select") {
-		t.Errorf("↵ takes the picked one: %q", a.palette.input.Text)
+		t.Errorf("↵ takes the first: %q", a.palette.input.Text)
+	}
+	if feed(t, a, "<Tab>"); strings.HasPrefix(a.palette.input.Text, ";") {
+		t.Errorf("Tab with the list closed switches scopes: %q", a.palette.input.Text)
 	}
 	a.palette = nil
 	feed(t, a, "<C-p>;sel<Left><Left><Left><Left><Right>") // into the ; and out: nothing to complete there
@@ -242,7 +250,7 @@ func TestGoldenQuickSQLHistory160x45(t *testing.T) {
 
 func TestGoldenQuickSQL160x45(t *testing.T) {
 	a := sized(160, 45, "nerd")
-	feed(t, a, "<C-p>;select * from t")
+	feed(t, a, "<C-p>;select * from t<Esc>")
 	r := quickResult(100)
 	r.Truncated = true
 	feed(t, a, "<CR>")

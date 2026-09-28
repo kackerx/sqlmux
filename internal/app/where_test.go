@@ -10,27 +10,23 @@ import (
 )
 
 // Completion (§9.7): columns and keywords while a word is typed, an enum's
-// values where one goes; Tab takes the selection, ↵ only one picked on
-// purpose, esc closes the list before the input.
+// values where one goes; the first is picked as the list opens, Tab / S-Tab
+// move, ↵ takes the pick, esc closes the list before the input.
 func TestWhereCompletion(t *testing.T) {
 	a, tab, _ := withRecorder(t, 160, 45)
 	feed(t, a, "/sta")
-	if tab.comp == nil || tab.comp.items[0].label != "status" || a.mode() != keymap.Insert {
+	if tab.comp == nil || tab.comp.items[0].label != "status" || tab.comp.sel != 0 || a.mode() != keymap.Insert {
 		t.Fatalf("sta: %+v", tab.comp)
 	}
 	f := a.render()
-	feed(t, a, "<C-n>") // picked: lit as the selection too
-	if tab.comp.sel != 0 {
-		t.Fatalf("the first C-n picks the first: %d", tab.comp.sel)
-	}
 	at := a.whereAt(a.focused(), tab)
 	row := strings.Split(f.String(), "\n")[at.Y+2] // under the input and the list's border
 	if i := strings.Index(row, "status"); i < 0 || f.Buf.CellAt(ui.Width(row[:i]), at.Y+2).Style.Bg != a.theme.Warn {
 		t.Errorf("the match lit: %q", row)
 	}
-	feed(t, a, "<Tab>")
-	if tab.where.Text != "status" || tab.comp != nil {
-		t.Fatalf("Tab: %q", tab.where.Text)
+	feed(t, a, "<CR>")
+	if tab.where.Text != "status" || tab.comp != nil || tab.applied != "" {
+		t.Fatalf("↵ takes the first: %q applied %q", tab.where.Text, tab.applied)
 	}
 	feed(t, a, " = ")
 	var labels []string
@@ -40,27 +36,29 @@ func TestWhereCompletion(t *testing.T) {
 	if strings.Join(labels, " ") != "pending running done failed" {
 		t.Fatalf("values: %v", labels)
 	}
-	feed(t, a, "<C-p>")
-	if tab.comp.sel != len(tab.comp.items)-1 {
-		t.Fatalf("with none picked, C-p picks the last: %d", tab.comp.sel)
+	for _, c := range []struct {
+		keys string
+		sel  int
+	}{{"<Tab>", 1}, {"<S-Tab>", 0}, {"<S-Tab>", 0}, {"<C-n><Down>", 2}, {"<Up>", 1}, {"<C-p>", 0}, {"<Tab>", 1}} {
+		if feed(t, a, c.keys); tab.comp.sel != c.sel {
+			t.Errorf("%s: sel %d, want %d", c.keys, tab.comp.sel, c.sel)
+		}
 	}
-	tab.comp.chosen = false
-	feed(t, a, "<C-n><CR>") // the first C-n picks the first
-	if tab.where.Text != "status = 'pending'" || tab.applied != "" {
-		t.Fatalf("↵ on a chosen value: %q applied %q", tab.where.Text, tab.applied)
-	}
-	feed(t, a, " and pa")
 	feed(t, a, "<CR>")
-	if tab.applied != "status = 'pending' and pa" || tab.typing != "" {
-		t.Errorf("↵ with nothing chosen runs: %q", tab.applied)
+	if tab.where.Text != "status = 'running'" || tab.applied != "" {
+		t.Fatalf("↵ on running: %q applied %q", tab.where.Text, tab.applied)
 	}
-	feed(t, a, "/ i<Esc>")
+	feed(t, a, " and pa<Esc>")
 	if tab.comp != nil || tab.typing != "where" {
 		t.Fatal("the first esc closes the list")
 	}
-	feed(t, a, "<Esc>")
+	feed(t, a, "<CR>")
+	if tab.applied != "status = 'running' and pa" || tab.typing != "" {
+		t.Errorf("↵ with the list closed runs: %q", tab.applied)
+	}
+	feed(t, a, "/ i<Esc><Esc>")
 	if tab.typing != "" {
-		t.Error("the second leaves the input")
+		t.Error("the second esc leaves the input")
 	}
 }
 

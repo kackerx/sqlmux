@@ -446,10 +446,6 @@ func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 		t.stopTyping()
 		return nil
 	case "<CR>":
-		if t.comp != nil && t.comp.chosen { // only a candidate picked on purpose (§9.7)
-			a.acceptCompletion()
-			return nil
-		}
 		if t.typing == "where" {
 			return a.runWhere(t)
 		}

@@ -17,10 +17,9 @@ import (
 // completion is the candidate list under a WHERE or a quick SQL being
 // typed (§9.7, §12).
 type completion struct {
-	items  []candidate
-	sel    int
-	chosen bool // moved to by key or pointer: then ↵ takes it
-	start  int  // where the text it replaces starts in the input
+	items []candidate
+	sel   int
+	start int // where the text it replaces starts in the input
 }
 
 type candidate struct {
@@ -126,19 +125,8 @@ func (c *completion) accept(in *ui.Input) {
 	in.Pos = c.start + len(cd.insert)
 }
 
-// move moves the selection by d; with none picked yet, down picks the
-// first and up the last, as vim's popup menu does.
-func (c *completion) move(d int) {
-	switch {
-	case c.chosen:
-		c.sel = max(min(c.sel+d, len(c.items)-1), 0)
-	case d > 0:
-		c.sel = 0
-	default:
-		c.sel = len(c.items) - 1
-	}
-	c.chosen = true
-}
+// move moves the selection by d; it starts on the first (§9.7).
+func (c *completion) move(d int) { c.sel = max(min(c.sel+d, len(c.items)-1), 0) }
 
 // whereAt is where pane p's WHERE input starts: lists open under it.
 func (a *App) whereAt(p *Pane, t *dataTab) uv.Position {
@@ -148,10 +136,7 @@ func (a *App) whereAt(p *Pane, t *dataTab) uv.Position {
 // completeView is c as it opens under the input cell at, where what it
 // completes starts.
 func (a *App) completeView(c *completion, at uv.Position) (ui.Complete, uv.Rectangle, int) {
-	v := ui.Complete{Sel: -1} // nothing looks picked until something is: ↵ runs then (§9.7)
-	if c.chosen {
-		v.Sel = c.sel
-	}
+	v := ui.Complete{Sel: c.sel}
 	w := 20
 	for _, cd := range c.items {
 		v.Items = append(v.Items, ui.CompleteItem{Text: cd.label, Pos: cd.pos, Note: cd.note})
