@@ -3,8 +3,6 @@ package ui
 import (
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
-
-	"sqlmux/internal/db"
 )
 
 // Input is a single-line text field (the palette's, a WHERE, a cell being
@@ -56,9 +54,8 @@ func (in *Input) Right() {
 // a dim ↵, §7.6), selected on the select color, scrolled so the cursor
 // stays in view, and returns where the cursor goes.
 func (in Input) Draw(f *Frame, r uv.Rectangle, st uv.Style) uv.Position {
-	shown := func(s string) string { return Cell(db.Val{S: s}) }
 	start := 0
-	for Width(shown(in.Text[start:in.Pos])) >= r.Dx() && start < in.Pos { // the cursor takes a cell too
+	for Width(Printable(in.Text[start:in.Pos])) >= r.Dx() && start < in.Pos { // the cursor takes a cell too
 		gr, _ := ansi.FirstGraphemeCluster(in.Text[start:], ansi.GraphemeWidth)
 		start += len(gr)
 	}
@@ -67,6 +64,6 @@ func (in Input) Draw(f *Frame, r uv.Rectangle, st uv.Style) uv.Position {
 	}
 	mark := st
 	mark.Fg = f.Theme.Dim
-	drawCell(f, r.Min.X, r.Min.Y, r.Max.X, shown(in.Text[start:]), st, mark)
-	return uv.Pos(r.Min.X+Width(shown(in.Text[start:in.Pos])), r.Min.Y)
+	drawCell(f, r.Min.X, r.Min.Y, r.Max.X, Printable(in.Text[start:]), st, mark)
+	return uv.Pos(r.Min.X+Width(Printable(in.Text[start:in.Pos])), r.Min.Y)
 }

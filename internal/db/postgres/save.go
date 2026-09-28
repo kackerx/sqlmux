@@ -51,6 +51,7 @@ func Save(ctx context.Context, w *db.Worker, schema, table string, keyCols []str
 			return err
 		}
 		if _, err := c.Query(ctx, "begin"); err != nil {
+			end("rollback") // a cancel may land once the server has begun
 			return err
 		}
 		for i, r := range rows {

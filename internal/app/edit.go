@@ -177,8 +177,12 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 		t.note, t.noteFg = msg, a.theme.Error
 	default:
 		for k, e := range m.sent {
-			if t.edits[k] == e {
+			switch now, ok := t.edits[k]; {
+			case now == e:
 				delete(t.edits, k)
+			case ok && !e.def: // changed again meanwhile: the row holds what was sent now
+				now.orig = e.val
+				t.edits[k] = now
 			}
 		}
 		cmd := a.fetch(t, true) // the rows may leave the WHERE now

@@ -156,11 +156,11 @@ func TestEditEndsFirst(t *testing.T) {
 	if tab.cell != nil || len(tab.edits) != 2 {
 		t.Fatalf("wheel: %q", editsOf(tab))
 	}
-	feed(t, a, "hiz<C-s>") // C-p is the cell's: its options (§10.2)
-	if tab.cell != nil || len(tab.edits) != 3 {
-		t.Fatalf("C-s: %q", editsOf(tab))
+	feed(t, a, "hiz<C-p>") // a global key: C-n / C-p are the options' only when they are up (§10.2)
+	if tab.cell != nil || a.palette == nil || len(tab.edits) != 3 {
+		t.Fatalf("C-p: %q", editsOf(tab))
 	}
-	feed(t, a, "i<C-c>")
+	feed(t, a, "<Esc>i<C-c>")
 	if tab.cell != nil || a.toast != "" {
 		t.Errorf("C-c: cell %+v, toast %q", tab.cell, a.toast)
 	}
@@ -173,6 +173,10 @@ func TestEditEndsFirst(t *testing.T) {
 	click(a, e.Min) // inside the input: stays
 	if tab.cell == nil {
 		t.Error("a click in the input ended the edit")
+	}
+	feed(t, a, "w")
+	if click(a, uv.Pos(0, 44)); tab.cell != nil || !strings.Contains(editsOf(tab), "1/status=w") {
+		t.Errorf("a click where nothing is: %+v", tab.cell)
 	}
 }
 
@@ -321,7 +325,8 @@ func TestSaveFails(t *testing.T) {
 	}
 }
 
-// Changes made while a save is out stay when it lands (§10.3).
+// Changes made while a save is out stay when it lands (§10.3); one of a
+// cell that was sent is checked against what was sent next time.
 func TestSaveKeepsNewer(t *testing.T) {
 	a, tab, _ := withMain(t, "UPDATE 1")
 	feed(t, a, "lix<Esc>lil<Esc>")
@@ -331,6 +336,9 @@ func TestSaveKeepsNewer(t *testing.T) {
 	a.Update(m)
 	if got := editsOf(tab); !strings.Contains(got, "1/amount=z") || !strings.Contains(got, "2/amount=n") || strings.Contains(got, "status") {
 		t.Errorf("left: %q", got)
+	}
+	if e := tab.edits[editKey{"1", "amount"}]; e.orig.S != "l" {
+		t.Errorf("changed again, the row holds what was sent: orig %+v", e.orig)
 	}
 }
 

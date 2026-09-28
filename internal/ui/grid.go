@@ -62,6 +62,12 @@ func Cell(v db.Val) string {
 	if v.Null {
 		return "<null>"
 	}
+	return Printable(v.S)
+}
+
+// Printable is s as a cell or an input shows it (§7.6): a newline as ↵, a
+// tab as a space, any other control character dropped.
+func Printable(s string) string {
 	return strings.Map(func(r rune) rune {
 		switch {
 		case r == '\n':
@@ -72,7 +78,7 @@ func Cell(v db.Val) string {
 			return -1
 		}
 		return r
-	}, v.S)
+	}, s)
 }
 
 // view is the grid as drawn: screen rows and columns, whichever way the
@@ -369,7 +375,7 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 	}
 	if g.Edit != nil && !edit.Empty() {
 		// over the cell and on to the right as the text needs, up to the edge
-		need := Width(Cell(db.Val{S: g.Edit.Text})) + 3 // a space each side, and the cursor's cell
+		need := Width(Printable(g.Edit.Text)) + 3 // a space each side, and the cursor's cell
 		edit.Max.X = min(max(edit.Max.X, edit.Min.X+need), area.Max.X)
 		f.Region(edit, Target{}) // a click in it is not elsewhere
 		f.Fill(edit, uv.Style{Bg: th.Cursor})

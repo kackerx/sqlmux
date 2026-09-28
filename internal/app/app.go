@@ -187,7 +187,7 @@ func (a *App) press(k keymap.Key) tea.Cmd {
 // same actions keys run.
 func (a *App) click(p uv.Position) tea.Cmd {
 	t, ok := ui.HitAt(a.hits, p)
-	if t != (ui.Target{}) { // not in the cell being edited: the edit ends first (§10.1)
+	if !ok || t != (ui.Target{}) { // not in the cell being edited (a blank target): the edit ends first (§10.1)
 		a.endEdit()
 	}
 	if !ok {
