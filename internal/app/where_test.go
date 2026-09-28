@@ -10,23 +10,34 @@ import (
 )
 
 // Completion (§9.7): columns and keywords while a word is typed, an enum's
-// values where one goes; the first is picked as the list opens, Tab / S-Tab
-// move, ↵ takes the pick, esc closes the list before the input.
+// values where one goes. The first is lit weakly as the list opens and ↵
+// still runs; the first Tab picks it (the first S-Tab the last), then they
+// move; ↵ takes a pick; esc closes the list before the input.
 func TestWhereCompletion(t *testing.T) {
 	a, tab, _ := withRecorder(t, 160, 45)
 	feed(t, a, "/sta")
-	if tab.comp == nil || tab.comp.items[0].label != "status" || tab.comp.sel != 0 || a.mode() != keymap.Insert {
+	if tab.comp == nil || tab.comp.items[0].label != "status" || tab.comp.chosen || a.mode() != keymap.Insert {
 		t.Fatalf("sta: %+v", tab.comp)
 	}
-	f := a.render()
 	at := a.whereAt(a.focused(), tab)
-	row := strings.Split(f.String(), "\n")[at.Y+2] // under the input and the list's border
-	if i := strings.Index(row, "status"); i < 0 || f.Buf.CellAt(ui.Width(row[:i]), at.Y+2).Style.Bg != a.theme.Warn {
-		t.Errorf("the match lit: %q", row)
+	bgOf := func(s string) any {
+		f := a.render()
+		row := strings.Split(f.String(), "\n")[at.Y+2] // under the input and the list's border
+		i := strings.Index(row, s)
+		if i < 0 {
+			t.Fatalf("no %q in %q", s, row)
+		}
+		return f.Buf.CellAt(ui.Width(row[:i])-1, at.Y+2).Style.Bg // the cell before it: the row's, not the match's
+	}
+	if bg := bgOf("status"); bg != a.theme.Row {
+		t.Errorf("weak: %v", bg)
+	}
+	if feed(t, a, "<Tab>"); !tab.comp.chosen || tab.comp.sel != 0 || bgOf("status") != a.theme.Select {
+		t.Fatalf("the first Tab picks the first: %+v", tab.comp)
 	}
 	feed(t, a, "<CR>")
 	if tab.where.Text != "status" || tab.comp != nil || tab.applied != "" {
-		t.Fatalf("↵ takes the first: %q applied %q", tab.where.Text, tab.applied)
+		t.Fatalf("↵ takes the pick: %q applied %q", tab.where.Text, tab.applied)
 	}
 	feed(t, a, " = ")
 	var labels []string
@@ -39,7 +50,7 @@ func TestWhereCompletion(t *testing.T) {
 	for _, c := range []struct {
 		keys string
 		sel  int
-	}{{"<Tab>", 1}, {"<S-Tab>", 0}, {"<S-Tab>", 0}, {"<C-n><Down>", 2}, {"<Up>", 1}, {"<C-p>", 0}, {"<Tab>", 1}} {
+	}{{"<S-Tab>", 3}, {"<Tab>", 3}, {"<C-p><Up>", 1}, {"<S-Tab>", 0}, {"<C-n><Down>", 2}, {"<S-Tab>", 1}} {
 		if feed(t, a, c.keys); tab.comp.sel != c.sel {
 			t.Errorf("%s: sel %d, want %d", c.keys, tab.comp.sel, c.sel)
 		}
@@ -48,15 +59,19 @@ func TestWhereCompletion(t *testing.T) {
 	if tab.where.Text != "status = 'running'" || tab.applied != "" {
 		t.Fatalf("↵ on running: %q applied %q", tab.where.Text, tab.applied)
 	}
-	feed(t, a, " and pa<Esc>")
-	if tab.comp != nil || tab.typing != "where" {
-		t.Fatal("the first esc closes the list")
+	feed(t, a, " and pa")
+	if tab.comp == nil {
+		t.Fatal("pa: no list")
 	}
 	feed(t, a, "<CR>")
 	if tab.applied != "status = 'running' and pa" || tab.typing != "" {
-		t.Errorf("↵ with the list closed runs: %q", tab.applied)
+		t.Errorf("↵ with nothing picked runs: %q", tab.applied)
 	}
-	feed(t, a, "/ i<Esc><Esc>")
+	feed(t, a, "/ i<Esc>")
+	if tab.comp != nil || tab.typing != "where" {
+		t.Fatal("the first esc closes the list")
+	}
+	feed(t, a, "<Esc>")
 	if tab.typing != "" {
 		t.Error("the second esc leaves the input")
 	}

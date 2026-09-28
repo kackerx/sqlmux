@@ -358,11 +358,19 @@ func (a *App) paletteDo(it paletteItem, newTab bool) tea.Cmd {
 	return nil
 }
 
-// paletteKey edits the palette's input. With quick SQL's candidates up,
-// esc closes the list first (§9.7).
+// paletteKey edits the palette's input. With quick SQL's candidates up, ↵
+// takes the one picked on purpose, else runs, and esc closes the list
+// first (§9.7).
 func (a *App) paletteKey(k keymap.Key) tea.Cmd {
 	p := a.palette
-	if p.comp != nil && k == keymap.Esc {
+	switch {
+	case p.comp != nil && k == "<CR>" && p.comp.chosen:
+		a.acceptCompletion()
+		return nil
+	case p.comp != nil && k == "<CR>":
+		p.comp = nil
+		return a.paletteRun(p.sel, false)
+	case p.comp != nil && k == keymap.Esc:
 		p.comp = nil
 		return nil
 	}

@@ -446,6 +446,10 @@ func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 		t.stopTyping()
 		return nil
 	case "<CR>":
+		if t.comp != nil && t.comp.chosen { // only one picked on purpose: a fuzzy match can be anything (§9.7)
+			a.acceptCompletion()
+			return nil
+		}
 		if t.typing == "where" {
 			return a.runWhere(t)
 		}

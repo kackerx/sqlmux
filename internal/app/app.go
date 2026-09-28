@@ -126,7 +126,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow { // hover selects (K-03, §9.7)
 			switch c := a.completing(); {
 			case c != nil:
-				c.sel = t.I
+				c.sel, c.chosen = t.I, true
 			case a.palette != nil:
 				a.palette.sel = t.I
 			}
@@ -324,7 +324,7 @@ func (a *App) mode() keymap.Mode {
 // context tells the keymap which scopes apply to the next key (§6.4).
 func (a *App) context() keymap.Context {
 	switch typing := a.typingTab(); {
-	case a.palette != nil && a.palette.comp != nil: // esc is the input's, as in a WHERE (§9.7)
+	case a.palette != nil && a.palette.comp != nil: // ↵ and esc are the input's, as in a WHERE (§9.7)
 		return keymap.Context{Overlay: "complete", Focus: []string{"input"}, Mode: keymap.Command}
 	case a.palette != nil:
 		return keymap.Context{Overlay: "palette", Mode: keymap.Command}

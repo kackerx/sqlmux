@@ -16,7 +16,8 @@ type CompleteItem struct {
 // completion candidates, and the WHERE history.
 type Complete struct {
 	Items    []CompleteItem
-	Sel, Top int // Sel -1: nothing picked yet
+	Sel, Top int  // Sel -1: nothing picked yet
+	Soft     bool // Sel is only where Tab goes, lit weakly (row, not select)
 }
 
 const completeRows = 8
@@ -50,8 +51,11 @@ func (c Complete) Draw(f *Frame, box uv.Rectangle, rows int) {
 			continue
 		}
 		st := uv.Style{Fg: th.Fg, Bg: th.PaneBg}
-		if f.Region(line, Target{Kind: KindRow, I: i}) || i == c.Sel {
+		switch hover := f.Region(line, Target{Kind: KindRow, I: i}); {
+		case hover, i == c.Sel && !c.Soft:
 			st.Bg = th.Select
+		case i == c.Sel:
+			st.Bg = th.Row
 		}
 		f.Fill(line, st)
 		nx := x1 - 1 - Width(it.Note)
