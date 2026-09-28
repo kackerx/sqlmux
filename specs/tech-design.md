@@ -162,6 +162,15 @@ Tab 的种类：
 - `ConsoleTab`：文件路径、`*editor.Buffer`、所选的 schema（仅 PG，§8.6）、它在结果区里的结果 tab。
 - `ResultTab`：来源 console、执行序号、`*db.Result`、`GridState`、是否固定。
 
+**表格和 console 可以放在同一个 pane 的不同 tab 里**（M3 F3.4 起，用户要求，与 DataGrip 一致）：
+
+- 除结果区外，pane 不再分 data / console 类型。pane 的标题图标、右侧提示（`▶ run`、schema 下拉）、按键作用域都跟着当前 tab 的类型走；tab 栏每个 tab 前面画类型图标。`Pane.Kind` 只剩「普通 / 结果区」之分，M0 修剪时说的那几张按 PaneKind 下标的并行表随之删掉。
+- 结果区照旧是独立的 pane，只放结果 tab；console 的执行结果不论 console 在哪个 pane，都进底部结果区（§11）。
+- 打开表时当前 tab 是 console：`↵` 不替换它，改为在这个 pane 新开一个 tab。console 里是用户写的 SQL，不能被一张表顶掉。
+- 快速 SQL 的 `C-e`（在 console 中打开）在目标 pane 新开一个 console tab。
+- 目录树的工作区里，pane 节点不再标类型，tab 节点按各自的类型显示图标。
+- **引导页**：没有 tab 的 pane、点 `+` 新开的 tab、分割出来的新 pane，都显示同一个引导页，不再是空白。内容区中间两个按钮：「打开表」打开命令面板的表范围，选中的表开在这里；「新建 console」直接在这里开一个 console。按钮可点击，旁边的键位文字从 keymap 读。它取代 M1 里「`+` 聚焦树的过滤框」的做法：面板的表范围能跨 schema 模糊搜，更适合挑表。
+
 默认 window 的布局：
 
 ```
@@ -176,7 +185,7 @@ Window
 
 布局树的操作写在 `internal/app/layout.go` 里，都是纯函数，可以单测：
 
-- **分割**：把叶子替换成 `Node{A: 原叶子, B: 新叶子}`。新 pane 是与原 pane 同类型的空 pane（没有 tab，样式见 §7.8），焦点移到新 pane。
+- **分割**：把叶子替换成 `Node{A: 原叶子, B: 新叶子}`。新 pane 是与原 pane 同类型的空 pane（没有 tab，样式见 §7.8），焦点移到新 pane。M3 起新 pane 显示引导页（见上文「表格和 console 可以放在同一个 pane」）。
 - **关闭**：用兄弟节点替换父节点。
 - **调整大小**：修改该方向上最近的祖先分割节点的 `Ratio`。
   - 每按一次移动 5%，乘以次数前缀（`3 SPC L` 移动 15%）；比例限制在 10%–90%。

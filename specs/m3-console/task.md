@@ -99,6 +99,11 @@
 - **文件**：
   - 自动保存（1s）；`:w`、`C-s` 立即写入；
   - 保存路径在 `$XDG_DATA_HOME/sqlmux/consoles/` 下。
+- **与表格混放 tab**（§5「表格和 console 可以放在同一个 pane」，M1 用户验收时定）：
+  - pane 不再分 data / console 类型，标题、提示、作用域跟着当前 tab；tab 栏每个 tab 画类型图标；删掉按 PaneKind 下标的并行表；
+  - 当前 tab 是 console 时打开表，新开 tab 而不是替换；
+  - 引导页：空 pane、`+` 新开的 tab、分割出的新 pane 显示「打开表」「新建 console」两个按钮，取代 M1 的「`+` 聚焦树的过滤框」；
+  - 目录树工作区的 tab 节点按类型显示图标。
 - **其他**：
   - 支持 `[map.console.*]` 映射；
   - 提供「Edit in $EDITOR」命令；
@@ -110,7 +115,9 @@
   - 输入 SQL 后，高亮颜色正确；每条语句的第一行显示 ▶；光标所在语句的范围被高亮；
   - 拖动能选中文本；
   - 文件保存到隔离后的 `XDG_DATA_HOME` 下；
-  - 在 NORMAL 下粘贴，内容作为文本插入。
+  - 在 NORMAL 下粘贴，内容作为文本插入；
+  - 同一个 pane 里开一个表 tab 和一个 console tab，来回切换时标题图标、`▶ run`、按键作用域跟着变；当前 tab 是 console 时从树按 `↵` 打开表，console 还在，表在新 tab 里；
+  - 点 `+` 出现引导页，点「打开表」选一张表后开在这个 tab 里，点「新建 console」开出 console。
 - [ ] 补回 M0 里因 F1.1 去掉假 console 而删掉的 22 项 e2e（tester 在 F1.1 结论里列出，2026-09-24）：
   - f0.2：data:console = 5:4；console 未聚焦的边框 / 标题色；160 与 200 宽的 console 标题（对象名 + `doraemon.public ▾` + `▶ run ↵`）及其样式；140 / 130 / 100 / 60 宽的退让；80–110 宽仍显示 `▶ run ↵`；65–85 宽不单独出现 `↵`；220…60 宽 no_wasted_room；80 宽 console 标题；
   - f0.3：改绑 `console.run` 为 `R` 后标题显示 `▶ run R`；
