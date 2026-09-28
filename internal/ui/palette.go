@@ -107,17 +107,16 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 		right := tag - 2 - Width(r.Right)
 		f.Text(right, y, tag, r.Right, faint)
 		f.Text(x0, y, right-1, r.Icon.Text, r.Icon.On(st))
-		name := Truncate(r.Name, nameW)
 		nameEnd := len([]rune(r.Name)) // Where's positions come after Name and the space
 		var inName, inWhere []int
 		for _, i := range r.Pos {
-			switch {
-			case i > nameEnd:
+			if i > nameEnd {
 				inWhere = append(inWhere, i-nameEnd-1)
-			case name == r.Name || i < len([]rune(name))-1: // not under the …
+			} else {
 				inName = append(inName, i)
 			}
 		}
+		name, inName := TruncateMatch(r.Name, inName, nameW)
 		nx := x0 + iconW + 1
 		f.TextMatch(nx, y, min(nx+nameW, right-1), name, inName, st, hl)
 		f.TextMatch(nx+nameW+2, y, right-1, r.Where, inWhere, faint, hl)

@@ -74,6 +74,24 @@ func TestGoldenTableTransposed160x45(t *testing.T) {
 	golden.RequireEqual(t, a.render().String())
 }
 
+// Two tabs, back on the first: the tab bar marks the current one * and the
+// previous one - (T-01).
+func TestGoldenTabs160x45(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	loadOrders(t, a, 60)
+	feed(t, a, "<C-p>@t_user<C-t>gT")
+	golden.RequireEqual(t, a.render().String())
+}
+
+// A table open in two tabs, one of them filtered: the palette lists them
+// to pick one (§7.8「打开已有的表」).
+func TestGoldenTabPick160x45(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	loadOrders(t, a, 60).shown.applied = "status = 'done'"
+	feed(t, a, "<C-p>@t_order<C-t><C-p>@t_order<CR>")
+	golden.RequireEqual(t, a.render().String())
+}
+
 // A fetch shows busy until it answers; an answer to an older request is
 // dropped (§8.3).
 func TestGridFetch(t *testing.T) {

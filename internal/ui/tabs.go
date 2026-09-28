@@ -40,7 +40,7 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		x = f.Text(x, y, r.Max.X, "│", uv.Style{Fg: th.Sep, Bg: th.Bg})
 	}
 	plus := base
-	if f.Region(uv.Rect(x, y, min(3, r.Max.X-x), 1), Target{Kind: KindTab, Pane: t.Pane, I: -1}) {
+	if f.Region(uv.Rect(x, y, min(3, r.Max.X-x), 1), Target{Kind: KindHint, Pane: t.Pane, Action: "tab.new"}) {
 		plus.Bg = th.Select
 	}
 	x = f.Text(x, y, r.Max.X, " + ", plus)

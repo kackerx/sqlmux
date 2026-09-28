@@ -224,8 +224,13 @@ func (a *App) click(p uv.Position) tea.Cmd {
 			return tea.Batch(focus(), a.run("pane.zoom", 0))
 		}
 		return focus()
-	case ui.KindPane, ui.KindTab:
+	case ui.KindPane:
 		return focus()
+	case ui.KindTab:
+		a.focusPane(t.Pane)
+		if p := a.focused(); p.ID == t.Pane {
+			selectTab(p, t.I)
+		}
 	case ui.KindTreeEdge:
 		a.dragTree = true
 	case ui.KindBorder:

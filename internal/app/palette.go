@@ -17,7 +17,8 @@ import (
 // palette is the open command palette (§12).
 type palette struct {
 	input    ui.Input
-	sel, top int // selected candidate, first one shown
+	sel, top int       // selected candidate, first one shown
+	pick     *db.Table // listing its tabs instead, to pick one: it is open in several (§7.8「打开已有的表」)
 }
 
 // itemKind is what a palette row stands for (K-03), in the order an empty
@@ -29,9 +30,10 @@ const (
 	itemPane
 	itemTable
 	itemCommand
+	itemTab // an open tab of the table being picked
 )
 
-var itemTags = [...]string{itemWindow: "窗口", itemPane: "Pane", itemTable: "表", itemCommand: "命令"}
+var itemTags = [...]string{itemWindow: "窗口", itemPane: "Pane", itemTable: "表", itemCommand: "命令", itemTab: "tab"}
 
 // scopes are the palette's tabs (K-02). The prefix typed in the input is the
 // only scope state: Tab rewrites it, and `:` is `>` typed (§12).
@@ -63,7 +65,7 @@ func (it paletteItem) key() itemKey { return itemKey{it.kind, it.id} }
 
 // recent is how state.json keeps it (§14).
 func (it paletteItem) recent() config.Recent {
-	kind := [...]string{itemWindow: "window", itemPane: "pane", itemTable: "table", itemCommand: "command"}[it.kind]
+	kind := [...]string{itemWindow: "window", itemPane: "pane", itemTable: "table", itemCommand: "command", itemTab: "tab"}[it.kind]
 	return config.Recent{Kind: kind, ID: it.id}
 }
 
@@ -132,12 +134,18 @@ func (a *App) paletteItems() []paletteItem {
 }
 
 // paletteMatches ranks the candidates in scope for what is typed: fzf over
-// "name where", every kind mixed by score (§12).
+// "name where", every kind mixed by score (§12). Picking a tab, they are
+// the tabs.
 func (a *App) paletteMatches() (items []paletteItem, ms []ui.Match) {
 	scope, query := a.paletteScope()
-	for _, it := range a.paletteItems() {
-		if kinds := scopes[scope].kinds; kinds == nil || slices.Contains(kinds, it.kind) {
-			items = append(items, it)
+	switch t := a.palette.pick; {
+	case t != nil:
+		items, query = a.tabItems(*t), a.palette.input.Text
+	default:
+		for _, it := range a.paletteItems() {
+			if kinds := scopes[scope].kinds; kinds == nil || slices.Contains(kinds, it.kind) {
+				items = append(items, it)
+			}
 		}
 	}
 	texts := make([]string, len(items))
@@ -152,6 +160,24 @@ func (a *App) paletteMatches() (items []paletteItem, ms []ui.Match) {
 	return items, ms
 }
 
+// tabItems is the window's tabs of t: where each is, "① · 2", and what it
+// shows when not all rows in the default order, in dim (§7.8「打开已有的表」).
+func (a *App) tabItems(t db.Table) []paletteItem {
+	var items []paletteItem
+	for k, at := range a.tabsOf(t) {
+		where := []string{a.icons.Number(at.n) + " · " + strconv.Itoa(at.i+1)}
+		s := at.p.Tabs[at.i].Data.shown
+		if strings.TrimSpace(s.applied) != "" {
+			where = append(where, s.applied)
+		}
+		if s.order != "" {
+			where = append(where, sortedBy(s.order, s.desc))
+		}
+		items = append(items, paletteItem{itemTab, strconv.Itoa(k), a.icons.Table, t.Name, strings.Join(where, " · ")})
+	}
+	return items
+}
+
 // paletteView is what the palette draws.
 func (a *App) paletteView() ui.Palette {
 	items, ms := a.paletteMatches()
@@ -159,6 +185,9 @@ func (a *App) paletteView() ui.Palette {
 	p := ui.Palette{Search: a.icons.Search, Input: a.palette.input, Scope: scope, Sel: a.palette.sel, Top: a.palette.top}
 	for _, s := range scopes {
 		p.Scopes = append(p.Scopes, strings.TrimSpace(s.label+" "+s.prefix)) // "表 @": the tab says what to type
+	}
+	if a.palette.pick != nil { // no scopes: only the tabs are there to pick
+		p.Scopes, p.Scope = []string{"选择 tab"}, 0
 	}
 	for _, m := range ms {
 		it := items[m.Index]
@@ -171,19 +200,23 @@ func (a *App) paletteView() ui.Palette {
 		}
 		p.Rows = append(p.Rows, ui.PaletteRow{Icon: it.icon, Name: it.name, Where: it.where, Pos: m.Pos, Right: right, Tag: itemTags[it.kind]})
 	}
+	scopeKeys := a.hints("palette", "/", "palette.scope.next", "palette.scope.prev")
+	if a.palette.pick != nil {
+		scopeKeys = ""
+	}
 	p.Footer = bound(
 		ui.Hint{Key: a.hints("palette", "/", "palette.up", "palette.down"), Label: "移动"},
-		ui.Hint{Key: a.hints("palette", "/", "palette.scope.next", "palette.scope.prev"), Label: "范围"},
+		ui.Hint{Key: scopeKeys, Label: "范围"},
 		ui.Hint{Key: a.keys.Hint("palette.close", "palette"), Label: "关闭", Action: "palette.close"},
 	)
 	if a.palette.sel < len(ms) {
 		it := items[ms[a.palette.sel].Index]
-		enter := [...]string{itemWindow: "切换", itemPane: "聚焦", itemTable: "打开", itemCommand: "执行"}[it.kind]
+		enter := [...]string{itemWindow: "切换", itemPane: "聚焦", itemTable: "打开", itemCommand: "执行", itemTab: "切过去"}[it.kind]
 		if it.kind == itemCommand && actions[it.id].On != nil {
 			enter = "切换"
 		}
 		p.Enter = bound(ui.Hint{Key: a.keys.Hint("palette.run", "palette"), Label: enter, Action: "palette.run"})
-		if it.kind == itemTable {
+		if it.kind == itemTable || it.kind == itemTab {
 			p.Enter = append(p.Enter, bound(ui.Hint{Key: a.keys.Hint("palette.open.tab", "palette"), Label: "新 tab", Action: "palette.open.tab"})...)
 		}
 	}
@@ -213,6 +246,9 @@ func (a *App) paletteMove(d int) {
 // paletteScopeTo switches to scope i, wrapping around, by rewriting the
 // input's prefix; what was typed after it stays.
 func (a *App) paletteScopeTo(i int) {
+	if a.palette.pick != nil {
+		return
+	}
 	scope, query := a.paletteScope()
 	i = (i + len(scopes)) % len(scopes)
 	pos := max(a.palette.input.Pos-len(scopes[scope].prefix), 0) + len(scopes[i].prefix)
@@ -220,11 +256,21 @@ func (a *App) paletteScopeTo(i int) {
 	a.palette.sel, a.palette.top = 0, 0
 }
 
-// paletteRun runs candidate i (K-04); newTab is C-t, which only tables take.
+// paletteRun runs candidate i (K-04); newTab is C-t, which only tables and
+// the tab being picked take.
 // A toggle leaves the palette open, so its ON / OFF can be seen to change
 // (§12); a window only closes it until windows can switch (M5).
 func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 	items, ms := a.paletteMatches()
+	if t := a.palette.pick; t != nil && (newTab || i < len(ms)) { // C-t opens t again whatever is picked
+		a.palette = nil
+		if newTab {
+			return a.openTable(*t, true)
+		}
+		k, _ := strconv.Atoi(items[ms[i].Index].id)
+		a.showTab(a.tabsOf(*t)[k])
+		return nil
+	}
 	if i >= len(ms) {
 		return nil
 	}

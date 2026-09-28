@@ -85,7 +85,9 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 		cx := right - Width(rows)
 		x := f.Text(list.Min.X+1, row, right, t.Icons.Table.Text, t.Icons.Table.On(icon))
 		x = f.Text(x, row, right, " ", icon)
-		f.TextMatch(x, row, cx-1, it.Name, it.Pos, name, hl)
+		// cut with …, as titles and the palette are: mv_order_by_stat would read as another table (§7.8)
+		n, pos := TruncateMatch(it.Name, it.Pos, cx-1-x)
+		f.TextMatch(x, row, cx-1, n, pos, name, hl)
 		f.Text(cx, row, right, rows, uv.Style{Fg: th.Border, Bg: bg})
 	}
 	if in.Dy() >= 4 {

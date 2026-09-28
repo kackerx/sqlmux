@@ -270,11 +270,7 @@ func (a *App) histView(p *Pane, t *dataTab) (ui.Complete, uv.Rectangle, int) {
 func queryNote(q config.Query) string {
 	var parts []string
 	if q.Order != "" {
-		dir := " ↑"
-		if q.Desc {
-			dir = " ↓"
-		}
-		parts = append(parts, q.Order+dir)
+		parts = append(parts, sortedBy(q.Order, q.Desc))
 	}
 	if q.Limit != 0 {
 		parts = append(parts, strconv.Itoa(q.Limit))

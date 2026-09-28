@@ -294,17 +294,23 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 	return g
 }
 
+// sortedBy is an ORDER as the query bar shows it: "id ↑", "amount ↓".
+func sortedBy(col string, desc bool) string {
+	if desc {
+		return col + " ↓"
+	}
+	return col + " ↑"
+}
+
 // queryBar is the two rows over t's table (§7.8「查询条」).
 func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	ic := a.icons
 	order := "—" // no row identity to sort by
 	switch s, key := t.shown, t.cols.Key(); {
-	case s.order != "" && s.desc:
-		order = s.order + " ↓"
 	case s.order != "":
-		order = s.order + " ↑"
+		order = sortedBy(s.order, s.desc)
 	case key != nil:
-		order = strings.Join(key, ",") + " ↑"
+		order = sortedBy(strings.Join(key, ","), false)
 	}
 	pages := "?"
 	if n, ok := t.pages(); ok {

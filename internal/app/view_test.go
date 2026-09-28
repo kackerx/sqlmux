@@ -159,7 +159,7 @@ func TestEmptyPane(t *testing.T) {
 	}
 	plus := false
 	for _, h := range f.Hits {
-		plus = plus || h.Target.Kind == ui.KindTab && h.Target.Pane == p.ID && h.Target.I == -1
+		plus = plus || h.Target == ui.Target{Kind: ui.KindHint, Pane: p.ID, Action: "tab.new"}
 	}
 	if !plus {
 		t.Error("the + has no hit region")

@@ -51,6 +51,7 @@ type Window struct {
 	Focus    int // pane ID
 	Zoom     int // zoomed pane ID; 0 = none (P-03)
 	lastID   int // highest pane ID handed out
+	newTabIn int // the pane whose + was clicked: the table picked next opens in a new tab there; 0 for none
 
 	focusTick int
 	focusedAt map[int]int // pane ID → focusTick when it last got focus
@@ -58,14 +59,17 @@ type Window struct {
 
 // focus moves focus to pane id, remembering when: moving by direction
 // prefers the neighbour focused most recently (§5). Leaving a pane leaves
-// its input too: the tree's filter row, a table's query bar.
+// its input too: the tree's filter row, a table's query bar. Leaving the
+// tree drops what a + asked of it.
 func (w *Window) focus(id int) {
 	if w.focusedAt == nil {
 		w.focusedAt = map[int]int{}
 	}
 	w.focusTick++
 	w.Focus, w.focusedAt[id] = id, w.focusTick
-	w.tree.filtering = w.tree.filtering && id == w.Tree.ID
+	if id != w.Tree.ID {
+		w.tree.filtering, w.newTabIn = false, 0
+	}
 	for _, p := range w.Root.Leaves() {
 		if t := dataOf(p); t != nil && p.ID != id {
 			t.stopTyping()
@@ -125,13 +129,26 @@ func (s *Session) Close() {
 	s.Meta.Close()
 }
 
-// openTable shows table t in openTarget's pane, focuses it (§7.8, §12) and
-// fetches its first page: in place of its current tab, or in a new tab it
-// switches to.
+// openTable shows table t and focuses where it shows (§7.8「打开已有的表」,
+// §12). A new tab (C-t, the tree's t, the table picked after a +) opens in
+// openTarget's pane. Else a tab of the window that has t is switched to,
+// or, with several, picked from the palette; with none, t's first page is
+// fetched in place of the target's current tab.
 func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 	p := a.openTarget()
 	if p == nil {
 		return nil
+	}
+	if newTab = newTab || a.win().newTabIn == p.ID; !newTab {
+		switch open := a.tabsOf(t); len(open) {
+		case 0:
+		case 1:
+			a.showTab(open[0])
+			return nil
+		default:
+			a.palette = &palette{pick: &t}
+			return nil
+		}
 	}
 	a.showPane(p.ID)
 	tab := Tab{Name: t.Name, Data: newDataTab(t)}
@@ -147,6 +164,69 @@ func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 		p.Cur = len(p.Tabs) - 1
 	}
 	return a.fetch(tab.Data, true)
+}
+
+// tabAt is a tab of the window: tab i of pane p, which is ⟨n⟩.
+type tabAt struct {
+	p    *Pane
+	n, i int
+}
+
+// tabsOf is the window's tabs of table t, in ⟨n⟩ and then tab order.
+func (a *App) tabsOf(t db.Table) []tabAt {
+	var out []tabAt
+	for n, p := range a.panesByNumber() {
+		for i, tb := range p.Tabs {
+			if tb.Data != nil && idOf(tb.Data.table) == idOf(t) {
+				out = append(out, tabAt{p, n, i})
+			}
+		}
+	}
+	return out
+}
+
+// showTab focuses the tab's pane and switches to it.
+func (a *App) showTab(at tabAt) {
+	a.showPane(at.p.ID)
+	selectTab(at.p, at.i)
+}
+
+// selectTab makes tab i pane p's current one; the one it was becomes the
+// previous, the - (T-01). What was being typed in it goes, as when its pane
+// loses focus.
+func selectTab(p *Pane, i int) {
+	if i == p.Cur || i < 0 || i >= len(p.Tabs) {
+		return
+	}
+	if t := dataOf(p); t != nil {
+		t.stopTyping()
+	}
+	p.Prev, p.Cur = p.Cur, i
+}
+
+// cycleTab is gt (d 1) and gT (d -1) on the focused pane, as in vim: the
+// next or previous tab, around the ends; with a count gt goes to tab count
+// and gT back count tabs.
+func (a *App) cycleTab(d, count int) {
+	p := a.focused()
+	if n := len(p.Tabs); d > 0 && count > 0 {
+		selectTab(p, count-1)
+	} else if n > 0 {
+		selectTab(p, ((p.Cur+d*max(count, 1))%n+n)%n)
+	}
+}
+
+// newTab is tab.new, a tab bar's +: the tree's filter takes the keys, and
+// the table picked next opens in a new tab of the pane it is for (§7.8).
+func (a *App) newTab() {
+	p := a.openTarget()
+	if p == nil {
+		return
+	}
+	a.treeFilter()
+	if win := a.win(); win.Focus == win.Tree.ID {
+		win.newTabIn = p.ID
+	}
 }
 
 // closeTab closes the focused pane's current tab (:q). Closing the last tab

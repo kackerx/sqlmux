@@ -6,7 +6,7 @@
 │ + goal            57 │ │                                                     │
 │ + mt_task        812 │ │                                                     │
 │ + mt_task_log    96k │ │                                                     │
-│ + schema_migratio 88 │ │                                                     │
+│ + schema_migrati… 88 │ │                                                     │
 │ + t_order       1.2m │ │                                                     │
 │ + t_order_item  3.4m │ │                                                     │
 │ + t_payment     410k │ │                                                     │

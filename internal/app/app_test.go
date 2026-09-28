@@ -357,6 +357,139 @@ func TestCloseTabPicksNext(t *testing.T) {
 	}
 }
 
+// gt / gT go round the focused pane's tabs as in vim; with a count gt goes
+// to that tab and gT back that many (§7.8「tab 栏」).
+func TestTabCycle(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	p := a.focused()
+	feed(t, a, "gt")
+	if p.Cur != 0 || p.Prev != -1 {
+		t.Fatalf("an empty pane: cur %d prev %d", p.Cur, p.Prev)
+	}
+	for _, n := range []string{"a", "b", "c", "d"} {
+		p.Tabs = append(p.Tabs, Tab{Name: n})
+	}
+	for _, c := range []struct {
+		keys      string
+		cur, prev int
+	}{
+		{"gt", 1, 0}, {"gt", 2, 1}, {"gt", 3, 2}, {"gt", 0, 3}, // around the end
+		{"gT", 3, 0}, {"3gt", 2, 3}, {"9gt", 2, 3}, // past the last tab: no move
+		{"2gT", 0, 2}, {"3gT", 1, 0}, // around the start
+	} {
+		if feed(t, a, c.keys); p.Cur != c.cur || p.Prev != c.prev {
+			t.Errorf("%s: cur %d prev %d, want %d %d", c.keys, p.Cur, p.Prev, c.cur, c.prev)
+		}
+	}
+	a.win().focus(0)
+	if feed(t, a, "gt"); p.Cur != 1 {
+		t.Error("gt in the tree moved the data pane's tabs")
+	}
+}
+
+// Opening a table the window has a tab of switches to that tab, fetching
+// nothing; with several, the palette lists them to pick one, and C-t opens
+// it again (§7.8「打开已有的表」).
+func TestOpenExistingTab(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	left := a.focused()
+	feed(t, a, "<C-p>@t_user<CR><C-p>@t_sku<C-t><Space>%<C-p>@t_user<CR>")
+	if a.win().Focus != left.ID || tabNames(left) != "t_user t_sku" || left.Cur != 0 || left.Prev != 1 || a.busy != 2 {
+		t.Fatalf("one t_user: focus %d tabs %v cur %d prev %d, %d fetches", a.win().Focus, tabNames(left), left.Cur, left.Prev, a.busy)
+	}
+	feed(t, a, "<C-l><C-p>@t_user<C-t>") // C-t: always a new tab
+	right := a.focused()
+	right.Tabs[0].Data.shown = request{applied: "id > 1", order: "id", desc: true}
+	feed(t, a, "<C-p>@t_user<CR>")
+	if a.palette == nil || a.palette.pick == nil || a.busy != 3 {
+		t.Fatalf("two t_user: no pick, %d fetches", a.busy)
+	}
+	if got := strings.Join(rowsOf(a), " | "); got != "① · 1= | ② · 1 · id > 1 · id ↓=" {
+		t.Errorf("rows %q", got)
+	}
+	if v := a.paletteView(); len(v.Scopes) != 1 || len(v.Enter) != 2 || v.Enter[0].Label != "切过去" {
+		t.Errorf("scopes %v, enter %v", v.Scopes, v.Enter)
+	}
+	feed(t, a, "<C-n><CR>")
+	if a.palette != nil || a.win().Focus != right.ID || right.Cur != 0 {
+		t.Fatalf("↵ on the second: focus %d, want %d", a.win().Focus, right.ID)
+	}
+	feed(t, a, "<C-p>@t_user<CR><C-t>")
+	if tabNames(right) != "t_user t_user" || right.Cur != 1 || a.busy != 4 {
+		t.Errorf("C-t in the pick: tabs %v cur %d, %d fetches", tabNames(right), right.Cur, a.busy)
+	}
+	a.win().focus(0)
+	a.win().tree.cursor = slices.IndexFunc(a.sess.Tables[1:], func(t db.Table) bool { return t.Name == "t_user" })
+	if feed(t, a, "<CR>"); a.palette == nil || a.palette.pick == nil || len(rowsOf(a)) != 3 {
+		t.Fatal("the tree's ↵ picks too")
+	}
+	feed(t, a, "<Esc>t") // t: a new tab, no pick
+	if a.palette != nil || tabNames(left) != "t_user t_sku t_user" {
+		t.Errorf("the tree's t: tabs %v", tabNames(left))
+	}
+	a.sess.Tables = append(a.sess.Tables, db.Table{Schema: "agentable", Name: "t_user"})
+	feed(t, a, "<C-p>@t_user agentable<CR>") // the same name in another schema is another table
+	if a.palette != nil || tabNames(left) != "t_user t_sku t_user" || dataOf(left).table.Schema != "agentable" {
+		t.Errorf("agentable.t_user: tabs %v, schema %s", tabNames(left), dataOf(left).table.Schema)
+	}
+}
+
+// A click on a tab switches to it and focuses its pane; what was typed in
+// the tab it leaves goes.
+func TestClickTab(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	p := a.focused()
+	feed(t, a, "<C-p>@t_user<CR><C-p>@t_sku<C-t>/x")
+	left := dataOf(p)
+	click(a, find(t, a, ui.Target{Kind: ui.KindTab, Pane: p.ID, I: 0}).Min)
+	if p.Cur != 0 || p.Prev != 1 || left.typing != "" || left.where.Text != "" {
+		t.Fatalf("cur %d prev %d, left tab typing %q %q", p.Cur, p.Prev, left.typing, left.where.Text)
+	}
+	a.win().focus(0)
+	click(a, find(t, a, ui.Target{Kind: ui.KindTab, Pane: p.ID, I: 1}).Min)
+	if p.Cur != 1 || a.win().Focus != p.ID {
+		t.Errorf("from the tree: cur %d focus %d", p.Cur, a.win().Focus)
+	}
+}
+
+// + puts the keys in the tree's filter; the table picked next, in the tree
+// or the palette, opens in a new tab of the pane whose + it was. Leaving
+// the tree forgets it (§7.8「tab 栏」).
+func TestTabNewPlus(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	left := a.focused()
+	feed(t, a, "<C-p>@t_user<CR><Space>%") // the new, empty pane on the right has focus
+	plus := func(p int) {
+		click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: p, Action: "tab.new"}).Min)
+		if win := a.win(); win.Focus != win.Tree.ID || !win.tree.filtering || win.newTabIn != p {
+			t.Fatalf("+ of %d: focus %d filtering %v newTab %d", p, win.Focus, win.tree.filtering, win.newTabIn)
+		}
+	}
+	plus(left.ID)
+	feed(t, a, "t_user<CR><CR>") // keep the filter, open its first match
+	if tabNames(left) != "t_user t_user" || left.Cur != 1 || a.win().Focus != left.ID || a.win().newTabIn != 0 {
+		t.Fatalf("tree ↵: tabs %v cur %d focus %d newTab %d", tabNames(left), left.Cur, a.win().Focus, a.win().newTabIn)
+	}
+	plus(left.ID)
+	feed(t, a, "<Esc>")
+	if a.win().newTabIn != left.ID {
+		t.Fatal("esc in the filter only clears it")
+	}
+	feed(t, a, "<C-p>@t_sku<CR>")
+	if tabNames(left) != "t_user t_user t_sku" || left.Cur != 2 {
+		t.Fatalf("palette ↵: tabs %v cur %d", tabNames(left), left.Cur)
+	}
+	right := a.win().Root.Leaves()[1]
+	plus(right.ID) // an empty pane's + too
+	if feed(t, a, "<Esc><C-l>"); a.win().newTabIn != 0 {
+		t.Error("leaving the tree keeps what + asked")
+	}
+	a.run("tab.new", 0) // from the palette: where a table would open
+	if a.win().newTabIn != left.ID {
+		t.Errorf("tab.new: newTab %d, want the focused data pane %d", a.win().newTabIn, left.ID)
+	}
+}
+
 // due delivers the which-key tick the last key press asked for.
 func due(a *App) { a.Update(whichKeyDue{a.res.Seq()}) }
 

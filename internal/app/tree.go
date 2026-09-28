@@ -169,13 +169,16 @@ func editInput(in *ui.Input, k keymap.Key) bool {
 	return true
 }
 
-// openTarget is the data pane a table opens in (§12): the focused one, else
-// the window's first; nil when there is none.
+// openTarget is the data pane a table opens in (§12): the one whose + was
+// clicked, the focused one, else the window's first; nil when there is none.
 func (a *App) openTarget() *Pane {
+	leaves := a.win().Root.Leaves()
+	if i := slices.IndexFunc(leaves, func(p *Pane) bool { return p.ID == a.win().newTabIn }); i >= 0 {
+		return leaves[i]
+	}
 	if p := a.focused(); p.Kind == KindData {
 		return p
 	}
-	leaves := a.win().Root.Leaves()
 	if i := slices.IndexFunc(leaves, func(p *Pane) bool { return p.Kind == KindData }); i >= 0 {
 		return leaves[i]
 	}

@@ -73,6 +73,9 @@ func init() {
 		}},
 		"quit":      {Title: "退出", Run: func(*App, Args) tea.Cmd { return tea.Quit }},
 		"tab.close": {Title: "关闭 tab", Run: func(a *App, _ Args) tea.Cmd { a.closeTab(); return nil }},
+		"tab.next":  {Title: "下一个 tab", Run: do(func(a *App, args Args) { a.cycleTab(1, args.Count) })},
+		"tab.prev":  {Title: "上一个 tab", Run: do(func(a *App, args Args) { a.cycleTab(-1, args.Count) })},
+		"tab.new":   {Title: "新建 tab", Run: do(func(a *App, _ Args) { a.newTab() })},
 
 		"pane.split.right": {Title: "左右分割", Run: do(func(a *App, _ Args) { a.splitPane(Horiz) })},
 		"pane.split.below": {Title: "上下分割", Run: do(func(a *App, _ Args) { a.splitPane(Vert) })},
@@ -186,7 +189,6 @@ func init() {
 		"session.list": "session 列表", "session.new": "新建连接",
 		"window.new": "新建 window", "window.rename": "重命名 window", "window.close": "关闭 window",
 		"window.next": "下一个 window", "window.prev": "上一个 window", "window.last": "上次用的 window",
-		"tab.next": "下一个 tab", "tab.prev": "上一个 tab",
 		"grid.edit": "编辑单元格",
 		"grid.yank": "复制单元格", "grid.yank.insert": "复制为 INSERT",
 		"result.pin": "固定结果", "result.close": "关闭结果",
