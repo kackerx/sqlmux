@@ -108,7 +108,12 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 	for i, cr := range q.chipRects(r) {
 		c := q.Chips[i]
 		chip := uv.Style{Fg: th.Fg, Bg: th.Sep}
-		if f.Region(cr, Target{Kind: KindHint, Pane: q.Pane, Action: c.Action}) {
+		var icon uv.Rectangle // its own button: lit on its own, the rest of the chip without it (§7.8)
+		if c.Icon.Text != "" {
+			w := Width(c.Icon.Text) + 1 // and the space after it
+			icon = uv.Rect(cr.Max.X-w, y, w, 1).Intersect(cr)
+		}
+		if f.Region(cr, Target{Kind: KindHint, Pane: q.Pane, Action: c.Action}) && !f.Mouse.In(icon) {
 			chip.Bg = th.Select
 		}
 		x := f.Text(cr.Min.X, y, cr.Max.X, " "+c.Label+" ", uv.Style{Fg: th.Dim, Bg: chip.Bg})
@@ -116,9 +121,9 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 			cursor = uv.Pos(x+1+Width(c.Input.Text[:c.Input.Pos]), y)
 		}
 		x = f.Text(x, y, cr.Max.X, c.value()+" ", chip)
-		if c.Icon.Text != "" { // the icon and the space after it
-			ist := uv.Style{Fg: th.Warn, Bg: chip.Bg}
-			if f.Region(uv.Rect(x, y, min(Width(c.Icon.Text)+1, max(cr.Max.X-x, 0)), 1), Target{Kind: KindHint, Pane: q.Pane, Action: c.IconAction}) {
+		if c.Icon.Text != "" { // registered after the chip: on top for clicks
+			ist := uv.Style{Fg: th.Warn, Bg: th.Sep}
+			if f.Region(icon, Target{Kind: KindHint, Pane: q.Pane, Action: c.IconAction}) {
 				ist.Bg = th.Select
 			}
 			f.Text(x, y, cr.Max.X, c.Icon.Text, c.Icon.On(ist)) // a theme's color for it wins (§7.7)

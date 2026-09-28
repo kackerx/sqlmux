@@ -142,7 +142,7 @@ func (a *App) dropPick(i int) tea.Cmd {
 		switch {
 		case at == 0: // 默认: by the row identity
 			t.order, t.desc = "", false
-		case item == t.order, t.order == "" && slices.Equal(t.cols.Key(), []string{item}): // the column the chip shows: the other way
+		case item == t.order, t.order == "" && len(t.cols.Key()) > 0 && t.cols.Key()[0] == item: // the column the chip shows first: the other way (§7.8)
 			return a.toggleOrder(t)
 		default:
 			t.order, t.desc = item, false

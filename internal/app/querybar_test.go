@@ -228,7 +228,22 @@ func TestOrderToggle(t *testing.T) {
 	if !strings.Contains(a.render().String(), " ORDER id "+ui.NerdIcons.SortAsc.Text+" ") {
 		t.Error("the icon follows")
 	}
-	click(a, a.chipRect(a.focused(), tab, "grid.order").Min)
+	// two buttons, each lit on its own under the pointer
+	chip, ir := a.chipRect(a.focused(), tab, "grid.order"), find(t, a, ui.Target{Kind: ui.KindHint, Pane: 1, Action: "grid.order.toggle"})
+	for _, c := range []struct {
+		at         uv.Position
+		chip, icon bool
+	}{{ir.Min, false, true}, {chip.Min, true, false}} {
+		a.Update(tea.MouseMotionMsg{X: c.at.X, Y: c.at.Y})
+		f := a.render()
+		if lit := f.Buf.CellAt(chip.Min.X+1, chip.Min.Y).Style.Bg == a.theme.Select; lit != c.chip {
+			t.Errorf("pointer at %v: the chip lit %v", c.at, lit)
+		}
+		if lit := f.Buf.CellAt(ir.Min.X, ir.Min.Y).Style.Bg == a.theme.Select; lit != c.icon {
+			t.Errorf("pointer at %v: the icon lit %v", c.at, lit)
+		}
+	}
+	click(a, chip.Min)
 	if a.drop == nil || a.drop.kind != dropOrder {
 		t.Error("the chip's label opens the dropdown")
 	}
@@ -237,6 +252,12 @@ func TestOrderToggle(t *testing.T) {
 	tab.order, tab.desc = "", false
 	if sql := lastSQL(t, a, rec, a.run("grid.order.toggle", 0)); tab.order != "occurred_at" || !tab.desc || !strings.Contains(sql, `order by "occurred_at" desc, "id" limit`) {
 		t.Errorf("a composite key: %q %v, %s", tab.order, tab.desc, sql)
+	}
+	tab.cols = db.Columns{PK: []string{"note", "id"}, Cols: tab.cols.Cols}
+	tab.order, tab.desc = "", false
+	feed(t, a, "gonote<CR>") // the dropdown: the key's first column is the chip's, so it turns (§7.8)
+	if tab.order != "note" || !tab.desc {
+		t.Errorf("dropdown on a composite key's first column: %q desc %v", tab.order, tab.desc)
 	}
 	tab.cols = db.Columns{Cols: tab.cols.Cols}
 	tab.order = ""
