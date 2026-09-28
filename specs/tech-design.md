@@ -606,7 +606,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
   - **打开已有的表**（用户要求：常在同一个 window 的几个 pane、甚至同一个 pane 的几个 tab 里，用不同的 WHERE 打开同一张表做对比）：从树或命令面板按 `↵` 打开一张表时，先在当前 window 的所有 data pane 里找这张表的 tab（按 schema + 表名比较）：
     - 没有：按 §12 打开到目标 pane；
     - 只有一个：切过去，焦点移到它所在的 pane，不重新取数，状态保留；它就是当前 tab 时只移焦点；
-    - 有多个：命令面板进入「选择 tab」列表，每项是一个已打开的 tab，显示表名、所在位置（如 `① · 2`）和 dim 色的条件摘要（WHERE、非默认的 ORDER），底栏为 `↵ 切过去 · C-t 新 tab`（可点击）。`↵` 切到选中的 tab，`C-t` 在目标 pane 新开，`esc` 关闭。从树按 `↵` 时也打开这个列表。
+    - 有多个：命令面板进入「选择 tab」列表，每项是一个已打开的 tab，显示表名、所在位置（如 `① · 2`）和 dim 色的条件摘要（WHERE、非默认的 ORDER），不带类型标签，底栏为 `↵ 切过去 · C-t 新 tab`（可点击）。`↵` 切到选中的 tab，`C-t` 在目标 pane 新开，`esc` 关闭。从树按 `↵` 时也打开这个列表。
     - `C-t`、树里的 `t`、中键、`+` 的标记，始终在目标 pane 新开 tab，不找已有的。
   - **`+`**：命中区执行 Action `tab.new`（标题「新建 tab」，没有默认键，面板能搜到）。点击时先聚焦 `+` 所在的 pane；执行后展开并聚焦树、进入过滤框（等同 `/`），并在 window 上记下「下一次打开进这个 pane 的新 tab」。下一次从树或面板打开表时用掉这个标记，这次打开算显式新 tab（同 `C-t`）；焦点离开树时标记作废，过滤框里按 esc 只清空过滤，标记保留。
 - **状态栏**：
@@ -1128,11 +1128,11 @@ WHERE pk = $2 AND c1 IS NOT DISTINCT FROM $3 AND c2 IS NOT DISTINCT FROM $4
   - **结果区**：执行后，结果显示在面板的下半部分，用和 table pane 相同的表格组件和网格样式（§7.6）；结果区的标题行显示行数、耗时和「只读」。SQL 范围下面板向下扩展，结果区至少 8 行。
   - **补全**：M1 用 catalog 里的表名、列名和 SQL 关键字做模糊补全，复用 F1.5 的补全列表；能看懂别名、CTE、子查询的补全要等 M3 F3.7。关键字取 lazysql `builtinKeywords` 里常用的约 40 个（小写）；表名取树当前 schema 的；列名按 §9.7「第一次用到时才获取」：输入里出现和某张表同名的标识符时，取那张表的列并缓存（与打开表共用列缓存），不预拉全库的列。顺序为列 → 表 → 关键字，组内按 fzf 分数；右侧注释是列的类型和所属表、「表」、「关键字」。补全状态从 data tab 挪出来，面板和 WHERE 共用。
   - **执行**：在 `Meta` 上执行，PG 用 `BEGIN READ ONLY`，MySQL 用 `START TRANSACTION READ ONLY`，执行完一律 ROLLBACK。同一事务里先 `SET LOCAL search_path TO <树当前的 schema>, <建连时的原始 search_path>`（§8.6 的写法），这样树停在 `agentable` 时 `;select * from agent` 也能找到表，ROLLBACK 后自动恢复。最多显示 100 行，更多时显示 `100+`。
-    - **不让服务端算完整个结果集**（M1 F1.7 定，照 psql 的 `FETCH_COUNT`，common.c `is_select_command`）：跳过开头的空白、注释和左括号后，第一个词是 `select` / `values` / `table` / `with` 的，用 `DECLARE <游标> NO SCROLL CURSOR FOR <语句>` + `FETCH FORWARD 101`，服务端只算到第 101 行；其余语句（SHOW、EXPLAIN、写语句等）直接执行，写语句由只读事务拒绝，显示数据库原文。两条路径都走扩展协议，所以一次只能执行一条语句。
+    - **不让服务端算完整个结果集**（M1 F1.7 定，参考 PG16 psql 的 `FETCH_COUNT`：common.c 的 `is_select_command` 跳过空白、注释和左括号后只认 `select` / `values`；PG17 起 psql 改用 chunked rows mode，删掉了这个函数）：跳过开头的空白、注释和左括号后，第一个词是 `select` / `values` / `table` / `with` 的（`table` 和 `with` 是这里另加的，大表上的 WITH … SELECT 很常见，限行更要紧），用 `DECLARE <游标> NO SCROLL CURSOR FOR <语句>` + `FETCH FORWARD 101`，服务端只算到第 101 行；其余语句（SHOW、EXPLAIN、写语句等）直接执行，写语句由只读事务拒绝，显示数据库原文。两条路径都走扩展协议，所以一次只能执行一条语句。
     - 否掉的做法：lazysql 读到上限后停，但关 rows 时 pgx 会把剩下的读完，服务端照样算完；usql 不限制；扩展协议 Execute 带行数上限（pgjdbc 的做法）最通用，但 pgconn 没有暴露，要绕过 pgconn 自己收发协议消息、自己处理取消，与 §8.1「取消走 ctx」冲突。
-    - 已知上限：`explain analyze` 这类非 SELECT 语句仍会算完；首词判断是临时的，代码里用 `ponytail:` 标出，M3 有了 sqlkit 之后改用 §9.4 的读写判定与自动 LIMIT。
+    - 已知上限：`explain analyze` 这类非 SELECT 语句仍会算完；`with … delete` 这类 WITH 后面接写语句的，走 DECLARE 报的是 `syntax error at or near "delete"`，而不是只读事务的错误，M3 由读写判定（§9.3）解决；首词判断是临时的，代码里用 `ponytail:` 标出，M3 有了 sqlkit 之后改用 §9.4 的读写判定与自动 LIMIT。
     - 执行中 `C-c` 取消查询、面板不关，取消后保留上次结果，toast「查询已取消」（§8.3）；空闲时 `C-c` 照旧等同 esc。执行中再按 `↵` 忽略。
-  - **面板布局**（SQL 范围）：输入为空时列表区列历史（新的在前），`C-n` / `C-p` 选，`↵` 把选中的填进输入并执行；输入不为空时列表区为 0 行。结果区执行过才出现，出现后面板向下扩展到状态栏上方、留 1 行空隙；窗口太矮放不下 8 行时，按能放下的显示。关掉面板结果就丢掉，历史里有。
+  - **面板布局**（SQL 范围）：输入为空时列表区列历史（新的在前，每行只有 SQL 文本，不带类型标签，因为整个列表都是同一种），`C-n` / `C-p` 选，`↵` 把选中的填进输入并执行；输入不为空时列表区为 0 行。结果区执行过才出现，出现后面板向下扩展到状态栏上方、留 1 行空隙；窗口太矮放不下 8 行时，按能放下的显示。关掉面板结果就丢掉，历史里有。
   - **结果区**：标题行 `100+ 行 · 12ms · 只读`，右侧是可点击的 `C-y CSV`（键位从 keymap 读）；执行中行数处显示 `…`，保留上次结果；没有结果集的语句显示命令标签（如 `SET`）。报错显示在结果区第一行（`error` 色），同 data pane。表格只显示、不带光标，滚轮纵向滚动、Shift + 滚轮横向，不加键盘滚动（焦点在输入框）。
   - **历史**：执行过的都记，不论成败；去重后挪到最前，最多 50 条，按连接存在 state.json。「所有」范围不列 SQL 历史，M1 只在 SQL 范围列。已修改的判断按全文比较（去掉 `;` 前缀）。
   - **`C-y`**：CSV 为表头加显示的行（最多 100 行），NULL 写空串（同 lazysql `helpers/csv.go`），用 `tea.SetClipboard`（OSC 52）；没有结果时不做事，复制后不加 toast。
