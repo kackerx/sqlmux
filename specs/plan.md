@@ -6,7 +6,7 @@
 |---|---|---|---|
 | M0 骨架 | [m0-skeleton/task.md](m0-skeleton/task.md) | 界面骨架、按键系统、鼠标、命令面板、主题；不连数据库 | 完成（tag `m0`，5b272d4） |
 | M1 浏览 | [m1-browse/task.md](m1-browse/task.md) | 连接 PG，浏览 schema 与表数据，命令面板的快速 SQL；只读 | 完成（tag `m1`，c113b29） |
-| M2 编辑 | [m2-edit/task.md](m2-edit/task.md) | 编辑单元格、选项浮层、保存与刷新 | 起草开发清单 |
+| M2 编辑 | [m2-edit/task.md](m2-edit/task.md) | 编辑单元格、选项浮层、保存与刷新 | 进行中 |
 | M3 console | [m3-console/task.md](m3-console/task.md) | vim 编辑器、执行、底部结果区、格式化、补全、schema 下拉 | draft |
 | M4 命令面板 | [m4-palette/task.md](m4-palette/task.md) | 统一搜索入口、DDL 预览、快速 SQL | draft |
 | M5 工作现场 | [m5-workspace/task.md](m5-workspace/task.md) | 多 session / window、只读与事务模式、MySQL | draft |
