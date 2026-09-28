@@ -84,7 +84,8 @@
 - **结果的后续操作**：
   - `C-t`：把结果作为固定 tab 放进结果区；
   - `C-y`：复制为 CSV（OSC 52）；
-  - `C-e`：在 console 中打开这条 SQL。
+  - `C-e`：在 console 中打开这条 SQL，在目标 pane 新开一个 console tab（§5）。
+- **换掉 M1 的临时做法**：快速 SQL 的首词判断（`sqlkit.SelectLike`，M1 F1.7 用 `ponytail:` 标着）改用 §9.3 的读写判定和 §9.4 的自动 LIMIT（M3 F3.5 已经提供）。
 
 **验收**
 - [ ] 集成测试：
