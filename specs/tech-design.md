@@ -245,7 +245,7 @@ type Action struct {                // 注册表是 map[id]Action，id 如 "pane
 
 | 作用域 | 何时生效 |
 |---|---|
-| `palette` / `where` / `cols` / `dropdown` / `sessions` / `complete` / `confirm` | 对应的浮层打开时，取最上层的一个。which-key 浮层不是作用域（§6.5） |
+| `palette` / `where` / `cols` / `dropdown` / `sessions` / `complete` / `options` / `confirm` | 对应的浮层打开时，取最上层的一个。`options` 是单元格的选项浮层，只在它展开、而且有选项时生效（§10.2）。which-key 浮层不是作用域（§6.5） |
 | `cell` | 正在编辑单元格（INSERT） |
 | `input` | 任意单行输入框获得焦点（INSERT） |
 | `result` | result pane 获得焦点时生效，优先级在 `grid` 之上（如 `P`、`q`）；其余按键落到 `grid` |
@@ -985,7 +985,8 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 - 直接输入：编辑文字。
 - `Tab` / `S-Tab`：切换当前段。
 - `↑` / `↓`：当前段加一 / 减一。
-- `C-n` / `C-p`：在选项之间移动，到头绕回。时间列以外的列，`↑` / `↓` 也用来移动选项。
+- `C-n` / `C-p`：在选项之间移动，到头绕回。这两个键绑在浮层作用域 `options` 里，只在选项浮层（或时间浮层的选项行）展开、而且有选项时生效；浮层没打开或已收起时，它们照 §10.1 当作全局键：`C-p` 先提交编辑，再打开命令面板（tester 在 F2.1 发现：绑在 `cell` 里会把 `C-p` 吃掉，而 F2.1 还没有选项可移）。
+- 时间列以外的列，`↑` / `↓` 也用来移动选项（在 `cell` 里，浮层收起时不做事）。
 - 弹出时不预先选中任何一项（与补全不同）：`↵` 默认是提交文字，NULL / DEFAULT 被 `↵` 误用的代价太大。
 - `↵`：有选中的选项时应用该选项，否则提交文字。
 - 选项的顺序：布尔的 `true` / `false` 或枚举值 → `∅ NULL`（可空列）→ `DEFAULT`（有默认值）→ `↺ 原值`（本格有修改）。没有任何选项的列不弹浮层。枚举值和布尔的 `true` / `false` 用 `ui.Filter` 按输入过滤（完整 fzf，这里不是补全），还在全选状态、没开始输入时列出全部；NULL / DEFAULT / 原值不参与过滤，始终在后面；过滤后一项都不剩时不画浮层。文字每变一次，选中复位为「没有选中」。
