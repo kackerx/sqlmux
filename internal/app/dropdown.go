@@ -129,10 +129,8 @@ func (a *App) dropPick(i int) tea.Cmd {
 		switch {
 		case at == 0: // 默认: by the row identity
 			t.order, t.desc = "", false
-		case item == t.order: // the current column again: the other way
-			t.desc = !t.desc
-		case t.order == "" && slices.Equal(t.cols.Key(), []string{item}): // the key the chip shows is the current column
-			t.order, t.desc = item, true
+		case item == t.order, t.order == "" && slices.Equal(t.cols.Key(), []string{item}): // the column the chip shows: the other way
+			return a.toggleOrder(t)
 		default:
 			t.order, t.desc = item, false
 		}
@@ -141,6 +139,21 @@ func (a *App) dropPick(i int) tea.Cmd {
 	}
 	d.tab.pageNo = 0
 	return a.fetch(d.tab, false)
+}
+
+// toggleOrder turns t's ORDER the other way, from the first page (§7.8):
+// sorted by default, its row identity's first column goes descending.
+func (a *App) toggleOrder(t *dataTab) tea.Cmd {
+	switch key := t.cols.Key(); {
+	case t.order != "":
+		t.desc = !t.desc
+	case key != nil:
+		t.order, t.desc = key[0], true
+	default: // nothing to turn: the chip shows no direction
+		return nil
+	}
+	t.pageNo = 0
+	return a.fetch(t, false)
 }
 
 func (a *App) dropKey(k keymap.Key) {

@@ -167,7 +167,13 @@ func init() {
 				t.typing, t.pageIn = "page", ui.Input{Text: n, Pos: len(n)}
 			}
 		})},
-		"grid.order":     {Title: "ORDER", Run: do(func(a *App, _ Args) { a.openDrop(dropOrder) })},
+		"grid.order": {Title: "ORDER", Run: do(func(a *App, _ Args) { a.openDrop(dropOrder) })},
+		"grid.order.toggle": {Title: "切换排序方向", Run: func(a *App, _ Args) tea.Cmd {
+			if t := dataOf(a.focused()); t != nil && t.page.Cols != nil {
+				return a.toggleOrder(t)
+			}
+			return nil
+		}},
 		"grid.limit":     {Title: "LIMIT", Run: do(func(a *App, _ Args) { a.openDrop(dropLimit) })},
 		"grid.cols":      {Title: "COLS", Run: do(func(a *App, _ Args) { a.openCols() })},
 		"grid.page.next": {Title: "下一页", Run: func(a *App, _ Args) tea.Cmd { return a.turnPage(1) }},

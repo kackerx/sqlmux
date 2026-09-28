@@ -29,6 +29,7 @@ string = "#FFD866"
 [icon]
 console = { text = "C", fg = "#ff0000" }
 table = { fg = "#a9dc76" }
+sort_asc = { fg = "#ff0000" }
 `, ASCIIIcons)
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +40,7 @@ table = { fg = "#a9dc76" }
 	if th.Bar != TokyonightStorm.Bar || th.Fg != TokyonightStorm.Fg {
 		t.Error("tokens the file doesn't name must stay")
 	}
-	if ic.Console != (Icon{"C", c("#ff0000")}) || ic.Table != (Icon{"+", c("#a9dc76")}) || ic.Data != ASCIIIcons.Data {
+	if ic.Console != (Icon{"C", c("#ff0000")}) || ic.Table != (Icon{"+", c("#a9dc76")}) || ic.Data != ASCIIIcons.Data || ic.SortAsc != (Icon{"↑", c("#ff0000")}) {
 		t.Errorf("icons: console %v table %v data %v", ic.Console, ic.Table, ic.Data)
 	}
 	if ASCIIIcons.Console.Text != ">" || TokyonightStorm.Row == th.Row {

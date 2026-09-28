@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 
 	"sqlmux/internal/db"
 	"sqlmux/internal/keymap"
@@ -139,12 +140,12 @@ func TestOrderAndLimit(t *testing.T) {
 	}
 	feed(t, a, "gostat<CR>")
 	answer(a, tab)
-	if !tab.desc || !strings.Contains(a.render().String(), " ORDER status ↓ ") {
+	if !tab.desc || !strings.Contains(a.render().String(), " ORDER status "+ui.NerdIcons.SortDesc.Text+" ") {
 		t.Errorf("status again: desc %v", tab.desc)
 	}
 	feed(t, a, "go默认<CR>")
 	answer(a, tab)
-	if tab.order != "" || !strings.Contains(a.render().String(), " ORDER id ↑ ") {
+	if tab.order != "" || !strings.Contains(a.render().String(), " ORDER id "+ui.NerdIcons.SortAsc.Text+" ") {
 		t.Errorf("default: order %q", tab.order)
 	}
 	feed(t, a, "gl<C-n><CR>")
@@ -173,16 +174,74 @@ func TestOrderByAColumnNamedDefault(t *testing.T) {
 	}
 }
 
-// A theme's color for a button's icon wins (§7.7).
-func TestQueryBarButtonIconColor(t *testing.T) {
+// The buttons' icons are info, ORDER's direction warn, unless a theme
+// gives them a color (§7.7); a button is " <icon> ", lit whole under the
+// pointer (§7.8).
+func TestQueryBarIconColors(t *testing.T) {
 	a, _, _ := withRecorder(t, 160, 45)
+	iconAt := func(action string) uv.Style {
+		r := find(t, a, ui.Target{Kind: ui.KindHint, Pane: 1, Action: action})
+		return a.render().Buf.CellAt(r.Min.X+1, r.Min.Y).Style // past the space before it
+	}
+	if fg := iconAt("grid.refresh").Fg; fg != a.theme.Info {
+		t.Errorf("refresh: %v", fg)
+	}
+	r := find(t, a, ui.Target{Kind: ui.KindHint, Pane: 1, Action: "grid.order.toggle"})
+	if fg := a.render().Buf.CellAt(r.Min.X, r.Min.Y).Style.Fg; fg != a.theme.Warn {
+		t.Errorf("sort: %v", fg)
+	}
 	icons := *a.icons
 	icons.Refresh = ui.Icon{Text: "R", Fg: a.theme.Error}
 	a.icons = &icons
+	if fg := iconAt("grid.refresh").Fg; fg != a.theme.Error {
+		t.Errorf("a theme's refresh: %v", fg)
+	}
+	r = find(t, a, ui.Target{Kind: ui.KindHint, Pane: 1, Action: "grid.refresh"})
+	a.Update(tea.MouseMotionMsg{X: r.Min.X + 2, Y: r.Min.Y})
 	f := a.render()
-	r := find(t, a, ui.Target{Kind: ui.KindHint, Pane: 1, Action: "grid.refresh"})
-	if st := f.Buf.CellAt(r.Min.X, r.Min.Y).Style; st.Fg != a.theme.Error {
-		t.Errorf("refresh icon fg %v", st.Fg)
+	for x := r.Min.X; x < r.Max.X; x++ {
+		if bg := f.Buf.CellAt(x, r.Min.Y).Style.Bg; bg != a.theme.Select {
+			t.Errorf("hovered refresh, column %d: bg %v", x-r.Min.X, bg)
+		}
+	}
+	if r.Dx() != 3 {
+		t.Errorf("refresh hits %d columns, want \" <icon> \"", r.Dx())
+	}
+}
+
+// Clicking ORDER's direction turns it; sorted by default, it is the row
+// identity descending. The rest of the chip opens the dropdown (§7.8).
+func TestOrderToggle(t *testing.T) {
+	a, tab, rec := withRecorder(t, 160, 45)
+	icon := func() uv.Position {
+		return find(t, a, ui.Target{Kind: ui.KindHint, Pane: 1, Action: "grid.order.toggle"}).Min
+	}
+	tab.pageNo = 2
+	if sql := lastSQL(t, a, rec, click(a, icon())); tab.order != "id" || !tab.desc || tab.pageNo != 0 || !strings.Contains(sql, `order by "id" desc limit`) {
+		t.Fatalf("default: order %q desc %v page %d, %s", tab.order, tab.desc, tab.pageNo, sql)
+	}
+	answer(a, tab)
+	if sql := lastSQL(t, a, rec, click(a, icon())); tab.desc || !strings.Contains(sql, `order by "id" asc limit`) {
+		t.Errorf("again: %s", sql)
+	}
+	answer(a, tab)
+	if !strings.Contains(a.render().String(), " ORDER id "+ui.NerdIcons.SortAsc.Text+" ") {
+		t.Error("the icon follows")
+	}
+	click(a, a.chipRect(a.focused(), tab, "grid.order").Min)
+	if a.drop == nil || a.drop.kind != dropOrder {
+		t.Error("the chip's label opens the dropdown")
+	}
+	a.drop = nil
+	tab.cols = db.Columns{PK: []string{"occurred_at", "id"}, Cols: tab.cols.Cols}
+	tab.order, tab.desc = "", false
+	if sql := lastSQL(t, a, rec, a.run("grid.order.toggle", 0)); tab.order != "occurred_at" || !tab.desc || !strings.Contains(sql, `order by "occurred_at" desc, "id" limit`) {
+		t.Errorf("a composite key: %q %v, %s", tab.order, tab.desc, sql)
+	}
+	tab.cols = db.Columns{Cols: tab.cols.Cols}
+	tab.order = ""
+	if a.run("grid.order.toggle", 0) != nil || strings.Contains(a.render().String(), " ORDER — "+ui.NerdIcons.SortAsc.Text) {
+		t.Error("no row identity: nothing to turn, no icon")
 	}
 }
 

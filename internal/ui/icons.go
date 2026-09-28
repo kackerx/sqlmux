@@ -33,8 +33,11 @@ type Icons struct {
 	Key           Icon // primary key columns
 	Command       Icon // palette rows (K-03)
 	Window        Icon
-	// The query bar's buttons (Q-05)
+	// The query bar's buttons (Q-05) and ORDER's direction; nil Fg: info
+	// and warn (§7.7)
 	Save, Refresh, Transpose Icon
+	SortAsc, SortDesc        Icon
+	View, Column             Icon // the tree's (F1.12)
 	// Labeled sets (ascii) say nothing by themselves, so the words beside
 	// the icons stay: pane types in titles, C-p, the filter's / (§7.7).
 	Labeled bool
@@ -57,6 +60,10 @@ var NerdIcons = &Icons{
 	Save:      Icon{Text: "\uf0c7"}, // nf-fa-save
 	Refresh:   Icon{Text: "\uf021"}, // nf-fa-refresh
 	Transpose: Icon{Text: "\uf0ec"}, // nf-fa-exchange
+	SortAsc:   Icon{Text: "\uf160"}, // nf-fa-sort_amount_asc
+	SortDesc:  Icon{Text: "\uf161"}, // nf-fa-sort_amount_desc
+	View:      Icon{Text: "\uf06e"}, // nf-fa-eye
+	Column:    Icon{Text: "\ueb5f"}, // nf-cod-symbol_field
 }
 
 var ASCIIIcons = &Icons{
@@ -73,6 +80,10 @@ var ASCIIIcons = &Icons{
 	Save:      Icon{Text: "[S]"},
 	Refresh:   Icon{Text: "[R]"},
 	Transpose: Icon{Text: "[T]"},
+	SortAsc:   Icon{Text: "↑"},
+	SortDesc:  Icon{Text: "↓"},
+	View:      Icon{Text: "v"},
+	Column:    Icon{Text: "-"},
 	Labeled:   true,
 }
 
@@ -103,5 +114,6 @@ func (ic *Icons) byName() map[string]*Icon {
 		"filter": &ic.Filter, "search": &ic.Search, "keys": &ic.Keys, "conn": &ic.Conn,
 		"key": &ic.Key, "postgres": &ic.Postgres, "command": &ic.Command, "window": &ic.Window,
 		"save": &ic.Save, "refresh": &ic.Refresh, "transpose": &ic.Transpose,
+		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column,
 	}
 }

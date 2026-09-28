@@ -294,7 +294,7 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 	return g
 }
 
-// sortedBy is an ORDER as the query bar shows it: "id ↑", "amount ↓".
+// sortedBy is an ORDER as text: "id ↑", "amount ↓".
 func sortedBy(col string, desc bool) string {
 	if desc {
 		return col + " ↓"
@@ -305,12 +305,15 @@ func sortedBy(col string, desc bool) string {
 // queryBar is the two rows over t's table (§7.8「查询条」).
 func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	ic := a.icons
-	order := "—" // no row identity to sort by
+	order := ui.Chip{Label: "ORDER", Value: "—", Action: "grid.order", IconAction: "grid.order.toggle"} // no row identity to sort by
 	switch s, key := t.shown, t.cols.Key(); {
 	case s.order != "":
-		order = sortedBy(s.order, s.desc)
+		order.Value, order.Icon = s.order, ic.SortAsc
+		if s.desc {
+			order.Icon = ic.SortDesc
+		}
 	case key != nil:
-		order = sortedBy(strings.Join(key, ","), false)
+		order.Value, order.Icon = strings.Join(key, ","), ic.SortAsc
 	}
 	pages := "?"
 	if n, ok := t.pages(); ok {
@@ -339,7 +342,7 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	return ui.QueryBar{
 		Where: t.where, Typing: t.typing == "where", Pane: p.ID, Right: right,
 		Chips: []ui.Chip{
-			{Label: "ORDER", Value: order, Action: "grid.order"},
+			order,
 			{Label: "LIMIT", Value: strconv.Itoa(t.shown.limit), Action: "grid.limit"},
 			page,
 			{Label: "COLS", Value: fmt.Sprintf("%d/%d", len(t.shownCols()), len(t.page.Cols)), Action: "grid.cols"},
