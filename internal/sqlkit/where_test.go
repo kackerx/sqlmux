@@ -43,7 +43,7 @@ func TestWhereContext(t *testing.T) {
 
 // Multibyte spaces and digits are whole runes too: none of these may spin.
 func TestTokensMultibyte(t *testing.T) {
-	for _, s := range []string{"a　b", "a b", "id = １", "x = ٣"} {
+	for _, s := range []string{"a\u3000b", "a\u00a0b", "id = \uff11", "x = \u0663"} {
 		ts := Tokens(s)
 		if end := ts[len(ts)-1].End; end != len(s) || len(ts) > len(s) {
 			t.Errorf("%q: %v", s, ts)
