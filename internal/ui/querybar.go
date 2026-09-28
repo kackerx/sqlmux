@@ -160,7 +160,9 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 		if Width(n.Mid) > room {
 			n.Mid = Truncate(n.Mid, max(room, 1))
 		}
-		right, st.Fg = n.Head+n.Mid+n.Tail, n.Fg
+		if right = n.Head + n.Mid + n.Tail; n.Fg != nil {
+			st.Fg = n.Fg
+		}
 	}
 	if rx := r.Max.X - 1 - Width(right); rx > x {
 		f.Text(rx, y, r.Max.X-1, right, st)
@@ -172,5 +174,5 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 // between Head (the row) and Tail (，已回滚).
 type Note struct {
 	Head, Mid, Tail string
-	Fg              color.Color
+	Fg              color.Color // dim when nil
 }

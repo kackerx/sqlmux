@@ -288,6 +288,9 @@ func TestSave(t *testing.T) {
 	if n := a.queryBar(a.focused(), tab).Note; !strings.HasPrefix(n.Head, "已保存 2 行 · ") || n.Fg != nil {
 		t.Errorf("note %+v", n)
 	}
+	if fg := styleOf(t, a.render(), "已保存").Fg; fg != a.theme.Dim {
+		t.Errorf("saved: fg %v, want dim", fg)
+	}
 	answer(a, tab) // the page again: the note stays
 	if !strings.HasPrefix(a.queryBar(a.focused(), tab).Note.Head, "已保存") {
 		t.Error("the reload dropped the note")
