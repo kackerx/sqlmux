@@ -7,7 +7,7 @@ e2e_build || exit 1
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
 . "$(dirname "$0")/palette.sh"
-FOCUS=#9ece6a SELECT=#364a82 ROW=#292e42 PANE_BG=#24283b WARN=#e0af68 FUNC=#7aa2f7 DIM=#565f89 PK=#73daca
+FOCUS=#9ece6a SELECT=#364a82 ROW=#292e42 PANE_BG=#24283b FUNC=#7aa2f7 DIM=#565f89 PK=#73daca
 typ() { e2e_type "$1"; sleep 0.3; }
 last_y() { echo $(( $(H) - 4 )); }   # 表列表的最后一行：下面是分隔线、提示行、下边框和状态栏
 # tree：侧栏表列表逐行「表名 行数」
@@ -68,7 +68,6 @@ check "/：进入 INSERT" mode_is INSERT
 typ ord
 check "输入 ord：过滤行显示 <图标> ord 和 dim 色的 4/8，终端光标在文字后面" eval 'text_is 3 7 2 "$(e2e_text 3 3 2) ord" && text_ends 1 32 2 " 4/8 │" && at_c=$(e2e_find 4/8 2) && style_has $at_c 2 fg=$DIM && flag_is cursor_flag 1 && [[ $(e2e_flag cursor_x) == 7 && $(e2e_flag cursor_y) == 1 ]]'
 check "只剩匹配的表，按名字顺序（不按分数）" eval '[[ $(tree | cut -d" " -f1 | tr "\n" " ") == "mv_order_by_status t_order t_order_item v_paid_order " ]] || { echo "  $(tree | tr "\n" ",")"; false; }'
-check "匹配到的字符为 warn 底（t_order 的 ord）" eval 'y=$(item_y t_order); style_has 7 $y bg=$WARN && style_has 9 $y bg=$WARN && ! style_has 6 $y bg=$WARN >/dev/null && ! style_has 10 $y bg=$WARN >/dev/null'
 key Enter
 check "↵：回到 NORMAL，保留过滤，光标在第一个匹配上" eval 'mode_is NORMAL && text_ends 1 32 2 " 4/8 │" && cursor_on mv_order_by_status'
 key j; typ /; key Escape

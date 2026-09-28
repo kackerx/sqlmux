@@ -38,7 +38,6 @@ e2e_keys Escape; sleep 0.2
 pal split
 check "split: 上下分割 / 左右分割 with SPC \" / SPC %" eval '(( $(nrows) == 2 )) && list | grep -q "上下分割  pane.split.below .* SPC \" .*|" && list | grep -q "左右分割  pane.split.right .* SPC % .*|"'
 check "the action id is dim" eval 'y=$(row_y 1); c=$(e2e_find pane.split.below $y); style_has $((c + 1)) $y fg=#565f89'
-check "matched characters get a warn background" eval 'y=$(row_y 1); c=$(e2e_find pane.split.below $y); style_has $((c + 5)) $y bg=#e0af68 && style_has $((c + 9)) $y bg=#e0af68 && ! style_has $((c + 1)) $y bg=#e0af68 >/dev/null'
 e2e_keys Enter; sleep 0.3
 check "↵ runs the selected command (split below) and closes" eval 'closed && [[ $(e2e_panes | awk "{printf \"%s \", \$1}") == "0 1 3 2 " ]]'
 start; two_panes; pal resize

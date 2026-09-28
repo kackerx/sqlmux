@@ -108,6 +108,7 @@ check() {
   if "$@"; then E2E_PASS=$((E2E_PASS + 1)); echo "PASS $_desc"
   else E2E_FAIL=$((E2E_FAIL + 1)); echo "FAIL $_desc"; e2e_cap | sed 's/^/  | /'; fi
 }
+ASC=$(printf '\xef\x85\xa0') DESC=$(printf '\xef\x85\xa1')   # ORDER's sort_asc U+F160 / sort_desc U+F161 (F1.8)
 SEARCH_ICON=$(printf '\xef\x80\x82')   # U+F002: the status bar's palette entry (icon only under nerd icons, F0.16)
 search_col() { e2e_find "$SEARCH_ICON" "$(e2e_flag pane_height)" | cut -d' ' -f1; }
 # column where the pending key sequence starts: " <search> " then " <keyboard> <seq>"

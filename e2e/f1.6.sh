@@ -33,10 +33,10 @@ where "id > 10"
 key g o; e2e_type name; sleep 0.3; key Enter; wait_for 8 settled
 key g c; key j j Space Escape
 key 3 j 2 l; key T
-user_kept() { [[ $(where_in) == "id > 10" ]] && qb_has "ORDER name ↑   LIMIT 100   PAGE 1/1   COLS 4/5" && [[ $(cnt) == 40 ]] && pos_is 4,3 && transposed; }
+user_kept() { [[ $(where_in) == "id > 10" ]] && qb_has "ORDER name $ASC   LIMIT 100   PAGE 1/1   COLS 4/5" && [[ $(cnt) == 40 ]] && pos_is 4,3 && transposed; }
 check "t_user：WHERE id > 10、ORDER name、隐藏 email、光标 4,3、转置" user_kept
 key g T
-check "gT 回到 t_order：还是默认的查询条、光标 1,1、不转置" eval 'tabs_are 1 "1:t_order* │ 2:t_user-" && [[ -z $(where_in) ]] && qb_has "ORDER id ↑   LIMIT 100   PAGE 1/60   COLS 10/10" && [[ $(cnt) == 6000 ]] && pos_is 1,1 && ! transposed'
+check "gT 回到 t_order：还是默认的查询条、光标 1,1、不转置" eval 'tabs_are 1 "1:t_order* │ 2:t_user-" && [[ -z $(where_in) ]] && qb_has "ORDER id $ASC   LIMIT 100   PAGE 1/60   COLS 10/10" && [[ $(cnt) == 6000 ]] && pos_is 1,1 && ! transposed'
 key g l; e2e_type 500; sleep 0.3; key Enter; wait_for 8 settled
 key ']'; wait_for 8 settled; key 5 j 3 l
 order_kept() { qb_has "LIMIT 500   PAGE 2/12" && pos_is 506,4 && ! transposed; }

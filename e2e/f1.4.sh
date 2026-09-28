@@ -11,7 +11,7 @@ psql "$E2E_DB" -q -c "create table t_big as select g as id from generate_series(
   -c 'create table t_zh (id int primary key, "默认" int)' -c 'insert into t_zh select g, 10 - g from generate_series(1, 5) g'
 APP=e2e-f14-$$
 mkdir -p "$D/own"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s&application_name=%s"\n' "$E2E_DB" "$APP" >"$D/own/connections.toml"; chmod 600 "$D/own/connections.toml"
-KEYWORD=#bb9af7 DIM=#565f89 FG=#c0caf5 SEP=#2f3549 SELECT=#364a82 ROW=#292e42 WARN=#e0af68 ERROR=#f7768e
+KEYWORD=#bb9af7 DIM=#565f89 FG=#c0caf5 SEP=#2f3549 SELECT=#364a82 ROW=#292e42 ERROR=#f7768e
 header() { e2e_text 35 159 "$(hy)"; }
 col_x() { e2e_find "$1" "$(hy)" | tr ' ' '\n' | awk '$1 > 34 { print; exit }'; }
 row_y() { echo $(( $(grid_y) + $1 )); }
@@ -33,7 +33,7 @@ start -C "$D/own"; open_table t_order
 
 # ---- 布局（§7.8「查询条」）
 check "第一行：keyword 色的 WHERE，输入框为空" eval 'text_is 36 40 2 WHERE && style_has 36 2 fg=$KEYWORD && [[ -z $(where_in) ]]'
-check "第二行：ORDER id ↑ / LIMIT 100 / PAGE 1/60 / COLS 10/10，右边 auto · 6000 行 · <耗时>" eval '[[ $(qb) =~ ^\ \ ORDER\ id\ ↑\ \ \ LIMIT\ 100\ \ \ PAGE\ 1/60\ \ \ COLS\ 10/10\ .*auto\ ·\ 6000\ 行\ ·\ [0-9]+ms\ $ ]] || { echo "  $(qb)"; false; }'
+check "第二行：ORDER id ↑ / LIMIT 100 / PAGE 1/60 / COLS 10/10，右边 auto · 6000 行 · <耗时>" eval '[[ $(qb) =~ ^\ \ ORDER\ id\ $ASC\ \ \ LIMIT\ 100\ \ \ PAGE\ 1/60\ \ \ COLS\ 10/10\ .*auto\ ·\ 6000\ 行\ ·\ [0-9]+ms\ $ ]] || { echo "  $(qb)"; false; }'
 check "chip：标签 dim、值 fg、sep 底" eval 'x=$(chip_x ORDER); style_has $x 3 fg=$DIM && style_has $x 3 bg=$SEP && style_has $((x + 6)) 3 fg=$FG && style_has $((x - 1)) 3 bg=$SEP'
 check "三个图标按钮：保存 U+F0C7、刷新 U+F021、转置 U+F0EC" eval 'q=$(qb); [[ $q == *"$(printf "\xef\x83\x87")"* && $q == *"$(printf "\xef\x80\xa1")"* && $q == *"$(printf "\xef\x83\xac")"* ]]'
 check "查询条和表格之间没有分隔线：表头在第 4 行" eval '[[ $(grid_y) == 5 ]]'
@@ -62,7 +62,7 @@ key Escape
 where "1=1; drop table t_log"
 check "1=1; drop table t_log：被拒绝（显示错误），t_log 仍在" eval '[[ $(e2e_text 35 159 4) == *ERROR* && -z $(grid_y) && $(psql_n "select count(*) from t_log") == 3 ]]'
 where "status = 'done' -- 备注"
-check "末尾带 -- 注释：正常执行，仍按 id 排，第 1 行 id 2" eval '[[ $(cnt) == 1500 && $(nums id 1) == 2 ]] && qb_has "ORDER id ↑" && qb_has "PAGE 1/15"'
+check "末尾带 -- 注释：正常执行，仍按 id 排，第 1 行 id 2" eval '[[ $(cnt) == 1500 && $(nums id 1) == 2 ]] && qb_has "ORDER id $ASC" && qb_has "PAGE 1/15"'
 key ']'; wait_for 8 settled
 check "翻到第 2 页：行号从 101 起，id 402（第 101 个 done）" eval '[[ $(rowno $(row_y 1)) == 101 && $(nums id 1) == 402 ]] && qb_has "PAGE 2/15"'
 where ""
@@ -84,20 +84,20 @@ check "go：下拉框在 ORDER chip 下方，状态栏 COMMAND，第一项是「
 key C-n; s1=$(dd_sel); key Down; s2=$(dd_sel); key C-p; s3=$(dd_sel); key Up; s4=$(dd_sel)
 check "C-n / ↓ / C-p / ↑ 移动选中项" eval '[[ "$s1 $s2 $s3 $s4" == "id user_id id 默认" ]] || { echo "  $s1 $s2 $s3 $s4"; false; }'
 key Escape
-check "esc 关闭，排序不变" eval '[[ -z $(dd) ]] && qb_has "ORDER id ↑" && mode_is NORMAL'
+check "esc 关闭，排序不变" eval '[[ -z $(dd) ]] && qb_has "ORDER id $ASC" && mode_is NORMAL'
 key ']'; wait_for 8 settled
 sent eval 'key go; e2e_type status; sleep 0.3; e2e_keys Enter'
-check "选 status：chip 为 status ↑，回到第 1 页，SQL 以 id 作 tiebreaker" eval 'qb_has "ORDER status ↑" && qb_has "PAGE 1/60" && sql_is "select * from \"public\".\"t_order\" order by \"status\" asc, \"id\" limit 101 offset 0"'
+check "选 status：chip 为 status ↑，回到第 1 页，SQL 以 id 作 tiebreaker" eval 'qb_has "ORDER status $ASC" && qb_has "PAGE 1/60" && sql_is "select * from \"public\".\"t_order\" order by \"status\" asc, \"id\" limit 101 offset 0"'
 sent eval 'key go; e2e_type status; sleep 0.3; e2e_keys Enter'
-check "在当前排序列上再 ↵：翻转为 status ↓（order by \"status\" desc, \"id\"）" eval 'qb_has "ORDER status ↓" && sql_is "select * from \"public\".\"t_order\" order by \"status\" desc, \"id\" limit 101 offset 0"'
+check "在当前排序列上再 ↵：翻转为 status ↓（order by \"status\" desc, \"id\"）" eval 'qb_has "ORDER status $DESC" && sql_is "select * from \"public\".\"t_order\" order by \"status\" desc, \"id\" limit 101 offset 0"'
 check "status ↓：第一行是 failed（枚举的最后一个值），同值按 id 升序（3, 7）" eval '[[ $(val status 1) == failed && $(nums id 1) == 3 && $(nums id 2) == 7 ]]'
 sent eval 'key go; e2e_type 默认; sleep 0.3; e2e_keys Enter'
-check "选「默认」：回到按行标识列排（id ↑）" eval 'qb_has "ORDER id ↑" && sql_is "select * from \"public\".\"t_order\" order by \"id\" limit 101 offset 0"'
+check "选「默认」：回到按行标识列排（id ↑）" eval 'qb_has "ORDER id $ASC" && sql_is "select * from \"public\".\"t_order\" order by \"id\" limit 101 offset 0"'
 key go
 check "下拉框打开时选中的是当前排序列（默认排序时是「默认」）" eval '[[ $(dd_sel) == 默认 ]]'
 key Escape
 sent eval 'key go; e2e_type id; sleep 0.3; e2e_keys Enter'
-check "默认排序时 chip 上的 id 就是当前排序列：选 id 直接翻转为 id ↓，SQL 里 id 不重复，第一行 id 6000" eval 'qb_has "ORDER id ↓" && sql_is "select * from \"public\".\"t_order\" order by \"id\" desc limit 101 offset 0" && [[ $(nums id 1) == 6000 ]]'
+check "默认排序时 chip 上的 id 就是当前排序列：选 id 直接翻转为 id ↓，SQL 里 id 不重复，第一行 id 6000" eval 'qb_has "ORDER id $DESC" && sql_is "select * from \"public\".\"t_order\" order by \"id\" desc limit 101 offset 0" && [[ $(nums id 1) == 6000 ]]'
 e2e_click $(( $(chip_x ORDER) + 1 )) 3; sleep 0.3
 check "点击 ORDER chip：打开同一个下拉框" eval '[[ $(dd_rows | head -1) == 默认 ]] && mode_is COMMAND'
 e2e_type 默认; sleep 0.3; key Enter; wait_for 8 settled
@@ -139,7 +139,7 @@ check "j j space：取消 status，表格里 status 列消失，chip COLS 9/10" 
 cur_col() { local x y=$(row_y 1); for ((x = 35; x < 160; x++)); do style_has $x $y bg=#3d59a1 >/dev/null && { e2e_text $x $((x + 12)) "$(hy)" | awk '{ print $1 }'; return; }; done; }   # 光标格所在列的表头
 check "隐藏的是光标所在列：光标挪到相邻的可见列" eval 'c=$(cur_col); [[ $c == user_id || $c == amount ]] || { echo "  cursor on \"$c\", pos $(pos)"; false; }'
 key /; e2e_type at; sleep 0.3
-check "/at：过滤框（仍是 COMMAND），只剩 status / amount / created_at / deleted_at，4/10，匹配字符 warn 底" eval 'mode_is COMMAND && [[ $(dd_rows | grep "^\[" | sed "s/^\[.\] //; s/ .*//" | tr "\n" " ") == "status amount created_at deleted_at " ]] && g=($(dd)) && [[ $(e2e_text ${g[0]} $((g[0] + g[2] - 1)) $((g[1] + 1))) == *"4/10 │" ]] && y=$(( g[1] + 4 )) && c=$(e2e_find amount $y) && style_has ${c%% *} $y bg=$WARN'
+check "/at：过滤框（仍是 COMMAND），只剩 status / amount / created_at / deleted_at，4/10" eval 'mode_is COMMAND && [[ $(dd_rows | grep "^\[" | sed "s/^\[.\] //; s/ .*//" | tr "\n" " ") == "status amount created_at deleted_at " ]] && g=($(dd)) && [[ $(e2e_text ${g[0]} $((g[0] + g[2] - 1)) $((g[1] + 1))) == *"4/10 │" ]]'
 key Enter; key A
 check "↵ 回列表（过滤保留），A：过滤出来的 4 列全不选，COLS 6/10" eval '[[ $(dd_rows | grep -c "^\[ \]") == 4 ]] && qb_has "COLS 6/10" && [[ $(header) != *created_at* ]]'
 key a
@@ -227,6 +227,6 @@ check "[icon] refresh = { fg = \"#ff0000\" }：查询条的刷新按钮变色" e
 key go; e2e_type 默认; sleep 0.3
 check "t_zh 的 ORDER 列表里有两项「默认」：第一项是默认排序，第二项是这一列" eval '[[ $(dd_rows | tr "\n" " ") == "默认 默认 " ]] || { echo "  $(dd_rows | tr "\n" ,)"; false; }'
 key C-n; key Enter; wait_for 8 settled
-check "选第二项：按「默认」列排（第 1 行 id 5），chip 为 默认 ↑" eval 'qb_has "ORDER 默认 ↑" && [[ $(nums id 1) == 5 ]]'
+check "选第二项：按「默认」列排（第 1 行 id 5），chip 为 默认 ↑" eval 'qb_has "ORDER 默认 $ASC" && [[ $(nums id 1) == 5 ]]'
 
 e2e_done
