@@ -155,4 +155,19 @@ open_table() { e2e_keys C-p; sleep 0.3; e2e_type "@$1"; sleep 0.3; e2e_keys Ente
 focused() { e2e_panes | awk '$6 == 1 && $1 != "-" { print $1 }'; }   # the focused pane's number (a folded strip or the palette box has none)
 palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }
 
+# ---- the f1.*.sh scripts' data pane: 160x45, ① alone right of the sidebar (x 35..159)
+H() { e2e_flag pane_height; }
+key() { e2e_keys "$@"; sleep 0.3; }
+bar() { e2e_text 1 "$(e2e_flag pane_width)" "$(H)"; }                    # the status bar
+pos() { bar | grep -oE ' [0-9]+,[0-9]+ ' | tr -d ' '; }                 # its 行,列
+pos_is() { [[ $(pos) == "$1" ]] || { echo "  行,列 '$(pos)', want '$1'"; false; }; }
+mode_is() { [[ $(bar) == *" $1 " ]] || { echo "  mode: $(e2e_text 120 160 "$(H)")"; false; }; }
+where_in() { e2e_text 42 157 2 | sed 's/ *$//'; }                       # the WHERE input (▾ at its right end)
+qb() { e2e_text 35 159 3; }                                             # the query bar's second row
+qb_has() { [[ $(qb) == *"$1"* ]] || { echo "  query bar: '$(qb)', want '$1'"; false; }; }
+cnt() { qb | grep -oE 'auto · [^ ]+ 行' | awk '{ print $3 }'; }
+settled() { [[ $(bar) != *busy* && $(cnt) != "…" ]]; }
+clear_in() { local i; for ((i = 0; i < 80; i++)); do e2e_keys BSpace; done; sleep 0.2; }
+hy() { echo $(( $(grid_y) - 1 )); }                                     # the grid's header row
+
 e2e_done() { echo "== $E2E_PASS passed, $E2E_FAIL failed"; e2e_stop; ((E2E_FAIL == 0)); }

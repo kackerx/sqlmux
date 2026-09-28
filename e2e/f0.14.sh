@@ -7,14 +7,13 @@ e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
-H() { e2e_flag pane_height; }
 . "$(dirname "$0")/palette.sh"
 data_tabs() { e2e_text 34 160 43; }
 kinds() { list | cut -d'|' -f1 | awk '{ print $NF }' | sort -u | tr '\n' ' '; }   # type labels in the list
 # which scope tab is highlighted (focus background) on the tab row
 current_scope() {
   local y x; y=$(tabs_y)
-  for tab in 所有 窗口·Pane 表 命令; do x=$(e2e_find "$tab" $y | cut -d' ' -f1); [[ -n $x ]] && style_has $x $y bg=#9ece6a >/dev/null && { echo "$tab"; return; }; done
+  for tab in 所有 窗口·Pane 表 命令 SQL; do x=$(e2e_find "$tab" $y | cut -d' ' -f1); [[ -n $x ]] && style_has $x $y bg=#9ece6a >/dev/null && { echo "$tab"; return; }; done
 }
 icon_of() { local y; y=$(row_y "$1"); e2e_text $(($(left) + 2)) $(($(left) + 2)) $y; }
 NF_WINDOW=$(printf '\xef\x8b\x92') NF_COMMAND=$(printf '\xef\x83\xa7')   # U+F2D2 U+F0E7
@@ -27,8 +26,10 @@ e2e_keys Tab; sleep 0.3
 check "Tab → 窗口·Pane: prefix %, the rest kept, cursor keeps its place in the text" eval 'input_is "%abc" && [[ $(current_scope) == 窗口·Pane && $(e2e_flag cursor_x) == $((cx + 1)) ]]'
 e2e_keys Tab; sleep 0.3; check "Tab → 表: prefix @" eval 'input_is "@abc" && [[ $(current_scope) == 表 ]]'
 e2e_keys Tab; sleep 0.3; check "Tab → 命令: prefix >" eval 'input_is ">abc" && [[ $(current_scope) == 命令 ]]'
+e2e_keys Tab; sleep 0.3; check "Tab → SQL (F1.7): prefix ;" eval 'input_is ";abc" && [[ $(current_scope) == SQL ]]'
 e2e_keys Tab; sleep 0.3; check "Tab → 所有: prefix removed" eval 'input_is "abc" && [[ $(current_scope) == 所有 ]]'
-e2e_keys BTab; sleep 0.3; check "S-Tab goes back: 命令" eval 'input_is ">abc" && [[ $(current_scope) == 命令 ]]'
+e2e_keys BTab; sleep 0.3; check "S-Tab goes back: SQL" eval 'input_is ";abc" && [[ $(current_scope) == SQL ]]'
+e2e_keys BTab; sleep 0.3; check "S-Tab again: 命令" eval 'input_is ">abc" && [[ $(current_scope) == 命令 ]]'
 x=$(e2e_find "表" $(tabs_y) | cut -d' ' -f1); e2e_click $x $(tabs_y); sleep 0.3
 check "clicking a scope tab switches to it" eval 'input_is "@abc" && [[ $(current_scope) == 表 ]]'
 e2e_keys Escape; sleep 0.2

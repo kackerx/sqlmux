@@ -8,7 +8,6 @@ e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
-H() { e2e_flag pane_height; }
 . "$(dirname "$0")/palette.sh"
 NF_SCHEMA=$(printf '\xef\x83\xa8') NF_DATA=$(printf '\xef\x87\x80') NF_FILTER=$(printf '\xef\x82\xb0')
 widths_are() { local got; got=$(e2e_widths | sed '/^0$/d' | sort -u | tr '\n' ' '); [[ $got == "$1 " ]] || { echo "  row widths: $got"; false; }; }

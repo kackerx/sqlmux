@@ -7,9 +7,7 @@ e2e_build || exit 1
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
 . "$(dirname "$0")/palette.sh"
-H() { e2e_flag pane_height; }
 FOCUS=#9ece6a SELECT=#364a82 ROW=#292e42 PANE_BG=#24283b WARN=#e0af68 FUNC=#7aa2f7 DIM=#565f89 PK=#73daca
-key() { e2e_keys "$@"; sleep 0.3; }
 typ() { e2e_type "$1"; sleep 0.3; }
 last_y() { echo $(( $(H) - 4 )); }   # 表列表的最后一行：下面是分隔线、提示行、下边框和状态栏
 # tree：侧栏表列表逐行「表名 行数」

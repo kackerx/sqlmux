@@ -5,7 +5,6 @@ e2e_build || exit 1
 
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$CFG"' EXIT
-H() { e2e_flag pane_height; }
 W() { e2e_flag pane_width; }
 # 状态栏文字；Nerd Font 图标（私有区）换成 @，便于逐字比较
 bar() { e2e_text 1 "$(W)" "$(H)" | python3 -c 'import sys; print("".join("@" if 0xE000 <= ord(c) <= 0xF8FF else c for c in sys.stdin.read().rstrip("\n")))'; }

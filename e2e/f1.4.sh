@@ -12,17 +12,6 @@ psql "$E2E_DB" -q -c "create table t_big as select g as id from generate_series(
 APP=e2e-f14-$$
 mkdir -p "$D/own"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s&application_name=%s"\n' "$E2E_DB" "$APP" >"$D/own/connections.toml"; chmod 600 "$D/own/connections.toml"
 KEYWORD=#bb9af7 DIM=#565f89 FG=#c0caf5 SEP=#2f3549 SELECT=#364a82 ROW=#292e42 WARN=#e0af68 ERROR=#f7768e
-H() { e2e_flag pane_height; }
-key() { e2e_keys "$@"; sleep 0.3; }
-bar() { e2e_text 1 "$(e2e_flag pane_width)" "$(H)"; }
-pos() { bar | grep -oE ' [0-9]+,[0-9]+ ' | tr -d ' '; }
-pos_is() { [[ $(pos) == "$1" ]] || { echo "  行,列 '$(pos)', want '$1'"; false; }; }
-mode_is() { [[ $(bar) == *" $1 " ]] || { echo "  mode: $(e2e_text 120 160 "$(H)")"; false; }; }
-qb() { e2e_text 35 159 3; }                                   # 查询条第二行
-qb_has() { [[ $(qb) == *"$1"* ]] || { echo "  query bar: '$(qb)', want '$1'"; false; }; }
-where_in() { e2e_text 42 157 2 | sed 's/ *$//'; }             # WHERE 输入框的文字（右端是 F1.5 的 ▾）
-cnt() { qb | grep -oE 'auto · [^ ]+ 行' | awk '{ print $3 }'; }
-hy() { echo $(( $(grid_y) - 1 )); }
 header() { e2e_text 35 159 "$(hy)"; }
 col_x() { e2e_find "$1" "$(hy)" | tr ' ' '\n' | awk '$1 > 34 { print; exit }'; }
 row_y() { echo $(( $(grid_y) + $1 )); }
@@ -30,8 +19,6 @@ rowno() { local c; c=$(e2e_find ┼ "$(grid_y)"); e2e_text 35 $((${c%% *} - 1)) 
 val() { local x; x=$(col_x "$1"); e2e_text "$x" $((x + ${3:-8})) "$(row_y "$2")" | sed 's/ .*//'; }   # NAME N [W] — 第 N 行 NAME 列的值（到第一个空格）
 # nums NAME N：第 N 行 NAME 列整格的内容（两条竖线之间），去掉空格；数值右对齐也能取到
 nums() { local x l r c; x=$(col_x "$1"); for c in $(e2e_find │ "$(hy)"); do ((c < x)) && l=$c; ((c > x)) && [[ -z $r ]] && r=$c; done; e2e_text $((l + 1)) $((r - 1)) "$(row_y "$2")" | tr -d ' '; }
-settled() { [[ $(bar) != *busy* && $(cnt) != "…" ]]; }
-clear_in() { local i; for ((i = 0; i < 80; i++)); do e2e_keys BSpace; done; sleep 0.2; }
 where() { key /; clear_in; e2e_type "$1"; sleep 0.2; key Enter; wait_for 8 settled; sleep 0.2; }
 psql_n() { psql "$E2E_DB" -At -c "$1"; }
 # sent KEYS...：锁住 t_order 时执行 KEYS，SQL 是它发出、正在等锁的那条语句；然后放锁、等表格回来
@@ -87,7 +74,8 @@ ok1=$([[ -z $(where_in) ]] && echo 1)
 e2e_type "$(printf '\xf0\x9f\x91\x8d\xf0\x9f\x8f\xbd')"; sleep 0.2; e2e_keys BSpace; sleep 0.2
 check "é（e+U+0301）、👍🏽 各按一次退格：整个字删掉" eval '[[ $ok1 == 1 && -z $(where_in) ]] && flag_is cursor_flag 1'
 e2e_type "$(printf 'x%.0s' $(seq 150))END"; sleep 0.3
-check "输入超出宽度：结尾 END 可见，光标在它后面、仍在 pane 里" eval '[[ $(e2e_text 42 159 2) == *END* ]] && c=$(e2e_find END 2) && [[ $(e2e_flag cursor_x) == $((${c%% *} + 2)) ]] && (( $(e2e_flag cursor_x) < 159 ))'
+end_shown() { [[ $(e2e_text 42 159 2) == *END* ]] && c=$(e2e_find END 2) && [[ $(e2e_flag cursor_x) == $((${c%% *} + 2)) ]] && (( $(e2e_flag cursor_x) < 159 )); }
+check "输入超出宽度：结尾 END 可见，光标在它后面、仍在 pane 里" wait_for 3 end_shown   # 负载高时 150 个字要一会儿才画完
 key Escape
 
 # ---- ORDER（go）：通用下拉框，第一项「默认」；同列 ↵ 翻转；行标识列作 tiebreaker；换了回第 1 页

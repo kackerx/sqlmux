@@ -18,8 +18,6 @@ failed() {   # TEXT — 退出码 1、输出含 TEXT、没进界面、没 panic
 }
 # ui CMD：在 tmux 里运行 CMD（sh 语法），connections.toml 取自 conns
 ui() { e2e_start -C "$DIR" "$1"; wait_for 5 flag_is alternate_on 1; sleep 0.3; }
-H() { e2e_flag pane_height; }
-bar() { e2e_text 1 "$(e2e_flag pane_width)" "$(H)"; }
 # conns_of [APP]：postgres 库上 application_name 为 APP（默认 sqlmux）的连接数；别人跑的 sqlmux 连的是 sqlmux 库
 conns_of() { psql "$SQLMUX_TEST_PG" -Atc "select count(*) from pg_stat_activity where datname = 'postgres' and application_name = '${1:-sqlmux}'"; }
 

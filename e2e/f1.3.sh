@@ -8,12 +8,6 @@ e2e_build || exit 1
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
 FOCUS=#9ece6a DIM=#565f89 WARN=#e0af68 ERROR=#f7768e FUNC=#7aa2f7 NUMBER=#ff9e64
-H() { e2e_flag pane_height; }
-key() { e2e_keys "$@"; sleep 0.3; }
-bar() { e2e_text 1 "$(e2e_flag pane_width)" "$(H)"; }
-pos() { bar | grep -oE ' [0-9]+,[0-9]+ ' | tr -d ' '; }                 # 状态栏的行,列
-pos_is() { [[ $(pos) == "$1" ]] || { echo "  行,列 '$(pos)', want '$1'"; false; }; }
-hy() { echo $(( $(grid_y) - 1 )); }                                     # 表头行
 header() { e2e_text 35 159 "$(hy)"; }
 col_x() { e2e_find "$1" "$(hy)" | tr ' ' '\n' | awk '$1 > 34 { print; exit }'; }   # ① 的表头里 NAME 的起始列（侧栏里可能也有这几个字）
 row_y() { echo $(( $(grid_y) + $1 )); }                                 # 可见的第 N 行数据
@@ -101,9 +95,9 @@ psql "$E2E_DB" -q -c "create table t_blank (id int primary key, s text)" -c "ins
   -c "create table t_empty (id int primary key)" -c "create table t_gone (id int primary key)"
 APP=e2e-f13-$$
 mkdir -p "$D/own"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s&application_name=%s"\n' "$E2E_DB" "$APP" >"$D/own/connections.toml"; chmod 600 "$D/own/connections.toml"
-# opened_sql NAME：先打开 NAME（列信息进缓存），再锁住它、从面板重新打开，SQL 是正在等锁的取数语句
-# （计数排在取数后面，pg_stat_activity 只留每条连接的最后一条）
-opened_sql() { open_table "$1"; e2e_lock "$1"; e2e_keys C-p; sleep 0.3; e2e_type "@$1"; sleep 0.3; e2e_keys Enter
+# opened_sql NAME：先打开 NAME（列信息进缓存），再锁住它、从面板用 C-t 再开一个 tab，SQL 是正在等锁的取数语句
+# （计数排在取数后面，pg_stat_activity 只留每条连接的最后一条；F1.6 起 ↵ 只会切到已开着的 tab，不再取数）
+opened_sql() { open_table "$1"; e2e_lock "$1"; e2e_keys C-p; sleep 0.3; e2e_type "@$1"; sleep 0.3; e2e_keys C-t
   wait_for 5 eval '[[ -n $(e2e_waiting $APP) ]]'; SQL=$(e2e_waiting $APP); e2e_unlock; wait_for 5 eval '[[ -n $(grid_y) ]]'; sleep 0.3; }
 start -C "$D/own"
 
@@ -147,11 +141,11 @@ check "第一次打开时取消：tab 还是 t_user，是空表" eval '[[ -z $(g
 key C-c
 check "空闲时 C-c 照旧：「再按一次 C-c 退出」" toast_is "再按一次 C-c 退出"
 sleep 2.2
-key Space %; key C-p; e2e_type "@t_user"; sleep 0.3; key Enter   # 新 pane 里第一次打开
+key Space %; key C-p; e2e_type "@t_user"; sleep 0.3; key C-t   # 新 pane 里第一次打开（① 已有 t_user，↵ 会切过去，F1.6）
 c=$(e2e_find busy $(H)); e2e_click $(( ${c%% *} + 1 )) $(H); sleep 0.3
 check "点击 busy 提示也能取消；第一次打开时取消，就是空表（没有网格）" eval 'toast_is "查询已取消" && [[ $(bar) != *busy* ]] && [[ $(e2e_text 99 159 3) != *┼* ]]'
 e2e_unlock
-sleep 0.5; key C-p; e2e_type "@t_user"; sleep 0.3; key Enter; sleep 0.5
+sleep 0.5; key C-p; e2e_type "@t_user"; sleep 0.3; key C-t; sleep 0.5
 check "锁释放后再打开 t_user：正常显示，同一条 Meta 连接还能用" eval '[[ $(e2e_text 99 159 $(hy)) == *name* ]] || { echo "  $(e2e_text 99 159 $(hy))"; false; }'
 
 # R（F1.2 的刷新）之后，已经打开的表仍保留类型颜色和钥匙图标

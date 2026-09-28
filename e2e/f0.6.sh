@@ -7,7 +7,6 @@ e2e_build || exit 1
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$CFG"' EXIT
 start_with() { printf "$1" >| "$CFG/config.toml"; start -c "$CFG/config.toml"; }
-H() { e2e_flag pane_height; }
 W() { e2e_flag pane_width; }
 # 浮层上边框所在行（一次截屏，计时类断言要快）
 top_row() { e2e_plain | python3 -c 'import sys; print(next((i + 1 for i, l in enumerate(sys.stdin) if l.startswith("┌─ " + sys.argv[1])), ""))' "$1"; }

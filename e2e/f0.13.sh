@@ -5,7 +5,6 @@
 e2e_build || exit 1
 
 W() { e2e_flag pane_width; }
-H() { e2e_flag pane_height; }
 . "$(dirname "$0")/palette.sh"
 
 # ---- open / dim / close (§7.5)

@@ -9,17 +9,7 @@ trap 'e2e_stop; rm -rf "$D"' EXIT
 SJ=$ST/sqlmux/state.json
 . "$(dirname "$0")/palette.sh"
 DIM=#565f89 SELECT=#364a82 WARN=#e0af68 ERROR=#f7768e
-H() { e2e_flag pane_height; }
-key() { e2e_keys "$@"; sleep 0.3; }
 typ() { e2e_type "$1"; sleep 0.4; }
-bar() { e2e_text 1 "$(e2e_flag pane_width)" "$(H)"; }
-mode_is() { [[ $(bar) == *" $1 " ]] || { echo "  mode: $(e2e_text 120 160 "$(H)")"; false; }; }
-qb() { e2e_text 35 159 3; }
-qb_has() { [[ $(qb) == *"$1"* ]] || { echo "  query bar: '$(qb)', want '$1'"; false; }; }
-where_in() { e2e_text 42 157 2 | sed 's/ *$//'; }             # WHERE 输入框（右端是 ▾）
-cnt() { qb | grep -oE 'auto · [^ ]+ 行' | awk '{ print $3 }'; }
-settled() { [[ $(bar) != *busy* && $(cnt) != "…" ]]; }
-clear_in() { local i; for ((i = 0; i < 80; i++)); do e2e_keys BSpace; done; sleep 0.2; }
 edit() { key /; clear_in; }                                   # 进入 WHERE 输入并清空
 run() { edit; typ "$1"; key Enter; wait_for 8 settled; sleep 0.2; }   # 执行一条 WHERE
 pop() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5 }'; }       # 浮层（补全列表 / 历史下拉）的 X Y W H

@@ -5,7 +5,6 @@ e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
-H() { e2e_flag pane_height; }
 . "$(dirname "$0")/palette.sh"
 # column where each list row's location starts (the second column after the icon)
 loc_cols() {
