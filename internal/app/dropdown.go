@@ -3,6 +3,7 @@ package app
 import (
 	"slices"
 	"strconv"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
@@ -32,6 +33,19 @@ type dropdown struct {
 }
 
 var limits = []int{100, 500, 1000} // §8.5
+
+// maxLimit caps a page size typed in: a page is all in memory (§7.8).
+const maxLimit = 10000
+
+// limitTyped is the page size typed in LIMIT's filter (§7.8): a positive
+// whole number, capped at maxLimit; 0 when what is typed is not one.
+func limitTyped(s string) int {
+	n, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return min(n, maxLimit)
+}
 
 // openDrop opens a dropdown of kind k, for the focused table unless it
 // picks a schema; its selection starts on the current value.
@@ -63,19 +77,34 @@ func (a *App) dropItems() (items []string, current int) {
 			}
 		}
 		return items, current
-	case dropLimit:
+	case dropLimit: // a number typed goes first
+		if n := limitTyped(d.input.Text); n > 0 {
+			items = append(items, strconv.Itoa(n))
+		}
 		for _, n := range limits {
 			items = append(items, strconv.Itoa(n))
 		}
-		return items, slices.Index(limits, d.tab.limit)
+		return items, slices.Index(items, strconv.Itoa(d.tab.limit))
 	}
 	return a.sess.Schemas, slices.Index(a.sess.Schemas, a.sess.Schema)
 }
 
-// dropMatches is the items that pass the filter, best first.
+// dropMatches is the items that pass the filter, best first; a page size
+// typed in is first whatever the filter makes of it, the same preset
+// dropped (§7.8).
 func (a *App) dropMatches() []ui.Match {
 	items, _ := a.dropItems()
-	return ui.Filter(a.drop.input.Text, items)
+	d := a.drop
+	if d.kind != dropLimit || limitTyped(d.input.Text) == 0 {
+		return ui.Filter(d.input.Text, items)
+	}
+	ms := []ui.Match{{Index: 0}}
+	for _, m := range ui.Filter(d.input.Text, items[1:]) {
+		if m.Index++; items[m.Index] != items[0] {
+			ms = append(ms, m)
+		}
+	}
+	return ms
 }
 
 // dropBox is where v, the dropdown as drawn, opens (§8.6, §7.8): under its

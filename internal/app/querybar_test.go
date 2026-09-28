@@ -395,3 +395,37 @@ func TestRecountOutlivesAStaleRequest(t *testing.T) {
 		t.Error("and only once")
 	}
 }
+
+// A whole number typed in LIMIT's filter is the first pick, capped at
+// 10000; ↵ takes it from the first page (§7.8).
+func TestCustomLimit(t *testing.T) {
+	a, tab, rec := withRecorder(t, 160, 45)
+	tab.pageNo = 3
+	feed(t, a, "gl250")
+	if v := a.dropView(); len(v.Items) != 1 || v.Items[0] != "250" || v.Sel != 0 {
+		t.Fatalf("250: %v", v.Items)
+	}
+	if sql := lastSQL(t, a, rec, a.press("<CR>")); tab.limit != 250 || tab.pageNo != 0 || !strings.HasSuffix(sql, "limit 251 offset 0") {
+		t.Fatalf("↵: limit %d page %d, %s", tab.limit, tab.pageNo, sql)
+	}
+	answer(a, tab)
+	if !strings.Contains(a.render().String(), " LIMIT 250 ") {
+		t.Error("the chip")
+	}
+	feed(t, a, "gl")
+	if v := a.dropView(); strings.Join(v.Items, " ") != "100 500 1000" || v.Mark != -1 {
+		t.Errorf("a custom size is not in the list: %v mark %d", v.Items, v.Mark)
+	}
+	feed(t, a, "99999")
+	if v := a.dropView(); v.Items[0] != "10000" {
+		t.Errorf("capped: %v", v.Items)
+	}
+	feed(t, a, strings.Repeat("<BS>", 5)+"100")
+	if v := a.dropView(); strings.Join(v.Items, " ") != "100 1000" {
+		t.Errorf("a preset typed is not listed twice: %v", v.Items)
+	}
+	feed(t, a, strings.Repeat("<BS>", 3)+"0")
+	if v := a.dropView(); len(v.Items) != 3 || v.Items[0] == "0" {
+		t.Errorf("0 is no size, only a filter: %v", v.Items)
+	}
+}
