@@ -25,14 +25,19 @@ const (
 	Normal Mode = iota
 	Insert
 	Replace
+	Visual
+	VisualLine
 )
 
 // String is the name the status bar shows (§7.8).
-func (m Mode) String() string { return [...]string{"NORMAL", "INSERT", "REPLACE"}[m] }
+func (m Mode) String() string {
+	return [...]string{"NORMAL", "INSERT", "REPLACE", "VISUAL", "V-LINE"}[m]
+}
 
 // Effect is what a key did that the console acts on.
 type Effect struct {
 	Changed bool // the text changed: save it, drop the failed ▶ (§11)
+	Yanked  bool // the register changed: the clipboard gets it (§11)
 }
 
 const (
@@ -53,8 +58,12 @@ type Editor struct {
 	top    int // the first line on screen
 	scroll int // how far C-d and C-u go, 0 for half the screen ('scroll')
 
-	keys []string   // the NORMAL command typed so far
+	keys []string   // the NORMAL or VISUAL command typed so far
 	ins  *insertion // the INSERT or REPLACE going on
+	reg  register
+
+	vstart     Pos // where VISUAL started: the other end of the selection
+	lastVisual visualArea
 
 	done, undone []step
 	snap         []string // the text before the change being made; nil when none is
@@ -101,6 +110,9 @@ func (e *Editor) Feed(k string) Effect {
 	case Insert, Replace:
 		e.insertKey(k)
 	default:
+		if k == "<lt>" {
+			k = "<"
+		}
 		e.keys = append(e.keys, k)
 		e.normal()
 	}
@@ -112,7 +124,8 @@ func (e *Editor) Feed(k string) Effect {
 // command.
 type cmd struct {
 	count int    // 0 when none was typed
-	name  string // the motion or command: "w", "gg", "f"
+	op    string // the operator waiting for the motion: "d", "gU"
+	name  string // the motion, text object or command: "w", "iw", "gg", "f"
 	arg   string // the character f, t, r take
 }
 
@@ -128,7 +141,7 @@ const (
 
 // normal runs the keys typed once they make a whole command.
 func (e *Editor) normal() {
-	c, st := parse(e.keys)
+	c, st := parse(e.keys, e.visual())
 	if st == waiting {
 		return
 	}
@@ -136,7 +149,7 @@ func (e *Editor) normal() {
 	if st == complete {
 		e.run(c)
 	}
-	if e.mode == Normal {
+	if e.mode == Normal || e.visual() {
 		e.trackLine()
 		e.endChange()
 		e.clampCursor()
@@ -146,34 +159,73 @@ func (e *Editor) normal() {
 // withArg are the commands that take the character typed next.
 var withArg = map[string]bool{"f": true, "F": true, "t": true, "T": true, "r": true}
 
-// parse reads keys as vim's NORMAL mode does.
-func parse(keys []string) (c cmd, st status) {
+// parse reads keys as vim's NORMAL and VISUAL modes do.
+func parse(keys []string, visual bool) (c cmd, st status) {
 	c.count, keys = count(keys)
-	if len(keys) == 0 {
-		return c, waiting
+	if c.name, c.arg, keys, st = word(keys, visual); st != complete {
+		return c, st
 	}
-	c.name, keys = keys[0], keys[1:]
-	if c.name == "g" || c.name == "z" {
-		if len(keys) == 0 {
+	if operators[c.name] && !visual {
+		c.op = c.name
+		n, keys := count(keys)
+		if n > 0 {
+			c.count = max(c.count, 1) * n
+		}
+		switch {
+		case len(keys) == 0:
 			return c, waiting
+		case keys[0] == c.op[len(c.op)-1:] && len(keys) == 1: // dd, gUU, gcc: the line
+			c.name = "_"
+			return c, complete
 		}
-		c.name, keys = c.name+keys[0], keys[1:]
-	}
-	if withArg[c.name] {
-		if len(keys) == 0 {
-			return c, waiting
+		if c.name, c.arg, _, st = word(keys, true); st != complete {
+			return c, st
 		}
-		if c.arg = keyText(keys[0]); keys[0] == "<Tab>" {
-			c.arg = "\t"
-		}
-		if c.arg == "" {
+		if motions[c.name] == nil && objects[c.name] == nil {
 			return c, invalid
 		}
+		return c, complete
 	}
-	if motions[c.name] == nil && commands[c.name] == nil {
+	known := motions[c.name] != nil || commands[c.name] != nil || shorthands[c.name][0] != ""
+	if visual {
+		known = motions[c.name] != nil || objects[c.name] != nil || visualCommands[c.name] != nil
+	}
+	if !known {
 		return c, invalid
 	}
 	return c, complete
+}
+
+// word reads a command's name off keys: g and z take a second key, and so
+// do i and a where they start a text object; f, t and r then take a
+// character.
+func word(keys []string, objects bool) (name, arg string, rest []string, st status) {
+	if len(keys) == 0 {
+		return "", "", nil, waiting
+	}
+	name, keys = keys[0], keys[1:]
+	if name == "g" || name == "z" || objects && (name == "i" || name == "a") {
+		if len(keys) == 0 {
+			return "", "", nil, waiting
+		}
+		name, keys = name+keys[0], keys[1:]
+	}
+	if !withArg[name] {
+		return name, "", keys, complete
+	}
+	if len(keys) == 0 {
+		return "", "", nil, waiting
+	}
+	switch arg = keyText(keys[0]); keys[0] {
+	case "<Tab>":
+		arg = "\t"
+	case "<CR>":
+		arg = "\r"
+	}
+	if arg == "" {
+		return "", "", nil, invalid
+	}
+	return name, arg, keys[1:], complete
 }
 
 // count reads a count off the front of keys: a lone 0 is a motion.
@@ -188,6 +240,27 @@ func count(keys []string) (int, []string) {
 
 func (e *Editor) run(c cmd) {
 	e.curswant() // vim settles it before each command (update_topline_cursor)
+	if c.op != "" {
+		e.operate(c)
+		return
+	}
+	if e.visual() {
+		if f := visualCommands[c.name]; f != nil {
+			f(e, c)
+			return
+		}
+		if o := objects[c.name]; o != nil {
+			start, vstart := e.cur, e.vstart
+			if _, ok := o(e, c.n(), c.name[0] == 'a'); !ok {
+				e.cur, e.vstart = start, vstart
+			}
+			e.want = wantUnset
+			return
+		}
+	} else if sh, ok := shorthands[c.name]; ok {
+		e.operate(cmd{count: c.count, op: sh[0], name: sh[1]})
+		return
+	}
 	if m := motions[c.name]; m != nil {
 		t := m(e, c, "")
 		e.cur = t.to
@@ -223,6 +296,24 @@ func init() {
 		"O": func(e *Editor, c cmd) { e.openLine(0, c) },
 		"R": func(e *Editor, c cmd) { e.startInsert(Replace, c) },
 
+		"p": func(e *Editor, c cmd) { e.put(true, c.n()) },
+		"P": func(e *Editor, c cmd) { e.put(false, c.n()) },
+		"J": func(e *Editor, c cmd) {
+			n := max(c.count, 2)
+			if left := len(e.lines) - e.cur.Line; n > left {
+				if n == 2 {
+					return
+				}
+				n = left
+			}
+			e.join(n, true)
+		},
+		"~":  func(e *Editor, c cmd) { e.tilde(c.n()) },
+		"r":  func(e *Editor, c cmd) { e.replace(c) },
+		"v":  func(e *Editor, _ cmd) { e.startVisual(Visual) },
+		"V":  func(e *Editor, _ cmd) { e.startVisual(VisualLine) },
+		"gv": func(e *Editor, _ cmd) { e.reselect() },
+
 		"u":     func(e *Editor, c cmd) { e.undo(c.n()) },
 		"<C-r>": func(e *Editor, c cmd) { e.redo(c.n()) },
 		"U":     func(e *Editor, _ cmd) { e.undoLine() },
@@ -241,11 +332,16 @@ func init() {
 // line is the cursor's line.
 func (e *Editor) line() string { return e.lines[e.cur.Line] }
 
-// clampCursor keeps a NORMAL cursor on a character: the last one at most.
+// clampCursor keeps a NORMAL cursor on a character: the last one at most;
+// in VISUAL it may be on the end of the line.
 func (e *Editor) clampCursor() {
 	e.cur.Line = min(max(e.cur.Line, 0), len(e.lines)-1)
 	l := e.line()
-	e.cur.Col = head(l, min(max(e.cur.Col, 0), last(l)))
+	end := last(l)
+	if e.visual() {
+		end = len(l)
+	}
+	e.cur.Col = head(l, min(max(e.cur.Col, 0), end))
 }
 
 // cursorVcol is the display column of the cursor as curswant takes it: the
@@ -253,7 +349,7 @@ func (e *Editor) clampCursor() {
 func (e *Editor) cursorVcol() int {
 	l, col := e.line(), e.cur.Col
 	v := vcol(l, col, e.TabWidth)
-	if col < len(l) && l[col] == '\t' && e.mode == Normal {
+	if col < len(l) && l[col] == '\t' && (e.mode == Normal || e.visual() && e.vstart.less(e.cur)) {
 		v += width(l, col, v, e.TabWidth) - 1
 	}
 	return v

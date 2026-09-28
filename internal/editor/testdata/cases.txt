@@ -1098,3 +1098,1292 @@ k
 {0..49}
 █50
 {51..99}
+
+## dw
+dw
+select █id, name from t
+
+## dw last word of line
+dw
+select █id
+from t
+
+## dw on blanks
+dw
+select   █   id
+
+## 2dw
+2dw
+█select id, name
+
+## d2w
+d2w
+█select id, name
+
+## dW
+dW
+█t.id x
+
+## de
+de
+select █id, name
+
+## db
+db
+select id, n█ame
+
+## dB
+dB
+select t.i█d
+
+## dge
+dge
+select id f█rom
+
+## d$
+d$
+select █id from t
+
+## D
+D
+select █id from t
+
+## 2D
+2D
+select █id
+from t
+x
+
+## d0
+d0
+select █id
+
+## d^
+d^
+  select █id
+
+## dh at start
+dh
+█select
+
+## dl
+dl
+selec█t
+
+## x
+x
+sel█ect
+
+## 3x
+3x
+sel█ect
+
+## x at end
+x
+selec█t
+
+## x count past end
+5x
+sele█ct
+
+## x empty line
+x
+█
+
+## X
+X
+sel█ect
+
+## 2X
+2X
+sel█ect
+
+## X at start
+X
+█select
+
+## dd
+dd
+select
+█from t
+where
+
+## dd last line
+dd
+select
+from
+█where
+
+## dd only line
+dd
+█select
+
+## 3dd
+3dd
+█a
+b
+c
+d
+
+## 3dd near end
+3dd
+a
+b
+█c
+d
+
+## 2dd on last line
+2dd
+a
+█b
+
+## dj
+dj
+█a
+b
+c
+
+## dk
+dk
+a
+b
+█c
+
+## dj on last line
+dj
+a
+█b
+
+## dG
+dG
+a
+█b
+c
+
+## dgg
+dgg
+a
+b
+█c
+d
+
+## dd keeps column
+dd
+  sel█ect
+  from t
+
+## df
+dfe
+█select id
+
+## dt
+dt,
+select █id, name
+
+## dF
+dFe
+select id█
+
+## dT
+dTe
+select id█
+
+## d;
+fed;
+█select id, name
+
+## d%
+d%
+select █(a, b) x
+
+## d}
+d}
+█select id
+from t
+
+where x
+
+## d} from middle
+d}
+select █id
+from t
+
+where x
+
+## d{
+d{
+select
+
+from t
+wh█ere
+
+## d} at end
+d}
+select
+█from t
+
+## cw
+cwfoo<Esc>
+select █id, name
+
+## cw on last char
+cwfoo<Esc>
+select i█d, name
+
+## cw on blank
+cwx<Esc>
+select█   id
+
+## ce
+cefoo<Esc>
+select i█d, name
+
+## cW
+cWx<Esc>
+select █t.id x
+
+## c$
+c$x<Esc>
+select █id
+
+## C
+Cx<Esc>
+select █id
+
+## cc
+ccx<Esc>
+  sel█ect
+
+## cc esc
+cc<Esc>
+  sel█ect
+
+## 2cc
+2ccx<Esc>
+  sel█ect
+from
+where
+
+## S
+Sx<Esc>
+  sel█ect
+
+## s
+sx<Esc>
+sel█ect
+
+## 3s
+3sx<Esc>
+sel█ect
+
+## cb
+cbx<Esc>
+select id█
+
+## cj
+cjx<Esc>
+  sel█ect
+from
+where
+
+## c empty motion
+chx<Esc>
+█select
+
+## yw
+yw
+select █id, name
+
+## yy
+yy
+sel█ect
+from
+
+## 2yy
+2yy
+sel█ect
+from
+where
+
+## y$
+y$
+sel█ect id
+
+## Y
+Y
+sel█ect id
+
+## yb moves cursor
+yb
+select id█
+
+## yj
+yj
+sel█ect
+from
+
+## yk
+yk
+select
+fr█om
+
+## yiw
+yiw
+select i█d from
+
+## ye
+ye
+sel█ect id
+
+## p charwise
+ywP
+select █id, name
+
+## p after
+yiwp
+select i█d, name
+
+## P
+yiwP
+select i█d, name
+
+## 3p
+yiw3p
+select i█d
+
+## p linewise
+yyp
+sel█ect
+from
+
+## P linewise
+yyP
+sel█ect
+from
+
+## 2p linewise
+yy2p
+sel█ect
+from
+
+## p linewise indent
+yyjp
+  sel█ect
+from
+
+## dd p
+ddp
+a
+█b
+c
+
+## dw P
+dwP
+select █id, name
+
+## x p swaps
+xp
+█ab
+
+## p multiline charwise
+vjyP
+sel█ect
+from t
+
+## p multiline charwise after
+vjy$p
+sel█ect
+from t
+
+## p nothing
+p
+█select
+
+## p on empty line
+yiwjp
+█select
+
+x
+
+## J
+J
+█select
+from t
+
+## J count
+3J
+█a
+b
+c
+d
+
+## J last line
+J
+a
+█b
+
+## J blank next
+J
+█a
+   b
+
+## J trailing space
+J
+█a 
+b
+
+## J paren
+J
+█count(
+)
+
+## J empty line
+J
+█
+
+b
+
+## J tab end
+J
+█a	
+b
+
+## 5J past end
+5J
+█a
+b
+c
+
+## ~
+~
+█select
+
+## 3~
+3~
+█select
+
+## ~ at end
+~~
+selec█t
+
+## ~ empty
+~
+█
+
+## ~ punct
+2~
+█a-b
+
+## r
+rx
+sel█ect
+
+## 3r
+3rx
+sel█ect
+
+## r too many
+5rx
+sele█ct
+
+## r CR
+r<CR>
+sel█ect
+
+## r CR indent
+r<CR>
+  sel█ect
+
+## 2r CR
+2r<CR>
+sel█ect
+
+## r Tab
+r<Tab>
+sel█ect
+
+## >>
+>>
+sel█ect
+
+## 3>>
+3>>
+█a
+b
+c
+
+## >> empty line
+>j
+█a
+
+b
+
+## <<
+<<
+    sel█ect
+
+## << too far
+<<
+ sel█ect
+
+## >j
+>j
+█a
+b
+
+## >} 
+>}
+█a
+b
+
+c
+
+## << keeps column
+<<
+    sel█ect
+
+## >> tab indent
+>>
+	sel█ect
+
+## gUw
+gUw
+█select id
+
+## gUU
+gUU
+sel█ect id
+
+## guiw
+guiw
+SEL█ECT ID
+
+## g~~
+g~~
+Sel█ect Id
+
+## gUj
+gUj
+sel█ect
+from
+
+## gUk
+gUk
+select
+fr█om
+
+## g~$
+g~$
+sel█ect
+
+## gcc
+gcc
+sel█ect
+
+## gcc uncomment
+gcc
+-- sel█ect
+
+## gcc uncomment no space
+gcc
+--sel█ect
+
+## gcj
+gcj
+  █a
+    b
+
+## gcj one commented
+gcj
+█-- a
+b
+
+## gcip
+gcip
+█a
+
+  b
+c
+
+## gcip blank line
+gcj
+█a
+
+## 3gcc
+3gcc
+  a
+█
+
+  b
+
+## gcc indent kept
+gcc
+  -- █x
+
+## gc uncomment mixed indent
+gcj
+  -- █a
+-- b
+
+## diw
+diw
+select █id from
+
+## diw on blank
+diw
+select █  id
+
+## daw
+daw
+select █id from
+
+## daw last word
+daw
+select from █id
+
+## daw first word
+daw
+█select from
+
+## 2daw
+2daw
+█select id from
+
+## ciw
+ciwx<Esc>
+select █id from
+
+## caw
+cawx<Esc>
+select █id from
+
+## diW
+diW
+select █t.id from
+
+## daW
+daW
+select █t.id from
+
+## di(
+di(
+count(█a, b)
+
+## da(
+da(
+count(█a, b) x
+
+## di( on paren
+di(
+count█(a, b)
+
+## di( on close
+di(
+count(a, b█)
+
+## ci(
+ci(x<Esc>
+count(█a, b)
+
+## di( nested
+di(
+f(a, g(█b), c)
+
+## 2di(
+2di(
+f(a, g(█b), c)
+
+## di( multiline
+di(
+f(
+  █a,
+  b
+)
+
+## da( multiline
+da(
+x f(
+  █a
+) y
+
+## di( empty
+di(
+f(█)
+
+## dib
+dib
+f(█a)
+
+## di) alias
+di)
+f(█a)
+
+## di( before parens
+di(
+█f(a)
+
+## di[
+di[
+x[█1]
+
+## di{
+di{
+{ █a }
+
+## di{ lines
+di{
+{
+  █a
+}
+
+## da{
+da{
+x {█a} y
+
+## di'
+di'
+where x = '█abc' and
+
+## da'
+da'
+where x = '█abc' and
+
+## da' no blank after
+da'
+where x in('█abc')
+
+## di' on quote
+di'
+x = █'abc'
+
+## di' before quote
+di'
+█x = 'abc'
+
+## di' second string
+di'
+'a' = '█b'
+
+## ci"
+ci"x<Esc>
+select "█col" from
+
+## di` 
+di`
+select `█col` from
+
+## di' escaped
+di'
+x = 'a\'█b'
+
+## di' none
+di'
+x █= 1
+
+## dip
+dip
+█a
+b
+
+c
+
+## dap
+dap
+█a
+b
+
+c
+
+## dap last paragraph
+dap
+a
+
+█b
+c
+
+## dip on blank
+dip
+a
+
+█
+c
+
+## yip cursor
+yip
+a
+b█
+
+## cip
+cipx<Esc>
+a
+█b
+
+c
+
+## v
+vly
+sel█ect
+
+## v esc
+vll<Esc>
+sel█ect
+
+## vd
+vlld
+sel█ect
+
+## vx
+vlx
+sel█ect
+
+## vd across lines
+vjd
+sel█ect
+from
+
+## v$d
+v$d
+sel█ect
+from
+
+## v$y
+v$y
+sel█ect
+from
+
+## vc
+vlcx<Esc>
+sel█ect
+
+## v backward d
+vhhd
+sel█ect
+
+## vy cursor
+vhhy
+sel█ect
+
+## vo
+vllohd
+sel█ect
+
+## V
+Vd
+a
+█b
+c
+
+## Vj d
+Vjd
+█a
+b
+c
+
+## Vy
+Vy
+a
+b█c
+
+## Vk d
+Vkd
+a
+b
+█c
+
+## Vc
+Vcx<Esc>
+  a█b
+
+## V>
+V>
+a█b
+
+## V3>
+V3>
+a█b
+
+## Vj<
+Vj<
+    █a
+    b
+
+## vu
+vlu
+█SELECT
+
+## vU
+veU
+█select id
+
+## v~
+v$~
+█Select
+
+## vJ
+VjjJ
+█a
+b
+c
+d
+
+## vJ one line
+VJ
+█a
+b
+
+## vgc
+Vjgc
+█a
+b
+
+## v v exits
+vlv
+sel█ect
+
+## v V switch
+vlVd
+a
+█b
+c
+
+## V v switch
+Vlvd
+sel█ect
+
+## gv
+vly<Esc>jgvd
+sel█ect
+from
+
+## gv in visual
+vly<Esc>jvlgvd
+sel█ect
+from
+
+## gv none
+gv
+█select
+
+## viw
+viwd
+select █id from
+
+## vaw
+vawd
+select █id from
+
+## viw extend
+viwiwd
+select █id from x
+
+## vi(
+vi(d
+f(█a, b)
+
+## va(
+va(d
+f(█a, b) x
+
+## vi( again grows
+vi(i(d
+f(a, g(█b))
+
+## vi'
+vi'd
+x = '█abc'
+
+## va'
+va'd
+x = '█abc' y
+
+## vip
+vipd
+█a
+b
+
+c
+
+## vap
+vapd
+█a
+b
+
+c
+
+## vip extend
+vipipd
+█a
+b
+
+c
+
+## v l past end
+vlld
+sele█ct
+x
+
+## v j onto shorter
+vjd
+selec█t
+x
+
+## vw
+vwd
+█select id
+
+## ve
+ved
+█select id
+
+## v count motion
+v2wd
+█a b c d
+
+## V count
+V2jd
+█a
+b
+c
+d
+
+## yy then P
+yyjP
+a█
+b
+
+## x register
+xjp
+█ab
+cd
+
+## dd register
+ddp
+█a
+b
+
+## yank then undo
+yiwu
+select █id
+
+## d3w across lines
+d3w
+select █id
+from t
+
+## dw before empty line
+dw
+select █id
+
+x
+
+## cw end of line
+cwx<Esc>
+select i█d
+from
+
+## c2w
+c2wx<Esc>
+█a b c
+
+## dfx fail
+dfz
+█select
+
+## cfx fail
+cfzx<Esc>
+█select
+
+## dj count
+2dj
+█a
+b
+c
+d
+
+## d} indent start
+d}
+  █a
+  b
+
+c
+
+## c} multi
+c}x<Esc>
+a █b
+c
+
+d
+
+## y} register
+y}
+█a
+b
+
+c
+
+## yiw register
+yiw
+█foo bar
+
+## p linewise last line
+yyjp
+█a
+b
+
+## P charwise multi
+vjyjP
+█ab
+cd
+
+## ddP
+ddP
+a
+█b
+
+## >ip
+>ip
+█a
+b
+
+c
+
+## <ip
+<ip
+  █a
+    b
+
+## gUiw
+gUiw
+sel█ect id
+
+## gu$
+gu$
+█SELECT ID
+
+## g~iw
+g~iw
+█Select id
+
+## gUaw
+gUaw
+a █bc d
+
+## vj$d
+vj$d
+a█b
+cd
+ef
+
+## V o
+Vjokd
+a
+b
+█c
+d
+
+## vjc
+vjcx<Esc>
+a█b
+cd
+
+## vy register multi
+vjy
+a█b
+cd
+
+## Vjy register
+Vjy
+a█b
+cd
+
+## v iw on blank
+viwd
+a  █  b
+
+## ya(
+ya(
+f(█a) x
+
+## yi"
+yi"
+"a█b"
+
+## d2i(
+d2i(
+f(a (█b))
+
+## 2dap
+2dap
+█a
+
+b
+
+c
+
+## da( cursor after
+da(
+x (█a) y
+
+## cc keeps indent typed
+ccfoo<Esc>
+    █x
+
+## S on blank line
+Sx<Esc>
+█
+
+## x then u
+xu
+sel█ect
+
+## dd then u
+ddu
+a
+█b
+c
+
+## 3dd then u
+j3ddu
+a
+b
+█c
+d
+e
+
+## J then u
+Ju
+█a
+b
+
+## p then u
+yyjpu
+█a
+b
+
+## gcc then u
+gccu
+sel█ect
+
+## >> then u
+>>u
+█a
+
+## ~ then u
+~u
+█a
+
+## U after x
+xxU
+sel█ect
+
+## U after dd
+xjddkU
+a█b
+c
+d
+
+## vd to line end from indent
+vjd
+  █a
+b
+c

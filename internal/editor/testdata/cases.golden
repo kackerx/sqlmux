@@ -5124,3 +5124,1758 @@ mode: n
 reg: "" ""
 top: 41
 mode: n
+
+## dw
+select █, name from t
+reg: "v" "id"
+top: 1
+mode: n
+
+## dw last word of line
+select█ 
+from t
+reg: "v" "id"
+top: 1
+mode: n
+
+## dw on blanks
+select   █id
+reg: "v" "   "
+top: 1
+mode: n
+
+## 2dw
+█, name
+reg: "v" "select id"
+top: 1
+mode: n
+
+## d2w
+█, name
+reg: "v" "select id"
+top: 1
+mode: n
+
+## dW
+█x
+reg: "v" "t.id "
+top: 1
+mode: n
+
+## de
+select █, name
+reg: "v" "id"
+top: 1
+mode: n
+
+## db
+select id, █ame
+reg: "v" "n"
+top: 1
+mode: n
+
+## dB
+select █d
+reg: "v" "t.i"
+top: 1
+mode: n
+
+## dge
+select i█om
+reg: "v" "d fr"
+top: 1
+mode: n
+
+## d$
+select█ 
+reg: "v" "id from t"
+top: 1
+mode: n
+
+## D
+select█ 
+reg: "v" "id from t"
+top: 1
+mode: n
+
+## 2D
+select█ 
+x
+reg: "v" "id\nfrom t"
+top: 1
+mode: n
+
+## d0
+█id
+reg: "v" "select "
+top: 1
+mode: n
+
+## d^
+  █id
+reg: "v" "select "
+top: 1
+mode: n
+
+## dh at start
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## dl
+sele█c
+reg: "v" "t"
+top: 1
+mode: n
+
+## x
+sel█ct
+reg: "v" "e"
+top: 1
+mode: n
+
+## 3x
+se█l
+reg: "v" "ect"
+top: 1
+mode: n
+
+## x at end
+sele█c
+reg: "v" "t"
+top: 1
+mode: n
+
+## x count past end
+sel█e
+reg: "v" "ct"
+top: 1
+mode: n
+
+## x empty line
+█
+reg: "" ""
+top: 1
+mode: n
+
+## X
+se█ect
+reg: "v" "l"
+top: 1
+mode: n
+
+## 2X
+s█ect
+reg: "v" "el"
+top: 1
+mode: n
+
+## X at start
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## dd
+select
+█where
+reg: "V" "from t\n"
+top: 1
+mode: n
+
+## dd last line
+select
+█from
+reg: "V" "where\n"
+top: 1
+mode: n
+
+## dd only line
+█
+reg: "V" "select\n"
+top: 1
+mode: n
+
+## 3dd
+█d
+reg: "V" "a\nb\nc\n"
+top: 1
+mode: n
+
+## 3dd near end
+a
+█b
+reg: "V" "c\nd\n"
+top: 1
+mode: n
+
+## 2dd on last line
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## dj
+█c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## dk
+█a
+reg: "V" "b\nc\n"
+top: 1
+mode: n
+
+## dj on last line
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## dG
+█a
+reg: "V" "b\nc\n"
+top: 1
+mode: n
+
+## dgg
+█d
+reg: "V" "a\nb\nc\n"
+top: 1
+mode: n
+
+## dd keeps column
+  fro█m t
+reg: "V" "  select\n"
+top: 1
+mode: n
+
+## df
+█lect id
+reg: "v" "se"
+top: 1
+mode: n
+
+## dt
+select █, name
+reg: "v" "id"
+top: 1
+mode: n
+
+## dF
+sel█d
+reg: "v" "ect i"
+top: 1
+mode: n
+
+## dT
+sele█d
+reg: "v" "ct i"
+top: 1
+mode: n
+
+## d;
+s█ct id, name
+reg: "v" "ele"
+top: 1
+mode: n
+
+## d%
+select █ x
+reg: "v" "(a, b)"
+top: 1
+mode: n
+
+## d}
+█
+where x
+reg: "V" "select id\nfrom t\n"
+top: 1
+mode: n
+
+## d} from middle
+select█ 
+
+where x
+reg: "v" "id\nfrom t"
+top: 1
+mode: n
+
+## d{
+select
+█ere
+reg: "v" "\nfrom t\nwh"
+top: 1
+mode: n
+
+## d} at end
+select
+█
+reg: "v" "from t"
+top: 1
+mode: n
+
+## cw
+select fo█o, name
+reg: "v" "id"
+top: 1
+mode: n
+
+## cw on last char
+select ifo█o, name
+reg: "v" "d"
+top: 1
+mode: n
+
+## cw on blank
+select█xid
+reg: "v" "   "
+top: 1
+mode: n
+
+## ce
+select ifo█o name
+reg: "v" "d,"
+top: 1
+mode: n
+
+## cW
+select █x x
+reg: "v" "t.id"
+top: 1
+mode: n
+
+## c$
+select █x
+reg: "v" "id"
+top: 1
+mode: n
+
+## C
+select █x
+reg: "v" "id"
+top: 1
+mode: n
+
+## cc
+  █x
+reg: "V" "  select\n"
+top: 1
+mode: n
+
+## cc esc
+█
+reg: "V" "  select\n"
+top: 1
+mode: n
+
+## 2cc
+  █x
+where
+reg: "V" "  select\nfrom\n"
+top: 1
+mode: n
+
+## S
+  █x
+reg: "V" "  select\n"
+top: 1
+mode: n
+
+## s
+sel█xct
+reg: "v" "e"
+top: 1
+mode: n
+
+## 3s
+sel█x
+reg: "v" "ect"
+top: 1
+mode: n
+
+## cb
+select █xd
+reg: "v" "i"
+top: 1
+mode: n
+
+## cj
+  █x
+where
+reg: "V" "  select\nfrom\n"
+top: 1
+mode: n
+
+## c empty motion
+█xselect
+reg: "" ""
+top: 1
+mode: n
+
+## yw
+select █id, name
+reg: "v" "id"
+top: 1
+mode: n
+
+## yy
+sel█ect
+from
+reg: "V" "select\n"
+top: 1
+mode: n
+
+## 2yy
+sel█ect
+from
+where
+reg: "V" "select\nfrom\n"
+top: 1
+mode: n
+
+## y$
+sel█ect id
+reg: "v" "ect id"
+top: 1
+mode: n
+
+## Y
+sel█ect id
+reg: "v" "ect id"
+top: 1
+mode: n
+
+## yb moves cursor
+select █id
+reg: "v" "i"
+top: 1
+mode: n
+
+## yj
+sel█ect
+from
+reg: "V" "select\nfrom\n"
+top: 1
+mode: n
+
+## yk
+se█lect
+from
+reg: "V" "select\nfrom\n"
+top: 1
+mode: n
+
+## yiw
+select █id from
+reg: "v" "id"
+top: 1
+mode: n
+
+## ye
+sel█ect id
+reg: "v" "ect"
+top: 1
+mode: n
+
+## p charwise
+select i█did, name
+reg: "v" "id"
+top: 1
+mode: n
+
+## p after
+select ii█dd, name
+reg: "v" "id"
+top: 1
+mode: n
+
+## P
+select i█did, name
+reg: "v" "id"
+top: 1
+mode: n
+
+## 3p
+select iididi█dd
+reg: "v" "id"
+top: 1
+mode: n
+
+## p linewise
+select
+█select
+from
+reg: "V" "select\n"
+top: 1
+mode: n
+
+## P linewise
+█select
+select
+from
+reg: "V" "select\n"
+top: 1
+mode: n
+
+## 2p linewise
+select
+█select
+select
+from
+reg: "V" "select\n"
+top: 1
+mode: n
+
+## p linewise indent
+  select
+from
+  █select
+reg: "V" "  select\n"
+top: 1
+mode: n
+
+## dd p
+a
+c
+█b
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## dw P
+select i█d, name
+reg: "v" "id"
+top: 1
+mode: n
+
+## x p swaps
+b█a
+reg: "v" "a"
+top: 1
+mode: n
+
+## p multiline charwise
+sel█ect
+fromect
+from t
+reg: "v" "ect\nfrom"
+top: 1
+mode: n
+
+## p multiline charwise after
+select█ect
+from
+from t
+reg: "v" "ect\nfrom"
+top: 1
+mode: n
+
+## p nothing
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## p on empty line
+select
+selec█t
+x
+reg: "v" "select"
+top: 1
+mode: n
+
+## J
+select█ from t
+reg: "" ""
+top: 1
+mode: n
+
+## J count
+a b█ c
+d
+reg: "" ""
+top: 1
+mode: n
+
+## J last line
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## J blank next
+a█ b
+reg: "" ""
+top: 1
+mode: n
+
+## J trailing space
+a █b
+reg: "" ""
+top: 1
+mode: n
+
+## J paren
+count(█)
+reg: "" ""
+top: 1
+mode: n
+
+## J empty line
+█
+b
+reg: "" ""
+top: 1
+mode: n
+
+## J tab end
+a	█b
+reg: "" ""
+top: 1
+mode: n
+
+## 5J past end
+a b█ c
+reg: "" ""
+top: 1
+mode: n
+
+## ~
+S█elect
+reg: "" ""
+top: 1
+mode: n
+
+## 3~
+SEL█ect
+reg: "" ""
+top: 1
+mode: n
+
+## ~ at end
+selec█t
+reg: "" ""
+top: 1
+mode: n
+
+## ~ empty
+█
+reg: "" ""
+top: 1
+mode: n
+
+## ~ punct
+A-█b
+reg: "" ""
+top: 1
+mode: n
+
+## r
+sel█xct
+reg: "" ""
+top: 1
+mode: n
+
+## 3r
+selxx█x
+reg: "" ""
+top: 1
+mode: n
+
+## r too many
+sele█ct
+reg: "" ""
+top: 1
+mode: n
+
+## r CR
+sel
+█ct
+reg: "" ""
+top: 1
+mode: n
+
+## r CR indent
+  sel
+ █ ct
+reg: "" ""
+top: 1
+mode: n
+
+## 2r CR
+sel
+█t
+reg: "" ""
+top: 1
+mode: n
+
+## r Tab
+sel█ ct
+reg: "" ""
+top: 1
+mode: n
+
+## >>
+  s█elect
+reg: "" ""
+top: 1
+mode: n
+
+## 3>>
+█  a
+  b
+  c
+reg: "" ""
+top: 1
+mode: n
+
+## >> empty line
+█  a
+
+b
+reg: "" ""
+top: 1
+mode: n
+
+## <<
+  selec█t
+reg: "" ""
+top: 1
+mode: n
+
+## << too far
+sele█ct
+reg: "" ""
+top: 1
+mode: n
+
+## >j
+█  a
+  b
+reg: "" ""
+top: 1
+mode: n
+
+## >} 
+█  a
+  b
+
+c
+reg: "" ""
+top: 1
+mode: n
+
+## << keeps column
+  selec█t
+reg: "" ""
+top: 1
+mode: n
+
+## >> tab indent
+    s█elect
+reg: "" ""
+top: 1
+mode: n
+
+## gUw
+█SELECT id
+reg: "" ""
+top: 1
+mode: n
+
+## gUU
+█SELECT ID
+reg: "" ""
+top: 1
+mode: n
+
+## guiw
+█select ID
+reg: "" ""
+top: 1
+mode: n
+
+## g~~
+█sELECT iD
+reg: "" ""
+top: 1
+mode: n
+
+## gUj
+SEL█ECT
+FROM
+reg: "" ""
+top: 1
+mode: n
+
+## gUk
+SE█LECT
+FROM
+reg: "" ""
+top: 1
+mode: n
+
+## g~$
+sel█ECT
+reg: "" ""
+top: 1
+mode: n
+
+## gcc
+█-- select
+reg: "" ""
+top: 1
+mode: n
+
+## gcc uncomment
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## gcc uncomment no space
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## gcj
+  █-- a
+  --   b
+reg: "" ""
+top: 1
+mode: n
+
+## gcj one commented
+█-- -- a
+-- b
+reg: "" ""
+top: 1
+mode: n
+
+## gcip
+█-- a
+
+  b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## gcip blank line
+█a
+reg: "" ""
+top: 1
+mode: n
+
+## 3gcc
+  a
+█  --
+  --
+  -- b
+reg: "" ""
+top: 1
+mode: n
+
+## gcc indent kept
+  █x
+reg: "" ""
+top: 1
+mode: n
+
+## gc uncomment mixed indent
+  █a
+b
+reg: "" ""
+top: 1
+mode: n
+
+## diw
+select █ from
+reg: "v" "id"
+top: 1
+mode: n
+
+## diw on blank
+select█id
+reg: "v" "   "
+top: 1
+mode: n
+
+## daw
+select █from
+reg: "v" "id "
+top: 1
+mode: n
+
+## daw last word
+select fro█m
+reg: "v" " id"
+top: 1
+mode: n
+
+## daw first word
+█from
+reg: "v" "select "
+top: 1
+mode: n
+
+## 2daw
+█from
+reg: "v" "select id "
+top: 1
+mode: n
+
+## ciw
+select █x from
+reg: "v" "id"
+top: 1
+mode: n
+
+## caw
+select █xfrom
+reg: "v" "id "
+top: 1
+mode: n
+
+## diW
+select █ from
+reg: "v" "t.id"
+top: 1
+mode: n
+
+## daW
+select █from
+reg: "v" "t.id "
+top: 1
+mode: n
+
+## di(
+count(█)
+reg: "v" "a, b"
+top: 1
+mode: n
+
+## da(
+count█ x
+reg: "v" "(a, b)"
+top: 1
+mode: n
+
+## di( on paren
+count(█)
+reg: "v" "a, b"
+top: 1
+mode: n
+
+## di( on close
+count(█)
+reg: "v" "a, b"
+top: 1
+mode: n
+
+## ci(
+count(█x)
+reg: "v" "a, b"
+top: 1
+mode: n
+
+## di( nested
+f(a, g(█), c)
+reg: "v" "b"
+top: 1
+mode: n
+
+## 2di(
+f(█)
+reg: "v" "a, g(b), c"
+top: 1
+mode: n
+
+## di( multiline
+f(
+█)
+reg: "V" "  a,\n  b\n"
+top: 1
+mode: n
+
+## da( multiline
+x f█ y
+reg: "v" "(\n  a\n)"
+top: 1
+mode: n
+
+## di( empty
+f(█)
+reg: "" ""
+top: 1
+mode: n
+
+## dib
+f(█)
+reg: "v" "a"
+top: 1
+mode: n
+
+## di) alias
+f(█)
+reg: "v" "a"
+top: 1
+mode: n
+
+## di( before parens
+f(█)
+reg: "v" "a"
+top: 1
+mode: n
+
+## di[
+x[█]
+reg: "v" "1"
+top: 1
+mode: n
+
+## di{
+{█}
+reg: "v" " a "
+top: 1
+mode: n
+
+## di{ lines
+{
+█}
+reg: "V" "  a\n"
+top: 1
+mode: n
+
+## da{
+x █ y
+reg: "v" "{a}"
+top: 1
+mode: n
+
+## di'
+where x = '█' and
+reg: "v" "abc"
+top: 1
+mode: n
+
+## da'
+where x = █and
+reg: "v" "'abc' "
+top: 1
+mode: n
+
+## da' no blank after
+where x in(█)
+reg: "v" "'abc'"
+top: 1
+mode: n
+
+## di' on quote
+x = '█'
+reg: "v" "abc"
+top: 1
+mode: n
+
+## di' before quote
+x = '█'
+reg: "v" "abc"
+top: 1
+mode: n
+
+## di' second string
+'a' = '█'
+reg: "v" "b"
+top: 1
+mode: n
+
+## ci"
+select "█x" from
+reg: "v" "col"
+top: 1
+mode: n
+
+## di` 
+select `█` from
+reg: "v" "col"
+top: 1
+mode: n
+
+## di' escaped
+x = '█'
+reg: "v" "a\\'b"
+top: 1
+mode: n
+
+## di' none
+x █= 1
+reg: "" ""
+top: 1
+mode: n
+
+## dip
+█
+c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## dap
+█c
+reg: "V" "a\nb\n\n"
+top: 1
+mode: n
+
+## dap last paragraph
+█a
+reg: "V" "\nb\nc\n"
+top: 1
+mode: n
+
+## dip on blank
+a
+█c
+reg: "V" "\n\n"
+top: 1
+mode: n
+
+## yip cursor
+█a
+b
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## cip
+█x
+
+c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## v
+sel█ect
+reg: "v" "ec"
+top: 1
+mode: n
+
+## v esc
+selec█t
+reg: "" ""
+top: 1
+mode: n
+
+## vd
+se█l
+reg: "v" "ect"
+top: 1
+mode: n
+
+## vx
+sel█t
+reg: "v" "ec"
+top: 1
+mode: n
+
+## vd across lines
+se█l
+reg: "v" "ect\nfrom"
+top: 1
+mode: n
+
+## v$d
+sel█from
+reg: "v" "ect\n"
+top: 1
+mode: n
+
+## v$y
+sel█ect
+from
+reg: "v" "ect\n"
+top: 1
+mode: n
+
+## vc
+sel█xt
+reg: "v" "ec"
+top: 1
+mode: n
+
+## v backward d
+s█ct
+reg: "v" "ele"
+top: 1
+mode: n
+
+## vy cursor
+s█elect
+reg: "v" "ele"
+top: 1
+mode: n
+
+## vo
+s█e
+reg: "v" "lect"
+top: 1
+mode: n
+
+## V
+a
+█c
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## Vj d
+█c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## Vy
+a
+█bc
+reg: "V" "bc\n"
+top: 1
+mode: n
+
+## Vk d
+█a
+reg: "V" "b\nc\n"
+top: 1
+mode: n
+
+## Vc
+  █x
+reg: "V" "  ab\n"
+top: 1
+mode: n
+
+## V>
+ █ ab
+reg: "" ""
+top: 1
+mode: n
+
+## V3>
+ █     ab
+reg: "" ""
+top: 1
+mode: n
+
+## Vj<
+  █a
+  b
+reg: "" ""
+top: 1
+mode: n
+
+## vu
+█seLECT
+reg: "" ""
+top: 1
+mode: n
+
+## vU
+█SELECT id
+reg: "" ""
+top: 1
+mode: n
+
+## v~
+█sELECT
+reg: "" ""
+top: 1
+mode: n
+
+## vJ
+a b█ c
+d
+reg: "" ""
+top: 1
+mode: n
+
+## vJ one line
+a█ b
+reg: "" ""
+top: 1
+mode: n
+
+## vgc
+█-- a
+-- b
+reg: "" ""
+top: 1
+mode: n
+
+## v v exits
+sele█ct
+reg: "" ""
+top: 1
+mode: n
+
+## v V switch
+a
+█c
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## V v switch
+sel█t
+reg: "v" "ec"
+top: 1
+mode: n
+
+## gv
+sel█t
+from
+reg: "v" "ec"
+top: 1
+mode: n
+
+## gv in visual
+sel█t
+from
+reg: "v" "ec"
+top: 1
+mode: n
+
+## gv none
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## viw
+select █ from
+reg: "v" "id"
+top: 1
+mode: n
+
+## vaw
+select █from
+reg: "v" "id "
+top: 1
+mode: n
+
+## viw extend
+select █from x
+reg: "v" "id "
+top: 1
+mode: n
+
+## vi(
+f(█)
+reg: "v" "a, b"
+top: 1
+mode: n
+
+## va(
+f█ x
+reg: "v" "(a, b)"
+top: 1
+mode: n
+
+## vi( again grows
+f(a, g(█))
+reg: "v" "b"
+top: 1
+mode: n
+
+## vi'
+x = '█'
+reg: "v" "abc"
+top: 1
+mode: n
+
+## va'
+x = █y
+reg: "v" "'abc' "
+top: 1
+mode: n
+
+## vip
+█
+c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## vap
+█c
+reg: "V" "a\nb\n\n"
+top: 1
+mode: n
+
+## vip extend
+█c
+reg: "V" "a\nb\n\n"
+top: 1
+mode: n
+
+## v l past end
+sele█x
+reg: "v" "ct\n"
+top: 1
+mode: n
+
+## v j onto shorter
+sele█c
+reg: "v" "t\nx"
+top: 1
+mode: n
+
+## vw
+█d
+reg: "v" "select i"
+top: 1
+mode: n
+
+## ve
+█ id
+reg: "v" "select"
+top: 1
+mode: n
+
+## v count motion
+█ d
+reg: "v" "a b c"
+top: 1
+mode: n
+
+## V count
+█d
+reg: "V" "a\nb\nc\n"
+top: 1
+mode: n
+
+## yy then P
+a
+█a
+b
+reg: "V" "a\n"
+top: 1
+mode: n
+
+## x register
+b
+c█ad
+reg: "v" "a"
+top: 1
+mode: n
+
+## dd register
+b
+█a
+reg: "V" "a\n"
+top: 1
+mode: n
+
+## yank then undo
+select █id
+reg: "v" "id"
+top: 1
+mode: n
+
+## d3w across lines
+select█ 
+reg: "v" "id\nfrom t"
+top: 1
+mode: n
+
+## dw before empty line
+select█ 
+
+x
+reg: "v" "id"
+top: 1
+mode: n
+
+## cw end of line
+select i█x
+from
+reg: "v" "d"
+top: 1
+mode: n
+
+## c2w
+█x c
+reg: "v" "a b"
+top: 1
+mode: n
+
+## dfx fail
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## cfx fail
+█elect
+reg: "v" "s"
+top: 1
+mode: n
+
+## dj count
+█d
+reg: "V" "a\nb\nc\n"
+top: 1
+mode: n
+
+## d} indent start
+█
+c
+reg: "V" "  a\n  b\n"
+top: 1
+mode: n
+
+## c} multi
+a █x
+
+d
+reg: "v" "b\nc"
+top: 1
+mode: n
+
+## y} register
+█a
+b
+
+c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## yiw register
+█foo bar
+reg: "v" "foo"
+top: 1
+mode: n
+
+## p linewise last line
+a
+b
+█a
+reg: "V" "a\n"
+top: 1
+mode: n
+
+## P charwise multi
+ab
+█ab
+ccd
+reg: "v" "ab\nc"
+top: 1
+mode: n
+
+## ddP
+█b
+a
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## >ip
+█  a
+  b
+
+c
+reg: "" ""
+top: 1
+mode: n
+
+## <ip
+█a
+  b
+reg: "" ""
+top: 1
+mode: n
+
+## gUiw
+█SELECT id
+reg: "" ""
+top: 1
+mode: n
+
+## gu$
+█select id
+reg: "" ""
+top: 1
+mode: n
+
+## g~iw
+█sELECT id
+reg: "" ""
+top: 1
+mode: n
+
+## gUaw
+a █BC d
+reg: "" ""
+top: 1
+mode: n
+
+## vj$d
+a█ef
+reg: "v" "b\ncd\n"
+top: 1
+mode: n
+
+## V o
+█a
+reg: "V" "b\nc\nd\n"
+top: 1
+mode: n
+
+## vjc
+a█x
+reg: "v" "b\ncd"
+top: 1
+mode: n
+
+## vy register multi
+a█b
+cd
+reg: "v" "b\ncd"
+top: 1
+mode: n
+
+## Vjy register
+█ab
+cd
+reg: "V" "ab\ncd\n"
+top: 1
+mode: n
+
+## v iw on blank
+a█b
+reg: "v" "    "
+top: 1
+mode: n
+
+## ya(
+f█(a) x
+reg: "v" "(a)"
+top: 1
+mode: n
+
+## yi"
+"█ab"
+reg: "v" "ab"
+top: 1
+mode: n
+
+## d2i(
+f(█)
+reg: "v" "a (b)"
+top: 1
+mode: n
+
+## 2dap
+█c
+reg: "V" "a\n\nb\n\n"
+top: 1
+mode: n
+
+## da( cursor after
+x █ y
+reg: "v" "(a)"
+top: 1
+mode: n
+
+## cc keeps indent typed
+    fo█o
+reg: "V" "    x\n"
+top: 1
+mode: n
+
+## S on blank line
+█x
+reg: "V" "\n"
+top: 1
+mode: n
+
+## x then u
+sel█ect
+reg: "v" "e"
+top: 1
+mode: n
+
+## dd then u
+a
+█b
+c
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## 3dd then u
+a
+b
+c
+█d
+e
+reg: "V" "d\ne\n"
+top: 1
+mode: n
+
+## J then u
+█a
+b
+reg: "" ""
+top: 1
+mode: n
+
+## p then u
+a
+█b
+reg: "V" "a\n"
+top: 1
+mode: n
+
+## gcc then u
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## >> then u
+█a
+reg: "" ""
+top: 1
+mode: n
+
+## ~ then u
+█a
+reg: "" ""
+top: 1
+mode: n
+
+## U after x
+sel█ect
+reg: "v" "c"
+top: 1
+mode: n
+
+## U after dd
+█a
+d
+reg: "V" "c\n"
+top: 1
+mode: n
+
+## vd to line end from indent
+  █c
+reg: "v" "a\nb\n"
+top: 1
+mode: n

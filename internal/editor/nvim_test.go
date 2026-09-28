@@ -116,11 +116,16 @@ func run(t *testing.T, c nvimCase) string {
 	}
 	e := New("")
 	e.lines, e.cur = append([]string(nil), c.text...), c.cur
+	e.clampCursor() // as nvim's cursor() does
 	e.SetHeight(nvimRows)
 	for _, k := range keys {
 		e.Feed(string(k))
 	}
-	return result(e.lines, e.cur, "", "", e.top, map[Mode]string{Normal: "n", Insert: "i", Replace: "R"}[e.mode])
+	kind := ""
+	if e.reg.kind != 0 {
+		kind = string(e.reg.kind)
+	}
+	return result(e.lines, e.cur, kind, e.reg.text, e.top, map[Mode]string{Normal: "n", Insert: "i", Replace: "R", Visual: "v", VisualLine: "V"}[e.mode])
 }
 
 func readGolden(t *testing.T) map[string]string {

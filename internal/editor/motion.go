@@ -42,6 +42,10 @@ func init() {
 		"%": percent,
 		"{": para(-1), "}": para(1),
 		"H": screenLine('H'), "M": screenLine('M'), "L": screenLine('L'),
+		"_": func(e *Editor, c cmd, _ string) target { // the line count-1 down, at its first non-blank
+			n := min(e.cur.Line+c.n()-1, len(e.lines)-1)
+			return target{to: Pos{n, nonBlank(e.lines[n])}, ok: true, linewise: true}
+		},
 	}
 }
 
@@ -58,7 +62,7 @@ func left(e *Editor, c cmd, op string) target {
 func right(e *Editor, c cmd, op string) target {
 	t, l := target{to: e.cur, ok: true}, e.line()
 	for n := c.n(); n > 0; n-- {
-		if nx := next(l, t.to.Col); nx < len(l) {
+		if nx := next(l, t.to.Col); nx < len(l) || e.visual() && t.to.Col < len(l) { // VISUAL may go onto the end of the line
 			t.to.Col = nx
 			continue
 		}
@@ -88,7 +92,7 @@ func dollar(e *Editor, c cmd, _ string) target {
 		return target{to: e.cur}
 	}
 	e.want = wantEnd
-	return target{to: Pos{n, last(e.lines[n])}, ok: true, inclusive: true, keepWant: true}
+	return target{to: Pos{n, e.coladvance(n, wantEnd)}, ok: true, inclusive: true, keepWant: true}
 }
 
 // goLine is gg (last false) and G: the count's line, else the first or
@@ -236,7 +240,7 @@ func (e *Editor) fwd(p *Pos, count int, big, eol bool) bool {
 // adjust keeps a motion that went forward off the end of a line: it lands
 // on the last character, which it then takes in (normal.c adjust_cursor).
 func (e *Editor) adjust(t *target) {
-	if e.cur.less(t.to) && t.to.Col > 0 && t.to.Col >= len(e.lines[t.to.Line]) {
+	if e.cur.less(t.to) && t.to.Col > 0 && t.to.Col >= len(e.lines[t.to.Line]) && !e.visual() {
 		t.to.Col = last(e.lines[t.to.Line])
 		t.inclusive = true
 	}
