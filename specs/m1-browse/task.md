@@ -285,13 +285,14 @@
 - **涉及**：`internal/ui`（complete）、`internal/app`（WHERE 输入框、面板）、`internal/keymap/default.toml`
 
 **开发**
-- [ ] 按 §9.7「交互」改：弹出时默认选中第一项；`Tab` / `C-n` / `↓` 下一项，`S-Tab` / `C-p` / `↑` 上一项；`↵` 接受选中项；列表没弹出时 `↵` 照常；`esc` 两步。WHERE 与快速 SQL 共用。
+- [ ] 按 §9.7「交互」改：弹出时第一项弱高亮；第一次 `Tab` / `C-n` / `↓` 选中它，之后移到下一项；`S-Tab` / `C-p` / `↑` 上一项；`↵` 只在选过时接受，否则照常执行；`esc` 两步。WHERE 与快速 SQL 共用。
 - [ ] 快速 SQL 的面板里，`Tab` / `S-Tab` 在列表开着时移动候选，关着时照常切换范围。
 - [ ] `default.toml` 的 `[keys.complete]` 跟着改（§6.8）。
 
 **验收**
 - [ ] e2e：
-  - WHERE 输入 `sta` 后 `status` 已经选中，`↵` 接受；`Tab` 移到下一项、`S-Tab` 回来；
+  - WHERE 输入 `sta` 后 `status` 弱高亮，`↵` 直接执行查询；按一次 `Tab` 后 `status` 强高亮，`↵` 接受；再按 `Tab` 移到下一项、`S-Tab` 回来；
+  - 快速 SQL 输入 `select 42 as x` 后 `↵` 直接执行，语句不变；
   - `esc` 关掉列表后 `↵` 执行查询；
   - 快速 SQL 里列表开着时 `Tab` 移动候选，关着时 `Tab` 切换范围。
 
