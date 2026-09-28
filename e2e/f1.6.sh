@@ -106,7 +106,7 @@ check "点击 ① 的 +：焦点到树、进入过滤框（INSERT）" eval 'focu
 e2e_type t_log; sleep 0.3; key Enter; key Enter; wait_for 8 settled
 check "过滤出 t_log、↵ 打开：进 ① 的新 tab，焦点到 ①" eval 'tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_order │ 4:t_log*" && focus_is 1 && tabs_are 2 "1:t_sku*"'
 key C-h; key /
-check "树里自己按 /：仍保留上次的过滤 t_log" eval 'mode_is INSERT && [[ $(tree_in) == *"t_log "*"1/8" ]] || { echo "  filter row: $(tree_in)"; false; }'
+check "树里自己按 /：仍保留上次的过滤 t_log" eval 'mode_is INSERT && [[ $(tree_in) == *"t_log "*"1/11" ]] || { echo "  filter row: $(tree_in)"; false; }'
 key Enter
 click_tab 2 +
 check "再点 ② 的 +：先清空上次留下的过滤（t_log），过滤框是空的（§7.8）" eval 'focus_is 0 && mode_is INSERT && [[ $(tree_in) != *t_log* ]] || { echo "  filter row: $(tree_in)"; false; }'
@@ -116,10 +116,8 @@ pal_open t_event Enter
 check "esc 之后从面板 ↵ 打开 t_event：仍进 ② 的新 tab" eval 'tabs_are 2 "1:t_sku- │ 2:t_event*" && focus_is 2'
 click_tab 2 +; key Escape; key C-l; key C-h                               # 焦点离开树：标记作废
 pal_open t_order_item Enter
-check "焦点离开过树之后再打开：不进 ② 的新 tab（按 §12 打开到第一个 data pane 的当前 tab）" eval 'tabs_are 2 "1:t_sku- │ 2:t_event*" && tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_order │ 4:t_order_item*"'
+check "焦点离开过树之后再打开：不进 ② 的新 tab（按 §12 打开到焦点所在的 ① 的当前 tab）" eval 'tabs_are 2 "1:t_sku- │ 2:t_event*" && tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_order │ 4:t_order_item*"'
 
-# ---- 窄侧栏（窗口 < 100 列，侧栏 24 列）：放不下的表名以 … 结尾（§7.8，F1.2 遗留）
-start -x 80 -y 24 -C "$D/own"
-check "80 列：mv_order_by_status 截成 …" eval '[[ $(e2e_text 2 22 4) == *"mv_order_by_"*"… "* ]] || { echo "  $(e2e_text 2 22 4)"; false; }'
+# 窄侧栏里放不下的名字以 … 结尾（§7.8）：F1.12 起由 80x24 的 golden 覆盖（schema_migrati…）
 
 e2e_done

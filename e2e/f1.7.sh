@@ -91,13 +91,13 @@ check "输入 pai：补全列表开着（paid），没有选中" eval '[[ $(item
 e2e_keys Enter; wait_for 8 eval '[[ -n $(title) ]]'
 check "没选中时 ↵：直接执行（输入不变，结果区是数据库的报错）" eval '[[ $(input) == ";select st from t_order where status = '"'done'"' and pai" && $(line1) == ERROR:* ]] || { echo "  $(input) / $(line1)"; false; }'
 
-# ---- 树停在 agentable：同一事务里 SET LOCAL search_path，agent 能直接找到，补全也换成 agentable 的表
-e2e_keys Escape; sleep 0.3; key C-h; key g s; e2e_type agentable; sleep 0.3; key Enter; sleep 0.5
+# ---- 树停在 agentable（F1.12：光标所在节点的 schema）：同一事务里 SET LOCAL search_path，agent 能直接找到，补全也换成 agentable 的表
+e2e_keys Escape; sleep 0.3; key C-h; key g g; key j; sleep 0.3                   # 光标移到 agentable 节点
 pal; sql "select count(*) from agent"
 check "树在 agentable：;select count(*) from agent 能找到表，结果和 psql 一致" eval '[[ $(grid) == $(psql_n "select count(*) from agentable.agent") ]] || { echo "  $(line1)"; false; }'
 clear_all; e2e_type ";select * from agent_v"; sleep 0.5
 check "补全用 agentable 的表" eval '[[ $(items | head -1) == "agent_version 表" ]] || { items; false; }'
-e2e_keys Escape Escape; sleep 0.3; key C-h; key g s; e2e_type public; sleep 0.3; key Enter; sleep 0.5; key C-l
+e2e_keys Escape Escape; sleep 0.3; key C-h; key j; key C-l                      # 光标回到 public 节点
 
 # ---- C-y：结果转成 CSV（表头 + 显示的行，NULL 为空），经 OSC 52 进剪贴板（F-04）
 t set -g set-clipboard on

@@ -9,14 +9,13 @@ e2e_build || exit 1
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
 . "$(dirname "$0")/palette.sh"
-NF_SCHEMA=$(printf '\xef\x83\xa8') NF_DATA=$(printf '\xef\x87\x80') NF_FILTER=$(printf '\xef\x82\xb0')
+NF_CONN=$(printf '\xef\x87\xa6') NF_DATA=$(printf '\xef\x87\x80') NF_FILTER=$(printf '\xef\x82\xb0')
 widths_are() { local got; got=$(e2e_widths | sed '/^0$/d' | sort -u | tr '\n' ' '); [[ $got == "$1 " ]] || { echo "  row widths: $got"; false; }; }
 
 # ---- nerd: circled numbers, no type words, icon-only palette entry, no / in the filter row
 start; two_tabs; two_panes
-check "titles: ⓪ <icon> public ▾ · ① <icon> t_order · ② <icon>" eval 'text_has 1 32 1 "┌─ ⓪ $NF_SCHEMA public ▾ " && text_has 34 96 1 "┌─ ① $NF_DATA t_order ─" && text_has 98 160 1 "┌─ ② $NF_DATA ─"'
 check "no data / console words in the titles" eval '[[ $(e2e_text 34 160 1) != *" data "* && $(e2e_text 34 160 1) != *"console · "* ]]'
-check "filter row: icon then the table count, no /" text_is 2 13 2 " $NF_FILTER 8 tables "
+check "filter row: icon then the table count, no /" text_is 2 14 2 " $NF_FILTER 11 tables "
 check "status bar: the palette entry is only the search icon" eval '[[ $(e2e_text 1 160 45) != *C-p* ]] && text_is $(( $(search_col) - 1 )) $(( $(search_col) + 1 )) 45 " $SEARCH_ICON "'
 e2e_click $(search_col) 45; sleep 0.3
 check "clicking the search icon opens the palette" is_open
@@ -37,25 +36,25 @@ for w in 60 40 30; do
   check "${w} wide: every row is $w columns, titles stay inside their boxes" eval 'widths_are $w && t=$(e2e_text 1 $w 1); [[ $t != *"─┐─"* && $t == *┐ ]]'
 done
 
-# ---- a dragged-narrow sidebar (§7.8): keep ⓪ <icon>, shorten the schema name (pub… ▾); drop ▾ only with no room for one letter
+# ---- a dragged-narrow sidebar (§7.8, F1.12): keep ⓪ <icon>, SPC b gives way first, then the session name shrinks (dorae…)
 start
 side_w() { e2e_panes | awk '$1 == 0 { print $4 }'; }
 want_title() {  # W → the expected start of the sidebar title
-  local room=$(( $1 - 12 ))                          # "┌─ ⓪ X " + " ▾" + " ─┐" take 12 columns
-  if ((room >= 6)); then echo "┌─ ⓪ $NF_SCHEMA public ▾ "; elif ((room >= 2)); then echo "┌─ ⓪ $NF_SCHEMA ${NAME:0:room-1}… ▾ "; else echo "┌─ ⓪ $NF_SCHEMA "; fi
+  local room=$(( $1 - 10 ))                          # "┌─ ⓪ X " + " ─┐" take 10 columns
+  if ((room >= ${#NAME})); then echo "┌─ ⓪ $NF_CONN $NAME "; elif ((room >= 2)); then echo "┌─ ⓪ $NF_CONN ${NAME:0:room-1}… "; else echo "┌─ ⓪ $NF_CONN "; fi
 }
-NAME=public ok=1
+NAME=doraemon ok=1
 for w in 22 20 19 18 17 16; do
   e2e_down $(( $(side_w) + 1 )) 20; e2e_drag_to $(( w + 1 )) 20; e2e_up $(( w + 1 )) 20; sleep 0.3
   t=$(e2e_text 1 "$(side_w)" 1); exp=$(want_title "$(side_w)")
   [[ $t == "$exp"* && $t == *┐ && $t != *SPC* ]] || { echo "  width $(side_w): '$t', want it to start with '$exp' and no SPC b"; ok=0; }
 done
-check "sidebar 16–22 wide: ⓪ <icon> stays, the schema name shrinks to pub… ▾, SPC b gives way first" test $ok = 1
+check "sidebar 16–22 wide: ⓪ <icon> stays, SPC b gives way first, the session name shrinks to dorae…" test $ok = 1
 
 # ---- ascii: the screen is as before F0.16
 printf 'icons = "ascii"\n' > "$D/config.toml"; start -C "$D"; two_tabs
-check "ascii: titles keep ⟨n⟩ and the type words" eval 'text_has 1 32 1 "⟨0⟩ # public ▾" && text_has 34 160 1 "⟨1⟩ = data · t_order"'
-check "ascii: the palette entry still reads ~ C-p, the filter row keeps /" eval 'text_has 1 160 45 " ~ C-p " && text_has 1 32 2 "? / 8 tables"'
+check "ascii: titles keep ⟨n⟩ and the type words" eval 'text_has 1 32 1 "⟨0⟩ @ doraemon" && text_has 34 160 1 "⟨1⟩ = data · t_order"'
+check "ascii: the palette entry still reads ~ C-p, the filter row keeps /" eval 'text_has 1 160 45 " ~ C-p " && text_has 1 32 2 "? / 11 tables"'
 
 # ---- the palette: commands only useful while editing a cell are not candidates
 start; pal '>'

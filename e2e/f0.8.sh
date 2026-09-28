@@ -84,11 +84,11 @@ read x y <<<"$(for y in $(seq 30 44); do c=$(e2e_find "s →" $y); [[ -n $c ]] &
 check "悬停 which-key 的一项：select 底" style_has $x $y bg=$SELECT
 e2e_keys Escape; sleep 0.2
 
-# ---- 滚轮（§7.4）：作用于指针下方的 pane，每格 3 行（12 行高时侧栏只放得下 5 张表，seed 的 public 有 8 张）
+# ---- 滚轮（§7.4）：作用于指针下方的 pane，每格 3 行（12 行高时侧栏只放得下 5 行；F1.12 的树默认有 14 个节点）
 start -y 12
 row4() { e2e_text "$1" "$2" "$3"; }
 s0=$(row4 2 31 4); e2e_wheel 10 6 down; sleep 0.3
-check "指针在侧栏上滚动：滚动表列表（mv_order_by_status → t_order，3 行），焦点仍在 ①" eval '[[ $s0 == *" mv_order_by_status "* && $(row4 2 31 4) == *" t_order "* ]] && focus_is 1'
+check "指针在侧栏上滚动：滚动树（doraemon → Tables (6)，3 行），焦点仍在 ①" eval '[[ $s0 == *" doraemon "* && $(row4 2 31 4) == *" Tables (6) "* ]] && focus_is 1'
 start; open_table t_order
 first() { e2e_text 35 39 $(( $(grid_y) + 1 )) | tr -d ' '; }   # 表格可见的第一行的行号
 e2e_wheel 60 20 down; sleep 0.3

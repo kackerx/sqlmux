@@ -78,7 +78,7 @@ tui ''; check "默认 nerd：画面有私有区码点（对照）" pua
 tui 'icons = "ascii"\n'; check "icons = \"ascii\"：画面没有私有区码点" eval '! pua'
 tui '[keys.normal]\n"<Space>b" = ""\n"<C-b>" = "tree.toggle"\n'; check "改绑 tree.toggle 为 C-b：侧栏标题显示 C-b" text_ends 1 32 1 " C-b ─┐"
 tui '[keys]\nleader = "<C-a>"\n'; check "leader = <C-a>：侧栏标题显示 C-a b" text_ends 1 32 1 " C-a b ─┐"
-tui '[keys.normal]\n"<Leader>b" = ""\n'; check "解绑 tree.toggle：侧栏标题不显示提示" eval '[[ $(e2e_text 1 32 1) == *"public ▾ ───"*"─┐" && $(e2e_text 1 32 1) != *SPC* ]]'
+tui '[keys.normal]\n"<Leader>b" = ""\n'; check "解绑 tree.toggle：侧栏标题不显示提示" eval '[[ $(e2e_text 1 32 1) == *"doraemon ───"*"─┐" && $(e2e_text 1 32 1) != *SPC* ]]'
 # console 标题的 ▶ run 改键（改绑 console.run 为 R）到 M3 有 console 时补回
 tui '[keys.grid]\n"T" = ""\n'; two_tabs; check "解绑 grid.transpose：tab 栏不显示「转置」" eval '[[ $(e2e_text 34 160 43) != *转置* && $(e2e_text 34 160 43) == *"↵ edit"* ]]'
 # 侧栏提示行（§6.7、§7.8）：未绑定的整项不显示；放不下时整项省略

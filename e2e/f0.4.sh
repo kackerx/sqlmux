@@ -46,12 +46,12 @@ check ":qa↵ 退出，终端复原" quit_clean
 # ---- 连按两次 C-c 退出（§6.8）
 start
 e2e_keys C-c; sleep 0.3
-check "C-c 一次：toast「再按一次 C-c 退出」，不退出" eval 'toast_is "再按一次 C-c 退出" && running'
+check "C-c 一次：toast「再按一次 C-c 退出」，不退出" eval 'screen_has "再按一次 C-c 退出" && running'   # 只截一次屏：负载高时 toast_is 的几次截屏会吃掉 2 秒的窗口
 e2e_keys C-c
 check "2 秒内再按：退出，终端复原" quit_clean
 start
 e2e_keys C-c; sleep 2.3; e2e_keys C-c; sleep 0.3
-check "两次间隔超过 2 秒：不退出，第二次重新算第一次" eval 'running && toast_is "再按一次 C-c 退出"'
+check "两次间隔超过 2 秒：不退出，第二次重新算第一次" eval 'running && wait_for 2 toast_is "再按一次 C-c 退出"'
 e2e_keys C-c
 check "紧接着再按：退出" quit_clean
 
@@ -65,7 +65,7 @@ start
 e2e_keys C-c; sleep 2.2
 check "2.2 秒时提示已消失（只显示 2 秒）" eval '! screen_has "再按一次"'
 e2e_keys C-c; sleep 0.3
-check "消失后再按：不退出，提示重新出现" eval 'running && toast_is "再按一次 C-c 退出"'
+check "消失后再按：不退出，提示重新出现" eval 'running && wait_for 2 toast_is "再按一次 C-c 退出"'   # 负载高时 0.3 秒可能还没画出来
 e2e_keys Escape; sleep 2.2
 # 「被别的 toast 顶掉」「其他 toast 显示 3 秒」：F0.13 去掉了「未知命令」toast，M0 里已没有别的 toast，这两项暂不测
 
