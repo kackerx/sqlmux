@@ -93,7 +93,7 @@ sqlmux/
 ├─ internal/app/            Model/Update/View、Action 注册表、工作现场模型、布局树
 ├─ internal/ui/             Frame、Block、主题、命中表、模糊匹配（fzf 算法的封装）、各组件绘制（grid/tree/tabs/statusline/palette/popup/cell editor/补全列表）
 ├─ internal/keymap/         键位记法解析、作用域 trie、次数前缀、用户映射（按 pane 类型）、冲突检测、提示查询、default.toml（embed）
-├─ internal/editor/         vim 编辑器：缓冲区、移动/文本对象/操作符、撤销、绘制；testdata/ 存放 nvim 差分用例
+├─ internal/editor/         vim 编辑器的纯逻辑：缓冲区、移动/文本对象/操作符、撤销、搜索与 : 命令行；不 import ui 和 bubbletea，console 的绘制在 ui/console.go；testdata/ 存放 nvim 差分用例
 ├─ internal/sqlkit/         词法扫描、分句、读写判定、自动 LIMIT、WHERE 拼接校验、补全上下文判断、格式化（内嵌 sql-formatter）
 ├─ internal/db/             Conn/Engine 接口、Worker、postgres/、mysql/、catalog 查询
 ├─ internal/config/         config / connections / state 的读写与 XDG 路径
@@ -249,7 +249,7 @@ type Action struct {                // 注册表是 map[id]Action，id 如 "pane
 | `cell` | 正在编辑单元格（INSERT） |
 | `input` | 任意单行输入框获得焦点（INSERT） |
 | `result` | result pane 获得焦点时生效，优先级在 `grid` 之上（如 `P`、`q`）；其余按键落到 `grid` |
-| `grid` / `tree` / `console` | 对应控件获得焦点。`console` 只含应用层的键（如 ↵ 执行、gq），其余按键交给 vim 引擎 |
+| `grid` / `tree` / `console` / `landing` | 对应控件获得焦点：按 pane 当前 tab 的类型，表格 → grid，console → console，引导页和没有 tab 的 pane → landing（M3 F3.7）。`console` 只含应用层的键（如 ↵ 执行、gq），其余按键交给 vim 引擎 |
 | `normal` | 所有 NORMAL 上下文共用：pane 焦点、leader、gt/gT、`:` |
 | `global` | 始终生效，只有少数 Ctrl 组合：C-p、C-s、C-c |
 
@@ -258,6 +258,7 @@ type Action struct {                // 注册表是 map[id]Action，id 如 "pane
 - 实现上，把当前上下文涉及的各作用域 trie 按上述优先级合并，合并结果缓存起来复用。
 - INSERT 下没有匹配到的可打印字符交给输入控件。
 - console 中没有匹配到的按键序列（包括已经缓冲的前缀，如 `g` 之后的 `g`）整体交给 vim 引擎。
+- **编辑器在等后续按键时，按键不经过 keymap**（M3 定）：有待输入的操作符、字符参数或文本对象前缀时（`d`、`c`、`y`、`f`、`t`、`r`、`i` / `a` 等），按键直接交给引擎，用户映射也不展开，与 nvim 在 operator-pending 下不用 normal 映射一致；只有 `C-c` 仍等同 esc。否则 `f<Space>x` 会被当成 leader 序列 `SPC x`，把 pane 关掉。
 
 ### 6.5 按键序列、leader 与 which-key
 
@@ -342,8 +343,9 @@ H = "0"
 | NORMAL | `SPC q` | 按编号跳转 pane | C-a q |
 | NORMAL | `SPC b` | 折叠 schema 树 | C-a b |
 | NORMAL | `gt` · `gT` | 下一个 · 上一个 tab | 同 |
-| NORMAL | `:` | 打开命令面板并直接进入命令范围；`:q`、`:qa`、`:w` 照常可用（§12） | 同 |
-| NORMAL | `;` | 打开命令面板并直接进入 SQL 范围（§12）。M3 的 console 作用域里 `;` 仍是 vim 的「重复 f/t」 | 新增（M1 用户反馈） |
+| 表格 / 树 / 引导页 | `:` | 打开命令面板并直接进入命令范围；`:q`、`:qa`、`:w` 照常可用（§12）。M3 起绑在 `[keys.grid]`、`[keys.tree]`、`[keys.landing]`，不在 normal：console 里的 `:` 要交给编辑器自己的命令行（§11） | 同 |
+| 表格 / 树 / 引导页 | `;` | 打开命令面板并直接进入 SQL 范围（§12）。绑法同 `:`，console 里 `;` 是 vim 的「重复 f/t」 | 新增（M1 用户反馈） |
+| 引导页（`landing`） | `t` · `c` | 打开表（`tab.table`）· 新建 console（`console.new`） | 新增（M3） |
 | 表格 | `hjkl` `gg` `G` `0` `$` | 移动，支持次数前缀 | hjkl |
 | 表格 | `↵` · `i` | 编辑单元格 | 同 |
 | 表格 | `R` · `T` · `x` | 刷新 · 转置 · 关闭 tab（有未保存修改时需确认） | 同 |
@@ -456,6 +458,7 @@ time    = "#fc9867"
 | `row_alt` | #1f2335 | 表格斑马纹的偶数行（比 pane 底色深） |
 | `edited_bg` | #2d2a24 | 已修改单元格的底色 |
 | `keyword` | #bb9af7 | SQL 关键字、VISUAL |
+| `sql_string` / `comment` | #9ece6a / 同 `dim` | console 里 SQL 的字符串字面量 / 注释（M3）。`string` 是表格里字符串值的颜色，默认不着色，所以另设一个 |
 | `info` | #7dcfff | 连接信息、COMMAND |
 | `error` | #f7768e | 错误、Redis 标识 |
 | `number` / `pk` / `func` | #ff9e64 / #73daca / #7aa2f7 | 数值 / 主键与 schema 值 / 函数名 |
@@ -553,7 +556,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
 - 写了 `fg` 的图标在任何位置都用这个颜色；没写时跟随所在位置的颜色，比如标题聚焦时是 `focus` 色。
 - **图标后面留 1 个空格再接文字**（M1 用户反馈）：树、面板的搜索行与候选、pane 标题、侧栏标题、状态栏、查询条都一样。Nerd Font 图标按 1 列计算（§7.1），但不少终端和字体把它画得比 1 列宽，溢出到后一格，紧挨着文字时看起来贴在一起，悬停底色也只盖住半个。留一格空白正好接住溢出的部分。
 - 默认颜色：`save`、`refresh`、`transpose` 用 `info` 色，`sort_asc` / `sort_desc` 用 `warn` 色；都可以在 `[icon]` 里用 `fg` 覆盖。
-- 可以覆盖的图标：`schema`、`table`、`data`、`console`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`，以及命令面板用的 `command`（nf-fa-bolt，U+F0E7，ascii 为 `:`）和 `window`（nf-fa-window_restore，U+F2D2，ascii 为 `[]`）；查询条的 `save`（U+F0C7，ascii `[S]`）、`refresh`（U+F021，ascii `[R]`）、`transpose`（U+F0EC，ascii `[T]`）、`sort_asc`（nf-fa-sort_amount_asc，U+F160，ascii `↑`）、`sort_desc`（nf-fa-sort_amount_desc，U+F161，ascii `↓`）；树的 `view`（nf-fa-eye，U+F06E，ascii `v`）、`column`（nf-cod-symbol_field，U+EB5F，ascii `-`）。以后新增的图标（如 `mysql`、视图）也按名字加入。名字写错时启动报错。
+- 可以覆盖的图标：`schema`、`table`、`data`、`console`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`，以及命令面板用的 `command`（nf-fa-bolt，U+F0E7，ascii 为 `:`）和 `window`（nf-fa-window_restore，U+F2D2，ascii 为 `[]`）；查询条的 `save`（U+F0C7，ascii `[S]`）、`refresh`（U+F021，ascii `[R]`）、`transpose`（U+F0EC，ascii `[T]`）、`sort_asc`（nf-fa-sort_amount_asc，U+F160，ascii `↑`）、`sort_desc`（nf-fa-sort_amount_desc，U+F161，ascii `↓`）；树的 `view`（nf-fa-eye，U+F06E，ascii `v`）、`column`（nf-cod-symbol_field，U+EB5F，ascii `-`）；结果区的 `result`（nf-fa-list_alt，U+F022，ascii `=`）、`pin`（nf-oct-pin，U+F435，ascii `*`）、`export`（nf-fa-download，U+F019，ascii `>`）、`close`（nf-fa-times，U+F00D，ascii `x`）。M3 起去掉 `data`：表 tab 在 pane 标题、tab 栏、树的工作区、面板的 pane 行里一律用 `table` 图标，console tab 用 `console`，引导 tab 不画图标。以后新增的图标（如 `mysql`、视图）也按名字加入。名字写错时启动报错。
 
 ### 7.8 默认尺寸与样式（取自设计稿）
 
@@ -786,7 +789,7 @@ catalog 按 session 缓存。console 执行 DDL 后（由 §9.3 的判定得知�
 
 **方案**：与 DataGrip 一致，每个 console 可以单独选择 schema。
 
-- **入口**：console pane 标题的右侧显示 `doraemon.public ▾`，位于 `▶ run ↵` 旁边。
+- **入口**：console pane 标题的右侧显示 `<库名>.<schema> ▾`（库名取连接的 database，记在 session 上），位于 `▶ run ↵` 旁边。
   - 点击它，或在 console 的 NORMAL 模式下按 `gs`，打开 schema 下拉框。
   - 下拉框列出当前库的 schema，系统 schema（`pg_catalog`、`information_schema` 等）不列出。顶部有过滤输入框，支持模糊匹配（§9.7）。
   - 下拉框照命令面板的做法：打开后输入直接进过滤框（模式为 COMMAND，§7.8），`C-n` / `C-p` / `↑` / `↓` 移动，`↵` 选中，`esc` 关闭；`j` / `k` 会被当成输入，所以不用。鼠标：点选，点浮层外部关闭，悬停 `row` 底。
@@ -794,7 +797,7 @@ catalog 按 session 缓存。console 执行 DDL 后（由 §9.3 的判定得知�
   - 组件放在 `ui` 里，M1 用于 ORDER、LIMIT，M3 给 console 选 schema。树不再用它：M1 F1.12 起 schema 是树里的节点（§7.8）。
   - 命令面板里也有对应的「Switch schema…」命令。
 - **默认值**：新建的 console，默认使用 schema 树当前所在的 schema；之后两者互不影响。
-- **执行方式**：同一个 session 的所有 console 共用 `Main` 连接，所以每次执行前比较一下：如果连接当前的 `search_path` 与这个 console 选择的 schema 不一致，先执行 `SET search_path TO <所选 schema>, <建连时的原始 search_path>`。
+- **执行方式**：同一个 session 的所有 console 共用 `Main` 连接，所以每次执行前比较一下（session 记下 `Main` 当前的 search_path，初始为建连时读到的值；一次执行里有 SET / RESET / DISCARD 语句时把记下的值作废，下次一定重新 SET。代价是用户在 console 里自己 `set search_path` 只持续到这次执行结束，以下拉框为准）：如果连接当前的 `search_path` 与这个 console 选择的 schema 不一致，先执行 `SET search_path TO <所选 schema>, <建连时的原始 search_path>`。
   - 原始路径在建连时用 `SHOW search_path` 读取，接在后面，这样装在 `public` 等 schema 里的扩展函数仍然能找到。
 - **影响范围**：console 的补全以它自己选择的 schema 为准。表格查询始终带 schema 前缀，不受影响。
 
@@ -828,14 +831,15 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 
 1. 第一个有效关键字是 SELECT、SHOW、EXPLAIN、TABLE、VALUES、DESC 之一时，判为读。
 2. 以 WITH 开头的，继续在顶层扫描：出现 INSERT、UPDATE、DELETE、MERGE 就判为写。
-3. `EXPLAIN ANALYZE` 后面跟写语句时判为写，因为它会真正执行。
-4. 其余一律判为写。
+3. `EXPLAIN ANALYZE` 后面跟写语句时判为写，因为它会真正执行；`EXPLAIN (ANALYZE, BUFFERS) …` 这种括号写法里的 ANALYZE 也算。
+4. PG 的 `SELECT … INTO 新表` 会建表，判为写。
+5. 其余一律判为写。
 
 这个判定只用于提示（F-05 的黄色提示、只读 session 的拦截说明），保护靠数据库层（§13）。
 
 ### 9.4 自动 LIMIT（F-05）
 
-- 对 SELECT、WITH…SELECT、TABLE、VALUES 这类读语句：顶层没有 LIMIT 或 FETCH 时，在末尾追加 ` LIMIT 101`。多取一行是为了判断是否还有更多，界面上显示 `100+`。
+- 对 SELECT、WITH…SELECT、TABLE、VALUES 这类读语句：顶层没有 LIMIT 或 FETCH 时，先去掉末尾的 `;`，再追加 `\nLIMIT n`（console 为 `max_rows + 1`，快速 SQL 为 101）。前面加换行，防止语句末尾的 `--` 注释把 LIMIT 注释掉。多取一行是为了判断是否还有更多，界面上显示 `100+`。
 - 不用子查询包一层来加 LIMIT，因为 MySQL 可能丢掉派生表里的 ORDER BY。
 - 其他语句由 `Exec` 的 `maxRows` 截断。
 
@@ -874,7 +878,7 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
   - 括号内侧各加一个换行，这样输入末尾的 `--` 注释不会把右括号和后面的 ORDER / LIMIT 一起注释掉（lazysql 有这个问题）。输入为空时不加 WHERE。
 - **只允许一条语句**：
   - PG 的表格查询走扩展协议，协议本身就拒绝多条语句；MySQL 不开启 `multiStatements`。
-  - 发送之前，扫描器如果在顶层发现 `;`，直接提示错误，不发送。这样可以防止类似 `1=1; drop table t` 的输入连带执行其他语句。
+  - 发送之前，扫描器如果在顶层发现 `;`，直接提示错误，不发送：在 pane 内容区第一行用 `error` 色显示「WHERE 里不能有 ;」（M3 F3.5 起；在此之前由 PG 的扩展协议报错）。这样可以防止类似 `1=1; drop table t` 的输入连带执行其他语句。
 - **历史 / 收藏**：保存输入原文。
 - **补全**：见 §9.7。
 
@@ -915,7 +919,7 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 - `esc` 第一次关闭候选列表，第二次才退出 INSERT，与 COLS 下拉「先清空，再关闭」的规则一致。
 - 鼠标：悬停即移动选择，点击即接受。
 
-**WHERE 补全的细节**（M1 F1.5；上下文判断先放在 `sqlkit.WhereContext(text, pos)`，M3 的完整扫描器把它收进 `CompletionContext`）：
+**WHERE 补全的细节**（M1 F1.5；上下文判断放在 `sqlkit.WhereContext(text, pos)`。M3 起它和 `CompletionContext` 建在同一个扫描器上，但仍是两个函数：WHERE 的「取值模式」是 WHERE 独有的，合并后重复的只剩几行）：
 
 - 先跳过字符串、带引号的标识符和注释，再看光标前面：光标前是标识符的一部分，就是列名 / 关键字模式；光标前是 `列 =`、`列 <>`、`列 in (`（含 in 列表里逗号之后），后面可以跟半截值（`'d`、`tr`），就是取值模式，只针对枚举列和布尔列。写之前先看 lazysql 的 `sql_lexer.go` / `sql_context.go`。
 - **弹出时机**：列名 / 关键字模式在输入标识符字符时弹出，前缀为空不弹（刚敲了空格）；取值模式到了取值位置就弹，前缀可以为空，所以输入 `status = ` 就直接列出枚举值。
@@ -1085,11 +1089,11 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 | VISUAL | 可以用移动和文本对象扩展选区（如 `viw`、`vi(`）；`o` 切换选区的两端，`gv` 重新选中上次的选区；选区上可用 `d c y x > < u U ~ J gc` |
 | VISUAL BLOCK | 按显示列选出一个矩形；`$` 把选区延伸到每行行尾；`o` / `O` 切换对角。可用的操作：`I` / `A` 在每行的块首 / 块尾插入（输入先显示在第一行，按 esc 后复制到其余各行；`A` 会给较短的行补空格）；`c` 修改整块；`d` / `x` 删除整块；`y` 复制整块，寄存器记为块类型；`p` / `P` 按块粘贴；`r{字符}`；`~ u U`；`> <`；`gc` |
 | 撤销 | `u` 撤销、`C-r` 重做、`U` 撤销当前行上的全部修改，与 nvim 一致。想把 `U` 当成重做（Helix 的习惯），映射一行 `U = "<C-r>"` 即可 |
-| 命令行 | `:{n}` 跳到第 n 行；`:s` 与 `:%s` 替换，支持选区范围 `'<,'>` 和标志 `g i`，替换串中的 `\1`、`&` 按 vim 的写法；`:w`、`:q` |
-| INSERT 下 | Backspace、`C-w`、`C-u`、方向键；`↵` 换行并保持上一行的缩进；Tab 按 `tab_width` 插入空格。模糊补全见 §9.7：输入时自动弹出，也可以用 `C-n` / `C-p` 手动唤起 |
-| 寄存器 | 只有无名寄存器，并与系统剪贴板同步（OSC 52，`tea.SetClipboard`） |
+| 命令行 | `:{n}` 跳到第 n 行；`:s` 与 `:%s` 替换，支持选区范围 `'<,'>` 和标志 `g i`，替换串中的 `\1`、`&` 按 vim 的写法；`:w`、`:q`。`/`、`?`、`:` 的输入行画在 console 内容区的最后一行（tab 栏上方），模式显示为 COMMAND；VISUAL 下按 `:` 预填 `'<,'>`。`{n}` 和 `s` 由编辑器执行，其余交给 app 按面板的 ex 别名（q、qa、w）执行，都不认识时 toast「不支持的命令：xxx」。搜索找不到时 toast「找不到：<pat>」（对应 nvim 的 E486） |
+| INSERT 下 | Backspace、`C-w`、`C-u`、方向键；`↵` 换行并保持上一行的缩进；Tab 按 `tab_width` 插入空格。模糊补全见 §9.7：输入时自动弹出，也可以用 `C-n` 手动唤起（`C-p` 在列表没开时是全局的命令面板） |
+| 寄存器 | 只有无名寄存器（带字符 / 行 / 块类型）。yank 或删除后通过 OSC 52 写进系统剪贴板；`p` 只读内部寄存器，因为多数终端不支持 OSC 52 读取，系统剪贴板里的东西用终端的粘贴送进来 |
 
-**不做**：宏（`q` `@`）、`.` 重复、具名寄存器（`"a`–`"z`）、标记与跳转列表、折叠、句子与标签类文本对象（`is` `as` `it` `at`）、`:g` 等其他 ex 命令。
+**不做**：宏（`q` `@`）、`.` 重复、具名寄存器（`"a`–`"z`）、标记与跳转列表、折叠、句子与标签类文本对象（`is` `as` `it` `at`）、`:g` 等其他 ex 命令；也不做 `gJ`、`{count}%`、VISUAL 下的 `p`、`i<` / `a<`、hlsearch / incsearch。不折行（nowrap），横向跟着光标滚动，`H M L`、`C-d` 等按可见行数计算，scrolloff 为 0。
 
 **块选择的补充说明**：
 
@@ -1112,13 +1116,16 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 
 **文件**：
 
-- 每个 console tab 对应 `~/.local/share/sqlmux/consoles/<session>/<name>.sql`。
-- 内容变更后 1s 内自动保存；`:w` 或 `C-s` 立即写入。
+- 每个 console tab 对应 `$XDG_DATA_HOME/sqlmux/consoles/<连接名>/console_<n>.sql`。新建时 n 取这个 session 里没被打开的最小值，文件已经存在就载入，所以默认的 console_1 每次启动都带着上次写的 SQL，文件也不会越积越多。
+- 最后一次修改后 1s 自动保存（去抖），写临时文件再 rename，目录 0700、文件 0600（§13）；`:w`、`C-s`、关闭 tab、退出时立即写；没改过就不写。写入失败用 toast 提示。`:q` 关闭 tab 不弹确认，内容已经写盘。
 
 **执行（C-02）**：
 
 - 在 NORMAL 或 VISUAL 下按 `↵`、点击 gutter 的 ▶、点击标题栏的 `▶ run` 都可以执行。有选区时执行选区，否则执行光标所在的语句。
-- 每次最多取 `console.max_rows` 行（默认 1000），超出部分截断，并提示已截断。
+- 每次最多取 `console.max_rows` 行（默认 1000），读语句用自动 LIMIT（§9.4），其余靠 `Exec` 的 `maxRows` 截断；截断时显示 `1000+ 行`。
+- 在 `Main` 的一次 `Worker.Run` 里逐条执行，每条是单独的简单协议请求、各自自动提交；遇到错误就停，后面的不执行。不一次发出整段：PG 简单协议里一次发送的多条语句属于同一个隐式事务，一条出错全部回滚，也没法知道错在哪一条、把哪个 ▶ 标红。
+- 首个关键字是 create / alter / drop 的语句成功后，重新加载 catalog、清空列缓存（同 `tree.refresh`）。
+- 已知上限：用户在 console 里自己 `begin` 之后不提交，`Main` 会一直在事务里，表格的保存也会进这个事务。M5 做 manual 事务模式时处理。
 
 **结果区（C-04 至 C-07，已确认）**
 
@@ -1155,10 +1162,10 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 - **console 的结果 tab**：每个 console tab 在结果区里有自己的结果 tab，标题形如 `console_1 #42`。
   - 同一个 console 再次执行时，替换它原有的结果 tab，序号加一。C-05 的复用从 pane 级别改到了 tab 级别。
   - 一次执行多条语句时，每个结果集各占一个 tab（`#42`、`#42·2`……），下次执行时整组替换。
-  - 非查询语句（如 `UPDATE 3`）只写进日志，不单独开 tab。
+  - 非查询语句（如 `UPDATE 3`）只写进日志，不单独开 tab。一次执行完全没有结果集时，保留上一次的结果 tab，结果区切到日志。
 - **执行中**：结果 tab 先显示占位内容（执行中、已用时、`C-c` 取消），完成后再替换成结果。这一做法参考了 pgtui 的 `result_tabs`。
 - **固定与关闭**：
-  - `P` 固定当前结果 tab：它不会再被替换，下次执行另开新 tab（C-06）。
+  - `P` 固定当前结果 tab：它不会再被替换，下次执行另开新 tab（C-06）。固定的 tab 画 `pin` 图标，不写「（已固定）」（有图标就不配文字）。`R` 重跑（`result.rerun`）。
   - `q` 关闭当前结果 tab。
   - 快速 SQL 里按 `C-t`，结果会作为一个已固定的 tab 放进结果区。
 - **切换**：`gt` / `gT`，或者直接点击 tab（T-02）。
@@ -1167,13 +1174,11 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 
 **工具行**：
 
-- pane 标题的右侧显示来源与序号、行数、耗时（C-07），以及可以点击的按钮：重跑、转置、固定、导出 CSV、关闭 tab。
+- pane 标题的右侧显示来源与序号、行数、耗时（C-07），以及可以点击的按钮：重跑、转置、固定、导出 CSV、关闭 tab，画成 ` <图标> `。放不下时依次舍去，保留的优先级：关闭 > 重跑 > 固定 > 转置 > 导出 > 统计文字。
+- 导出 CSV 写文件：当前目录下的 `console_1-42.csv`，完成后 toast 显示路径。不走剪贴板：OSC 52 能复制的大小有限，1000 行可能超过终端的上限。
 - 表格的交互与 data pane 相同（G-01、G-05、G-06），但只读。
 
-**配置**：`result_split = bottom | console`。
-
-- `bottom`（默认）：即上面描述的底部结果区。
-- `console`：保留 PRD 的原方案，在 console 旁边分割；宽度大于高度的 2 倍时向右分，否则向下分。
+**不做 `result_split = console`**（M3 定）：每个 console 旁边各有一个结果 pane，与「每个 window 一个结果区」是两套布局规则，工作量不小，也没人要过。有需要时再加。
 
 ## 12. 命令面板与快速 SQL（K、F）
 
@@ -1283,7 +1288,6 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 theme        = "tokyonight-storm"
 icons        = "nerd"            # nerd | ascii
 timeoutlen   = 1000
-result_split = "bottom"          # bottom | console（§11）
 result_height = 0.4              # 底部结果区默认所占的高度比例
 formatprg    = ""                # 例如 "pg_format -"；为空时使用内置的 sql-formatter
 keyword_case = "lower"
@@ -1336,7 +1340,9 @@ read_only    = false
   - 时间分段的解析与调整。
 - **编辑器与 nvim 的差分测试**：
   - `internal/editor/testdata/cases.txt` 中每条用例包含：初始文本、光标位置、按键序列。
-  - `go generate` 调用 `nvim --headless --clean`，逐条执行 `normal!`，记录结果的文本、光标位置和无名寄存器，作为 golden 文件提交。
+  - `go generate` 调用 `nvim --headless --clean`，逐条用 `silent! call feedkeys(keys, 'xt')` 喂按键，记录结果的文本、光标位置、无名寄存器和 topline，作为 golden 文件提交。不用 `normal!`：一次 `:normal` 的全部按键只算一个撤销步，`xxu` 会把两个 `x` 一起撤掉，和手按不一致（M3 核对时在 nvim 0.12.4 上实测）；`t` 让按键按真实输入处理。
+  - 生成器的选项：`--clean` 加 `expandtab tabstop=2 shiftwidth=2 nowrap ignorecase smartcase commentstring=--\ %s`，窗口固定 24×80，Go 那边用同一个高度；golden 文件头记下 nvim 版本。
+  - 正则：RE2 和 vim 的语法不同，搜索和 `:s` 的差分用例只用两边含义相同的写法（字面量、`.`、`^`、`$`、`\d`、`[…]`、`*`），其余另写单测。
   - `go test` 把自研编辑器的结果和 golden 文件逐条比对。CI 上不需要安装 nvim；只有新增用例或升级 nvim 版本时，才需要重新生成。
   - 已验证可行：在 nvim 0.12.4 上跑了 `ciw`、`daw`、`di(`、`gUiw`、`D`、`J`、`caw`、`dd`、`C`、`gcc`，以及块选择的 `I`、`$A`、`d`、`c`、`y` + `p` 等用例，都能拿到结果文本、光标位置和寄存器类型。
   - 生成期望结果时，用 `silent!` 执行按键，避免 nvim 的提示消息混进输出。

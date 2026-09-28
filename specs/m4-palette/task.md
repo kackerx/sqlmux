@@ -6,7 +6,7 @@
 - **范围**：
   - PRD：K-01~K-05、F-01~F-05
   - tech-design：§7.5、§12
-- **依赖**：M1（catalog、`match.go`）；F4.3 还依赖 M3 的 F3.3 和 F3.5。
+- **依赖**：M1（catalog、`match.go`）；F4.3 还依赖 M3 的 F3.5（sqlkit）和 F3.8（执行与结果区）。
 - **完成标准**：
   - F4.1–F4.3 全部 passed；
   - e2e 回归全部通过；
@@ -67,7 +67,7 @@
 
 ## F4.3 快速 SQL · 状态：draft
 
-- **依赖**：F4.1、F3.3、F3.5
+- **依赖**：F4.1、F3.5、F3.8
 - **涉及**：`internal/app`（快速 SQL）、`internal/db`（只读事务）
 
 **内容**
