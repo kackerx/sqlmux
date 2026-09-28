@@ -48,6 +48,9 @@ func TestTimeSegs(t *testing.T) {
 			t.Errorf("%q parses", s)
 		}
 	}
+	if TimeSegs(Time, "24:00:00") != nil || TimeSegs(TimeTZ, "24:00:00+08") != nil { // PG's end of day: no step of it is one PG takes
+		t.Error("24:00:00 steps")
+	}
 }
 
 // A year or month stepped keeps the day within its month, February by the
@@ -67,6 +70,21 @@ func TestStepTimeKeepsTheDay(t *testing.T) {
 	}
 	if got := StepTime(Date, "2026-02-28", 2, 1); got != "2026-02-01" {
 		t.Errorf("the day goes round its month: %s", got)
+	}
+	// before Christ PG counts years astronomically: 1 BC and 5 BC leap, 4 BC doesn't
+	for _, c := range []struct {
+		s    string
+		i    int
+		want string
+	}{
+		{"0004-01-31 BC", 1, "0004-02-28 BC"},
+		{"0001-01-31 BC", 1, "0001-02-29 BC"},
+		{"0004-02-28 BC", 2, "0004-02-01 BC"},
+		{"0005-02-28 BC", 2, "0005-02-29 BC"},
+	} {
+		if got := StepTime(Date, c.s, c.i, 1); got != c.want {
+			t.Errorf("%s part %d +1: %s, want %s", c.s, c.i, got, c.want)
+		}
 	}
 }
 
@@ -108,6 +126,10 @@ func TestTimePickDraw(t *testing.T) {
 	}
 	if got := f.Hits[len(f.Hits)-3].Target; got != (Target{Kind: KindButton, Action: "cell.seg 5"}) {
 		t.Errorf("the seconds' hit: %+v", got)
+	}
+	short := NewFrame(w, h, TokyonightStorm)
+	if p.Draw(short, uv.Rect(0, 0, w, h-1)); strings.TrimSpace(short.String()) != "" {
+		t.Errorf("too short, drawn anyway:\n%s", short.String())
 	}
 	p.Text = "infinity"
 	f = NewFrame(w, h, TokyonightStorm)

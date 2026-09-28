@@ -60,7 +60,8 @@ type Seg struct {
 }
 
 // TimeSegs is the parts of s, a kind k's text, that step; nil when s is no
-// such text (infinity, one half typed).
+// such text (infinity, one half typed), or is PG's 24:00:00, which steps
+// only into what PG refuses.
 func TimeSegs(k TimeKind, s string) []Seg {
 	if k == NotTime {
 		return nil
@@ -73,6 +74,9 @@ func TimeSegs(k TimeKind, s string) []Seg {
 	for i, u := range units[k] {
 		start, end := m[2+2*i], m[3+2*i]
 		v, _ := strconv.Atoi(s[start:end])
+		if u == hour && v > 23 {
+			return nil
+		}
 		segs = append(segs, Seg{start, end, v, u})
 	}
 	return segs
@@ -91,10 +95,11 @@ func StepTime(k TimeKind, s string, i, d int) string {
 		vals[g.unit] = g.Val
 	}
 	g := segs[i]
-	lo, hi := g.unit.bounds(vals)
+	bc := strings.HasSuffix(s, " BC")
+	lo, hi := g.unit.bounds(vals, bc)
 	vals[g.unit] = lo + ((g.Val-lo+d)%(hi-lo+1)+(hi-lo+1))%(hi-lo+1)
 	if _, ok := vals[day]; ok && (g.unit == year || g.unit == month) {
-		_, last := day.bounds(vals)
+		_, last := day.bounds(vals, bc)
 		vals[day] = min(vals[day], last)
 	}
 	var b strings.Builder
@@ -107,15 +112,20 @@ func StepTime(k TimeKind, s string, i, d int) string {
 	return b.String() + s[at:]
 }
 
-// bounds is u's range, the day's by the year and month in vals.
-func (u unit) bounds(vals map[unit]int) (lo, hi int) {
+// bounds is u's range, the day's by the year and month in vals, the year
+// before Christ when bc.
+func (u unit) bounds(vals map[unit]int, bc bool) (lo, hi int) {
 	switch u {
 	case year: // PG goes past 9999: such a year stays what it is
 		return 1, max(9999, vals[year])
 	case month:
 		return 1, 12
 	case day:
-		return 1, time.Date(vals[year], time.Month(vals[month])+1, 0, 0, 0, 0, 0, time.UTC).Day()
+		y := vals[year]
+		if bc { // PG counts years astronomically: 1 BC is year 0, a leap year
+			y = 1 - y
+		}
+		return 1, time.Date(y, time.Month(vals[month])+1, 0, 0, 0, 0, 0, time.UTC).Day()
 	case hour:
 		return 0, 23
 	}
@@ -184,9 +194,11 @@ func (p TimePick) layout() (line string, at []int) {
 	return b.String(), at
 }
 
+// Draw paints p in box; too short for all its rows, it leaves the screen
+// alone and the keys still step.
 func (p TimePick) Draw(f *Frame, box uv.Rectangle) {
 	th := f.Theme
-	if box.Dx() < 4 || box.Dy() < 3 {
+	if _, h := p.Size(); box.Dx() < 4 || box.Dy() < h {
 		return
 	}
 	f.Region(box, Target{}) // a click inside is not outside
