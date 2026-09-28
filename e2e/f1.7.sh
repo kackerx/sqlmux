@@ -51,7 +51,7 @@ sql "select * from t_order limit 101"
 check "101 行：100+ 行" title_like "^100\+ 行 · "
 g=($(pbox)); e2e_wheel $((g[0] + 10)) $((g[1] + g[3] - 6)) down; sleep 0.3
 check "滚轮在结果区上：结果向下滚（第一行不再是 id 1）" eval '[[ $(grid | head -1 | cut -d"|" -f1) != 1 ]] || { grid | head -2; false; }'
-sql "select i, 1/(i - 5000) from generate_series(1, 10000) i"
+sql "select i, 1/(i - 5000) from generate_series(1, 10000) as g(i)"   # 以 ) 结尾：末尾的词不会被 ↵ 补全（F1.14）
 check "服务端只算到第 101 行：第 5000 行的除零没有发生，显示 100+" eval 'title_like "^100\+ 行 · " && [[ $(line1) != *ERROR* ]]'
 sql "selec 1"
 check "语法错误：标题下第一行是数据库原文，红色" eval '[[ $(line1) == "ERROR: syntax error at or near \"selec\" (SQLSTATE 42601)" ]] && g=($(pbox)) && style_has $((g[0] + 2)) $(( $(prows | grep -n -m1 "ERROR:" | cut -d: -f1) + g[1] - 1 )) fg=$ERROR || { echo "  $(line1)"; false; }'
@@ -81,15 +81,17 @@ check "表名的前几个字母：出现候选 t_order、t_order_item" eval 'n=$
 clear_all; e2e_type ";select st"; sleep 0.5
 check "还没写表名：没有列候选（没有 status）" eval '! items | grep -q "^status " || { items; false; }'
 e2e_type " from t_order where st"; sleep 0.8
-check "写了 t_order 之后：列 status 排第一，接着是表，再是关键字" eval '[[ $(items | head -1) == "status order_status · t_order" && $(items | sed -n 2p) == *" 表" && $(items | sed -n 3p) == *" 关键字" ]] || { items; false; }'
+check "写了 t_order 之后：列 status 出现，排在关键字前面" eval '[[ $(items | head -1) == "status order_status · t_order" && $(items | sed -n 2p) == *" 关键字" ]] || { items; false; }'
 e2e_keys Escape; sleep 0.3
 check "esc 先关补全列表，面板还在" eval 'is_open && [[ -z $(pop) ]]'
-e2e_type a; sleep 0.5; e2e_keys C-n; sleep 0.2; e2e_keys Enter; sleep 0.3
-check "C-n 选中再 ↵：接受候选，不执行" eval '[[ $(input) == ";select st from t_order where status" && -z $(title) ]]'
-e2e_type " = 'done' and pai"; sleep 0.5
-check "输入 pai：补全列表开着（paid），没有选中" eval '[[ $(items | head -1) == "paid "* ]]'
+e2e_type a; sleep 0.5; e2e_keys Enter; sleep 0.3
+check "sta：status 已选中，↵ 接受，不执行（F1.14）" eval '[[ $(input) == ";select st from t_order where status" && -z $(title) ]]'
+e2e_type " = 'done' and m"; sleep 0.5
+check "输入 m：列 meta → 表 mv_order_by_status → 关键字，首字符都是 m（F1.14）" eval '[[ $(items | head -1) == "meta "*"· t_order" && $(items | sed -n 2p) == "mv_order_by_status 表" && $(items | sed -n 3p) == *" 关键字" ]] || { items; false; }'
+e2e_keys BSpace; e2e_type paid; sleep 0.5
+check "输入完整的 paid：列表开着，选中的就是 paid" eval '[[ $(items | head -1) == "paid "* ]] || { items; false; }'
 e2e_keys Enter; wait_for 8 eval '[[ -n $(title) ]]'
-check "没选中时 ↵：直接执行（输入不变，结果区是数据库的报错）" eval '[[ $(input) == ";select st from t_order where status = '"'done'"' and pai" && $(line1) == ERROR:* ]] || { echo "  $(input) / $(line1)"; false; }'
+check "接受之后文字不变：↵ 直接执行（输入不变，结果区是数据库的报错）" eval '[[ $(input) == ";select st from t_order where status = '"'done'"' and paid" && $(line1) == ERROR:* ]] || { echo "  $(input) / $(line1)"; false; }'
 
 # ---- 树停在 agentable（F1.12：光标所在节点的 schema）：同一事务里 SET LOCAL search_path，agent 能直接找到，补全也换成 agentable 的表
 e2e_keys Escape; sleep 0.3; key C-h; key g g; key j; sleep 0.3                   # 光标移到 agentable 节点
@@ -112,14 +114,14 @@ e2e_click "${c%% *}" "$y"; sleep 0.5
 check "点击标题行的 C-y CSV：同样复制" eval '[[ "$(t show-buffer; echo .)" == "$want" ]]'
 
 # ---- 历史：; 后面为空时列出，新的在前、去重，↵ 填进输入并执行；存进 state.json，重启后还在
-for s in "select 1 as a" "select 2 as b" "select 1 as a"; do sql "$s"; done
+for s in "select 1 as x" "select 2 as y" "select 1 as x"; do sql "$s"; done   # 别名 a、b 会被 ↵ 补成 as、between（F1.14）；x、y 没有候选
 e2e_keys Escape; sleep 0.3
 start -C "$D/own" -S "$ST"
 pal '\;'
-check "重启后 ; 列出历史：新的在前，重复的只留一条（select 1 as a 在最前）" eval '[[ $(list | cut -d"|" -f1 | head -2 | tr "\n" /) == "select 1 as a/select 2 as b/" && $(list | grep -c "^select 1 as a|") == 1 ]] || { list; false; }'
+check "重启后 ; 列出历史：新的在前，重复的只留一条（select 1 as x 在最前）" eval '[[ $(list | cut -d"|" -f1 | head -2 | tr "\n" /) == "select 1 as x/select 2 as y/" && $(list | grep -c "^select 1 as x|") == 1 ]] || { list; false; }'
 e2e_keys Down; sleep 0.2; e2e_keys Enter; wait_for 8 eval '[[ -n $(title) ]]'
-check "选中 select 2 as b 按 ↵：填进输入并执行" eval '[[ $(input) == ";select 2 as b" && $(grid) == 2 ]]'
+check "选中 select 2 as y 按 ↵：填进输入并执行" eval '[[ $(input) == ";select 2 as y" && $(grid) == 2 ]]'
 e2e_keys Escape; sleep 0.3; pal
-check "「所有」范围不列 SQL 历史" eval '! row_has "select 1 as a" && ! row_has "select 2 as b"'
+check "「所有」范围不列 SQL 历史" eval '! row_has "select 1 as x" && ! row_has "select 2 as y"'
 
 e2e_done

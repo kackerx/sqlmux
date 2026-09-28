@@ -26,31 +26,30 @@ start -S "$ST"; open_table t_order
 
 # ---- 补全：列名 / 关键字模式（§9.7）
 edit; typ sta
-check "输入 sta：输入框下方从前缀所在列弹出列表，status 在列，右侧注释是类型；仍是 INSERT" eval 'g=($(pop)); [[ ${g[0]} == 42 && ${g[1]} == 3 && $(items | head -1) == "status order_status|0" ]] && mode_is INSERT || { echo "  [$(pop)] $(items | tr "\n" ,)"; false; }'
-check "还没有明确选中：没有任何一项高亮" eval '[[ -z $(picked) ]]'
-key Tab; key Enter
-check "Tab 选中、↵ 接受（F1.9）：输入框是 status（不补空格），列表关闭" eval '[[ $(where_in) == status && -z $(pop) ]] && flag_is cursor_x 47'
+check "输入 sta：输入框下方从前缀所在列弹出列表，status 在列，右侧注释是类型；仍是 INSERT" eval 'g=($(pop)); [[ ${g[0]} == 42 && ${g[1]} == 3 && $(items | head -1) == "status order_status|1" ]] && mode_is INSERT || { echo "  [$(pop)] $(items | tr "\n" ,)"; false; }'
+key Enter
+check "↵ 接受已选中的第一项（F1.14）：输入框是 status（不补空格），列表关闭" eval '[[ $(where_in) == status && -z $(pop) ]] && flag_is cursor_x 47'
 clear_in; typ "id > 0 and "
 check "前缀为空（刚敲了空格）：不弹" eval '[[ -z $(pop) ]]'
 typ n
-check "列名一组在前（note、amount），关键字在后，注释「关键字」" eval 'i=$(items | cut -d"|" -f1); [[ $(head -2 <<<"$i" | awk "{print \$1}" | tr "\n" " ") == "note amount " && $(sed -n 3p <<<"$i") == *关键字 ]] && grep -q "^is null 关键字$" <<<"$i" || { echo "  $(tr "\n" , <<<"$i")"; false; }'
-clear_in; typ stat; key Enter; wait_for 8 settled
-check "没有选中候选时 ↵ 直接执行查询（stat 不是列：报错）" eval 'mode_is NORMAL && [[ $(e2e_text 35 159 4) == *"stat"*"does not exist"* ]]'
+check "列名一组在前（note），关键字在后（not、null），注释「关键字」；首字符必须是 n（F1.14：没有 amount、is null）" eval 'i=$(items | cut -d"|" -f1); [[ $(tr "\n" , <<<"$i") == "note text,not 关键字,null 关键字," ]] || { echo "  $(tr "\n" , <<<"$i")"; false; }'
+clear_in; typ stat; key Escape; key Enter; wait_for 8 settled
+check "esc 关掉列表之后 ↵ 直接执行查询（stat 不是列：报错）" eval 'mode_is NORMAL && [[ $(e2e_text 35 159 4) == *"stat"*"does not exist"* ]]'
 
 # ---- 补全：取值模式（枚举、布尔；§9.7）
 edit; typ "status = "
-check "status = ：直接列出枚举值，按 enumsortorder（pending queued running done failed），注释「值」" eval '[[ $(names) == "pending queued running done failed " && $(items | head -1) == "pending 值|0" ]] || { echo "  $(items | tr "\n" ,)"; false; }'
+check "status = ：直接列出枚举值，按 enumsortorder（pending queued running done failed），注释「值」" eval '[[ $(names) == "pending queued running done failed " && $(items | head -1) == "pending 值|1" ]] || { echo "  $(items | tr "\n" ,)"; false; }'
 key C-n
-check "第一次 C-n：选中第一项 pending" eval '[[ $(picked) == "pending 值" ]] || { echo "  selected: $(picked)"; false; }'
+check "弹出时 pending 已选中，第一次 C-n 就移到 queued（F1.14）" eval '[[ $(picked) == "queued 值" ]] || { echo "  selected: $(picked)"; false; }'
 i0=$(picked_i); key Down; i1=$(picked_i); key Up; i2=$(picked_i); key C-n; i3=$(picked_i); key C-p; i4=$(picked_i)
 check "↓ / ↑ / C-n / C-p 各移一项" eval '(( i1 == i0 + 1 && i2 == i0 && i3 == i0 + 1 && i4 == i0 )) || { echo "  $i0 $i1 $i2 $i3 $i4"; false; }'
-key C-p; key C-p; key C-p; key C-p
+key C-p
 key Enter
 check "明确选中之后 ↵ 是接受：插入带引号的 'pending'，仍在输入" eval '[[ $(where_in) == "status = '"'pending'"'" ]] && mode_is INSERT || { echo "  $(where_in)"; false; }'
 clear_in; typ "status = "; key C-p
-check "没有选中时第一次 C-p：选中最后一项 failed（同 vim 的补全菜单）" eval '[[ $(picked) == "failed 值" ]] || { echo "  selected: $(picked)"; false; }'
-clear_in; typ "status = "; key C-n; key Enter
-check "status = 再 C-n ↵：得到 status = 'pending'" eval '[[ $(where_in) == "status = '"'pending'"'" ]] || { echo "  $(where_in)"; false; }'
+check "第一项上 C-p：绕到最后一项 failed（F1.14）" eval '[[ $(picked) == "failed 值" ]] || { echo "  selected: $(picked)"; false; }'
+clear_in; typ "status = "; key Enter
+check "status = 直接 ↵：接受已选中的 pending" eval '[[ $(where_in) == "status = '"'pending'"'" ]] || { echo "  $(where_in)"; false; }'
 clear_in; typ "status = 'd"; key Tab; key Enter
 check "status = 'd 再 Tab ↵：替换半截值成 'done'" eval '[[ $(where_in) == "status = '"'done'"'" ]] || { echo "  $(where_in)"; false; }'
 clear_in; typ "status in ('done', "
