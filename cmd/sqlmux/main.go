@@ -98,7 +98,7 @@ func keysCmd(args []string, stdout, stderr io.Writer) int {
 	case "md":
 		fmt.Fprint(stdout, keys.Markdown())
 	case "toml":
-		fmt.Fprint(stdout, keys.TOML())
+		fmt.Fprint(stdout, keys.TOML(app.Titles()))
 	default:
 		fmt.Fprintf(stderr, "sqlmux keys：不支持的格式 %q\n", *format)
 		return 2

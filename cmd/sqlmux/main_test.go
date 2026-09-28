@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
+
+	"sqlmux/internal/app"
 )
 
 func writeConfig(t *testing.T, toml string) {
@@ -38,6 +41,32 @@ func TestKeysFormats(t *testing.T) {
 		var out, errb bytes.Buffer
 		if code := keysCmd([]string{"--format", format}, &out, &errb); code != 0 || !strings.Contains(out.String(), want) {
 			t.Errorf("--format %s: exit %d, output lacks %q", format, code, want)
+		}
+	}
+}
+
+// The toml export is the full reference (§6.7): loaded back as config.toml it
+// changes nothing, and every titled action is in it, on its binding lines or,
+// bound nowhere, on exactly one commented line.
+func TestKeysTOMLReference(t *testing.T) {
+	keys := func(args ...string) string {
+		var out, errb bytes.Buffer
+		if code := keysCmd(args, &out, &errb); code != 0 || errb.Len() > 0 {
+			t.Fatalf("keys %v: exit %d, stderr %q", args, code, errb.String())
+		}
+		return out.String()
+	}
+	writeConfig(t, "")
+	md, toml := keys(), keys("--format", "toml")
+	writeConfig(t, toml)
+	if got := keys(); got != md {
+		t.Errorf("loaded back, the keymap changed:\n%s", got)
+	}
+	for id, title := range app.Titles() {
+		bound := len(regexp.MustCompile(`(?m)^".*" = "`+regexp.QuoteMeta(id)+`( .*)?"  # `+regexp.QuoteMeta(title)+`$`).FindAllString(toml, -1))
+		commented := strings.Count(toml, `# "" = "`+id+`"  # `+title+"\n")
+		if !(bound > 0 && commented == 0 || bound == 0 && commented == 1) {
+			t.Errorf("%s: %d binding lines, %d commented lines", id, bound, commented)
 		}
 	}
 }

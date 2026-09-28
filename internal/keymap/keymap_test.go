@@ -271,15 +271,62 @@ x = ""
 [map.console.normal]
 L = "5l"
 `)
-	again := mustLoad(t, m.TOML())
-	if again.TOML() != m.TOML() || !reflect.DeepEqual(again.tables, m.tables) {
-		t.Fatalf("round trip changed the keymap:\n%s\n---\n%s", m.TOML(), again.TOML())
+	titles := map[string]string{"tab.next": "下一个 tab", "pane.split.right": "左右分割", "grid.nope": "没绑的", "window.rename": "重命名 window"}
+	out := m.TOML(titles)
+	again := mustLoad(t, out)
+	if again.TOML(titles) != out || !reflect.DeepEqual(again.tables, m.tables) {
+		t.Fatalf("round trip changed the keymap:\n%s\n---\n%s", out, again.TOML(titles))
 	}
-	if !strings.Contains(m.TOML(), `"x" = ""`) {
-		t.Error("an unbound default must be exported as an unbind")
+	normal := out[strings.Index(out, "[keys.normal]"):strings.Index(out, "[keys.global]")]
+	for _, want := range []string{
+		"# 焦点在表格（NORMAL）\n[keys.grid]\n",
+		`"gt" = "tab.next"  # 下一个 tab` + "\n",
+		`"<C-w>v" = "pane.split.right"  # 左右分割` + "\n",
+		`"<C-p>" = "palette.open"` + "\n", // untitled: no comment
+		// an unbound default is exported as an unbind; a titled action bound
+		// nowhere comes after, commented, in the scope its prefix names
+		`"x" = ""` + "\n" + `# "" = "grid.nope"  # 没绑的` + "\n",
+		`"L" = "5l"` + "\n",
+		"# [map.grid.normal]\n# \"J\" = \"5j\"\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("toml lacks %q:\n%s", want, out)
+		}
+	}
+	if !strings.Contains(normal, `# "" = "window.rename"  # 重命名 window`) {
+		t.Errorf("window.rename should be commented under [keys.normal]:\n%s", normal)
 	}
 	if !strings.Contains(m.Markdown(), "| normal | `C-a %` | pane.split.right |\n") {
 		t.Errorf("markdown lacks the leader binding:\n%s", m.Markdown())
+	}
+}
+
+// One key can mean one thing per pane type (§6.7), in keys and in maps alike.
+func TestSameKeyPerPaneType(t *testing.T) {
+	m := mustLoad(t, `
+[keys.grid]
+X = "grid.refresh"
+[keys.tree]
+X = "tree.refresh"
+[map.grid.normal]
+Z = "5j"
+[map.tree.normal]
+Z = "3j"
+`)
+	for _, c := range []struct {
+		ctx  Context
+		in   string
+		want []string
+	}{
+		{grid, "X", []string{"grid.refresh"}},
+		{tree, "X", []string{"tree.refresh"}},
+		{grid, "Z", []string{"grid.down ×5"}},
+		{tree, "Z", []string{"tree.down ×3"}},
+	} {
+		got, _ := press(t, NewResolver(m), c.ctx, c.in)
+		if !reflect.DeepEqual(actions(got), c.want) {
+			t.Errorf("%v %q: got %v, want %v", c.ctx.Focus, c.in, actions(got), c.want)
+		}
 	}
 }
 
@@ -319,9 +366,9 @@ func TestLeaderSpelledOut(t *testing.T) {
 	if h := m.Hint("session.list", "normal"); h != "" {
 		t.Errorf("rebound session.list still hints %q", h)
 	}
-	again := mustLoad(t, m.TOML())
+	again := mustLoad(t, m.TOML(nil))
 	if !reflect.DeepEqual(again.tables, m.tables) {
-		t.Errorf("round trip lost the rebinding:\n%s", m.TOML())
+		t.Errorf("round trip lost the rebinding:\n%s", m.TOML(nil))
 	}
 	if _, ps := load(t, "[keys.normal]\n\"<Leader>s\" = \"a\"\n\"<Space>s\" = \"b\""); len(ps) != 1 {
 		t.Errorf("<Leader>s and <Space>s are the same key: %v", ps)

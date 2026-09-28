@@ -211,6 +211,18 @@ func init() {
 	}
 }
 
+// Titles maps each titled action ID to its title: the keymap export notes
+// them (§6.7), and keymap cannot import app.
+func Titles() map[string]string {
+	ts := map[string]string{}
+	for id, a := range actions {
+		if a.Title != "" {
+			ts[id] = a.Title
+		}
+	}
+	return ts
+}
+
 // when adapts an action that only means something while open holds: the
 // overlay it belongs to is up. Bound elsewhere in config, it does nothing.
 func when(open func(*App) bool, f func(*App) tea.Cmd) func(*App, Args) tea.Cmd {

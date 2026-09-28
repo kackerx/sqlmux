@@ -3,6 +3,7 @@ package keymap
 import (
 	_ "embed"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -211,29 +212,73 @@ func (m *Map) Markdown() string {
 
 func mdEscape(s string) string { return strings.ReplaceAll(s, "|", `\|`) }
 
+// when is the note above each section of the export: when its keys apply (§6.4).
+var when = map[string]string{
+	"keys.global":   "任何时候，输入框里也生效",
+	"keys.normal":   "NORMAL 模式，焦点在任何 pane",
+	"keys.grid":     "焦点在表格（NORMAL）",
+	"keys.tree":     "焦点在 schema 树（NORMAL）",
+	"keys.console":  "console 的 NORMAL / VISUAL（M3）",
+	"keys.result":   "结果区，叠在 grid 之上（M3）",
+	"keys.palette":  "命令面板打开时",
+	"keys.dropdown": "ORDER / LIMIT 下拉框打开时",
+	"keys.complete": "补全列表弹出时（↵、esc 由输入框处理）",
+	"keys.where":    "WHERE 的历史 / 收藏下拉打开时",
+	"keys.input":    "任何输入框里",
+	"keys.cols":     "COLS 列表打开时",
+	"keys.cell":     "编辑单元格时（M2）",
+	"keys.sessions": "session 列表打开时（M5）",
+}
+
 // TOML renders the effective keymap as a config that, loaded back, gives the
-// same keymap (`sqlmux keys --format toml`). Defaults the user unbound come
-// out as `"key" = ""`.
-func (m *Map) TOML() string {
+// same keymap (`sqlmux keys --format toml`), commented to read as the full
+// reference (§6.7). titles come from app's registry, which keymap cannot
+// import. Defaults the user unbound come out as `"key" = ""`; titled actions
+// bound nowhere as a commented `"" = "<action>"` under the scope their ID
+// prefix names.
+func (m *Map) TOML(titles map[string]string) string {
+	bound := m.Actions()
+	unbound := map[string][]string{}
+	for _, id := range slices.Sorted(maps.Keys(titles)) {
+		if slices.Contains(bound, id) {
+			continue
+		}
+		t := "keys.normal"
+		if p, _, _ := strings.Cut(id, "."); slices.Contains([]string{"grid", "tree", "console", "result"}, p) {
+			t = "keys." + p
+		}
+		unbound[t] = append(unbound[t], fmt.Sprintf(`# "" = %s  # %s`, strconv.Quote(id), titles[id]))
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "[keys]\nleader = %s\n", strconv.Quote(String(m.Leader)))
 	for _, t := range tables {
 		lines := []string{}
 		for _, bd := range m.tables[t] {
-			v := bd.Action
+			line := strconv.Quote(String(bd.Keys)) + " = "
 			if bd.RHS != nil {
-				v = String(bd.RHS)
+				line += strconv.Quote(String(bd.RHS))
+			} else {
+				line += strconv.Quote(bd.Action)
+				if id, _, _ := strings.Cut(bd.Action, " "); titles[id] != "" {
+					line += "  # " + titles[id]
+				}
 			}
-			lines = append(lines, strconv.Quote(String(bd.Keys))+" = "+strconv.Quote(v))
+			lines = append(lines, line)
 		}
 		for _, d := range m.defaults[t] {
 			if !slices.ContainsFunc(m.tables[t], func(o Binding) bool { return m.same(o.Keys, d.Keys) }) {
 				lines = append(lines, strconv.Quote(String(d.Keys))+` = ""`)
 			}
 		}
+		lines = append(lines, unbound[t]...)
 		if len(lines) > 0 {
-			fmt.Fprintf(&b, "\n[%s]\n%s\n", t, strings.Join(lines, "\n"))
+			b.WriteString("\n")
+			if when[t] != "" {
+				fmt.Fprintf(&b, "# %s\n", when[t])
+			}
+			fmt.Fprintf(&b, "[%s]\n%s\n", t, strings.Join(lines, "\n"))
 		}
 	}
+	b.WriteString("\n# 用户映射（§6.6）：键 → 一串键（noremap）。[map.normal] 所有 pane 通用，下面这种只在表格里生效\n# [map.grid.normal]\n# \"J\" = \"5j\"\n")
 	return b.String()
 }
