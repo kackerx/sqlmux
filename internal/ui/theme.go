@@ -25,6 +25,7 @@ type Theme struct {
 	String, Time, Bool, JSON color.Color // grid values by column type (§7.6)
 	Bar                      color.Color // status bar and toast background
 	Sep                      color.Color // separators and tab dividers (§7.8)
+	Match                    color.Color // fuzzy-matched characters' foreground, on the row's own background
 }
 
 var TokyonightStorm = &Theme{
@@ -38,8 +39,9 @@ var TokyonightStorm = &Theme{
 	Error:  c("#f7768e"),
 	Number: c("#ff9e64"), PK: c("#73daca"), Func: c("#7aa2f7"),
 	String: c("#c0caf5"), Time: c("#c0caf5"), Bool: c("#c0caf5"), JSON: c("#c0caf5"), // same as Fg: uncolored by default
-	Bar: c("#292e42"),
-	Sep: c("#2f3549"),
+	Bar:   c("#292e42"),
+	Sep:   c("#2f3549"),
+	Match: c("#ff9e64"),
 }
 
 // Themes are the built-in themes by name.
@@ -124,7 +126,8 @@ func (th *Theme) tokens() map[string]*color.Color {
 		"error":  &th.Error,
 		"number": &th.Number, "pk": &th.PK, "func": &th.Func,
 		"string": &th.String, "time": &th.Time, "bool": &th.Bool, "json": &th.JSON,
-		"bar": &th.Bar,
-		"sep": &th.Sep,
+		"bar":   &th.Bar,
+		"sep":   &th.Sep,
+		"match": &th.Match,
 	}
 }

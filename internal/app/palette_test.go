@@ -100,7 +100,7 @@ func TestPaletteHighlightsMatches(t *testing.T) {
 	for y, line := range strings.Split(f.String(), "\n") {
 		if i := strings.Index(line, "pane.split.right"); i >= 0 {
 			x := ui.Width(line[:i]) + len("pane.")
-			if f.Buf.CellAt(x, y).Style.Bg != a.theme.Warn || f.Buf.CellAt(x-1, y).Style.Bg == a.theme.Warn {
+			if s, before := f.Buf.CellAt(x, y).Style, f.Buf.CellAt(x-1, y).Style; s.Fg != a.theme.Match || s.Bg != before.Bg || before.Fg == a.theme.Match {
 				t.Errorf("only the matched s should light up: %v %v", f.Buf.CellAt(x-1, y).Style, f.Buf.CellAt(x, y).Style)
 			}
 			return

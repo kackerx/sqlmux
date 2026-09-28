@@ -109,7 +109,6 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 	}
 	rule(y + 1)
 	y += 2
-	hl := uv.Style{Fg: th.Bg, Bg: th.Warn}
 	// Columns: every row's location starts where the others' do (§12). The
 	// name column is as wide as the widest name, at most 40% of the box.
 	// A list with no locations (the SQL history) gives its names the row.
@@ -149,8 +148,8 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 			w = right - 1 - nx
 		}
 		name, inName := TruncateMatch(r.Name, inName, w)
-		f.TextMatch(nx, y, min(nx+w, right-1), name, inName, st, hl)
-		f.TextMatch(nx+nameW+2, y, right-1, r.Where, inWhere, faint, hl)
+		f.TextMatch(nx, y, min(nx+w, right-1), name, inName, st)
+		f.TextMatch(nx+nameW+2, y, right-1, r.Where, inWhere, faint)
 	}
 	if r := p.Result; r != nil {
 		if rows > 0 {

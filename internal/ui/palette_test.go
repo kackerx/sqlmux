@@ -40,7 +40,7 @@ func TestPaletteColumns(t *testing.T) {
 		if !strings.Contains(l, strings.Repeat("x", 39)+"… ") {
 			t.Errorf("the long name is cut to 40 with …: %q", l)
 		}
-		if f.Buf.CellAt(want-3, y).Style.Bg == TokyonightStorm.Warn {
+		if f.Buf.CellAt(want-3, y).Style.Fg == TokyonightStorm.Match {
 			t.Error("a match cut off by the … must not light the … up")
 		}
 	}

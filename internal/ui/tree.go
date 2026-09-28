@@ -65,7 +65,6 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 	}
 	sep(y + 1)
 	list := uv.Rect(in.Min.X, y+2, in.Dx(), TreeRows(in.Dy()))
-	hl := uv.Style{Fg: th.Bg, Bg: th.Warn}
 	for i := t.Top; i < min(t.Top+list.Dy(), len(t.Items)); i++ {
 		it, row := t.Items[i], list.Min.Y+i-t.Top
 		line := uv.Rect(list.Min.X, row, list.Dx(), 1)
@@ -87,7 +86,7 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 		x = f.Text(x, row, right, " ", icon)
 		// cut with …, as titles and the palette are: mv_order_by_stat would read as another table (§7.8)
 		n, pos := TruncateMatch(it.Name, it.Pos, cx-1-x)
-		f.TextMatch(x, row, cx-1, n, pos, name, hl)
+		f.TextMatch(x, row, cx-1, n, pos, name)
 		f.Text(cx, row, right, rows, uv.Style{Fg: th.Border, Bg: bg})
 	}
 	if in.Dy() >= 4 {

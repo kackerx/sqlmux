@@ -64,7 +64,6 @@ func (d Dropdown) Draw(f *Frame, box uv.Rectangle, rows int) uv.Position {
 		f.Text(box.Min.X+1, y, box.Max.X-1, strings.Repeat("─", box.Dx()-2), uv.Style{Fg: th.Sep, Bg: th.PaneBg})
 	}
 	rule(y + 1)
-	hl := uv.Style{Fg: th.Bg, Bg: th.Warn}
 	for i := d.Top; i < min(d.Top+rows, len(d.Items)); i++ {
 		line := uv.Rect(box.Min.X+1, y+2+i-d.Top, box.Dx()-2, 1)
 		st := bg
@@ -91,7 +90,7 @@ func (d Dropdown) Draw(f *Frame, box uv.Rectangle, rows int) uv.Position {
 			note = d.Notes[i]
 		}
 		nx := x1 - Width(note)
-		f.TextMatch(x, line.Min.Y, nx-1, d.Items[i], d.Pos[i], st, hl)
+		f.TextMatch(x, line.Min.Y, nx-1, d.Items[i], d.Pos[i], st)
 		f.Text(nx, line.Min.Y, x1, note, uv.Style{Fg: th.Dim, Bg: st.Bg})
 	}
 	if len(d.Hints) > 0 && box.Dy() >= 6 {

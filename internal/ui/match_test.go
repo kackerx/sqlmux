@@ -52,21 +52,24 @@ func TestFilterPositions(t *testing.T) {
 	}
 }
 
-// Highlights follow graphemes: é typed as e + U+0301 is one cell.
+// Highlights follow graphemes: é typed as e + U+0301 is one cell. A match
+// takes the match color on the row's own background (§7.3).
 func TestTextMatch(t *testing.T) {
 	th := TokyonightStorm
-	st, hl := uv.Style{Fg: th.Fg}, uv.Style{Fg: th.Fg, Bg: th.Warn}
+	st := uv.Style{Fg: th.Fg, Bg: th.Row}
 	s := "café t_order"
 	m := Filter("eor", []string{s})
 	if len(m) != 1 {
 		t.Fatalf("no match: %v", m)
 	}
 	f := NewFrame(20, 1, th)
-	f.TextMatch(0, 0, 20, s, m[0].Pos, st, hl)
+	f.TextMatch(0, 0, 20, s, m[0].Pos, st)
 	var lit []int
 	for x := range 12 {
-		if f.Buf.CellAt(x, 0).Style.Bg == th.Warn {
+		if c := f.Buf.CellAt(x, 0).Style; c.Fg == th.Match {
 			lit = append(lit, x)
+		} else if c.Bg != th.Row {
+			t.Errorf("cell %d: bg %v", x, c.Bg)
 		}
 	}
 	if !reflect.DeepEqual(lit, []int{3, 7, 8}) { // é, o, r

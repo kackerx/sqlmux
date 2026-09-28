@@ -42,7 +42,6 @@ func (c Complete) Draw(f *Frame, box uv.Rectangle, rows int) {
 	border := uv.NormalBorder().Style(uv.Style{Fg: th.Focus, Bg: th.PaneBg})
 	border.Draw(f.Buf, box)
 	x0, x1 := box.Min.X+1, box.Max.X-1
-	hl := uv.Style{Fg: th.Bg, Bg: th.Warn}
 	for i := c.Top; i < min(c.Top+rows, len(c.Items)); i++ {
 		it := c.Items[i]
 		line := uv.Rect(x0, box.Min.Y+1+i-c.Top, x1-x0, 1)
@@ -59,7 +58,7 @@ func (c Complete) Draw(f *Frame, box uv.Rectangle, rows int) {
 		}
 		f.Fill(line, st)
 		nx := x1 - 1 - Width(it.Note)
-		f.TextMatch(x0+1, line.Min.Y, nx-1, it.Text, it.Pos, st, hl)
+		f.TextMatch(x0+1, line.Min.Y, nx-1, it.Text, it.Pos, st)
 		f.Text(nx, line.Min.Y, x1, it.Note, uv.Style{Fg: th.Dim, Bg: st.Bg})
 	}
 }

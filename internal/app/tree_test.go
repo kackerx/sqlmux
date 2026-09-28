@@ -131,8 +131,8 @@ func TestTreeFilter(t *testing.T) {
 	if f.Cursor == nil || f.Cursor.Y != 1 {
 		t.Errorf("the terminal cursor sits in the filter: %v", f.Cursor)
 	}
-	if st := styleOf(t, f, "order "); st.Bg != a.theme.Warn { // "t_" didn't match, "or" did
-		t.Errorf("match highlight: %v", st.Bg)
+	if st := styleOf(t, f, "order "); st.Fg != a.theme.Match || st.Bg == a.theme.Match { // "t_" didn't match, "or" did
+		t.Errorf("match highlight: %+v", st)
 	}
 	feed(t, a, "<CR>j")
 	if a.mode() != keymap.Normal || names() != "t_order t_order_item" || cursorTable(a) != "t_order_item" {

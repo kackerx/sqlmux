@@ -114,9 +114,12 @@ func (f *Frame) Text(x, y, right int, s string, st uv.Style) int {
 	return x
 }
 
-// TextMatch is Text with the runes at pos (a Match's) drawn in hl: a
-// grapheme lights up when any of its runes matched.
-func (f *Frame) TextMatch(x, y, right int, s string, pos []int, st, hl uv.Style) int {
+// TextMatch is Text with the runes at pos (a Match's) in the match color,
+// on st's own background (§7.3): a grapheme lights up when any of its
+// runes matched. Every fuzzy list draws its matches here.
+func (f *Frame) TextMatch(x, y, right int, s string, pos []int, st uv.Style) int {
+	hl := st
+	hl.Fg = f.Theme.Match
 	r := 0 // rune offset of the grapheme
 	for s != "" {
 		gr, _ := ansi.FirstGraphemeCluster(s, ansi.GraphemeWidth)
