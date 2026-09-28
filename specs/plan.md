@@ -37,7 +37,7 @@
 ## 按步推进的规则
 
 1. **按依赖顺序开发，不等审查。** worker 做完一个 feature 就提交，接着做下一个。
-2. **每一步都保持测试通过。** 每个 commit 都由 worker 自己保证：vet、单元测试、golden、gofmt、`go mod tidy`、涉及数据库时的集成测试，以及和改动相关的 e2e 脚本。全量 e2e 只在审查节点送审前跑一次（AGENTS.md「worker 的规则」）。
+2. **每一步都保持测试通过。** 每个 commit 都由 worker 自己保证：vet、单元测试、golden、gofmt、`go mod tidy`、涉及数据库时的集成测试，以及和改动相关的 e2e 脚本。全量 e2e 每个审查节点跑一次，和送审同时进行；reviewer 等它跑完、没有清单外的失败，才提测（AGENTS.md「worker 的规则」）。
 3. **到了审查节点：先整批审查，再整批测试。**
    1. worker 把 `<上一个节点>..<sha>` 发给 reviewer，同时告诉 tester，tester 开始准备，spec 问题在审查期间就提；
    2. reviewer 审查，有待定的 spec 问题先问决策者，再把必须改的问题一次退回；通过后整批提测给 tester；
