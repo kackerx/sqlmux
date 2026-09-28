@@ -19,7 +19,7 @@ var defaultTOML string
 // in resolution priority order for the export. which-key is no scope: keys
 // pressed over it resolve as without it (§6.5).
 var tables = []string{
-	"keys.palette", "keys.where", "keys.cols", "keys.dropdown", "keys.sessions",
+	"keys.confirm", "keys.palette", "keys.where", "keys.cols", "keys.dropdown", "keys.sessions",
 	"keys.complete", "keys.cell", "keys.input",
 	"keys.result", "keys.grid", "keys.tree", "keys.console", "keys.normal", "keys.global",
 	"map.console.normal", "map.console.visual", "map.grid.normal", "map.grid.visual",
@@ -228,6 +228,7 @@ var when = map[string]string{
 	"keys.cols":     "COLS 列表打开时",
 	"keys.cell":     "编辑单元格时（M2）",
 	"keys.sessions": "session 列表打开时（M5）",
+	"keys.confirm":  "确认框打开时",
 }
 
 // TOML renders the effective keymap as a config that, loaded back, gives the

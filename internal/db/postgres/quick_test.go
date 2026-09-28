@@ -5,9 +5,6 @@ package postgres
 import (
 	"context"
 	"errors"
-	"fmt"
-	"net/url"
-	"os"
 	"testing"
 	"time"
 
@@ -66,20 +63,8 @@ func TestQuick(t *testing.T) {
 // runs on a database of its own (AGENTS.md「集成测试环境」).
 func TestQuickRefusesWrites(t *testing.T) {
 	ctx := context.Background()
-	admin := connect(t, false)
-	name := fmt.Sprintf("sqlmux_worker_%d", os.Getpid())
-	drop := func() { admin.Query(ctx, "drop database if exists "+name+" with (force)") }
-	drop()
-	if _, err := admin.Query(ctx, "create database "+name); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(drop)
-	u, err := url.Parse(IntegrationDSN(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	u.Path = "/" + name
-	own, err := Connect(ctx, u.String(), "", false)
+	dsn := ownDB(t)
+	own, err := Connect(ctx, dsn, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +72,7 @@ func TestQuickRefusesWrites(t *testing.T) {
 	if _, err := own.Exec(ctx, "create table t (x int); insert into t select generate_series(1, 10)", 0); err != nil {
 		t.Fatal(err)
 	}
-	meta, err := Connect(ctx, u.String(), "", true)
+	meta, err := Connect(ctx, dsn, "", true)
 	if err != nil {
 		t.Fatal(err)
 	}

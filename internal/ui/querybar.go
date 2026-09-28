@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image/color"
 	"strconv"
 
 	uv "github.com/charmbracelet/ultraviolet"
@@ -48,7 +49,8 @@ type QueryBar struct {
 	Typing  bool // the WHERE input has the keys
 	Chips   []Chip
 	Buttons []Button
-	Right   string // "auto · 6000 行 · 12ms"
+	Right   string      // "auto · 6000 行 · 12ms", or how a save went (Q-06)
+	RightFg color.Color // Right's color; dim when nil
 	Pane    int
 }
 
@@ -153,7 +155,11 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 		x += Width(b.Icon.Text) + 2 + len(tail)
 	}
 	if rx := r.Max.X - 1 - Width(q.Right); rx > x {
-		f.Text(rx, y, r.Max.X-1, q.Right, dim)
+		st := dim
+		if q.RightFg != nil {
+			st.Fg = q.RightFg
+		}
+		f.Text(rx, y, r.Max.X-1, q.Right, st)
 	}
 	return cursor
 }

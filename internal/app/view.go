@@ -146,6 +146,13 @@ func (a *App) render() *ui.Frame {
 			}
 		}
 	}
+	if c := a.confirm; c != nil {
+		ui.Confirm{
+			Text:   c.text,
+			YesKey: a.keys.Hint("confirm.yes", "confirm"), Yes: c.yes,
+			NoKey: a.keys.Hint("confirm.no", "confirm"), No: "取消",
+		}.Draw(f, a.window())
+	}
 	if a.toast != "" && y > 0 { // over the palette's mask too: dimmed, it can hardly be read (§7.5)
 		t := " " + a.toast + " "
 		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Bar})

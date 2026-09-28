@@ -66,26 +66,35 @@ func init() {
 			if a.mode() != keymap.Normal { // in any input C-c is esc, as in vim (§6.8)
 				return a.press(keymap.Esc)
 			}
-			if a.busy > 0 { // a query is running: cancel it (§8.3)
+			if a.busy > 0 { // a query or a save is running: cancel it (§8.3, §10.3)
 				a.sess.Meta.Cancel()
+				a.sess.Main.Cancel()
 				return nil
 			}
 			if a.toast != "" && a.toastSeq == a.quitToast { // the first press's toast is still up
-				return tea.Quit
+				return a.quit()
 			}
 			cmd := a.showToast(fmt.Sprintf("再按一次 %s 退出", a.keys.Hint("cancel", "global")), quitWindow)
 			a.quitToast = a.toastSeq
 			return cmd
 		}},
-		"quit":      {Title: "退出", Run: func(*App, Args) tea.Cmd { return tea.Quit }},
-		"tab.close": {Title: "关闭 tab", Run: func(a *App, _ Args) tea.Cmd { a.closeTab(); return nil }},
-		"tab.next":  {Title: "下一个 tab", Run: do(func(a *App, args Args) { a.cycleTab(1, args.Count) })},
-		"tab.prev":  {Title: "上一个 tab", Run: do(func(a *App, args Args) { a.cycleTab(-1, args.Count) })},
-		"tab.new":   {Title: "新建 tab", Run: do(func(a *App, _ Args) { a.newTab() })},
+		"quit": {Title: "退出", Run: func(a *App, _ Args) tea.Cmd { return a.quit() }},
+		"tab.close": {Title: "关闭 tab", Run: func(a *App, _ Args) tea.Cmd {
+			n, name := 0, ""
+			if t := dataOf(a.focused()); t != nil {
+				n, name = len(t.edits), t.table.Name+" "
+			}
+			return a.unlessUnsaved(n, name, "关闭", func() tea.Cmd { a.closeTab(); return nil })
+		}},
+		"tab.next": {Title: "下一个 tab", Run: do(func(a *App, args Args) { a.cycleTab(1, args.Count) })},
+		"tab.prev": {Title: "上一个 tab", Run: do(func(a *App, args Args) { a.cycleTab(-1, args.Count) })},
+		"tab.new":  {Title: "新建 tab", Run: do(func(a *App, _ Args) { a.newTab() })},
 
 		"pane.split.right": {Title: "左右分割", Run: do(func(a *App, _ Args) { a.splitPane(Horiz) })},
 		"pane.split.below": {Title: "上下分割", Run: do(func(a *App, _ Args) { a.splitPane(Vert) })},
-		"pane.close":       {Title: "关闭 pane", Run: do(func(a *App, _ Args) { a.closePane() })},
+		"pane.close": {Title: "关闭 pane", Run: func(a *App, _ Args) tea.Cmd {
+			return a.unlessUnsaved(unsaved(a.focused()), "这个 pane 里", "关闭", func() tea.Cmd { a.closePane(); return nil })
+		}},
 		"pane.zoom": {Title: "缩放 / 还原", Run: do(func(a *App, _ Args) { a.toggleZoom() }),
 			On: func(a *App) bool { return a.win().Zoom != 0 }},
 		"pane.number": {Title: "按编号跳转", Run: do(func(a *App, _ Args) { a.paneNumbers = true })},
@@ -161,6 +170,13 @@ func init() {
 		// ↵ and esc end a cell's edit alike, keeping it (G-02)
 		"cell.accept": {Run: do(func(a *App, _ Args) { a.endEdit() })},
 		"cell.done":   {Run: do(func(a *App, _ Args) { a.endEdit() })},
+		"save":        {Title: "保存", Run: func(a *App, _ Args) tea.Cmd { return a.save() }},
+		"confirm.yes": {Run: when(inConfirm, func(a *App) tea.Cmd {
+			then := a.confirm.then
+			a.confirm = nil
+			return then()
+		})},
+		"confirm.no": {Run: when(inConfirm, func(a *App) tea.Cmd { a.confirm = nil; return nil })},
 		// The query bar (§7.8「查询条」).
 		"grid.where": {Title: "WHERE 条件", Run: do(func(a *App, _ Args) {
 			if t := dataOf(a.focused()); t != nil {
@@ -185,10 +201,14 @@ func init() {
 		"grid.page.next": {Title: "下一页", Run: func(a *App, _ Args) tea.Cmd { return a.turnPage(1) }},
 		"grid.page.prev": {Title: "上一页", Run: func(a *App, _ Args) tea.Cmd { return a.turnPage(-1) }},
 		"grid.refresh": {Title: "刷新", Run: func(a *App, _ Args) tea.Cmd {
-			if t := dataOf(a.focused()); t != nil {
-				return a.fetch(t, true)
+			t := dataOf(a.focused())
+			if t == nil {
+				return nil
 			}
-			return nil
+			return a.unlessUnsaved(len(t.edits), "", "刷新", func() tea.Cmd { // R drops the changes (§10.4)
+				t.edits = nil
+				return a.fetch(t, true)
+			})
 		}},
 		// "grid.goto <rec> <field>" is a click on a cell.
 		"grid.goto": {Run: do(func(a *App, args Args) { a.gridGoto(args.Arg) })},
@@ -202,7 +222,6 @@ func init() {
 	// default.toml binds, the palette lists them all (§6.8); running them
 	// does nothing yet.
 	for id, title := range map[string]string{
-		"save":         "保存",
 		"session.list": "session 列表", "session.new": "新建连接",
 		"window.new": "新建 window", "window.rename": "重命名 window", "window.close": "关闭 window",
 		"window.next": "下一个 window", "window.prev": "上一个 window", "window.last": "上次用的 window",
@@ -238,6 +257,7 @@ func when(open func(*App) bool, f func(*App) tea.Cmd) func(*App, Args) tea.Cmd {
 }
 
 func inPalette(a *App) bool  { return a.palette != nil }
+func inConfirm(a *App) bool  { return a.confirm != nil }
 func inDrop(a *App) bool     { return a.drop != nil }
 func inCols(a *App) bool     { return a.cols != nil }
 func inComplete(a *App) bool { return a.completing() != nil }

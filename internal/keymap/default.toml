@@ -126,6 +126,12 @@ leader = "<Space>"
 "/" = "cols.filter"
 "<Esc>" = "cols.close"
 
+[keys.confirm] # §10.5: before changes are thrown away
+"y" = "confirm.yes"
+"<CR>" = "confirm.yes"
+"n" = "confirm.no"
+"<Esc>" = "confirm.no"
+
 [keys.cell] # §10.2
 "<Tab>" = "cell.segment.next"
 "<S-Tab>" = "cell.segment.prev"

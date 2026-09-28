@@ -48,6 +48,7 @@ type Grid struct {
 	Key       Icon // for primary key headers
 	Pane      int
 	Edited    map[[2]int]bool // changed cells not saved, by record and field (§7.6)
+	Failed    map[int]bool    // records a save failed on: numbers in error (§10.3)
 	Edit      *Input          // the current cell's edit, drawn over it (§10.1)
 }
 
@@ -282,7 +283,11 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 		switch {
 		case g.Transpose:
 			rowNo(uv.Rect(cellX(i)-1, y, ws[c]+2, 1), c)
-			f.Text(cellX(i), y, right, h, num(c == cc, th.PaneBg))
+			st := num(c == cc, th.PaneBg)
+			if g.Failed[c] {
+				st.Fg = th.Error
+			}
+			f.Text(cellX(i), y, right, h, st)
 		default:
 			f.Text(cellX(i), y, right, h, name)
 			if g.Cols[c].PK && g.Key.Fg != nil { // the key icon keeps its own color (§7.7)
@@ -322,7 +327,11 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 			}
 		} else {
 			rowNo(uv.Rect(area.Min.X, y, labelW+2, 1), r)
-			f.Text(area.Min.X+1+labelW-Width(label), y, seps[0], label, num(r == cr, bg))
+			st := num(r == cr, bg)
+			if rec, _ := v.data(r, 0); g.Failed[rec] {
+				st.Fg = th.Error
+			}
+			f.Text(area.Min.X+1+labelW-Width(label), y, seps[0], label, st)
 		}
 		for i, c := range cols {
 			val, typ := v.val(r, c)

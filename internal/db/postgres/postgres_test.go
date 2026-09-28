@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +25,40 @@ func connect(t *testing.T, readOnly bool) *Conn {
 	}
 	t.Cleanup(func() { c.Close() })
 	return c
+}
+
+// ownDB is a database of the test's own on the test instance, seeded as
+// the shared one is and dropped when the test ends: for tests that write
+// (AGENTS.md「集成测试环境」). It returns its DSN.
+func ownDB(t *testing.T) string {
+	t.Helper()
+	ctx := context.Background()
+	admin := connect(t, false)
+	name := fmt.Sprintf("sqlmux_worker_%d_%s", os.Getpid(), strings.ToLower(t.Name()))
+	drop := func() { admin.Query(ctx, "drop database if exists "+name+" with (force)") }
+	drop()
+	if _, err := admin.Query(ctx, "create database "+name); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(drop)
+	u, err := url.Parse(IntegrationDSN(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.Path = "/" + name
+	seed, err := os.ReadFile("../../../testdata/seed/pg.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := Connect(ctx, u.String(), "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if _, err := c.Exec(ctx, string(seed), 0); err != nil {
+		t.Fatal(err)
+	}
+	return u.String()
 }
 
 func sqlState(err error) string {

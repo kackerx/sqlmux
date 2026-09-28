@@ -24,10 +24,11 @@ type App struct {
 	res   *keymap.Resolver
 	sess  *Session
 
-	palette  *palette  // non-nil while the command palette is open (COMMAND mode)
-	drop     *dropdown // non-nil while a one-pick dropdown is open (§8.6, §7.8)
-	cols     *colsMenu // non-nil while the COLS list is open (Q-04)
-	whichKey bool      // the which-key overlay is up (§6.5)
+	palette  *palette    // non-nil while the command palette is open (COMMAND mode)
+	drop     *dropdown   // non-nil while a one-pick dropdown is open (§8.6, §7.8)
+	cols     *colsMenu   // non-nil while the COLS list is open (Q-04)
+	confirm  *confirmBox // non-nil while it asks before changes go (§10.5)
+	whichKey bool        // the which-key overlay is up (§6.5)
 	// paneNumbers is SPC q's overlay: the next key picks a pane by its ⟨n⟩.
 	paneNumbers bool
 
@@ -107,6 +108,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotQuick(msg)
 	case colsMsg:
 		return a, a.gotCols(msg)
+	case saveMsg:
+		return a, a.gotSave(msg)
 	case stateErr:
 		return a, a.showToast(msg.err.Error(), toastTTL)
 	case toastExpired:
@@ -200,8 +203,8 @@ func (a *App) click(p uv.Position) tea.Cmd {
 	switch t.Kind {
 	case ui.KindNumber:
 		a.jumpToPane(keymap.Key(strconv.Itoa(t.I)))
-	case ui.KindBackdrop: // outside an overlay: close it
-		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols = false, false, nil, nil, nil
+	case ui.KindBackdrop: // outside an overlay: close it; outside a confirm box: no
+		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols, a.confirm = false, false, nil, nil, nil, nil
 		a.res.Reset()
 	case ui.KindRow:
 		switch tab, c := a.typingTab(), a.completing(); {
@@ -344,7 +347,7 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 // ponytail: no VISUAL until the console editor (M3).
 func (a *App) mode() keymap.Mode {
 	switch t := a.typingTab(); {
-	case a.palette != nil, a.drop != nil, a.cols != nil, t != nil && t.hist != nil: // an overlay has the keys (§7.8)
+	case a.palette != nil, a.drop != nil, a.cols != nil, a.confirm != nil, t != nil && t.hist != nil: // an overlay has the keys (§7.8)
 		return keymap.Command
 	case a.win().tree.filtering, t != nil:
 		return keymap.Insert
@@ -355,6 +358,8 @@ func (a *App) mode() keymap.Mode {
 // context tells the keymap which scopes apply to the next key (§6.4).
 func (a *App) context() keymap.Context {
 	switch typing := a.typingTab(); {
+	case a.confirm != nil:
+		return keymap.Context{Overlay: "confirm", Mode: keymap.Command}
 	case a.palette != nil && a.palette.comp != nil: // ↵ and esc are the input's, as in a WHERE (§9.7)
 		return keymap.Context{Overlay: "complete", Focus: []string{"input"}, Mode: keymap.Command}
 	case a.palette != nil:

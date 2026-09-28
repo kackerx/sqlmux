@@ -166,6 +166,9 @@ func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 			return nil
 		}
 	}
+	if cur := dataOf(p); cur != nil && len(cur.edits) > 0 { // never over changes not saved (§12)
+		newTab = true
+	}
 	a.showPane(p.ID)
 	tab := Tab{Name: t.Name, Data: newDataTab(t)}
 	switch {

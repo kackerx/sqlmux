@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -220,8 +222,178 @@ func TestGoldenEdits160x45(t *testing.T) {
 	tab := loadOrders(t, a, 60)
 	tab.edits = map[editKey]edit{
 		{"1", "status"}: {val: db.Val{S: "done"}},
-		{"2", "note"}:   {val: db.Val{Null: true}},
-		{"3", "amount"}: {def: true},
+		{"2", "note"}:   {val: db.Val{Null: true}, orig: db.Val{S: "line one"}},
+		{"3", "amount"}: {def: true, orig: db.Val{S: "3.99"}},
 	}
+	golden.RequireEqual(t, a.render().String())
+}
+
+// saveDB is Main as the tests see it: every statement answers tag, and
+// what was sent is kept.
+type saveDB struct {
+	tag  string
+	sqls []string
+}
+
+func (s *saveDB) Query(_ context.Context, sql string, args ...db.Val) (db.Result, error) {
+	s.sqls = append(s.sqls, fmt.Sprintf("%s %v", sql, args))
+	return db.Result{Tag: s.tag}, nil
+}
+func (s *saveDB) Exec(context.Context, string, int) ([]db.Result, error) { return nil, nil }
+func (s *saveDB) Close() error                                           { return nil }
+
+// withMain is sized with t_order loaded and Main answering tag.
+func withMain(t *testing.T, tag string) (*App, *dataTab, *saveDB) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	main := &saveDB{tag: tag}
+	a.sess.Main = db.NewWorker(main)
+	return a, tab, main
+}
+
+// C-s writes the tab's changes, an UPDATE a row in row identity order; saved,
+// they go, the page and its count load again, and the query bar says so
+// until the user fetches again (§10.3, Q-06).
+func TestSave(t *testing.T) {
+	a, tab, main := withMain(t, "UPDATE 1")
+	feed(t, a, "jjlidone<Esc>kkix<Esc>$hinote<Esc>") // row 3's status, row 1's status and note
+	_, cmd := a.Update(teaKey("<C-s>"))
+	if cmd == nil || !tab.saving {
+		t.Fatal("C-s saves")
+	}
+	if _, again := a.Update(teaKey("<C-s>")); again != nil {
+		t.Error("a second save while one is out")
+	}
+	m := cmd().(saveMsg)
+	want := []string{
+		"begin []",
+		`update "public"."t_order" set "status" = $1, "note" = $2 where "id" = $3 and "status"::text is not distinct from $4 and "note"::text is not distinct from $5 [{x false} {note false} {1 false} {running false} {note 1 false}]`,
+		`update "public"."t_order" set "status" = $1 where "id" = $2 and "status"::text is not distinct from $3 [{done false} {3 false} {failed false}]`,
+		"commit []",
+	}
+	if strings.Join(main.sqls, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("sent:\n%s", strings.Join(main.sqls, "\n"))
+	}
+	busy := a.busy
+	a.Update(m)
+	if len(tab.edits) != 0 || tab.saving || a.busy != busy || !tab.recount {
+		t.Fatalf("saved: edits %q, busy %d → %d", editsOf(tab), busy, a.busy)
+	}
+	bar := a.queryBar(a.focused(), tab)
+	if !strings.HasPrefix(bar.Right, "已保存 2 行 · ") || bar.RightFg != nil {
+		t.Errorf("right %q", bar.Right)
+	}
+	answer(a, tab) // the page again: the note stays
+	if !strings.HasPrefix(a.queryBar(a.focused(), tab).Right, "已保存") {
+		t.Error("the reload dropped the note")
+	}
+	feed(t, a, "R")
+	if strings.HasPrefix(a.queryBar(a.focused(), tab).Right, "已保存") {
+		t.Error("a fetch of the user's keeps the note")
+	}
+	if _, cmd := a.Update(teaKey("<C-s>")); cmd != nil {
+		t.Error("nothing to save")
+	}
+}
+
+// A row that changed or went since it was loaded fails the save: all rolled
+// back, the changes kept, the row named and its number in error until the
+// next change or fetch (§10.3). A cancel says so.
+func TestSaveFails(t *testing.T) {
+	a, tab, _ := withMain(t, "UPDATE 0")
+	feed(t, a, "lix<Esc>")
+	_, cmd := a.Update(teaKey("<C-s>"))
+	a.Update(cmd())
+	bar := a.queryBar(a.focused(), tab)
+	if bar.Right != "id = 1 的行数据已变化或行不存在，已回滚" || bar.RightFg != a.theme.Error || len(tab.edits) != 1 {
+		t.Fatalf("right %q, edits %q", bar.Right, editsOf(tab))
+	}
+	if g := a.grid(a.focused(), tab); !g.Failed[0] {
+		t.Error("row 1's number is not marked")
+	}
+	feed(t, a, "jiy<Esc>")
+	if tab.note != "" || tab.failed != "" {
+		t.Errorf("a change starts over: %q", tab.note)
+	}
+	a.Update(saveMsg{tab: tab, failed: -1, err: context.Canceled})
+	if tab.note != "已取消，已回滚" || len(tab.edits) != 2 {
+		t.Errorf("cancelled: %q", tab.note)
+	}
+}
+
+// Changes made while a save is out stay when it lands (§10.3).
+func TestSaveKeepsNewer(t *testing.T) {
+	a, tab, _ := withMain(t, "UPDATE 1")
+	feed(t, a, "lix<Esc>lil<Esc>")
+	_, cmd := a.Update(teaKey("<C-s>"))
+	m := cmd().(saveMsg)
+	feed(t, a, "iz<Esc>jin<Esc>") // amount again, and row 2's
+	a.Update(m)
+	if got := editsOf(tab); !strings.Contains(got, "1/amount=z") || !strings.Contains(got, "2/amount=n") || strings.Contains(got, "status") {
+		t.Errorf("left: %q", got)
+	}
+}
+
+// Before changes are thrown away, a box asks (§10.5): R, x, SPC x, :qa and
+// the second C-c; y goes on, n, esc or a click outside keep them.
+func TestConfirm(t *testing.T) {
+	a, tab, _ := withMain(t, "UPDATE 1")
+	feed(t, a, "lix<Esc>R")
+	if a.confirm == nil || a.mode() != keymap.Command || a.context().Overlay != "confirm" {
+		t.Fatal("R asks")
+	}
+	if f := a.render().String(); !strings.Contains(f, "有 1 处修改未保存，刷新会丢弃。") || !strings.Contains(f, "y 刷新") || !strings.Contains(f, "n 取消") {
+		t.Errorf("the box:\n%s", f)
+	}
+	if feed(t, a, "n"); a.confirm != nil || len(tab.edits) != 1 {
+		t.Fatal("n keeps them")
+	}
+	if feed(t, a, "Ry"); a.confirm != nil || len(tab.edits) != 0 {
+		t.Fatal("y drops them")
+	}
+	for keys, text := range map[string]string{
+		"x":          "t_order 有 1 处修改未保存，关闭会丢弃。",
+		"<Space>x":   "这个 pane 里有 1 处修改未保存，关闭会丢弃。",
+		":qa<CR>":    "有 1 处修改未保存，退出会丢弃。",
+		"<C-c><C-c>": "有 1 处修改未保存，退出会丢弃。",
+	} {
+		answer(a, tab)
+		feed(t, a, "lix<Esc>"+keys)
+		if a.confirm == nil || a.confirm.text != text {
+			t.Fatalf("%s: %+v", keys, a.confirm)
+		}
+		if feed(t, a, "<Esc>"); a.confirm != nil || len(p(a).Tabs) != 1 {
+			t.Fatalf("%s: esc keeps them", keys)
+		}
+		tab.edits = nil
+	}
+	feed(t, a, "lix<Esc>:qa<CR>")
+	click(a, uv.Pos(1, 1))
+	if a.confirm != nil {
+		t.Error("a click outside says no")
+	}
+	if feed(t, a, ":qa<CR>"); !feed(t, a, "y") {
+		t.Error("y quits")
+	}
+}
+
+func p(a *App) *Pane { return a.focused() }
+
+// Opening a table over a tab with changes opens a new tab instead (§12).
+func TestOpenKeepsChanges(t *testing.T) {
+	a, tab, _ := withMain(t, "UPDATE 1")
+	feed(t, a, "lix<Esc><C-p>@t_user<CR>")
+	if pane := a.focused(); tabNames(pane) != "t_order t_user" || len(tab.edits) != 1 {
+		t.Errorf("tabs %v, edits %q", tabNames(pane), editsOf(tab))
+	}
+}
+
+// The box over the table: at the middle of the screen, the buttons at its
+// right (§10.5).
+func TestGoldenConfirm160x45(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 60)
+	tab.edits = map[editKey]edit{{"1", "status"}: {val: db.Val{S: "done"}, orig: db.Val{S: "running"}}}
+	feed(t, a, "x")
 	golden.RequireEqual(t, a.render().String())
 }
