@@ -64,7 +64,7 @@ func TestSave(t *testing.T) {
 		{"t_user", []string{"id"}, Row{Key: []string{"1"}, Cols: []Change{
 			{Name: "name", Val: text("renamed"), Old: text("user_1")},
 			{Name: "email", Val: db.Val{Null: true}, Old: text("user_1@example.com")},
-			{Name: "active", Default: true, Old: text("false")},
+			{Name: "active", Default: true, Old: text("f")},
 		}}, "select name, email, active from t_user where id = 1"},
 		{"t_order_item", []string{"order_id", "line_no"}, Row{Key: []string{"3", "2"}, Cols: []Change{
 			{Name: "qty", Val: text("9"), Old: text("1")},
@@ -143,5 +143,33 @@ func TestSaveCancel(t *testing.T) {
 	}
 	if r, err := w.Query(ctx, "select 1"); err != nil || r.Rows[0][0].S != "1" {
 		t.Errorf("after the cancel: %v", err)
+	}
+}
+
+// What a row was loaded as, each type's output text, is what the check
+// finds in it: boolean's f, inet without a mask, char(n) padded, json,
+// floats, times, bytea, arrays, enums, and NULL (§10.3).
+func TestSaveChecksEveryType(t *testing.T) {
+	ctx := context.Background()
+	w, _, _ := saver(t)
+	if _, err := w.Exec(ctx, `create table types (id int primary key, b boolean, ip inet, c char(5), j json, jb jsonb,
+		n numeric(10, 2), r real, d double precision, ts timestamptz, iv interval, by bytea, arr int[], e order_status, nul text);
+		insert into types values (1, false, '10.0.0.1', 'ab', '{"a" : 1}', '{"a": 1}', 1.50, 0.1, 0.1,
+		'2026-09-28 10:00:00.5+08', '1 day 02:00', '\xdeadbeef', '{1,2}', 'done', null)`, 0); err != nil {
+		t.Fatal(err)
+	}
+	r, err := w.Query(ctx, "select * from types")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, c := range r.Cols[1:] {
+		old := r.Rows[0][i+1]
+		row := Row{Key: []string{"1"}, Cols: []Change{{Name: c.Name, Val: db.Val{S: "{}"}, Old: old}}}
+		if !old.Null {
+			row.Cols[0].Val = old // written back as it was: only the check is under test
+		}
+		if _, err := Save(ctx, w, "public", "types", []string{"id"}, []Row{row}); err != nil {
+			t.Errorf("%s loaded as %+v: %v", c.Name, old, err)
+		}
 	}
 }

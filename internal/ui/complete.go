@@ -52,9 +52,14 @@ func (c Complete) Draw(f *Frame, box uv.Rectangle, rows int) {
 			f.Text(x0+1, line.Min.Y, x1, it.Text, uv.Style{Fg: th.Dim, Bg: th.PaneBg, Attrs: uv.AttrBold})
 			continue
 		}
+		// picked on select, the one under the pointer on row: which ↵ takes
+		// shows apart from where the pointer is (§10.2)
 		st := uv.Style{Fg: th.Fg, Bg: th.PaneBg}
-		if hover := f.Region(line, Target{Kind: KindRow, I: i}); hover || i == c.Sel {
+		switch hover := f.Region(line, Target{Kind: KindRow, I: i}); {
+		case i == c.Sel:
 			st.Bg = th.Select
+		case hover:
+			st.Bg = th.Row
 		}
 		f.Fill(line, st)
 		nx := x1 - 1 - Width(it.Note)

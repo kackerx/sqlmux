@@ -46,9 +46,8 @@ func ErrorText(err error) string {
 const endTimeout = 10 * time.Second
 
 // Save writes rows to schema.table in one transaction on w (§10.3): an
-// UPDATE a row, found by keyCols with = and each changed column's loaded
-// value compared as text (json and point have no =), each hitting exactly
-// one row. On any failure it rolls back; failed is the index of the row at
+// UPDATE a row, found by keyCols with = and each changed column still
+// holding what was loaded, each hitting exactly one row. On any failure it rolls back; failed is the index of the row at
 // fault, -1 for none. Cancelling ctx stops the UPDATEs only.
 // Reference: lazysql drivers/utils.go queriesInTransaction, which checks
 // neither the rows hit nor the loaded values.
@@ -100,8 +99,16 @@ func update(schema, table string, keyCols []string, r Row) (string, []db.Val) {
 	for i, k := range keyCols {
 		where = append(where, pgx.Identifier{k}.Sanitize()+" = "+arg(db.Val{S: r.Key[i]}))
 	}
+	// What was loaded is the type's output function's text, and so is
+	// format's; json and point have no =, and ::text isn't always the output
+	// (false for f, inet with its mask, char(n) trimmed).
 	for _, c := range r.Cols {
-		where = append(where, pgx.Identifier{c.Name}.Sanitize()+"::text is not distinct from "+arg(c.Old))
+		col := pgx.Identifier{c.Name}.Sanitize()
+		if c.Old.Null {
+			where = append(where, col+" is null")
+		} else {
+			where = append(where, "format('%s', "+col+") = "+arg(c.Old))
+		}
 	}
 	return "update " + pgx.Identifier{schema, table}.Sanitize() + " set " + strings.Join(sets, ", ") +
 		" where " + strings.Join(where, " and "), args

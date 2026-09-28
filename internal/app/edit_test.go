@@ -273,8 +273,8 @@ func TestSave(t *testing.T) {
 	m := cmd().(saveMsg)
 	want := []string{
 		"begin []",
-		`update "public"."t_order" set "status" = $1, "note" = $2 where "id" = $3 and "status"::text is not distinct from $4 and "note"::text is not distinct from $5 [{x false} {note false} {1 false} {running false} {note 1 false}]`,
-		`update "public"."t_order" set "status" = $1 where "id" = $2 and "status"::text is not distinct from $3 [{done false} {3 false} {failed false}]`,
+		`update "public"."t_order" set "status" = $1, "note" = $2 where "id" = $3 and format('%s', "status") = $4 and format('%s', "note") = $5 [{x false} {note false} {1 false} {running false} {note 1 false}]`,
+		`update "public"."t_order" set "status" = $1 where "id" = $2 and format('%s', "status") = $3 [{done false} {3 false} {failed false}]`,
 		"commit []",
 	}
 	if strings.Join(main.sqls, "\n") != strings.Join(want, "\n") {

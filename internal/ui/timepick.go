@@ -236,8 +236,11 @@ func (p TimePick) Draw(f *Frame, box uv.Rectangle) {
 	ox := x
 	for i, o := range p.Options {
 		ost := uv.Style{Fg: th.Fg, Bg: th.PaneBg}
-		if hover := f.Region(uv.Rect(ox-1, y+3, Width(o)+2, 1), Target{Kind: KindRow, I: i}); hover || i == p.Sel {
+		switch hover := f.Region(uv.Rect(ox-1, y+3, Width(o)+2, 1), Target{Kind: KindRow, I: i}); {
+		case i == p.Sel: // as a list's (§10.2)
 			ost.Bg = th.Select
+		case hover:
+			ost.Bg = th.Row
 		}
 		f.Text(ox-1, y+3, right, " "+o+" ", ost)
 		ox += Width(o) + 3

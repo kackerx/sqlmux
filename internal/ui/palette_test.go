@@ -77,3 +77,15 @@ func TestCompleteBoxFlips(t *testing.T) {
 		t.Errorf("short either way, more below: %v %d", box, rows)
 	}
 }
+
+// The pick is on select, the row under the pointer on row: which one ↵
+// takes shows apart from where the pointer is (§10.2).
+func TestCompleteHover(t *testing.T) {
+	c := Complete{Items: []CompleteItem{{Text: "a"}, {Text: "b"}, {Text: "c"}}}
+	f := NewFrame(20, 5, TokyonightStorm)
+	f.Mouse = uv.Pos(3, 3) // over c
+	c.Draw(f, uv.Rect(0, 0, 20, 5), 3)
+	if pick, hover := f.Buf.CellAt(2, 1).Style.Bg, f.Buf.CellAt(2, 3).Style.Bg; pick != TokyonightStorm.Select || hover != TokyonightStorm.Row {
+		t.Errorf("picked %v, hovered %v", pick, hover)
+	}
+}
