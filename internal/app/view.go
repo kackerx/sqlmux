@@ -108,10 +108,6 @@ func (a *App) render() *ui.Frame {
 	if a.whichKey {
 		a.whichKeyOverlay().Draw(f, uv.Rect(0, 0, a.w, y))
 	}
-	if a.toast != "" && y > 0 {
-		t := " " + a.toast + " "
-		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Bar})
-	}
 	if t := a.typingTab(); t != nil { // the WHERE's lists (§9.7)
 		switch p := a.focused(); {
 		case t.hist != nil:
@@ -149,6 +145,10 @@ func (a *App) render() *ui.Frame {
 				v.Draw(f, box, rows)
 			}
 		}
+	}
+	if a.toast != "" && y > 0 { // over the palette's mask too: dimmed, it can hardly be read (§7.5)
+		t := " " + a.toast + " "
+		f.Text(max(a.w-ui.Width(t)-1, 0), y-1, a.w, t, uv.Style{Fg: th.Warn, Bg: th.Bar})
 	}
 	return f
 }

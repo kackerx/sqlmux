@@ -105,6 +105,9 @@ func TestQuickSQLCancel(t *testing.T) {
 	if r := a.paletteView().Result; a.toast != "查询已取消" || r.Title != "3 行 · 12ms · 只读" || a.palette.quick.running != "" {
 		t.Errorf("cancelled: toast %q, %+v", a.toast, r)
 	}
+	if st := styleOf(t, a.render(), "查询已取消"); st.Fg != a.theme.Warn || st.Bg != a.theme.Bar {
+		t.Errorf("the toast is dimmed with the rest: %+v", st) // over the mask (§7.5)
+	}
 	feed(t, a, "<CR>")
 	p := a.palette
 	if feed(t, a, "<Esc>"); a.palette != nil {
@@ -226,6 +229,15 @@ func TestQuickSQLScroll(t *testing.T) {
 	if a.palette.quick.top != wheelStep {
 		t.Errorf("top %d", a.palette.quick.top)
 	}
+}
+
+// With nothing after the ;, the history's rows take the whole width: the
+// list has no locations to line up (§12「列对齐」).
+func TestGoldenQuickSQLHistory160x45(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	a.state.SQL = map[string][]string{"doraemon": {"select id, note, created_at from t_order where id < 3 order by id", "select 1"}}
+	feed(t, a, "<C-p>;")
+	golden.RequireEqual(t, a.render().String())
 }
 
 func TestGoldenQuickSQL160x45(t *testing.T) {

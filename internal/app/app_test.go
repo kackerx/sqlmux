@@ -470,7 +470,13 @@ func TestTabNewPlus(t *testing.T) {
 	if tabNames(left) != "t_user t_user" || left.Cur != 1 || a.win().Focus != left.ID || a.win().newTabIn != 0 {
 		t.Fatalf("tree ↵: tabs %v cur %d focus %d newTab %d", tabNames(left), left.Cur, a.win().Focus, a.win().newTabIn)
 	}
+	if a.win().tree.filter.Text != "t_user" {
+		t.Fatal("↵ keeps the filter")
+	}
 	plus(left.ID)
+	if a.win().tree.filter.Text != "" {
+		t.Error("+ keeps the last filter") // a new pick (§7.8)
+	}
 	feed(t, a, "<Esc>")
 	if a.win().newTabIn != left.ID {
 		t.Fatal("esc in the filter only clears it")

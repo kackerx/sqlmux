@@ -112,9 +112,11 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 	hl := uv.Style{Fg: th.Bg, Bg: th.Warn}
 	// Columns: every row's location starts where the others' do (§12). The
 	// name column is as wide as the widest name, at most 40% of the box.
-	iconW, nameW := 0, 0
+	// A list with no locations (the SQL history) gives its names the row.
+	iconW, nameW, located := 0, 0, false
 	for _, r := range p.Rows {
 		iconW, nameW = max(iconW, Width(r.Icon.Text)), max(nameW, Width(r.Name))
+		located = located || r.Where != ""
 	}
 	nameW = min(nameW, box.Dx()*2/5)
 	for i := p.Top; i < min(p.Top+rows, len(p.Rows)); i, y = i+1, y+1 {
@@ -141,9 +143,13 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 				inName = append(inName, i)
 			}
 		}
-		name, inName := TruncateMatch(r.Name, inName, nameW)
 		nx := x0 + iconW + 1
-		f.TextMatch(nx, y, min(nx+nameW, right-1), name, inName, st, hl)
+		w := nameW
+		if !located {
+			w = right - 1 - nx
+		}
+		name, inName := TruncateMatch(r.Name, inName, w)
+		f.TextMatch(nx, y, min(nx+w, right-1), name, inName, st, hl)
 		f.TextMatch(nx+nameW+2, y, right-1, r.Where, inWhere, faint, hl)
 	}
 	if r := p.Result; r != nil {

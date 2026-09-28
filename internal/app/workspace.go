@@ -11,6 +11,7 @@ import (
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
 	"sqlmux/internal/keymap"
+	"sqlmux/internal/ui"
 )
 
 // PaneKind is what a pane shows.
@@ -236,6 +237,8 @@ func (a *App) newTab() {
 	if p == nil {
 		return
 	}
+	// a new pick: the last one's filter would take what is typed after it (§7.8)
+	a.win().tree.filter = ui.Input{}
 	a.treeFilter()
 	if win := a.win(); win.Focus == win.Tree.ID {
 		win.newTabIn = p.ID
