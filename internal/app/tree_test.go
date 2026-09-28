@@ -277,13 +277,38 @@ func TestTreeWorkspace(t *testing.T) {
 	}
 }
 
+// From the tree a table opens in the data pane focused last, not the first
+// (§12); the open table and the workspace's current tab both point there
+// (§7.8).
+func TestTreeOpensInLastFocused(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	top := a.focused()
+	feed(t, a, `<C-p>@t_user<CR><Space>"`) // ② below ①, focused
+	below := a.focused()
+	feed(t, a, "<C-h>")
+	if a.win().Focus != 0 {
+		t.Fatalf("C-h from ②: focus %d", a.win().Focus)
+	}
+	treeTo(t, a, "t_sku")
+	if feed(t, a, "<CR>"); tabNames(below) != "t_sku" || tabNames(top) != "t_user" || a.win().Focus != below.ID {
+		t.Fatalf("↵: ① %v ② %v, focus %d", tabNames(top), tabNames(below), a.win().Focus)
+	}
+	feed(t, a, "<C-h>")
+	ns, _ := a.treeNodes()
+	for _, n := range ns {
+		if (n.kind == nodeTable || n.kind == nodeTab) && n.Current != (n.Text == "t_sku") {
+			t.Errorf("%s (%v): current %v", n.Text, n.kind, n.Current)
+		}
+	}
+}
+
 // Clicks: a row is its ↵, ▸ / ▾ opens and closes, a middle click is t
 // (§7.8).
 func TestTreeMouse(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	data := a.win().Root.Leaves()[0]
 	goal := slices.IndexFunc(func() []node { ns, _ := a.treeNodes(); return ns }(), func(n node) bool { return n.Text == "goal" })
-	r := find(t, a, ui.Target{Kind: ui.KindTable, Pane: 0, I: goal})
+	r := find(t, a, ui.Target{Kind: ui.KindNode, Pane: 0, I: goal})
 	click(a, r.Min)
 	if tabNames(data) != "goal" || a.win().Focus != data.ID {
 		t.Fatalf("click: tabs %v, focus %d", tabNames(data), a.win().Focus)

@@ -293,20 +293,22 @@ func (a *App) focusSide(side string) {
 	if !win.TreeOpen {
 		delete(rects, win.Tree.ID)
 	}
-	order := map[int]int{}
-	for n, p := range a.panesByNumber() {
-		order[p.ID] = n
-	}
-	// most recently focused first; never focused, then the one first in ⟨n⟩ order (up / left)
-	prefer := func(x, y int) bool {
-		if win.focusedAt[x] != win.focusedAt[y] {
-			return win.focusedAt[x] > win.focusedAt[y]
-		}
-		return order[x] < order[y]
-	}
-	if id, ok := neighbor(rects, win.Focus, side, prefer); ok {
+	if id, ok := neighbor(rects, win.Focus, side, a.recent); ok {
 		win.focus(id)
 	}
+}
+
+// recent reports whether pane x beats y as the one focused most recently:
+// moving by direction (§5) and opening a table from the tree (§12) pick by
+// it. Of two never focused, the one first in ⟨n⟩ order (up / left) wins.
+func (a *App) recent(x, y int) bool {
+	win := a.win()
+	if win.focusedAt[x] != win.focusedAt[y] {
+		return win.focusedAt[x] > win.focusedAt[y]
+	}
+	ps := a.panesByNumber()
+	at := func(id int) int { return slices.IndexFunc(ps, func(p *Pane) bool { return p.ID == id }) }
+	return at(x) < at(y)
 }
 
 // splitPane divides the focused pane along d; the new, empty pane gets focus.

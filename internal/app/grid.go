@@ -166,16 +166,22 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	}
 	t.err, t.cols, t.page, t.next, t.shown = "", m.cols, m.page, m.next, t.request
 	t.row = max(min(t.row, len(t.page.Rows)-1), 0)
-	if i := slices.IndexFunc(t.shownCols(), func(f int) bool { return t.page.Cols[f].Name == t.wantCol }); i >= 0 {
-		t.col = i
-	}
-	t.wantCol = ""
+	t.applyWantCol()
 	t.col = max(min(t.col, len(t.shownCols())-1), 0)
 	if t.recount {
 		t.recount = false
 		return a.count(t)
 	}
 	return nil
+}
+
+// applyWantCol puts the cursor on wantCol, a column node's ↵ (§7.8), once
+// the page is in; hidden by COLS, the cursor stays where it is.
+func (t *dataTab) applyWantCol() {
+	if i := slices.IndexFunc(t.shownCols(), func(f int) bool { return t.page.Cols[f].Name == t.wantCol }); i >= 0 {
+		t.col = i
+	}
+	t.wantCol = ""
 }
 
 // count counts the rows t's WHERE keeps, bounded by countTimeout (§8.3),

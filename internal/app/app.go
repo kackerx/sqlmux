@@ -138,7 +138,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.MouseLeft:
 			return a, a.click(uv.Pos(m.X, m.Y))
 		case tea.MouseMiddle: // a table in the tree opens in a new tab (§7.8)
-			if t, _ := ui.HitAt(a.hits, uv.Pos(m.X, m.Y)); t.Kind == ui.KindTable {
+			if t, _ := ui.HitAt(a.hits, uv.Pos(m.X, m.Y)); t.Kind == ui.KindNode {
 				a.treeGo(t.I)
 				return a, a.run("tree.open.tab", 0)
 			}
@@ -212,7 +212,7 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		case a.cols != nil: // a column's row: show or hide it (Q-04)
 			a.colsToggle(t.I)
 		}
-	case ui.KindTable: // a node's row: its ↵ (§7.8)
+	case ui.KindNode: // a node's row: its ↵ (§7.8)
 		a.focusPane(t.Pane)
 		a.treeGo(t.I)
 		return a.run("tree.open", 0)

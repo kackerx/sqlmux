@@ -79,7 +79,7 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 		n, row := t.Nodes[i], list.Min.Y+i-t.Top
 		line := uv.Rect(list.Min.X, row, list.Dx(), 1)
 		bg := th.PaneBg
-		switch hover := f.Region(line, Target{Kind: KindTable, Pane: t.Pane, I: i}); {
+		switch hover := f.Region(line, Target{Kind: KindNode, Pane: t.Pane, I: i}); {
 		case i == t.Cursor && t.Focused:
 			bg = th.Select
 		case i == t.Cursor || hover:
@@ -96,7 +96,11 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 		x := list.Min.X + 1 + 2*n.Depth
 		if n.Branch { // its own button: open or close, whatever the row does (§7.8)
 			f.Region(uv.Rect(x, row, 1, 1), Target{Kind: KindFold, Pane: t.Pane, I: i})
-			f.Text(x, row, right, map[bool]string{false: "▸", true: "▾"}[n.Open], uv.Style{Fg: th.Dim, Bg: bg})
+			fold := "▸"
+			if n.Open {
+				fold = "▾"
+			}
+			f.Text(x, row, right, fold, uv.Style{Fg: th.Dim, Bg: bg})
 		}
 		x += 2
 		if n.Icon.Text != "" {

@@ -103,6 +103,11 @@ func (a *App) opened(id string, def bool) bool {
 // schemas, their Tables and Views, tables and, opened, their columns; then
 // the workspace's windows, panes and tabs. A filter keeps the tables and
 // views it matches with the nodes above them, opened; matches is how many.
+//
+// ponytail: rebuilt on every call, 4–5 times a key press. Measured at
+// 160×45: 1.7ms a call at 10 schemas × 100 tables, 4ms at 50 × 100, 19ms at
+// 20 × 1000 (46ms filtering), so 5 / 16 / 90ms a key. Build it once per
+// Update, or group the tables by schema up front, if catalogs that big turn up.
 func (a *App) treeNodes() (ns []node, matches int) {
 	s, ic, th := a.sess, a.icons, a.theme
 	filter := a.win().tree.filter.Text
@@ -196,19 +201,19 @@ func (a *App) treeNodes() (ns []node, matches int) {
 		return ns, len(pos)
 	}
 	for wi, w := range s.Windows {
-		var panes []*Pane
+		var leaves []*Pane
 		if w.Root != nil {
-			for _, p := range w.Root.Leaves() {
-				if p.Kind == KindData || p.Kind == KindConsole {
-					panes = append(panes, p)
-				}
-			}
+			leaves = w.Root.Leaves()
 		}
+		listed := func(p *Pane) bool { return p.Kind == KindData || p.Kind == KindConsole }
 		wid := fmt.Sprintf("window:%d", wi)
-		if !add(node{id: wid, kind: nodeWindow, win: wi, TreeNode: ui.TreeNode{Depth: 1, Branch: len(panes) > 0, Open: a.opened(wid, true), Icon: ic.Window, IconFg: th.Info, Text: w.Name}}) {
+		if !add(node{id: wid, kind: nodeWindow, win: wi, TreeNode: ui.TreeNode{Depth: 1, Branch: slices.ContainsFunc(leaves, listed), Open: a.opened(wid, true), Icon: ic.Window, IconFg: th.Info, Text: w.Name}}) {
 			continue
 		}
-		for n, p := range panes {
+		for n, p := range leaves { // numbered by ⟨n⟩: the sidebar is 0
+			if !listed(p) {
+				continue
+			}
 			pid := fmt.Sprintf("%s/pane:%d", wid, p.ID)
 			text := a.kindIcon(p.Kind).Text + " " + a.label(p.Kind.String())
 			if !add(node{id: pid, kind: nodePane, win: wi, pane: p, TreeNode: ui.TreeNode{Depth: 2, Branch: len(p.Tabs) > 0, Open: a.opened(pid, true), Icon: ui.Icon{Text: ic.Number(n + 1)}, Text: strings.TrimSpace(text)}}) {
@@ -388,12 +393,9 @@ func (a *App) gotoColumn(t db.Table, col string) {
 	if a.palette != nil || dt == nil || idOf(dt.table) != idOf(t) { // several tabs have it: the pick decides
 		return
 	}
-	if dt.page.Cols == nil {
-		dt.wantCol = col
-		return
-	}
-	if i := slices.IndexFunc(dt.shownCols(), func(f int) bool { return dt.page.Cols[f].Name == col }); i >= 0 {
-		a.gridGoto(fmt.Sprintf("%d %d", dt.row, i))
+	dt.wantCol = col
+	if dt.page.Cols != nil {
+		dt.applyWantCol()
 	}
 }
 
@@ -457,7 +459,8 @@ func editInput(in *ui.Input, k keymap.Key) bool {
 }
 
 // openTarget is the data pane a table opens in (§12): the one whose + was
-// clicked, the focused one, else the window's first; nil when there is none.
+// clicked, the focused one, else the one focused most recently (the first,
+// if none ever was); nil when there is none.
 func (a *App) openTarget() *Pane {
 	if p := a.win().pane(a.win().newTabIn); p != nil && p.Kind == KindData { // newTabIn 0 is the sidebar: none
 		return p
@@ -465,9 +468,11 @@ func (a *App) openTarget() *Pane {
 	if p := a.focused(); p.Kind == KindData {
 		return p
 	}
-	leaves := a.win().Root.Leaves()
-	if i := slices.IndexFunc(leaves, func(p *Pane) bool { return p.Kind == KindData }); i >= 0 {
-		return leaves[i]
+	var best *Pane
+	for _, p := range a.win().Root.Leaves() {
+		if p.Kind == KindData && (best == nil || a.recent(p.ID, best.ID)) {
+			best = p
+		}
 	}
-	return nil
+	return best
 }

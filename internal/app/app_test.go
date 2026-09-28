@@ -423,14 +423,14 @@ func TestOpenExistingTab(t *testing.T) {
 	if feed(t, a, "<CR>"); a.palette == nil || a.palette.pick == nil || len(rowsOf(a)) != 3 {
 		t.Fatal("the tree's ↵ picks too")
 	}
-	feed(t, a, "<Esc>t") // t: a new tab, no pick
-	if a.palette != nil || tabNames(left) != "t_user t_sku t_user" {
-		t.Errorf("the tree's t: tabs %v", tabNames(left))
+	feed(t, a, "<Esc>t") // t: a new tab, no pick, in the pane focused last (§12)
+	if a.palette != nil || tabNames(right) != "t_user t_user t_user" {
+		t.Errorf("the tree's t: tabs %v", tabNames(right))
 	}
 	a.sess.Tables = append(a.sess.Tables, db.Table{Schema: "agentable", Name: "t_user"})
 	feed(t, a, "<C-p>@t_user agentable<CR>") // the same name in another schema is another table
-	if a.palette != nil || tabNames(left) != "t_user t_sku t_user" || dataOf(left).table.Schema != "agentable" {
-		t.Errorf("agentable.t_user: tabs %v, schema %s", tabNames(left), dataOf(left).table.Schema)
+	if a.palette != nil || tabNames(right) != "t_user t_user t_user" || dataOf(right).table.Schema != "agentable" {
+		t.Errorf("agentable.t_user: tabs %v, schema %s", tabNames(right), dataOf(right).table.Schema)
 	}
 }
 
