@@ -62,3 +62,18 @@ func TestPaletteBoxResult(t *testing.T) {
 		}
 	}
 }
+
+// A list that doesn't all fit below its input opens above it when there is
+// more room there (§10.2); else below, as much as fits.
+func TestCompleteBoxFlips(t *testing.T) {
+	screen := uv.Rect(0, 0, 80, 24)
+	if box, rows := CompleteBox(screen, uv.Pos(10, 5), 20, 5); box.Min.Y != 6 || rows != 5 {
+		t.Errorf("room below: %v %d", box, rows)
+	}
+	if box, rows := CompleteBox(screen, uv.Pos(10, 20), 20, 5); box.Max.Y != 20 || rows != 5 {
+		t.Errorf("near the bottom: %v %d", box, rows)
+	}
+	if box, rows := CompleteBox(uv.Rect(0, 0, 80, 6), uv.Pos(10, 2), 20, 5); box.Min.Y != 3 || rows != 1 {
+		t.Errorf("short either way, more below: %v %d", box, rows)
+	}
+}

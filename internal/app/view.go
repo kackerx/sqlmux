@@ -108,8 +108,11 @@ func (a *App) render() *ui.Frame {
 	if a.whichKey {
 		a.whichKeyOverlay().Draw(f, uv.Rect(0, 0, a.w, y))
 	}
-	if t := a.typingTab(); t != nil { // the WHERE's lists (§9.7)
+	if t := a.typingTab(); t != nil { // the WHERE's lists (§9.7), a cell's options (§10.2)
 		switch p := a.focused(); {
+		case t.cell != nil && !t.cell.folded:
+			v, box, rows := a.optionsView(p, t)
+			v.Draw(f, box, rows)
 		case t.hist != nil:
 			v, box, rows := a.histView(p, t)
 			v.Draw(f, box, rows)

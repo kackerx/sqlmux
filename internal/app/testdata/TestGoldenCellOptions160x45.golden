@@ -4,14 +4,14 @@
 │ ▾  doraemon                 │ │    │  id │ status │ amount │ paid │ meta                        │ note                             │ created_at            │
 │   ▸  agentable              │ │────┼──────┼────────┼────────┼──────┼─────────────────────────────┼──────────────────────────────────┼───────────────────────│
 │   ▾  public                 │ │  1 │    1 │ runni… │   1.99 │ t    │ {"n": 1, "tags": ["a", "b"… │ note 1                           │ 2026-09-01 00:01:00…  │
-│     ▾  Tables (14)          │ │  2 │    2 │ done   │ a longer amount than the column holds  ▾ "… │ line one↵line two after tab [31… │ 2026-09-01 00:02:00…  │
-│       ▸  agent          124 │ │  3 │    3 │ failed │┌──────────────────┐": 3, "tags": ["a", "b"… │ <null>                           │ 2026-09-01 00:03:00…  │
-│       ▸  agent_version  530 │ │  4 │    4 │ pendi… ││ ∅ NULL           │": 4, "tags": ["a", "b"… │ note 4                           │ 2026-09-01 00:04:00…  │
-│       ▸  goal            57 │ │  5 │    5 │ runni… │└──────────────────┘": 5, "tags": ["a", "b"… │ line one↵line two after tab [31… │ 2026-09-01 00:05:00…  │
-│       ▸  mt_task        812 │ │  6 │    6 │ done   │   6.99 │ t    │ {"n": 6, "tags": ["a", "b"… │ <null>                           │ 2026-09-01 00:06:00…  │
-│       ▸  mt_task_log    96k │ │  7 │    7 │ failed │   7.99 │ t    │ {"n": 7, "tags": ["a", "b"… │ note 7                           │ 2026-09-01 00:07:00…  │
-│       ▸  schema_migrations  │ │  8 │    8 │ pendi… │   8.99 │ t    │ {"n": 8, "tags": ["a", "b"… │ line one↵line two after tab [31… │ 2026-09-01 00:08:00…  │
-│       ▸  t_order       1.2m │ │  9 │    9 │ runni… │   9.99 │ t    │ {"n": 9, "tags": ["a", "b"… │ <null>                           │ 2026-09-01 00:09:00…  │
+│     ▾  Tables (14)          │ │  2 │    2 │ done  ▾    2.99 │ t    │ {"n": 2, "tags": ["a", "b"… │ line one↵line two after tab [31… │ 2026-09-01 00:02:00…  │
+│       ▸  agent          124 │ │  3 │    3 │┌──────────────────┐    │ {"n": 3, "tags": ["a", "b"… │ <null>                           │ 2026-09-01 00:03:00…  │
+│       ▸  agent_version  530 │ │  4 │    4 ││ pending       值 │    │ {"n": 4, "tags": ["a", "b"… │ note 4                           │ 2026-09-01 00:04:00…  │
+│       ▸  goal            57 │ │  5 │    5 ││ running       值 │    │ {"n": 5, "tags": ["a", "b"… │ line one↵line two after tab [31… │ 2026-09-01 00:05:00…  │
+│       ▸  mt_task        812 │ │  6 │    6 ││ done          值 │    │ {"n": 6, "tags": ["a", "b"… │ <null>                           │ 2026-09-01 00:06:00…  │
+│       ▸  mt_task_log    96k │ │  7 │    7 ││ failed        值 │    │ {"n": 7, "tags": ["a", "b"… │ note 7                           │ 2026-09-01 00:07:00…  │
+│       ▸  schema_migrations  │ │  8 │    8 ││ ∅ NULL           │    │ {"n": 8, "tags": ["a", "b"… │ line one↵line two after tab [31… │ 2026-09-01 00:08:00…  │
+│       ▸  t_order       1.2m │ │  9 │    9 │└──────────────────┘    │ {"n": 9, "tags": ["a", "b"… │ <null>                           │ 2026-09-01 00:09:00…  │
 │       ▸  t_order_item  3.4m │ │ 10 │   10 │ done   │  10.99 │ t    │ {"n": 10, "tags": ["a", "b… │ note 10                          │ 2026-09-01 00:10:00…  │
 │       ▸  t_payment     410k │ │ 11 │   11 │ failed │  11.99 │ t    │ {"n": 11, "tags": ["a", "b… │ line one↵line two after tab [31… │ 2026-09-01 00:11:00…  │
 │       ▸  t_refund       12k │ │ 12 │   12 │ pendi… │  12.99 │ t    │ {"n": 12, "tags": ["a", "b… │ <null>                           │ 2026-09-01 00:12:00…  │
@@ -42,4 +42,4 @@
 │──────────────────────────────│ │ 37 │   37 │ runni… │  37.99 │ t    │ {"n": 37, "tags": ["a", "b… │ note 37                          │ 2026-09-01 00:37:00…  │
 │ j/k move · ↵ open · t tab    │ │ 1:t_order* │ +                                                                               hjkl · ↵ edit · T 转置 · gt/gT │
 └──────────────────────────────┘ └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-  doraemon ▾  0: data*                                                                        -- editing amount --     ·    2,3   pg@localhost:5432  INSERT 
+  doraemon ▾  0: data*                                                                        -- editing status --     ·    2,2   pg@localhost:5432  INSERT 

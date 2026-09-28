@@ -21,13 +21,17 @@ type Complete struct {
 
 const completeRows = 8
 
-// CompleteBox is where a list of n items opens under the input cell at:
-// from at's column, w wide and moved left to stay on screen; rows is how
-// many items show.
+// CompleteBox is where a list of n items opens under the input cell at, or
+// over it when they don't all fit below and there is more room above
+// (§10.2): from at's column, w wide and moved left to stay on screen; rows
+// is how many items show.
 func CompleteBox(screen uv.Rectangle, at uv.Position, w, n int) (box uv.Rectangle, rows int) {
-	w = min(w, screen.Dx())
+	w, x := min(w, screen.Dx()), min(at.X, screen.Max.X-min(w, screen.Dx()))
 	rows = max(min(n, completeRows, screen.Max.Y-at.Y-3), 0) // below the input, in a border
-	return uv.Rect(min(at.X, screen.Max.X-w), at.Y+1, w, rows+2), rows
+	if up := max(min(n, completeRows, at.Y-screen.Min.Y-2), 0); rows < min(n, completeRows) && up > rows {
+		return uv.Rect(x, at.Y-up-2, w, up+2), up
+	}
+	return uv.Rect(x, at.Y+1, w, rows+2), rows
 }
 
 // Draw paints the list in box, rows of it showing.

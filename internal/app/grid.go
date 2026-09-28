@@ -257,11 +257,14 @@ func (t *dataTab) nearestShown(field int) int {
 }
 
 // typeOf is the catalog's type for column name, or "".
-func (t *dataTab) typeOf(name string) string {
+func (t *dataTab) typeOf(name string) string { return t.column(name).Type }
+
+// column is what the catalog says of column name; zero when it doesn't know it.
+func (t *dataTab) column(name string) db.Column {
 	if i := slices.IndexFunc(t.cols.Cols, func(c db.Column) bool { return c.Name == name }); i >= 0 {
-		return t.cols.Cols[i].Type
+		return t.cols.Cols[i]
 	}
-	return ""
+	return db.Column{}
 }
 
 // stopTyping gives the keys back to the grid, the WHERE input showing what
@@ -333,7 +336,7 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 		g.Rows = append(g.Rows, vals)
 	}
 	if t.cell != nil {
-		g.Edit = &t.cell.in
+		g.Edit, g.EditMenu = &t.cell.in, len(t.options()) > 0
 	}
 	return g
 }
@@ -485,7 +488,9 @@ func (a *App) turnPage(d int) tea.Cmd {
 // esc drops it.
 func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 	if t.cell != nil { // ↵ and esc are cell.accept and cell.done (§10.2)
-		editInput(&t.cell.in, k)
+		if editInput(&t.cell.in, k) {
+			t.cell.sel = -1 // the options change with it: none picked (§10.2)
+		}
 		return nil
 	}
 	switch k {

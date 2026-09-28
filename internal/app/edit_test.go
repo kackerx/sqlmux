@@ -146,9 +146,9 @@ func TestEditEndsFirst(t *testing.T) {
 	tab := loadOrders(t, a, 3)
 	p := a.focused()
 	feed(t, a, "lix")
-	c := find(t, a, ui.Target{Kind: ui.KindCell, Pane: p.ID, Action: "grid.goto 2 3"})
+	c := find(t, a, ui.Target{Kind: ui.KindCell, Pane: p.ID, Action: "grid.goto 2 6"}) // clear of the options
 	click(a, c.Min)
-	if tab.cell != nil || tab.row != 2 || tab.col != 3 || editsOf(tab) != "1/status=x" {
+	if tab.cell != nil || tab.row != 2 || tab.col != 6 || editsOf(tab) != "1/status=x" {
 		t.Fatalf("click on a cell: cell %+v at %d,%d, %q", tab.cell, tab.row, tab.col, editsOf(tab))
 	}
 	feed(t, a, "iy")
@@ -156,7 +156,7 @@ func TestEditEndsFirst(t *testing.T) {
 	if tab.cell != nil || len(tab.edits) != 2 {
 		t.Fatalf("wheel: %q", editsOf(tab))
 	}
-	feed(t, a, "hiz<C-p>") // a global key: C-n / C-p are the options' only when they are up (§10.2)
+	feed(t, a, "0iz<C-p>") // id has no options: C-p is the global key (§10.2)
 	if tab.cell != nil || a.palette == nil || len(tab.edits) != 3 {
 		t.Fatalf("C-p: %q", editsOf(tab))
 	}
@@ -403,5 +403,127 @@ func TestGoldenConfirm160x45(t *testing.T) {
 	tab := loadOrders(t, a, 60)
 	tab.edits = map[editKey]edit{{"1", "status"}: {val: db.Val{S: "done"}, orig: db.Val{S: "running"}}}
 	feed(t, a, "x")
+	golden.RequireEqual(t, a.render().String())
+}
+
+// optionLabels is the options of the cell being edited, the picked one in [ ].
+func optionLabels(tab *dataTab) string {
+	var out []string
+	for i, o := range tab.options() {
+		if i == tab.cell.sel {
+			o.label = "[" + o.label + "]"
+		}
+		out = append(out, o.label)
+	}
+	return strings.Join(out, " ")
+}
+
+// A cell offers its column's values, filtered once typing starts, then
+// NULL, DEFAULT and back to what was loaded, as the column allows; none is
+// picked as they open, C-n / C-p and ↑ / ↓ pick around the ends, ↵ applies
+// the one picked, else takes the text (§10.2).
+func TestCellOptions(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	feed(t, a, "li")
+	if got := optionLabels(tab); got != "pending running done failed ∅ NULL" || !a.grid(a.focused(), tab).EditMenu {
+		t.Fatalf("status: %s", got)
+	}
+	if feed(t, a, "don"); optionLabels(tab) != "done ∅ NULL" {
+		t.Fatalf("don: %s", optionLabels(tab))
+	}
+	if feed(t, a, "<C-n>"); optionLabels(tab) != "[done] ∅ NULL" || a.context().Overlay != "options" {
+		t.Fatalf("C-n: %s", optionLabels(tab))
+	}
+	if feed(t, a, "e"); tab.cell.sel != -1 {
+		t.Error("typing drops the pick")
+	}
+	feed(t, a, "<BS><Down><CR>")
+	if tab.cell != nil || editsOf(tab) != "1/status=done" {
+		t.Fatalf("↵ on done: %q", editsOf(tab))
+	}
+	feed(t, a, "i<Up>")
+	if got := optionLabels(tab); got != "pending running done failed ∅ NULL [↺ 原值]" {
+		t.Fatalf("again, up: %s", got)
+	}
+	if feed(t, a, "<CR>"); len(tab.edits) != 0 {
+		t.Fatalf("↺: %q", editsOf(tab))
+	}
+	feed(t, a, "izzz<CR>")
+	if editsOf(tab) != "1/status=zzz" {
+		t.Errorf("↵ with none picked takes the text, not NULL: %q", editsOf(tab))
+	}
+	tab.edits = nil
+	feed(t, a, "llit")
+	if got := optionLabels(tab); got != "true ∅ NULL" {
+		t.Errorf("paid, t: %s", got)
+	}
+	feed(t, a, "<C-n><CR>")
+	if len(tab.edits) != 0 {
+		t.Errorf("true on a t is no change: %q", editsOf(tab))
+	}
+	tab.cols.Cols[0].Default = "nextval('t_order_id_seq')"
+	feed(t, a, "0i")
+	if got := optionLabels(tab); got != "DEFAULT" {
+		t.Fatalf("id: not null, a default: %s", got)
+	}
+	if feed(t, a, "<C-p><CR>"); editsOf(tab) != "1/id=<default>" {
+		t.Errorf("DEFAULT: %q", editsOf(tab))
+	}
+	tab.cols.Cols[0].Default, tab.edits = "", nil
+	if feed(t, a, "i"); a.grid(a.focused(), tab).EditMenu || tab.options() != nil || a.context().Overlay != "" {
+		t.Errorf("no options: %s", optionLabels(tab))
+	}
+}
+
+// The mouse: a click on an option applies it, hovering only lights it; the
+// ▾ folds them away and back (§10.2).
+func TestCellOptionsMouse(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	feed(t, a, "li")
+	arrow := find(t, a, ui.Target{Kind: ui.KindButton, Action: "cell.options"})
+	click(a, arrow.Min)
+	if tab.cell == nil || !tab.cell.folded {
+		t.Fatal("▾ folds")
+	}
+	if feed(t, a, "<C-n>"); tab.cell.sel != -1 {
+		t.Error("folded, nothing is picked")
+	}
+	click(a, arrow.Min)
+	row := find(t, a, ui.Target{Kind: ui.KindRow, I: 2})
+	a.Update(tea.MouseMotionMsg{X: row.Min.X, Y: row.Min.Y})
+	if tab.cell.sel != -1 {
+		t.Error("hovering picks")
+	}
+	click(a, row.Min)
+	if tab.cell != nil || editsOf(tab) != "1/status=done" {
+		t.Errorf("click on done: %q", editsOf(tab))
+	}
+}
+
+// 设为 NULL / 设为 DEFAULT from the palette: the cursor's cell, when its
+// column can hold it (§10.2).
+func TestSetNull(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	feed(t, a, "$h<C-p>>设为 NULL<CR>")
+	if editsOf(tab) != "1/note=<null>" {
+		t.Fatalf("note: %q", editsOf(tab))
+	}
+	feed(t, a, "0")
+	a.run("cell.null", 0)
+	a.run("cell.default", 0)
+	if len(tab.edits) != 1 {
+		t.Errorf("id is not null and has no default: %q", editsOf(tab))
+	}
+}
+
+// A cell's options under its edit, none picked, the ▾ at the edit's right
+// (§10.2).
+func TestGoldenCellOptions160x45(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	loadOrders(t, a, 60)
+	feed(t, a, "jli")
 	golden.RequireEqual(t, a.render().String())
 }

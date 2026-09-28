@@ -50,6 +50,7 @@ type Grid struct {
 	Edited    map[[2]int]bool // changed cells not saved, by record and field (§7.6)
 	Failed    map[int]bool    // records a save failed on: numbers in error (§10.3)
 	Edit      *Input          // the current cell's edit, drawn over it (§10.1)
+	EditMenu  bool            // the edit has options: a ▾ at its right shows or hides them (§10.2)
 }
 
 // maxColWidth caps a column's wish (§7.6).
@@ -313,7 +314,6 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 	}
 	y++
 
-	var edit uv.Rectangle // the edited cell's, once drawn
 	for r := voff; r < v.rows && y < area.Max.Y; r, y = r+1, y+1 {
 		bg := th.PaneBg
 		switch {
@@ -362,7 +362,6 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 					st.Bg = th.Cursor
 				}
 				f.Fill(cell, uv.Style{Bg: st.Bg})
-				edit = cell
 			}
 			if g.Row >= 0 {
 				f.Region(cell, Target{Kind: KindCell, Pane: g.Pane, Action: "grid.goto " + strconv.Itoa(rec) + " " + strconv.Itoa(field)})
@@ -373,15 +372,50 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 			f.Text(x, y, area.Max.X, "│", uv.Style{Fg: th.Sep, Bg: bg})
 		}
 	}
-	if g.Edit != nil && !edit.Empty() {
-		// over the cell and on to the right as the text needs, up to the edge
-		need := Width(Printable(g.Edit.Text)) + 3 // a space each side, and the cursor's cell
-		edit.Max.X = min(max(edit.Max.X, edit.Min.X+need), area.Max.X)
+	if edit := g.EditRect(area); !edit.Empty() {
 		f.Region(edit, Target{}) // a click in it is not elsewhere
 		f.Fill(edit, uv.Style{Bg: th.Cursor})
-		cursor = g.Edit.Draw(f, uv.Rect(edit.Min.X+1, edit.Min.Y, max(edit.Dx()-2, 1), 1), uv.Style{Fg: th.Fg, Bg: th.Cursor})
+		text := uv.Rect(edit.Min.X+1, edit.Min.Y, max(edit.Dx()-2, 1), 1)
+		if g.EditMenu {
+			text.Max.X = max(text.Max.X-2, text.Min.X+1)
+			arrow := uv.Rect(edit.Max.X-2, edit.Min.Y, 2, 1)
+			st := uv.Style{Fg: th.Dim, Bg: th.Cursor}
+			if f.Region(arrow, Target{Kind: KindButton, Action: "cell.options"}) {
+				st.Bg = th.Select
+			}
+			f.Text(arrow.Min.X, arrow.Min.Y, arrow.Max.X, "▾ ", st)
+		}
+		cursor = g.Edit.Draw(f, text, uv.Style{Fg: th.Fg, Bg: th.Cursor})
 	}
 	return cursor
+}
+
+// EditRect is where the current cell's edit goes in area (§10.1): over the
+// cell and on to the right as its text needs, up to the edge; empty with
+// no edit, or when the cell doesn't show.
+func (g Grid) EditRect(area uv.Rectangle) uv.Rectangle {
+	if g.Edit == nil || len(g.Cols) == 0 {
+		return uv.Rectangle{}
+	}
+	v := g.view()
+	labelW, ws, rows := v.layout(area)
+	g.Top, g.Left = g.View(area)
+	voff, hoff := v.screen(g.Top, g.Left)
+	cr, cc := v.screen(g.Row, g.Col)
+	if cr < voff || cr >= voff+rows || cc < hoff {
+		return uv.Rectangle{}
+	}
+	x := area.Min.X + labelW + 3 // the first shown column's cell, its padding in
+	for c := hoff; c < cc; c++ {
+		x += ws[c] + 3
+	}
+	need := Width(Printable(g.Edit.Text)) + 3 // a space each side, and the cursor's cell
+	if g.EditMenu {
+		need += 2
+	}
+	r := uv.Rect(x, area.Min.Y+2+cr-voff, max(ws[cc]+2, need), 1)
+	r.Max.X = min(r.Max.X, area.Max.X)
+	return r.Intersect(area)
 }
 
 // drawCell draws a Cell's text with its ↵ marks in mark (§7.6).

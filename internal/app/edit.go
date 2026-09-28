@@ -10,6 +10,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
@@ -30,10 +31,20 @@ type editKey struct{ row, col string }
 
 // cellEdit is the cell being typed into (§10.1).
 type cellEdit struct {
-	key   editKey
-	orig  db.Val // as loaded
-	start string // the text the edit started with: left so, nothing changes
-	in    ui.Input
+	key    editKey
+	orig   db.Val // as loaded
+	start  string // the text the edit started with: left so, nothing changes
+	in     ui.Input
+	sel    int  // the option picked; -1 for none, as they open (§10.2)
+	folded bool // its ▾ hid the options
+}
+
+// option is one of what the cell being edited offers (§10.2), and the
+// change it makes.
+type option struct {
+	label, note string
+	pos         []int
+	set         edit
 }
 
 // rowKey is page row rec's identity (§10.1): its row identity's values.
@@ -66,7 +77,7 @@ func (a *App) editCell(pasted *string) tea.Cmd {
 	if !cur.Null { // a NULL or DEFAULT starts empty
 		c.start = cur.S
 	}
-	c.in = ui.Input{Text: c.start, Pos: len(c.start), All: true}
+	c.in, c.sel = ui.Input{Text: c.start, Pos: len(c.start), All: true}, -1
 	if pasted != nil {
 		c.in = ui.Input{Text: *pasted, Pos: len(*pasted)}
 	}
@@ -82,6 +93,102 @@ func (t *dataTab) commitCell() {
 	if c.in.Text != c.start {
 		t.setEdit(c.key, edit{val: db.Val{S: c.in.Text}, orig: c.orig})
 	}
+}
+
+// options is what the cell being edited offers under it (§10.2): a
+// boolean's or an enum's values, filtered by what is typed once it is,
+// then NULL, DEFAULT and back to what was loaded, as the column allows.
+func (t *dataTab) options() []option {
+	c := t.cell
+	col := t.column(c.key.col)
+	labels, vals := col.Enum, col.Enum
+	if col.Type == "boolean" { // PG's own text for them, so one back to what was loaded is no change
+		labels, vals = []string{"true", "false"}, []string{"t", "f"}
+	}
+	pattern := c.in.Text
+	if c.in.All {
+		pattern = ""
+	}
+	var out []option
+	for _, m := range ui.Filter(pattern, labels) {
+		out = append(out, option{labels[m.Index], "值", m.Pos, edit{val: db.Val{S: vals[m.Index]}, orig: c.orig}})
+	}
+	if !col.NotNull {
+		out = append(out, option{label: "∅ NULL", set: edit{val: db.Val{Null: true}, orig: c.orig}})
+	}
+	if col.Default != "" {
+		out = append(out, option{label: "DEFAULT", set: edit{val: db.Val{Null: true}, def: true, orig: c.orig}})
+	}
+	if _, ok := t.edits[c.key]; ok {
+		out = append(out, option{label: "↺ 原值", set: edit{val: c.orig, orig: c.orig}})
+	}
+	return out
+}
+
+// moveOption moves the pick by d around the ends; with none picked, down
+// picks the first and up the last (§10.2).
+func (t *dataTab) moveOption(d int) {
+	c := t.cell
+	n := len(t.options())
+	switch {
+	case c.folded || n == 0:
+	case c.sel < 0 && d > 0:
+		c.sel = 0
+	case c.sel < 0:
+		c.sel = n - 1
+	default:
+		c.sel = ((c.sel+d)%n + n) % n
+	}
+}
+
+// acceptCell is ↵ in a cell: the option picked, else the text (§10.2).
+func (t *dataTab) acceptCell() {
+	if os := t.options(); !t.cell.folded && t.cell.sel >= 0 && t.cell.sel < len(os) {
+		t.applyOption(os[t.cell.sel])
+		return
+	}
+	t.commitCell()
+}
+
+// applyOption ends the edit with o's change, what was typed dropped.
+func (t *dataTab) applyOption(o option) {
+	k := t.cell.key
+	t.typing, t.cell = "", nil
+	t.setEdit(k, o.set)
+}
+
+// setSpecial makes the grid's current cell NULL, or DEFAULT (cell.null,
+// cell.default, §10.2); an edit of it under way ends so. Not for a column
+// that can't hold it, nor a table with no row identity.
+func (a *App) setSpecial(def bool) {
+	p, t, ok := a.focusedGrid()
+	if !ok || p.Kind != KindData || len(t.page.Rows) == 0 || t.cols.Key() == nil {
+		return
+	}
+	field := t.fieldAt(t.col)
+	name := t.page.Cols[field].Name
+	if col := t.column(name); def && col.Default == "" || !def && col.NotNull {
+		return
+	}
+	if t.cell != nil {
+		t.typing, t.cell = "", nil
+	}
+	t.setEdit(editKey{t.rowKey(t.row), name}, edit{val: db.Val{Null: true}, def: def, orig: t.page.Rows[t.row][field]})
+}
+
+// optionsView is the options of pane p's cell being edited, opening under
+// its edit, or over it (§10.2).
+func (a *App) optionsView(p *Pane, t *dataTab) (ui.Complete, uv.Rectangle, int) {
+	v := ui.Complete{Sel: t.cell.sel}
+	w := 20
+	for _, o := range t.options() {
+		v.Items = append(v.Items, ui.CompleteItem{Text: o.label, Pos: o.pos, Note: o.note})
+		w = max(w, ui.Width(o.label+"  "+o.note)+4)
+	}
+	at := a.grid(p, t).EditRect(gridRect(a.layout()[p.ID])).Min
+	box, rows := ui.CompleteBox(a.window(), at, w, len(v.Items))
+	v.Top = max(0, v.Sel-rows+1)
+	return v, box, rows
 }
 
 // setEdit makes e cell k's change; one giving back what was loaded is

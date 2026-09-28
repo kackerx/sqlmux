@@ -168,9 +168,17 @@ func init() {
 		"grid.transpose": {Title: "转置", Run: do(func(a *App, _ Args) { a.gridTranspose() })},
 		"grid.edit":      {Title: "编辑单元格", Run: func(a *App, _ Args) tea.Cmd { return a.editCell(nil) }},
 		// ↵ and esc end a cell's edit alike, keeping it (G-02)
-		"cell.accept": {Run: do(func(a *App, _ Args) { a.endEdit() })},
+		"cell.accept": {Run: onCell(func(t *dataTab) { t.acceptCell() })},
 		"cell.done":   {Run: do(func(a *App, _ Args) { a.endEdit() })},
-		"save":        {Title: "保存", Run: func(a *App, _ Args) tea.Cmd { return a.save() }},
+		// the options under a cell being edited (§10.2)
+		"cell.option.next": {Run: onCell(func(t *dataTab) { t.moveOption(1) })},
+		"cell.option.prev": {Run: onCell(func(t *dataTab) { t.moveOption(-1) })},
+		"cell.down":        {Run: onCell(func(t *dataTab) { t.moveOption(1) })},
+		"cell.up":          {Run: onCell(func(t *dataTab) { t.moveOption(-1) })},
+		"cell.options":     {Run: onCell(func(t *dataTab) { t.cell.folded = !t.cell.folded })},
+		"cell.null":        {Title: "设为 NULL", Run: do(func(a *App, _ Args) { a.setSpecial(false) })},
+		"cell.default":     {Title: "设为 DEFAULT", Run: do(func(a *App, _ Args) { a.setSpecial(true) })},
+		"save":             {Title: "保存", Run: func(a *App, _ Args) tea.Cmd { return a.save() }},
 		"confirm.yes": {Run: when(inConfirm, func(a *App) tea.Cmd {
 			then := a.confirm.then
 			a.confirm = nil
@@ -253,6 +261,16 @@ func when(open func(*App) bool, f func(*App) tea.Cmd) func(*App, Args) tea.Cmd {
 			return nil
 		}
 		return f(a)
+	}
+}
+
+// onCell adapts an action on the cell being edited; with none it does nothing.
+func onCell(f func(*dataTab)) func(*App, Args) tea.Cmd {
+	return func(a *App, _ Args) tea.Cmd {
+		if t := a.typingTab(); t != nil && t.cell != nil {
+			f(t)
+		}
+		return nil
 	}
 }
 

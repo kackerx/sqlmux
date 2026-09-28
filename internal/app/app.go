@@ -187,7 +187,7 @@ func (a *App) press(k keymap.Key) tea.Cmd {
 // same actions keys run.
 func (a *App) click(p uv.Position) tea.Cmd {
 	t, ok := ui.HitAt(a.hits, p)
-	if !ok || t != (ui.Target{}) { // not in the cell being edited (a blank target): the edit ends first (§10.1)
+	if !ok || t != (ui.Target{}) && t.Kind != ui.KindRow && !strings.HasPrefix(t.Action, "cell.") { // not the cell's edit (a blank target), its options or ▾: that ends first (§10.1)
 		a.endEdit()
 	}
 	if !ok {
@@ -208,6 +208,10 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		a.res.Reset()
 	case ui.KindRow:
 		switch tab, c := a.typingTab(), a.completing(); {
+		case tab != nil && tab.cell != nil: // an option applies at once (§10.2)
+			if os := tab.options(); t.I < len(os) {
+				tab.applyOption(os[t.I])
+			}
 		case c != nil:
 			c.sel = t.I
 			a.acceptCompletion()
@@ -374,6 +378,8 @@ func (a *App) context() keymap.Context {
 		return keymap.Context{Overlay: "where", Focus: []string{"input"}, Mode: keymap.Command}
 	case typing != nil && typing.comp != nil:
 		return keymap.Context{Overlay: "complete", Focus: []string{"input"}, Mode: keymap.Insert}
+	case typing != nil && typing.cell != nil && !typing.cell.folded && len(typing.options()) > 0:
+		return keymap.Context{Overlay: "options", Focus: []string{"cell"}, Mode: keymap.Insert}
 	case typing != nil && typing.cell != nil:
 		return keymap.Context{Focus: []string{"cell"}, Mode: keymap.Insert}
 	case a.win().tree.filtering, typing != nil:
