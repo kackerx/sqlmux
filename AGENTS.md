@@ -112,6 +112,7 @@ sqlmux/
 4. tester 整批测试：
    - 有问题：一条消息退回给 worker；修复 commit 先经 reviewer 复审，再回到 tester 复测；
    - 全部通过：一条消息把批次结论发给决策者和 worker。决策者把这批 feature 的状态填为 `passed（sha；e2e sha）`，并勾选开发清单和验收项。
+5. **修复 commit 排在后续 feature 之后时**（worker 不等审查，退回时往往已经提交了下一批的 feature）：照常在修复的 sha 上审、测，只测本批 feature 的验收项。带进来的后续 feature 不在本次范围内：worker 送修复时列出它们造成的 e2e 失败，tester 不把这些当作本批的问题报；它们到自己的节点再审、再测，里程碑最后的完整回归覆盖全部。
 
 **里程碑结束**：最后一个审查节点通过、tester 在最后一个 commit 上跑完整回归之后，进入**暂停**：
 

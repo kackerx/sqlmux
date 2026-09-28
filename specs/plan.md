@@ -43,6 +43,7 @@
    2. reviewer 审查，有待定的 spec 问题先问决策者，再把必须改的问题一次退回；通过后整批提测给 tester；
    3. 审查或测试发现问题时，worker 修复后提交新的 commit，同样先交给 reviewer 复审，再交给 tester 复测；
    4. tester 全部通过后，把批次结论发给决策者和 worker。
+   5. 修复 commit 排在下一批的 feature 之后时，照常在修复的 sha 上审、测，只看本批的验收项；后续 feature 造成的 e2e 失败由 worker 列出，不算本批的问题（AGENTS.md「固定的工作流」第 5 条）。
 4. **谁改什么。**
    - `specs/` 和 `AGENTS.md` 只由决策者修改，并由决策者自己提交：`git commit -m "docs: …" -- specs AGENTS.md`。worker、reviewer、tester、pruner 都不改。
    - 收到 tester 的批次结论后，决策者把这批 feature 的状态填为 `passed`，注明 sha，并勾选开发清单和验收项。
