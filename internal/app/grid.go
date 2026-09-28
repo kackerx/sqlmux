@@ -525,15 +525,30 @@ func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 	return nil
 }
 
+// baseType is a catalog type's name without its modifier: format_type
+// puts one at most, "numeric(10,2)", "timestamp(3) with time zone".
+func baseType(t string) string {
+	if i, j := strings.Index(t, "("), strings.Index(t, ")"); 0 <= i && i < j {
+		return t[:i] + t[j+1:]
+	}
+	return t
+}
+
+// timeKind is the parts a column of catalog type t steps (§10.2); interval
+// has none.
+func timeKind(t string) ui.TimeKind {
+	return map[string]ui.TimeKind{
+		"date": ui.Date, "time without time zone": ui.Time, "time with time zone": ui.TimeTZ,
+		"timestamp without time zone": ui.Timestamp, "timestamp with time zone": ui.TimestampTZ,
+	}[baseType(t)]
+}
+
 // colType is the grid's class for a column of the catalog's type (§7.6).
 func colType(t string) ui.ColType {
 	if strings.HasSuffix(t, "[]") {
 		return ui.ColOther
 	}
-	// format_type puts one modifier at most: "numeric(10,2)", "timestamp(3) with time zone"
-	if i, j := strings.Index(t, "("), strings.Index(t, ")"); 0 <= i && i < j {
-		t = t[:i] + t[j+1:]
-	}
+	t = baseType(t)
 	// after format_type's names, pgx's for a result's OIDs (quick SQL, §12)
 	switch t {
 	case "smallint", "integer", "bigint", "numeric", "real", "double precision", "oid",

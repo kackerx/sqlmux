@@ -171,14 +171,20 @@ func init() {
 		"cell.accept": {Run: onCell(func(t *dataTab) { t.acceptCell() })},
 		"cell.done":   {Run: do(func(a *App, _ Args) { a.endEdit() })},
 		// the options under a cell being edited (§10.2)
-		"cell.option.next": {Run: onCell(func(t *dataTab) { t.moveOption(1) })},
-		"cell.option.prev": {Run: onCell(func(t *dataTab) { t.moveOption(-1) })},
-		"cell.down":        {Run: onCell(func(t *dataTab) { t.moveOption(1) })},
-		"cell.up":          {Run: onCell(func(t *dataTab) { t.moveOption(-1) })},
-		"cell.options":     {Run: onCell(func(t *dataTab) { t.cell.folded = !t.cell.folded })},
-		"cell.null":        {Title: "设为 NULL", Run: do(func(a *App, _ Args) { a.setSpecial(false) })},
-		"cell.default":     {Title: "设为 DEFAULT", Run: do(func(a *App, _ Args) { a.setSpecial(true) })},
-		"save":             {Title: "保存", Run: func(a *App, _ Args) tea.Cmd { return a.save() }},
+		"cell.option.next":  {Run: onCell(func(t *dataTab) { t.moveOption(1) })},
+		"cell.option.prev":  {Run: onCell(func(t *dataTab) { t.moveOption(-1) })},
+		"cell.up":           {Run: onCell(func(t *dataTab) { t.cellUp(1) })},
+		"cell.down":         {Run: onCell(func(t *dataTab) { t.cellUp(-1) })},
+		"cell.segment.next": {Run: onCell(func(t *dataTab) { t.moveSeg(1) })},
+		"cell.segment.prev": {Run: onCell(func(t *dataTab) { t.moveSeg(-1) })},
+		// a time's parts clicked: "cell.seg 3" picks one, "cell.inc 3" / "cell.dec 3" step it
+		"cell.seg":     {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, 0) })},
+		"cell.inc":     {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, 1) })},
+		"cell.dec":     {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, -1) })},
+		"cell.options": {Run: onCell(func(t *dataTab) { t.cell.folded = !t.cell.folded })},
+		"cell.null":    {Title: "设为 NULL", Run: do(func(a *App, _ Args) { a.setSpecial(false) })},
+		"cell.default": {Title: "设为 DEFAULT", Run: do(func(a *App, _ Args) { a.setSpecial(true) })},
+		"save":         {Title: "保存", Run: func(a *App, _ Args) tea.Cmd { return a.save() }},
 		"confirm.yes": {Run: when(inConfirm, func(a *App) tea.Cmd {
 			then := a.confirm.then
 			a.confirm = nil
@@ -261,6 +267,19 @@ func when(open func(*App) bool, f func(*App) tea.Cmd) func(*App, Args) tea.Cmd {
 			return nil
 		}
 		return f(a)
+	}
+}
+
+// onSeg adapts an action on part Arg of the time being edited.
+func onSeg(f func(t *dataTab, i int)) func(*App, Args) tea.Cmd {
+	return func(a *App, args Args) tea.Cmd {
+		if t, i := a.typingTab(), -1; t != nil && t.cell != nil {
+			if n, err := strconv.Atoi(args.Arg); err == nil {
+				i = n
+			}
+			f(t, i)
+		}
+		return nil
 	}
 }
 

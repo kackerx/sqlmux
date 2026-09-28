@@ -533,3 +533,67 @@ func TestGoldenCellOptions160x45(t *testing.T) {
 	feed(t, a, "jli")
 	golden.RequireEqual(t, a.render().String())
 }
+
+// A time cell steps its parts: Tab / S-Tab pick one, ↑ / ↓ step it, the
+// text following; ◷ 现在 fills the text and the edit goes on; a text that
+// doesn't parse steps nothing (§10.2).
+func TestTimeCell(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	feed(t, a, "$i")
+	if tab.cellKind() != ui.TimestampTZ || optionLabels(tab) != "◷ 现在 ∅ NULL" {
+		t.Fatalf("created_at: %d, %s", tab.cellKind(), optionLabels(tab))
+	}
+	if f := a.render().String(); !strings.Contains(f, "2026 - 09 - 01   00 : 01 : 00") {
+		t.Fatalf("the parts:\n%s", f)
+	}
+	feed(t, a, "<Tab><Up>")
+	if in := tab.cell.in; in.Text != "2026-10-01 00:01:00+00" || in.All || tab.cell.seg != 1 {
+		t.Fatalf("month up: %+v", in)
+	}
+	feed(t, a, "<Down><S-Tab><S-Tab><Up>")
+	if tab.cell.in.Text != "2026-09-01 00:01:01+00" || tab.cell.seg != 5 {
+		t.Fatalf("round to the seconds, up: %q", tab.cell.in.Text)
+	}
+	feed(t, a, "<C-n><CR>")
+	if tab.cell == nil || ui.TimeSegs(ui.TimestampTZ, tab.cell.in.Text) == nil || tab.cell.in.Text == "2026-09-01 00:01:01+00" {
+		t.Fatalf("now: %+v", tab.cell)
+	}
+	feed(t, a, "<CR>")
+	if tab.cell != nil || len(tab.edits) != 1 {
+		t.Fatalf("↵ takes it: %q", editsOf(tab))
+	}
+	feed(t, a, "ix<Up>")
+	if tab.cell.in.Text != "x" {
+		t.Errorf("unparsed steps: %q", tab.cell.in.Text)
+	}
+}
+
+// The mouse on a time's parts: ▴ / ▾ step one, a click picks one, the
+// wheel over one steps it (§10.2).
+func TestTimeCellMouse(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	feed(t, a, "$i")
+	click(a, find(t, a, ui.Target{Kind: ui.KindButton, Action: "cell.inc 2"}).Min)
+	if tab.cell == nil || tab.cell.in.Text != "2026-09-02 00:01:00+00" || tab.cell.seg != 2 {
+		t.Fatalf("▴ on the day: %+v", tab.cell)
+	}
+	hour := find(t, a, ui.Target{Kind: ui.KindButton, Action: "cell.seg 3"})
+	click(a, hour.Min)
+	if tab.cell.seg != 3 {
+		t.Fatalf("a click on the hour: %d", tab.cell.seg)
+	}
+	a.Update(tea.MouseWheelMsg{X: hour.Min.X, Y: hour.Min.Y, Button: tea.MouseWheelUp})
+	if tab.cell == nil || tab.cell.in.Text != "2026-09-02 01:01:00+00" {
+		t.Errorf("the wheel on the hour: %+v", tab.cell)
+	}
+}
+
+// A time cell's box under its edit: ▴ / parts / ▾ / options (§10.2).
+func TestGoldenTimePick160x45(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	loadOrders(t, a, 60)
+	feed(t, a, "j$i<Tab>")
+	golden.RequireEqual(t, a.render().String())
+}

@@ -277,6 +277,13 @@ func (a *App) click(p uv.Position) tea.Cmd {
 // Shift turns the vertical wheel horizontal, as does a touchpad's sideways
 // swipe (buttons 6 and 7).
 func (a *App) wheel(m tea.Mouse) {
+	if t, _ := ui.HitAt(a.hits, uv.Pos(m.X, m.Y)); strings.HasPrefix(t.Action, "cell.seg ") { // over a time's part: step it (§10.2)
+		d := map[tea.MouseButton]string{tea.MouseWheelUp: "cell.inc ", tea.MouseWheelDown: "cell.dec "}[m.Button]
+		if d != "" {
+			a.run(d+strings.TrimPrefix(t.Action, "cell.seg "), 0)
+		}
+		return
+	}
 	a.endEdit() // the cell it is in may scroll away (§10.1)
 	down, right := 0, 0
 	switch m.Button {

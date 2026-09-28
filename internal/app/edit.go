@@ -10,7 +10,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	uv "github.com/charmbracelet/ultraviolet"
 
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
@@ -37,6 +36,7 @@ type cellEdit struct {
 	in     ui.Input
 	sel    int  // the option picked; -1 for none, as they open (§10.2)
 	folded bool // its ▾ hid the options
+	seg    int  // a time's part the keys step
 }
 
 // option is one of what the cell being edited offers (§10.2), and the
@@ -45,6 +45,7 @@ type option struct {
 	label, note string
 	pos         []int
 	set         edit
+	now         bool // ◷ 现在: the time now in the text, the edit going on (§10.2)
 }
 
 // rowKey is page row rec's identity (§10.1): its row identity's values.
@@ -110,8 +111,11 @@ func (t *dataTab) options() []option {
 		pattern = ""
 	}
 	var out []option
+	if timeKind(col.Type) != ui.NotTime {
+		out = append(out, option{label: "◷ 现在", now: true})
+	}
 	for _, m := range ui.Filter(pattern, labels) {
-		out = append(out, option{labels[m.Index], "值", m.Pos, edit{val: db.Val{S: vals[m.Index]}, orig: c.orig}})
+		out = append(out, option{label: labels[m.Index], note: "值", pos: m.Pos, set: edit{val: db.Val{S: vals[m.Index]}, orig: c.orig}})
 	}
 	if !col.NotNull {
 		out = append(out, option{label: "∅ NULL", set: edit{val: db.Val{Null: true}, orig: c.orig}})
@@ -150,8 +154,14 @@ func (t *dataTab) acceptCell() {
 	t.commitCell()
 }
 
-// applyOption ends the edit with o's change, what was typed dropped.
+// applyOption ends the edit with o's change, what was typed dropped; now
+// only puts the time in the text.
 func (t *dataTab) applyOption(o option) {
+	if c := t.cell; o.now {
+		s := ui.NowTime(timeKind(t.typeOf(c.key.col)), time.Now())
+		c.in, c.sel = ui.Input{Text: s, Pos: len(s)}, -1
+		return
+	}
 	k := t.cell.key
 	t.typing, t.cell = "", nil
 	t.setEdit(k, o.set)
@@ -176,19 +186,64 @@ func (a *App) setSpecial(def bool) {
 	t.setEdit(editKey{t.rowKey(t.row), name}, edit{val: db.Val{Null: true}, def: def, orig: t.page.Rows[t.row][field]})
 }
 
-// optionsView is the options of pane p's cell being edited, opening under
-// its edit, or over it (§10.2).
-func (a *App) optionsView(p *Pane, t *dataTab) (ui.Complete, uv.Rectangle, int) {
+// cellKind is the time the cell being edited holds, if any (§10.2).
+func (t *dataTab) cellKind() ui.TimeKind { return timeKind(t.typeOf(t.cell.key.col)) }
+
+// cellUp is ↑ in a cell (d 1) and ↓ (d -1): a time's current part steps,
+// else the pick moves up or down the options (§10.2).
+func (t *dataTab) cellUp(d int) {
+	if t.cellKind() != ui.NotTime {
+		t.stepSeg(t.cell.seg, d)
+		return
+	}
+	t.moveOption(-d)
+}
+
+// stepSeg steps a time's part i by d (0: just makes it the current part),
+// rewriting that part of the text alone (§10.2). Text that doesn't parse
+// steps nothing.
+func (t *dataTab) stepSeg(i, d int) {
+	c, k := t.cell, t.cellKind()
+	if segs := ui.TimeSegs(k, c.in.Text); i < 0 || i >= len(segs) {
+		return
+	}
+	c.seg = i
+	if s := ui.StepTime(k, c.in.Text, i, d); d != 0 {
+		c.in, c.sel = ui.Input{Text: s, Pos: len(s)}, -1
+	}
+}
+
+// moveSeg moves a time's current part by d, around the ends.
+func (t *dataTab) moveSeg(d int) {
+	if n := len(ui.TimeSegs(t.cellKind(), t.cell.in.Text)); n > 0 {
+		t.cell.seg = ((t.cell.seg+d)%n + n) % n
+	}
+}
+
+// drawCellMenu draws what a cell being edited offers under its edit, or
+// over it (§10.2): a time's parts and options in a row, or a list.
+func (a *App) drawCellMenu(f *ui.Frame, p *Pane, t *dataTab) {
+	os := t.options()
+	at := a.grid(p, t).EditRect(gridRect(a.layout()[p.ID])).Min
+	if k := t.cellKind(); k != ui.NotTime {
+		v := ui.TimePick{Kind: k, Text: t.cell.in.Text, Seg: t.cell.seg, Sel: t.cell.sel}
+		for _, o := range os {
+			v.Options = append(v.Options, o.label)
+		}
+		w, h := v.Size()
+		box, _ := ui.CompleteBox(a.window(), at, w, h-2)
+		v.Draw(f, box)
+		return
+	}
 	v := ui.Complete{Sel: t.cell.sel}
 	w := 20
-	for _, o := range t.options() {
+	for _, o := range os {
 		v.Items = append(v.Items, ui.CompleteItem{Text: o.label, Pos: o.pos, Note: o.note})
 		w = max(w, ui.Width(o.label+"  "+o.note)+4)
 	}
-	at := a.grid(p, t).EditRect(gridRect(a.layout()[p.ID])).Min
 	box, rows := ui.CompleteBox(a.window(), at, w, len(v.Items))
 	v.Top = max(0, v.Sel-rows+1)
-	return v, box, rows
+	v.Draw(f, box, rows)
 }
 
 // setEdit makes e cell k's change; one giving back what was loaded is
