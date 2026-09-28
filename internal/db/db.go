@@ -22,7 +22,7 @@ type Result struct {
 	Cols      []Col
 	Rows      [][]Val
 	Tag       string // e.g. "UPDATE 3"
-	Truncated bool   // more rows came back than Exec's maxRows
+	Truncated bool   // there were more rows than the caller's maxRows, which it keeps
 	Took      time.Duration
 }
 

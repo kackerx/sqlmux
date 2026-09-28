@@ -201,8 +201,12 @@ func (a *App) completeSQL() tea.Cmd {
 			cmds = append(cmds, a.fetchCols(t))
 		}
 	}
-	// the word the cursor is at the end of, as in a WHERE (§9.7)
+	// the word the cursor is at the end of, as in a WHERE (§9.7); none
+	// while the cursor is in the ; itself
 	pos := p.input.Pos - len(scopes[scope].prefix)
+	if pos < 0 {
+		return tea.Batch(cmds...)
+	}
 	if ts := sqlkit.Tokens(sql[:pos]); len(ts) > 0 && ts[len(ts)-1].Kind == sqlkit.Word {
 		w := ts[len(ts)-1]
 		kws := make([]candidate, len(sqlKeywords))

@@ -131,7 +131,7 @@ func TestQuickSQLHistory(t *testing.T) {
 		t.Fatalf("history %v: a repeat moves up", h)
 	}
 	feed(t, a, "<C-p>;")
-	if got := strings.Join(namesOf(a), " "); got != "SQL:select 1 SQL:select 2" || enterOf(a) != "↵ 执行" {
+	if got := strings.Join(namesOf(a), " "); got != ":select 1 :select 2" || enterOf(a) != "↵ 执行" { // one kind: no tag
 		t.Fatalf("empty: %s, enter %q", got, enterOf(a))
 	}
 	feed(t, a, "<C-n><CR>")
@@ -139,7 +139,7 @@ func TestQuickSQLHistory(t *testing.T) {
 		t.Errorf("↵ on select 2: input %q running %q", a.palette.input.Text, a.palette.quick.running)
 	}
 	feed(t, a, "<Esc><C-p>select")
-	if slices.ContainsFunc(namesOf(a), func(n string) bool { return strings.HasPrefix(n, "SQL:") }) {
+	if slices.ContainsFunc(namesOf(a), func(n string) bool { return strings.HasPrefix(n, ":") }) {
 		t.Error("所有 lists the SQL history")
 	}
 	for i := range historyRows + 5 {
@@ -193,6 +193,11 @@ func TestQuickSQLCompletion(t *testing.T) {
 	feed(t, a, " selec<C-n><CR>")
 	if !strings.HasSuffix(a.palette.input.Text, " select") {
 		t.Errorf("↵ takes the picked one: %q", a.palette.input.Text)
+	}
+	a.palette = nil
+	feed(t, a, "<C-p>;sel<Left><Left><Left><Left><Right>") // into the ; and out: nothing to complete there
+	if a.palette.input.Pos != 1 || a.palette.comp != nil {
+		t.Errorf("pos %d, comp %v", a.palette.input.Pos, a.palette.comp)
 	}
 }
 

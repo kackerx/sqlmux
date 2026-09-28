@@ -40,7 +40,9 @@ const (
 	itemSQL // a quick SQL from the history
 )
 
-var itemTags = [...]string{itemWindow: "窗口", itemPane: "Pane", itemTable: "表", itemCommand: "命令", itemTab: "tab", itemSQL: "SQL"}
+// itemTags name a row's kind. The lists of one kind, the tabs to pick and
+// the SQL history, have none (§7.8, §12).
+var itemTags = [...]string{itemWindow: "窗口", itemPane: "Pane", itemTable: "表", itemCommand: "命令", itemSQL: ""}
 
 // scopes are the palette's tabs (K-02). The prefix typed in the input is the
 // only scope state: Tab rewrites it, and `:` is `>` typed (§12).
@@ -76,7 +78,8 @@ func (it paletteItem) key() itemKey { return itemKey{it.kind, it.id} }
 
 // recent is how state.json keeps it (§14).
 func (it paletteItem) recent() config.Recent {
-	kind := [...]string{itemWindow: "window", itemPane: "pane", itemTable: "table", itemCommand: "command", itemTab: "tab", itemSQL: "sql"}[it.kind]
+	// never kept for SQL (the history is its own), but paletteItems sorts it too
+	kind := [...]string{itemWindow: "window", itemPane: "pane", itemTable: "table", itemCommand: "command", itemSQL: "sql"}[it.kind]
 	return config.Recent{Kind: kind, ID: it.id}
 }
 

@@ -77,6 +77,19 @@ func (w *Window) focus(id int) {
 	}
 }
 
+// pane is the window's pane id, the sidebar too; nil when there is none.
+func (w *Window) pane(id int) *Pane {
+	if id == w.Tree.ID {
+		return w.Tree
+	}
+	for _, p := range w.Root.Leaves() {
+		if p.ID == id {
+			return p
+		}
+	}
+	return nil
+}
+
 // Session is one connection (tech-design §5).
 type Session struct {
 	Name       string
@@ -378,13 +391,10 @@ const wheelStep = 3
 // scrollPane scrolls pane id by down notches and right notches (negative:
 // up, left), within its content.
 func (a *App) scrollPane(id, down, right int) {
-	if id == a.win().Tree.ID {
+	switch p := a.win().pane(id); {
+	case p == a.win().Tree:
 		a.scrollTree(down)
-		return
-	}
-	for _, p := range a.win().Root.Leaves() {
-		if p.ID == id {
-			a.scrollGrid(p, down*wheelStep, right)
-		}
+	case p != nil:
+		a.scrollGrid(p, down*wheelStep, right)
 	}
 }

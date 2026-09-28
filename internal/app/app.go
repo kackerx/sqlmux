@@ -232,7 +232,7 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		return focus()
 	case ui.KindTab:
 		a.focusPane(t.Pane)
-		if p := a.focused(); p.ID == t.Pane {
+		if p := a.win().pane(t.Pane); p != nil {
 			selectTab(p, t.I)
 		}
 	case ui.KindTreeEdge:
@@ -350,13 +350,8 @@ func (a *App) paneScope() string {
 }
 
 func (a *App) focused() *Pane {
-	if a.win().Focus == a.win().Tree.ID {
-		return a.win().Tree
-	}
-	for _, p := range a.win().Root.Leaves() {
-		if p.ID == a.win().Focus {
-			return p
-		}
+	if p := a.win().pane(a.win().Focus); p != nil {
+		return p
 	}
 	return a.win().Tree
 }

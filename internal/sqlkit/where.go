@@ -87,11 +87,15 @@ func Tokens(s string) []Token {
 	return out
 }
 
-// SelectLike reports whether s is a statement a cursor can be declared for:
-// its first word, past spaces, comments and opening parentheses, is select,
-// values, table or with, as psql's FETCH_COUNT tells (common.c
-// is_select_command) (§12 快速 SQL).
-// ponytail: the first word only; M3's read / write judgment (§9.3) replaces it.
+// SelectLike reports whether s is a statement to declare a cursor for
+// (§12 快速 SQL): its first word, past spaces, comments and opening
+// parentheses, is select, values, table or with. It follows PG 16 psql's
+// is_select_command (common.c, for FETCH_COUNT; PG 17 dropped it), which
+// takes select and values only; table and with are added here, a WITH …
+// SELECT over a big table being common.
+// ponytail: the first word only, so WITH … DELETE goes to DECLARE and fails
+// with `syntax error at or near "delete"` rather than the read-only
+// transaction's error; M3's read / write judgment (§9.3) replaces it.
 func SelectLike(s string) bool {
 	for _, t := range Tokens(s) {
 		switch w := strings.ToLower(s[t.Start:t.End]); {

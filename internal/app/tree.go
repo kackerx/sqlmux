@@ -172,13 +172,13 @@ func editInput(in *ui.Input, k keymap.Key) bool {
 // openTarget is the data pane a table opens in (§12): the one whose + was
 // clicked, the focused one, else the window's first; nil when there is none.
 func (a *App) openTarget() *Pane {
-	leaves := a.win().Root.Leaves()
-	if i := slices.IndexFunc(leaves, func(p *Pane) bool { return p.ID == a.win().newTabIn }); i >= 0 {
-		return leaves[i]
+	if p := a.win().pane(a.win().newTabIn); p != nil && p.Kind == KindData { // newTabIn 0 is the sidebar: none
+		return p
 	}
 	if p := a.focused(); p.Kind == KindData {
 		return p
 	}
+	leaves := a.win().Root.Leaves()
 	if i := slices.IndexFunc(leaves, func(p *Pane) bool { return p.Kind == KindData }); i >= 0 {
 		return leaves[i]
 	}
