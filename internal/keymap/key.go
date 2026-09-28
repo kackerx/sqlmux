@@ -60,6 +60,18 @@ func Parse(s string) ([]Key, error) {
 	return out, nil
 }
 
+// Typed is the keys that type s, one per grapheme cluster, as a paste
+// arrives: nothing in it is read as a <name>.
+func Typed(s string) []Key {
+	var out []Key
+	for s != "" {
+		gr, _ := ansi.FirstGraphemeCluster(s, ansi.GraphemeWidth)
+		out = append(out, plain(gr))
+		s = s[len(gr):]
+	}
+	return out
+}
+
 // looksLikeName tells a mistyped <name> (an error) from literal text like "<="
 // or "<<" (just characters).
 func looksLikeName(s string) bool {

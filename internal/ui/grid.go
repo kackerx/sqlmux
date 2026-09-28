@@ -47,6 +47,8 @@ type Grid struct {
 	Focused   bool
 	Key       Icon // for primary key headers
 	Pane      int
+	Edited    map[[2]int]bool // changed cells not saved, by record and field (§7.6)
+	Edit      *Input          // the current cell's edit, drawn over it (§10.1)
 }
 
 // maxColWidth caps a column's wish (§7.6).
@@ -234,11 +236,14 @@ func colSpan(ws []int) int {
 	return x - 2
 }
 
-func (g Grid) Draw(f *Frame, area uv.Rectangle) {
+// Draw paints the grid in area and returns where the terminal cursor goes:
+// in the cell being edited, else X -1.
+func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 	th := f.Theme
 	v := g.view()
+	cursor := uv.Pos(-1, -1)
 	if area.Dx() <= 0 || area.Dy() <= 0 || len(g.Cols) == 0 {
-		return
+		return cursor
 	}
 	labelW, ws, _ := v.layout(area)
 	g.Top, g.Left = g.View(area)
@@ -289,7 +294,7 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 		f.Text(x, y, area.Max.X, "│", line)
 	}
 	if y++; y >= area.Max.Y {
-		return
+		return cursor
 	}
 	f.Text(area.Min.X, y, area.Max.X, strings.Repeat("─", area.Dx()), line)
 	for _, x := range seps {
@@ -297,6 +302,7 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 	}
 	y++
 
+	var edit uv.Rectangle // the edited cell's, once drawn
 	for r := voff; r < v.rows && y < area.Max.Y; r, y = r+1, y+1 {
 		bg := th.PaneBg
 		switch {
@@ -330,15 +336,21 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 			if typ == ColNumber {
 				x += ws[c] - Width(s)
 			}
+			cell := uv.Rect(cellX(i)-1, y, ws[c]+2, 1).Intersect(area)
+			if g.Edited[[2]int{rec, field}] {
+				st = uv.Style{Fg: th.Warn, Bg: th.EditedBg, Underline: uv.UnderlineDotted}
+				f.Fill(cell, uv.Style{Bg: st.Bg})
+			}
 			if r == cr && c == cc {
 				st.Bg = th.CursorBlur
 				if g.Focused {
 					st.Bg = th.Cursor
 				}
-				f.Fill(uv.Rect(cellX(i)-1, y, ws[c]+2, 1).Intersect(area), uv.Style{Bg: st.Bg})
+				f.Fill(cell, uv.Style{Bg: st.Bg})
+				edit = cell
 			}
 			if g.Row >= 0 {
-				f.Region(uv.Rect(cellX(i)-1, y, ws[c]+2, 1).Intersect(area), Target{Kind: KindCell, Pane: g.Pane, Action: "grid.goto " + strconv.Itoa(rec) + " " + strconv.Itoa(field)})
+				f.Region(cell, Target{Kind: KindCell, Pane: g.Pane, Action: "grid.goto " + strconv.Itoa(rec) + " " + strconv.Itoa(field)})
 			}
 			drawCell(f, x, y, min(cellX(i)+ws[c], area.Max.X), s, st, uv.Style{Fg: th.Dim, Bg: st.Bg})
 		}
@@ -346,6 +358,15 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 			f.Text(x, y, area.Max.X, "│", uv.Style{Fg: th.Sep, Bg: bg})
 		}
 	}
+	if g.Edit != nil && !edit.Empty() {
+		// over the cell and on to the right as the text needs, up to the edge
+		need := Width(Cell(db.Val{S: g.Edit.Text})) + 3 // a space each side, and the cursor's cell
+		edit.Max.X = min(max(edit.Max.X, edit.Min.X+need), area.Max.X)
+		f.Region(edit, Target{}) // a click in it is not elsewhere
+		f.Fill(edit, uv.Style{Bg: th.Cursor})
+		cursor = g.Edit.Draw(f, uv.Rect(edit.Min.X+1, edit.Min.Y, max(edit.Dx()-2, 1), 1), uv.Style{Fg: th.Fg, Bg: th.Cursor})
+	}
+	return cursor
 }
 
 // drawCell draws a Cell's text with its ↵ marks in mark (§7.6).

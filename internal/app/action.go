@@ -157,6 +157,10 @@ func init() {
 			a.gridMove(func(r, _, _, cols int) (int, int) { return r, cols - 1 })
 		})},
 		"grid.transpose": {Title: "转置", Run: do(func(a *App, _ Args) { a.gridTranspose() })},
+		"grid.edit":      {Title: "编辑单元格", Run: func(a *App, _ Args) tea.Cmd { return a.editCell(nil) }},
+		// ↵ and esc end a cell's edit alike, keeping it (G-02)
+		"cell.accept": {Run: do(func(a *App, _ Args) { a.endEdit() })},
+		"cell.done":   {Run: do(func(a *App, _ Args) { a.endEdit() })},
 		// The query bar (§7.8「查询条」).
 		"grid.where": {Title: "WHERE 条件", Run: do(func(a *App, _ Args) {
 			if t := dataOf(a.focused()); t != nil {
@@ -202,7 +206,6 @@ func init() {
 		"session.list": "session 列表", "session.new": "新建连接",
 		"window.new": "新建 window", "window.rename": "重命名 window", "window.close": "关闭 window",
 		"window.next": "下一个 window", "window.prev": "上一个 window", "window.last": "上次用的 window",
-		"grid.edit": "编辑单元格",
 		"grid.yank": "复制单元格", "grid.yank.insert": "复制为 INSERT",
 		"result.pin": "固定结果", "result.close": "关闭结果",
 		"console.run": "执行", "console.format": "格式化", "console.schema": "切换 schema",
@@ -266,6 +269,9 @@ func title(action string) string {
 // run executes "id [arg]" from the registry.
 func (a *App) run(action string, count int) tea.Cmd {
 	id, arg, _ := strings.Cut(action, " ")
+	if !strings.HasPrefix(id, "cell.") && id != "cancel" { // cancel is esc here, which commits itself
+		a.endEdit()
+	}
 	act := actions[id]
 	if act.Run == nil {
 		return nil

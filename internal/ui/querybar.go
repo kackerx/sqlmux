@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strconv"
+
 	uv "github.com/charmbracelet/ultraviolet"
 )
 
@@ -35,6 +37,7 @@ func (c Chip) text() string {
 type Button struct {
 	Icon   Icon
 	Action string
+	Count  int // shown after the icon when not 0: save's changed cells (Q-05)
 }
 
 // QueryBar is the two rows above a data pane's table (§7.8「查询条」):
@@ -136,14 +139,18 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 	}
 	for _, b := range q.Buttons { // " <icon> ", a column apart, lit whole under the pointer (§7.8)
 		st := uv.Style{Fg: th.Info, Bg: th.PaneBg}
-		w := min(Width(b.Icon.Text)+2, max(r.Max.X-1-x, 0))
+		tail := " "
+		if b.Count > 0 {
+			tail = " " + strconv.Itoa(b.Count) + " "
+		}
+		w := min(Width(b.Icon.Text)+1+len(tail), max(r.Max.X-1-x, 0))
 		if b.Action != "" && f.Region(uv.Rect(x, y, w, 1), Target{Kind: KindHint, Pane: q.Pane, Action: b.Action}) {
 			st.Bg = th.Select
 		}
 		f.Text(x, y, r.Max.X-1, " ", st)
 		f.Text(x+1, y, r.Max.X-1, b.Icon.Text, b.Icon.On(st)) // a theme's color for it wins (§7.7)
-		f.Text(x+1+Width(b.Icon.Text), y, r.Max.X-1, " ", st)
-		x += Width(b.Icon.Text) + 3
+		f.Text(x+1+Width(b.Icon.Text), y, r.Max.X-1, tail, st)
+		x += Width(b.Icon.Text) + 2 + len(tail)
 	}
 	if rx := r.Max.X - 1 - Width(q.Right); rx > x {
 		f.Text(rx, y, r.Max.X-1, q.Right, dim)

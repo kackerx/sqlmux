@@ -4,6 +4,7 @@ package app
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -114,6 +115,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyPressMsg:
 		return a, a.press(keymap.FromTea(msg.Key()))
+	case tea.PasteMsg:
+		return a, a.paste(msg.Content)
 	case tea.MouseMotionMsg:
 		m := msg.Mouse()
 		a.mouse = uv.Pos(m.X, m.Y)
@@ -181,6 +184,9 @@ func (a *App) press(k keymap.Key) tea.Cmd {
 // same actions keys run.
 func (a *App) click(p uv.Position) tea.Cmd {
 	t, ok := ui.HitAt(a.hits, p)
+	if t != (ui.Target{}) { // not in the cell being edited: the edit ends first (§10.1)
+		a.endEdit()
+	}
 	if !ok {
 		return nil
 	}
@@ -228,7 +234,13 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		}
 	case ui.KindButton:
 		return a.run(t.Action, 0)
-	case ui.KindHint, ui.KindCell, ui.KindRowNo:
+	case ui.KindCell:
+		cmd := tea.Batch(focus(), a.run(t.Action, 0))
+		if double { // G-02
+			return tea.Batch(cmd, a.run("grid.edit", 0))
+		}
+		return cmd
+	case ui.KindHint, ui.KindRowNo:
 		return tea.Batch(focus(), a.run(t.Action, 0))
 	case ui.KindTitle:
 		if double {
@@ -258,6 +270,7 @@ func (a *App) click(p uv.Position) tea.Cmd {
 // Shift turns the vertical wheel horizontal, as does a touchpad's sideways
 // swipe (buttons 6 and 7).
 func (a *App) wheel(m tea.Mouse) {
+	a.endEdit() // the cell it is in may scroll away (§10.1)
 	down, right := 0, 0
 	switch m.Button {
 	case tea.MouseWheelUp:
@@ -285,6 +298,17 @@ func (a *App) wheel(m tea.Mouse) {
 			a.scrollPane(id, down, right)
 		}
 	}
+}
+
+// paste types s into the input that has the keys, each its own way, a
+// newline as a space: they are single-line (§10.1). On a grid in NORMAL it
+// starts editing the current cell with s.
+func (a *App) paste(s string) tea.Cmd {
+	s = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ").Replace(s)
+	if a.mode() == keymap.Normal {
+		return a.editCell(&s)
+	}
+	return a.dispatch([]keymap.Result{{Keys: keymap.Typed(s)}})
 }
 
 // dispatch runs what the keymap resolved: actions through the registry, and
@@ -345,6 +369,8 @@ func (a *App) context() keymap.Context {
 		return keymap.Context{Overlay: "where", Focus: []string{"input"}, Mode: keymap.Command}
 	case typing != nil && typing.comp != nil:
 		return keymap.Context{Overlay: "complete", Focus: []string{"input"}, Mode: keymap.Insert}
+	case typing != nil && typing.cell != nil:
+		return keymap.Context{Focus: []string{"cell"}, Mode: keymap.Insert}
 	case a.win().tree.filtering, typing != nil:
 		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Insert}
 	}

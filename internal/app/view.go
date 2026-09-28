@@ -214,7 +214,9 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	case t.err != "": // what the database said, in place of the table (§7.6)
 		f.Text(body.Min.X+1, body.Min.Y, body.Max.X-1, t.err, uv.Style{Fg: th.Error, Bg: th.PaneBg})
 	case t.page.Cols != nil:
-		a.grid(p, t).Draw(f, body)
+		if c := a.grid(p, t).Draw(f, body); c.X >= 0 {
+			f.Cursor = &c
+		}
 	}
 }
 
@@ -332,8 +334,11 @@ func (a *App) statusLine() ui.StatusLine {
 		{Runs: iconRuns(ic.Search, bar(th.Info), strings.TrimRight(" "+a.label(a.keys.Hint("palette.open", "global")), " ")+" "), Action: "palette.open"},
 		{Runs: append(iconRuns(ic.Keys, bar(th.FgMuted), " "), pending, ui.Run{Text: " ", Style: bar(th.FgMuted)})},
 	}
-	if t := a.typingTab(); t != nil && t.typing == "where" {
+	switch t := a.typingTab(); {
+	case t != nil && t.typing == "where":
 		s.Info = "-- editing WHERE --" // §7.8
+	case t != nil && t.cell != nil:
+		s.Info = "-- editing " + t.cell.key.col + " --"
 	}
 	// the cursor's row,col, with a table loaded in the focused pane (§7.8)
 	if _, t, ok := a.focusedGrid(); ok && len(t.page.Rows) > 0 {

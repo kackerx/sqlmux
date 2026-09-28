@@ -46,3 +46,35 @@ func TestInputScrollsToCursor(t *testing.T) {
 		t.Errorf("at the start: %q, cursor %v", f.String(), cur)
 	}
 }
+
+// All selected, as a cell's edit starts (§10.1): typing or backspace
+// replaces it, ← / → drop it with the cursor at that end.
+func TestInputAll(t *testing.T) {
+	all := func() Input { return Input{Text: "abc", Pos: 3, All: true} }
+	in := all()
+	if in.Insert("x"); in != (Input{Text: "x", Pos: 1}) {
+		t.Errorf("insert: %+v", in)
+	}
+	in = all()
+	if in.Backspace(); in != (Input{}) {
+		t.Errorf("backspace: %+v", in)
+	}
+	in = all()
+	if in.Left(); in != (Input{Text: "abc"}) {
+		t.Errorf("left: %+v", in)
+	}
+	in = Input{Text: "abc", All: true}
+	if in.Right(); in != (Input{Text: "abc", Pos: 3}) {
+		t.Errorf("right: %+v", in)
+	}
+}
+
+// Text reads as a grid cell does: a newline a dim ↵ (§7.6), so a pasted
+// or loaded one can't drive the terminal.
+func TestInputDrawsAsACell(t *testing.T) {
+	f := NewFrame(10, 1, TokyonightStorm)
+	cur := Input{Text: "a\nb\x1b", Pos: 4}.Draw(f, uv.Rect(0, 0, 10, 1), uv.Style{})
+	if f.String() != "a↵b" || cur != uv.Pos(3, 0) || f.Buf.CellAt(1, 0).Style.Fg != TokyonightStorm.Dim {
+		t.Errorf("%q, cursor %v", f.String(), cur)
+	}
+}

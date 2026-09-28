@@ -42,17 +42,38 @@ type dataTab struct {
 	// and a cancelled request goes back to it (§7.6).
 	request
 	shown    request
-	where    ui.Input        // the WHERE input
-	hidden   map[string]bool // columns COLS hides
-	pageIn   ui.Input        // PAGE's page number, while typed
-	typing   string          // the input that has the keys: "where", "page" or ""
-	wantCol  string          // the column the cursor goes to once a page is in: a column node's ↵ (§7.8)
-	comp     *completion     // the WHERE's candidates, while typed (§9.7)
-	hist     *histMenu       // the WHERE's history and favorites, while open (Q-02)
-	recount  bool            // a count is owed once a page is in: a request asked for one (§8.3)
-	count    int64           // the rows the WHERE keeps, as far as counted says
+	where    ui.Input         // the WHERE input
+	hidden   map[string]bool  // columns COLS hides
+	pageIn   ui.Input         // PAGE's page number, while typed
+	typing   string           // the input that has the keys: "where", "page", "cell" or ""
+	cell     *cellEdit        // the cell being edited, while typing is "cell" (§10.1)
+	edits    map[editKey]edit // changes not saved, of every page (§10.1)
+	wantCol  string           // the column the cursor goes to once a page is in: a column node's ↵ (§7.8)
+	comp     *completion      // the WHERE's candidates, while typed (§9.7)
+	hist     *histMenu        // the WHERE's history and favorites, while open (Q-02)
+	recount  bool             // a count is owed once a page is in: a request asked for one (§8.3)
+	count    int64            // the rows the WHERE keeps, as far as counted says
 	counted  countState
 	countSeq int // the last count's; older ones are dropped
+}
+
+// edit is a cell's change, not saved yet (§10.1): text, NULL or DEFAULT.
+// Changes outlive pages and queries: a row is known by its identity.
+type edit struct {
+	val db.Val
+	def bool // DEFAULT, the keyword
+}
+
+// editKey is a changed cell: its row by the row identity's values as
+// loaded, NUL between them (no PG text holds one), and its column.
+type editKey struct{ row, col string }
+
+// cellEdit is the cell being typed into (§10.1).
+type cellEdit struct {
+	key   editKey
+	orig  db.Val // as loaded
+	start string // the text the edit started with: left so, nothing changes
+	in    ui.Input
 }
 
 // request is a page of a table as asked for.
@@ -257,9 +278,80 @@ func (t *dataTab) typeOf(name string) string {
 }
 
 // stopTyping gives the keys back to the grid, the WHERE input showing what
-// is in effect again (§7.8).
+// is in effect again (§7.8), a cell's edit kept (§10.1).
 func (t *dataTab) stopTyping() {
+	if t.cell != nil {
+		t.commitCell()
+	}
 	t.typing, t.where, t.comp, t.hist = "", ui.Input{Text: t.applied, Pos: len(t.applied)}, nil, nil
+}
+
+// rowKey is page row rec's identity (§10.1): its row identity's values.
+func (t *dataTab) rowKey(rec int) string {
+	var vals []string
+	for _, k := range t.cols.Key() {
+		i := slices.IndexFunc(t.page.Cols, func(c db.Col) bool { return c.Name == k }) // select * has them all
+		vals = append(vals, t.page.Rows[rec][i].S)
+	}
+	return strings.Join(vals, "\x00")
+}
+
+// editCell starts editing the focused grid's current cell (§10.1), its
+// text all selected, or with text pasted in its place. A table without a
+// row identity can't be saved to, so it isn't edited.
+func (a *App) editCell(pasted *string) tea.Cmd {
+	p, t, ok := a.focusedGrid()
+	if !ok || p.Kind != KindData || len(t.page.Rows) == 0 {
+		return nil
+	}
+	if t.cols.Key() == nil {
+		return a.showToast(t.table.Name+" 没有主键，也没有全部列都非空的唯一索引，只读", toastTTL)
+	}
+	field := t.fieldAt(t.col)
+	c := &cellEdit{key: editKey{t.rowKey(t.row), t.page.Cols[field].Name}, orig: t.page.Rows[t.row][field]}
+	cur := c.orig
+	if e, ok := t.edits[c.key]; ok {
+		cur = e.val
+	}
+	if !cur.Null { // a NULL or DEFAULT starts empty
+		c.start = cur.S
+	}
+	c.in = ui.Input{Text: c.start, Pos: len(c.start), All: true}
+	if pasted != nil {
+		c.in = ui.Input{Text: *pasted, Pos: len(*pasted)}
+	}
+	t.typing, t.cell = "cell", c
+	return nil
+}
+
+// commitCell ends the cell's edit: what was typed is its change, none when
+// back to what was loaded; left as it started, nothing changes (§10.1).
+func (t *dataTab) commitCell() {
+	c := t.cell
+	t.typing, t.cell = "", nil
+	if c.in.Text != c.start {
+		t.setEdit(c.key, c.orig, edit{val: db.Val{S: c.in.Text}})
+	}
+}
+
+// setEdit makes e cell k's change; one giving back orig, as loaded, is none.
+func (t *dataTab) setEdit(k editKey, orig db.Val, e edit) {
+	if !e.def && e.val == orig {
+		delete(t.edits, k)
+		return
+	}
+	if t.edits == nil {
+		t.edits = map[editKey]edit{}
+	}
+	t.edits[k] = e
+}
+
+// endEdit commits the focused cell's edit before anything else happens:
+// a click elsewhere, the wheel, a key that isn't the cell's (§10.1).
+func (a *App) endEdit() {
+	if t := a.typingTab(); t != nil && t.cell != nil {
+		t.commitCell()
+	}
 }
 
 // dataOf is pane p's current table, or nil.
@@ -295,12 +387,31 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 		name := t.page.Cols[i].Name
 		g.Cols = append(g.Cols, ui.GridCol{Name: name, PK: slices.Contains(t.cols.PK, name), Type: colType(t.typeOf(name))})
 	}
-	for _, row := range t.page.Rows {
+	keyed := len(t.edits) > 0 && t.cols.Key() != nil
+	for rec, row := range t.page.Rows {
 		vals := make([]db.Val, len(shown))
+		key := ""
+		if keyed {
+			key = t.rowKey(rec)
+		}
 		for j, i := range shown {
 			vals[j] = row[i]
+			e, ok := t.edits[editKey{key, t.page.Cols[i].Name}]
+			if !keyed || !ok {
+				continue
+			}
+			if vals[j] = e.val; e.def {
+				vals[j] = db.Val{S: "<default>"}
+			}
+			if g.Edited == nil {
+				g.Edited = map[[2]int]bool{}
+			}
+			g.Edited[[2]int{rec, j}] = true
 		}
 		g.Rows = append(g.Rows, vals)
+	}
+	if t.cell != nil {
+		g.Edit = &t.cell.in
 	}
 	return g
 }
@@ -359,7 +470,7 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 			{Label: "COLS", Value: fmt.Sprintf("%d/%d", len(t.shownCols()), len(t.page.Cols)), Action: "grid.cols"},
 		},
 		Buttons: []ui.Button{
-			{Icon: ic.Save}, // ponytail: does nothing until saving (M2)
+			{Icon: ic.Save, Action: "save", Count: len(t.edits)}, // Q-05
 			{Icon: ic.Refresh, Action: "grid.refresh"},
 			{Icon: ic.Transpose, Action: "grid.transpose"},
 		},
@@ -448,6 +559,10 @@ func (a *App) turnPage(d int) tea.Cmd {
 // typeKey edits the query bar input that has the keys (§7.8): ↵ runs it,
 // esc drops it.
 func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
+	if t.cell != nil { // ↵ and esc are cell.accept and cell.done (§10.2)
+		editInput(&t.cell.in, k)
+		return nil
+	}
 	switch k {
 	case keymap.Esc:
 		if t.comp != nil || t.hist != nil { // a list goes first, then the input (§9.7)
