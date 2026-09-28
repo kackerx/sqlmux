@@ -20,6 +20,7 @@ type palette struct {
 	input    ui.Input
 	sel, top int       // selected candidate, first one shown
 	pick     *db.Table // listing its tabs instead, to pick one: it is open in several (§7.8「打开已有的表」)
+	pickCol  string    // a column node's ↵ led to the pick: the tab picked goes to that column
 
 	// Quick SQL's (§12).
 	comp  *completion
@@ -308,13 +309,19 @@ func (a *App) paletteScopeTo(i int) {
 func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 	items, ms := a.paletteMatches()
 	if t := a.palette.pick; t != nil && (newTab || i < len(ms)) { // C-t opens t again whatever is picked
+		col := a.palette.pickCol
 		a.palette = nil
+		var cmd tea.Cmd
 		if newTab {
-			return a.openTable(*t, true)
+			cmd = a.openTable(*t, true)
+		} else {
+			k, _ := strconv.Atoi(items[ms[i].Index].id)
+			a.showTab(a.tabsOf(*t)[k])
 		}
-		k, _ := strconv.Atoi(items[ms[i].Index].id)
-		a.showTab(a.tabsOf(*t)[k])
-		return nil
+		if col != "" {
+			a.gotoColumn(*t, col)
+		}
+		return cmd
 	}
 	if scope, sql := a.paletteScope(); scope == sqlScope { // run what is typed, or the history's pick
 		if strings.TrimSpace(sql) == "" && i < len(ms) {

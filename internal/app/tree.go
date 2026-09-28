@@ -396,10 +396,15 @@ func (a *App) treeOpen(newTab bool) tea.Cmd {
 }
 
 // gotoColumn puts the cursor of the table just opened on column col: now,
-// or once its page is in. Hidden by COLS, it stays where it is (§7.8).
+// or once its page is in; with several tabs of it, once one is picked.
+// Hidden by COLS, it stays where it is (§7.8).
 func (a *App) gotoColumn(t db.Table, col string) {
+	if a.palette != nil {
+		a.palette.pickCol = col
+		return
+	}
 	dt := dataOf(a.focused())
-	if a.palette != nil || dt == nil || idOf(dt.table) != idOf(t) { // several tabs have it: the pick decides
+	if dt == nil || idOf(dt.table) != idOf(t) {
 		return
 	}
 	dt.wantCol = col
