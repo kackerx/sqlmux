@@ -103,8 +103,8 @@ sqlmux/
 
 **固定的工作流（按批）**（2026-09-24 用户决定，取代 M0 的逐个 feature 审查）：
 
-1. worker 按 feature 逐个提交到 `main`，每个 commit 自己保证全绿（见「worker 的规则」），不等审查，接着做下一个。
-2. 到了 task.md 标出的**审查节点**，worker 用一条消息把这一段的 commit 范围（`<上一个节点>..<sha>`）发给 reviewer，逐个 feature 写明希望重点看的地方。
+1. worker 按 feature 逐个提交到 `main`，每个 commit 自己保证测试通过（见「worker 的规则」），不等审查，接着做下一个。
+2. 到了 task.md 标出的**审查节点**，worker 用一条消息把这一段的 commit 范围（`<上一个节点>..<sha>`）发给 reviewer，逐个 feature 写明希望重点看的地方；同时给 tester 发一行「节点 N 已送审：<范围>」。tester 收到后就开始读 spec、写脚本，发现 spec 问题马上问决策者（见「tester 的规则」）。
 3. reviewer 整批审查：
    - 有待定的 spec 问题：先问决策者，等答复后再退回，这样必须改的问题能一次退齐；
    - 有必须改：一条消息退回给 worker；worker 修完发修复 commit 的范围，reviewer 只复审新增的改动；
@@ -166,10 +166,11 @@ sqlmux/
   - 只有 worker 在主工作区（本目录）改代码，并提交到 `main`；修剪期间例外，由 pruner 提交。只提交到本地，不 push。
   - 不改、不提交 `specs/` 和 `AGENTS.md`。`git status` 里这两处的改动是决策者的，留着不动。
   - 不要对整个工作区执行 stash、checkout 或 reset。所有 worktree 共用同一个 stash 栈。需要把工作暂时放到一边时，只处理自己的代码路径，例如 `git stash push -u -m "<唯一标签>" -- internal/ cmd/`，或者提交一个临时的 WIP commit。
-- **每个 commit 自己保证全绿**（按批审查后，没有人逐个 commit 替你把关）：
+- **每个 commit 自己保证测试通过**（按批审查后，没有人逐个 commit 替你把关）：
   - `go vet ./...`、`go test ./...` 通过，`gofmt -l .` 输出为空，`go mod tidy` 之后没有改动；
   - 涉及数据库的，`go test -tags integration ./...` 通过；
-  - 合入 `e2e` 分支后的 e2e 回归通过；
+  - e2e 只跑和这次改动相关的脚本（合入 `e2e` 分支之后）。**全量 e2e 只在审查节点送审前跑一次**；修复 commit 也只跑相关的脚本，tester 在批次上会跑全量，里程碑最后还有一次完整回归（M1 复盘：全量一轮约 20 分钟，每个 commit 都跑，一天等了 217 分钟）；
+  - 跑 e2e 用一次阻塞的命令等它结束再读结果，或者放到后台等完成通知，不要 `sleep` 轮询：每次轮询都要把整个上下文重读一遍；
   - 说明用英文、以 feature ID 开头，例如 `F1.6: data pane tabs`。
 - **到审查节点**：一条消息把 commit 范围发给 reviewer，逐个 feature 写明希望重点审查的地方。
 - **收到退回时**：无论是 reviewer 的「必须改」还是 tester 的 bug，都修复后提交新的 commit，把修复的范围发给 reviewer。
@@ -196,7 +197,8 @@ sqlmux/
 
 **tester 的规则**：
 
-- **测试请求来自 reviewer**：只测审查通过的批次。发现问题退回给 worker；worker 的修复 commit 会先经过 reviewer，再回到你这里。
+- **测试请求来自 reviewer**：只测审查通过的批次，测试结论只在审查通过的 sha 上给。发现问题退回给 worker；worker 的修复 commit 会先经过 reviewer，再回到你这里。
+- **worker 送审时就开始准备**：收到 worker 的「节点 N 已送审」后，不等 reviewer，先读这批的 spec 和验收项、写脚本、在送审的 sha 上试跑。发现 spec 没写到或写得有问题的地方，马上问决策者；决策者的答复要改代码时，会转给还在审查的 reviewer，并进它的那一轮退回，不再单独多退一轮（M1 复盘：F1.6–F1.7 的三个 spec 问题在测试时才提，多了一轮 30–40 分钟的退回）。
 - **不在主工作区操作**：在单独的 worktree 中测试，用 `git worktree add /Users/ctw/proj/sqlmux-e2e -b e2e` 创建。测试之前，先在 worktree 里执行 `git merge <sha>`。
 - **只改 `e2e/` 目录**（e2e 脚本），提交到 `e2e` 分支。worker 会定期把 `e2e` 分支合并进 `main`。
 - **测试分三层**：
