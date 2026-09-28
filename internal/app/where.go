@@ -86,7 +86,9 @@ func ranked(pattern string, start int, groups ...[]candidate) *completion {
 		for i, cd := range g {
 			labels[i] = cd.label
 		}
-		for _, m := range ui.Filter(pattern, labels) {
+		// no smart case: an upper-case letter would make fzf exact about case
+		// (§9.7); the palette, tree and COLS keep it
+		for _, m := range ui.Filter(strings.ToLower(pattern), labels) {
 			cd := g[m.Index]
 			if r, _ := utf8.DecodeRuneInString(cd.label); pattern != "" && !strings.EqualFold(string(r), string(first)) {
 				continue

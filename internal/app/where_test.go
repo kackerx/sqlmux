@@ -1,6 +1,7 @@
 package app
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -72,6 +73,24 @@ func TestWhereCompletion(t *testing.T) {
 	feed(t, a, "<Esc>")
 	if tab.typing != "" {
 		t.Error("the second esc leaves the input")
+	}
+}
+
+// Completion ignores case throughout, first character and fuzzy rest
+// alike; the palette keeps fzf's smart case (§9.7).
+func TestRankedIgnoresCase(t *testing.T) {
+	cands := []candidate{{label: "status"}, {label: "amount"}, {label: "t_order"}, {label: "Mixed_Case"}}
+	for pattern, want := range map[string]string{"St": "status", "STA": "status", "Am": "amount", "T_OR": "t_order", "mix": "Mixed_Case"} {
+		if c := ranked(pattern, 0, cands); c == nil || len(c.items) != 1 || c.items[0].label != want {
+			t.Errorf("%s: %+v, want %s", pattern, c, want)
+		}
+	}
+	a := sized(160, 45, "nerd")
+	if feed(t, a, "<C-p>@t_ord"); !slices.Contains(namesOf(a), "表:t_order") {
+		t.Fatalf("palette: %v", namesOf(a))
+	}
+	if feed(t, a, "<BS><BS><BS><BS><BS>T_ORD"); slices.Contains(namesOf(a), "表:t_order") {
+		t.Error("the palette's T_ORD must stay exact about case")
 	}
 }
 
