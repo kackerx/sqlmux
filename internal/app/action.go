@@ -39,6 +39,7 @@ func init() {
 	actions = map[string]Action{
 		"palette.open":    {Title: "命令面板", Run: do(func(a *App, _ Args) { a.openPalette("") })},
 		"palette.command": {Title: "命令面板：命令", Run: do(func(a *App, _ Args) { a.openPalette(">") })}, // : opens it as if > was typed
+		"palette.sql":     {Title: "快速 SQL", Run: do(func(a *App, _ Args) { a.openPalette(";") })},  // ; as if ; was typed (§12)
 		// Keys inside the palette. Like every overlay's own actions they have
 		// no title, so the palette does not list them (§12); bound elsewhere
 		// in config, they do nothing.

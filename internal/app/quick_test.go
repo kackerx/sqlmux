@@ -91,6 +91,27 @@ func TestQuickSQL(t *testing.T) {
 	}
 }
 
+// ; opens the palette in the SQL scope from the table, the tree and an
+// empty pane (§12, §6.8).
+func TestSemicolonOpensQuickSQL(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	loadOrders(t, a, 3)
+	a.busy = 0
+	feed(t, a, "<Space>%") // an empty pane
+	for _, focus := range []int{1, 0, a.focused().ID} {
+		a.win().focus(focus)
+		feed(t, a, ";")
+		if s, _ := a.paletteScope(); a.palette == nil || a.palette.input.Text != ";" || s != sqlScope {
+			t.Fatalf("; on pane %d: %+v", focus, a.palette)
+		}
+		feed(t, a, "select 1 <CR>")
+		if a.palette.quick == nil || a.palette.quick.running != "select 1 " {
+			t.Errorf("pane %d: %+v", focus, a.palette.quick)
+		}
+		a.palette, a.busy = nil, 0
+	}
+}
+
 // C-c cancels a quick SQL running and keeps the palette and the last
 // result; idle, it closes the palette as esc does (§12, §8.3).
 func TestQuickSQLCancel(t *testing.T) {

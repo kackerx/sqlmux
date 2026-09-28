@@ -31,6 +31,7 @@ leader = "<Space>"
 "gt" = "tab.next"
 "gT" = "tab.prev"
 ":" = "palette.command"
+";" = "palette.sql"
 
 [keys.grid]
 "h" = "grid.left"

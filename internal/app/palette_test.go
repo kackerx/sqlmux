@@ -72,7 +72,7 @@ func TestPaletteListsNoOverlayKeys(t *testing.T) {
 	for _, q := range []string{"关闭", "palette"} {
 		feed(t, a, "<C-p>"+q)
 		for _, r := range rowsOf(a) {
-			if strings.HasPrefix(r, "palette.") && r != "palette.open=C-p" && r != "palette.command=:" {
+			if strings.HasPrefix(r, "palette.") && r != "palette.open=C-p" && r != "palette.command=:" && r != "palette.sql=;" {
 				t.Errorf("%s lists %s", q, r)
 			}
 		}
