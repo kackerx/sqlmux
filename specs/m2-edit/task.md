@@ -47,7 +47,7 @@
 - **涉及**：`internal/db/postgres`（UPDATE 生成与执行）、`internal/app`、`internal/ui`（Confirm）、`internal/keymap/default.toml`
 
 **开发**
-- [x] 生成 UPDATE（§10.3）：行标识列用 `=`，被修改列的旧值用 `::text IS NOT DISTINCT FROM`，DEFAULT 写成关键字；标识符用 `pgx.Identifier{}.Sanitize()`。先看 lazysql 的 `drivers/utils.go` 和 `ExecutePendingChanges`，提交说明里写明参考。
+- [x] 生成 UPDATE（§10.3）：行标识列用 `=`，被修改列的旧值用 `format('%s', 列) = 旧值`、旧值为 NULL 时 `列 IS NULL`（M2 节点 2 修正，原来的 `::text` 对 boolean 不成立），DEFAULT 写成关键字；标识符用 `pgx.Identifier{}.Sanitize()`。先看 lazysql 的 `drivers/utils.go` 和 `ExecutePendingChanges`，提交说明里写明参考。
 - [x] 执行：在 `Main` 上的同一把锁里 begin → 每行一条、检查恰好影响 1 行 → commit，出错就 rollback（§10.3）。
 - [x] 触发：`C-s`、`:w`、点击保存按钮；只保存焦点所在 data pane 的当前 tab；没有修改时、保存进行中都不做事（§10.3）。
 - [x] 结果显示在查询条右侧：成功时显示「已保存 N 行 · 12ms」并重新加载当前页；失败时整体回滚、保留修改标记、指明是哪一行，那一行在当前页上时行号用 `error` 色（§10.3）。

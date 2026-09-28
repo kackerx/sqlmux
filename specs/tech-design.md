@@ -991,7 +991,7 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 - `↵`：有选中的选项时应用该选项，否则提交文字。
 - 选项的顺序：布尔的 `true` / `false` 或枚举值 → `∅ NULL`（可空列）→ `DEFAULT`（有默认值）→ `↺ 原值`（本格有修改）。没有任何选项的列不弹浮层。枚举值和布尔的 `true` / `false` 用 `ui.Filter` 按输入过滤（完整 fzf，这里不是补全），还在全选状态、没开始输入时列出全部；NULL / DEFAULT / 原值不参与过滤，始终在后面；过滤后一项都不剩时不画浮层。文字每变一次，选中复位为「没有选中」。
 - 浮层复用补全列表的画法；输入框下方放不下全部选项、而上方更宽裕时，开在上方。这条放在补全列表和选项浮层共用的位置计算里，补全列表也照此。
-- 鼠标悬停只高亮、不改选中项，免得指针划过之后按 `↵` 就写进了 NULL；这里故意和补全列表不同。点击照常立即应用。
+- 鼠标悬停只高亮、不改选中项，免得指针划过之后按 `↵` 就写进了 NULL；这里故意和补全列表不同。悬停用 `row` 底，与树、表格行、下拉框的悬停一致，和选中项的 `select` 底分得开，一眼能看出 `↵` 会应用哪一项。点击照常立即应用。
 - 应用 NULL / DEFAULT / 枚举值 / 布尔值：写入修改并退出编辑；应用「↺ 原值」：删掉这条修改并退出。
 - `esc`：提交并退出编辑，保留修改（G-02）。
 
@@ -1027,11 +1027,14 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 
 ```sql
 UPDATE t SET c1 = $1, c2 = DEFAULT
-WHERE pk = $2 AND c1::text IS NOT DISTINCT FROM $3 AND c2::text IS NOT DISTINCT FROM $4
--- pk 为行标识列（§10.1），有多列时逐列比较；MySQL 用 <=>；DEFAULT 直接写成关键字，不作为参数
+WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
+-- pk 为行标识列（§10.1），有多列时逐列比较；旧值是 NULL 的列写 IS NULL，其余用 format('%s', 列) = 旧值；MySQL 用 <=>；DEFAULT 直接写成关键字，不作为参数
 ```
 
-- **旧值按文本比较**（`::text`，M2 核对时在 PG 17 上实测）：json、point 等类型没有相等运算符，`c IS NOT DISTINCT FROM $n` 直接报错，seed 里就有 json 列。我们读到的本来就是服务端输出的文本，`Main` 和 `Meta` 的会话参数相同（DateStyle、TimeZone 都来自同样的建连参数），所以按文本比较与读到的值一致。行标识列照旧写 `pk = $n`：主键和唯一索引的类型一定有 btree 相等运算，也用得上索引。只校验被修改的列。
+- **旧值按输出函数的文本比较**：旧值不是 NULL 时写 `format('%s', 列) = $n`，是 NULL 时写 `列 IS NULL`（生成语句时旧值是已知的）。我们读到的是服务端输出函数给出的文本，`format('%s', …)` 走的也是输出函数，`Main` 和 `Meta` 的会话参数相同（DateStyle、TimeZone 等来自同样的建连参数），所以两边一致。行标识列照旧写 `pk = $n`：主键和唯一索引的类型一定有 btree 相等运算，也用得上索引。只校验被修改的列。
+  - 否掉 `列 IS NOT DISTINCT FROM $n`：json、point 等类型没有相等运算符，直接报错（M2 核对时在 PG 17 上实测），seed 里就有 json 列。
+  - 否掉 `列::text IS NOT DISTINCT FROM $n`（F2.2 起初的写法）：不少类型到 text 的 cast 不走输出函数，结果和读到的不一样。boolean 输出 `f`、`::text` 却是 `false`，布尔列的修改因此永远保存不了（tester 在 M2 节点 2 实测）；inet 的 `::text` 带掩码；char(n) 的 `::text` 去掉尾部空格。
+  - 集成测试要逐个类型实测往返：boolean、inet、char(n)、json、jsonb、numeric、real / double、timestamptz、interval、bytea、数组、枚举。在自建库里建一张临时表测，不改 seed。
 - 标识符用 `pgx.Identifier{schema, table}.Sanitize()`；参数按文本传，OID 为 0，由服务端从列推出类型。
 - **执行**：在 `Main` 的 Worker 同一把锁里 begin → 每行一条 UPDATE、按 Tag 检查恰好 1 行 → commit，任何一步出错就 rollback。参照 lazysql 的 `queriesInTransaction`，但它不检查影响行数、也不带旧值校验，这两点按本节做。
 - **顺序**：按行标识值排序后逐行执行，每次顺序一样（也减少和别的会话互相等锁）；一行里的 SET 按列在表里的顺序。
