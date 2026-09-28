@@ -444,7 +444,7 @@ func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 		return nil
 	case "<CR>":
 		if t.comp != nil && t.comp.chosen { // only a candidate picked on purpose (§9.7)
-			t.acceptCompletion()
+			a.acceptCompletion()
 			return nil
 		}
 		if t.typing == "where" {
@@ -481,17 +481,21 @@ func colType(t string) ui.ColType {
 	if i, j := strings.Index(t, "("), strings.Index(t, ")"); 0 <= i && i < j {
 		t = t[:i] + t[j+1:]
 	}
+	// after format_type's names, pgx's for a result's OIDs (quick SQL, §12)
 	switch t {
-	case "smallint", "integer", "bigint", "numeric", "real", "double precision", "oid":
+	case "smallint", "integer", "bigint", "numeric", "real", "double precision", "oid",
+		"int2", "int4", "int8", "float4", "float8":
 		return ui.ColNumber
 	case "date", "time without time zone", "time with time zone",
-		"timestamp without time zone", "timestamp with time zone":
+		"timestamp without time zone", "timestamp with time zone",
+		"time", "timetz", "timestamp", "timestamptz":
 		return ui.ColTime
-	case "boolean":
+	case "boolean", "bool":
 		return ui.ColBool
 	case "json", "jsonb":
 		return ui.ColJSON
-	case "text", "character varying", "character", `"char"`, "name", "citext":
+	case "text", "character varying", "character", `"char"`, "name", "citext",
+		"varchar", "bpchar", "char":
 		return ui.ColString
 	}
 	if t == "interval" || strings.HasPrefix(t, "interval ") { // "interval day to second"

@@ -118,7 +118,10 @@ func (a *App) render() *ui.Frame {
 			v, box, rows := a.histView(p, t)
 			v.Draw(f, box, rows)
 		case t.comp != nil:
-			v, box, rows := a.completeView(p, t)
+			at := a.whereAt(p, t)
+			at.X += ui.Width(t.where.Text[:t.comp.start]) // under what it completes
+			// ponytail: off by the input's scroll once the text outgrows it
+			v, box, rows := a.completeView(t.comp, at)
 			v.Draw(f, box, rows)
 		}
 	}
@@ -139,6 +142,12 @@ func (a *App) render() *ui.Frame {
 	if a.palette != nil {
 		if c := a.paletteView().Draw(f, a.window()); c.X >= 0 {
 			f.Cursor = &c
+			if comp := a.palette.comp; comp != nil { // under what it completes, which ends at the cursor
+				in, at := a.palette.input, c
+				at.X -= ui.Width(in.Text[comp.start:in.Pos])
+				v, box, rows := a.completeView(comp, at)
+				v.Draw(f, box, rows)
+			}
 		}
 	}
 	return f

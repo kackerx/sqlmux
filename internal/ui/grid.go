@@ -41,7 +41,7 @@ type Grid struct {
 	Cols      []GridCol
 	Rows      [][]db.Val
 	First     int // the row number before Rows[0]: the page's offset
-	Row, Col  int // the current cell; -1 for none
+	Row, Col  int // the current cell; Row -1 for none: a table only to look at, nothing in it to click
 	Top, Left int // the first record and field shown
 	Transpose bool
 	Focused   bool
@@ -186,11 +186,15 @@ func (v view) layout(area uv.Rectangle) (labelW int, ws []int, rows int) {
 
 // View is Top and Left moved just enough for the current cell to show
 // whole in area, as vim scrolls: callers store it after the cursor moves.
+// With no current cell they are only kept in range.
 func (g Grid) View(area uv.Rectangle) (top, left int) {
 	v := g.view()
 	labelW, ws, rows := v.layout(area)
 	voff, hoff := v.screen(g.Top, g.Left)
-	cr, cc := v.screen(max(g.Row, 0), max(g.Col, 0))
+	cr, cc := voff, hoff
+	if g.Row >= 0 {
+		cr, cc = v.screen(g.Row, max(g.Col, 0))
+	}
 	voff = max(min(voff, cr, v.rows-rows), cr-rows+1, 0)
 	hoff = max(min(hoff, cc, v.cols-1), 0)
 	x0 := area.Min.X + labelW + 3 // the first column's cell
@@ -262,7 +266,9 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 
 	// a row number is a button to its row, the column kept (G-04)
 	rowNo := func(r uv.Rectangle, rec int) {
-		f.Region(r.Intersect(area), Target{Kind: KindRowNo, Pane: g.Pane, Action: "grid.goto " + strconv.Itoa(rec) + " " + strconv.Itoa(max(g.Col, 0))})
+		if g.Row >= 0 {
+			f.Region(r.Intersect(area), Target{Kind: KindRowNo, Pane: g.Pane, Action: "grid.goto " + strconv.Itoa(rec) + " " + strconv.Itoa(max(g.Col, 0))})
+		}
 	}
 	y := area.Min.Y
 	for i, c := range cols {
@@ -331,7 +337,9 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) {
 				}
 				f.Fill(uv.Rect(cellX(i)-1, y, ws[c]+2, 1).Intersect(area), uv.Style{Bg: st.Bg})
 			}
-			f.Region(uv.Rect(cellX(i)-1, y, ws[c]+2, 1).Intersect(area), Target{Kind: KindCell, Pane: g.Pane, Action: "grid.goto " + strconv.Itoa(rec) + " " + strconv.Itoa(field)})
+			if g.Row >= 0 {
+				f.Region(uv.Rect(cellX(i)-1, y, ws[c]+2, 1).Intersect(area), Target{Kind: KindCell, Pane: g.Pane, Action: "grid.goto " + strconv.Itoa(rec) + " " + strconv.Itoa(field)})
+			}
 			drawCell(f, x, y, min(cellX(i)+ws[c], area.Max.X), s, st, uv.Style{Fg: th.Dim, Bg: st.Bg})
 		}
 		for _, x := range seps {

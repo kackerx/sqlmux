@@ -47,6 +47,7 @@ func init() {
 		"palette.run":        {Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, false) })},
 		"palette.open.tab":   {Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, true) })},
 		"palette.close":      {Run: when(inPalette, func(a *App) tea.Cmd { a.palette = nil; return nil })},
+		"quicksql.copy":      {Run: when(inPalette, func(a *App) tea.Cmd { return a.copyQuick() })},
 		"palette.scope.next": {Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s + 1); return nil })},
 		"palette.scope.prev": {Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s - 1); return nil })},
 		// "palette.scope <i>" is a click on a scope tab.
@@ -57,6 +58,10 @@ func init() {
 			return nil
 		}},
 		"cancel": {Title: "取消 / 连按两次退出", Run: func(a *App, _ Args) tea.Cmd {
+			if p := a.palette; p != nil && p.quick != nil && p.quick.running != "" { // the palette stays (§12)
+				a.sess.Meta.Cancel()
+				return nil
+			}
 			if a.mode() != keymap.Normal { // in any input C-c is esc, as in vim (§6.8)
 				return a.press(keymap.Esc)
 			}
@@ -99,9 +104,9 @@ func init() {
 		"dropdown.down":   {Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(1); return nil })},
 		"dropdown.select": {Run: when(inDrop, func(a *App) tea.Cmd { return a.dropPick(a.drop.sel) })},
 		"dropdown.close":  {Run: when(inDrop, func(a *App) tea.Cmd { a.drop = nil; return nil })},
-		"complete.up":     {Run: when(inComplete, func(a *App) tea.Cmd { a.typingTab().completeMove(-1); return nil })},
-		"complete.down":   {Run: when(inComplete, func(a *App) tea.Cmd { a.typingTab().completeMove(1); return nil })},
-		"complete.accept": {Run: when(inComplete, func(a *App) tea.Cmd { a.typingTab().acceptCompletion(); return nil })},
+		"complete.up":     {Run: when(inComplete, func(a *App) tea.Cmd { a.completing().move(-1); return nil })},
+		"complete.down":   {Run: when(inComplete, func(a *App) tea.Cmd { a.completing().move(1); return nil })},
+		"complete.accept": {Run: when(inComplete, func(a *App) tea.Cmd { a.acceptCompletion(); return nil })},
 		"where.up":        {Run: when(inHist, func(a *App) tea.Cmd { a.histMove(a.typingTab(), -1); return nil })},
 		"where.down":      {Run: when(inHist, func(a *App) tea.Cmd { a.histMove(a.typingTab(), 1); return nil })},
 		"where.apply":     {Run: when(inHist, func(a *App) tea.Cmd { t := a.typingTab(); return a.histApply(t, t.hist.sel) })},
@@ -209,13 +214,10 @@ func when(open func(*App) bool, f func(*App) tea.Cmd) func(*App, Args) tea.Cmd {
 	}
 }
 
-func inPalette(a *App) bool { return a.palette != nil }
-func inDrop(a *App) bool    { return a.drop != nil }
-func inCols(a *App) bool    { return a.cols != nil }
-func inComplete(a *App) bool {
-	t := a.typingTab()
-	return t != nil && t.comp != nil
-}
+func inPalette(a *App) bool  { return a.palette != nil }
+func inDrop(a *App) bool     { return a.drop != nil }
+func inCols(a *App) bool     { return a.cols != nil }
+func inComplete(a *App) bool { return a.completing() != nil }
 func inHist(a *App) bool {
 	t := a.typingTab()
 	return t != nil && t.hist != nil

@@ -195,7 +195,7 @@ func TestPaletteMouse(t *testing.T) {
 	}
 
 	feed(t, a, "<C-p>")
-	box, _ := ui.PaletteBox(a.window(), len(rowsOf(a)))
+	box, _, _ := ui.PaletteBox(a.window(), len(rowsOf(a)), false)
 	click(a, uv.Pos(box.Min.X+3, box.Min.Y+2)) // the input row
 	if a.palette == nil {
 		t.Fatal("a click inside the box is not outside")
@@ -210,7 +210,7 @@ func TestPaletteMouse(t *testing.T) {
 func TestPaletteCursor(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>ab<Left>")
-	box, _ := ui.PaletteBox(a.window(), len(rowsOf(a)))
+	box, _, _ := ui.PaletteBox(a.window(), len(rowsOf(a)), false)
 	// the input row, below the scope tabs; after the search icon and a space
 	if c := a.View().Cursor; c == nil || c.X != box.Min.X+2+ui.Width(ui.NerdIcons.Search.Text)+1+1 || c.Y != box.Min.Y+2 {
 		t.Fatalf("cursor %+v, box %v", c, box)
@@ -233,14 +233,14 @@ func namesOf(a *App) []string {
 func TestPaletteScopesCycle(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>ord")
-	for _, want := range []string{"%ord", "@ord", ">ord", "ord"} {
+	for _, want := range []string{"%ord", "@ord", ">ord", ";ord", "ord"} {
 		feed(t, a, "<Tab>")
 		if got := a.palette.input.Text; got != want {
 			t.Fatalf("Tab: %q, want %q", got, want)
 		}
 	}
 	feed(t, a, "<S-Tab>")
-	if in := a.palette.input; in.Text != ">ord" || in.Pos != len(">ord") {
+	if in := a.palette.input; in.Text != ";ord" || in.Pos != len(";ord") {
 		t.Fatalf("S-Tab wraps round: %+v", in)
 	}
 	click(a, find(t, a, ui.Target{Kind: ui.KindButton, Action: "palette.scope 2"}).Min)
@@ -352,7 +352,7 @@ func TestPaletteLayout(t *testing.T) {
 	for _, c := range []struct{ w, h, width, top int }{{160, 45, 100, 7}, {80, 24, 76, 3}} {
 		a := sized(c.w, c.h, "nerd")
 		feed(t, a, "<C-p>")
-		if box, _ := ui.PaletteBox(a.window(), len(rowsOf(a))); box.Dx() != c.width || box.Min.Y != c.top {
+		if box, _, _ := ui.PaletteBox(a.window(), len(rowsOf(a)), false); box.Dx() != c.width || box.Min.Y != c.top {
 			t.Errorf("%dx%d: box %v, want %d wide at row %d", c.w, c.h, box, c.width, c.top)
 		}
 	}

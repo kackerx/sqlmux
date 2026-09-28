@@ -1,6 +1,7 @@
 // Package sqlkit reads SQL text without parsing it (tech-design §9).
-// ponytail: only what the WHERE input's completion needs (M1 F1.5); M3's
-// scanner (§9.1) grows it for statements, highlighting and the console.
+// ponytail: only what the WHERE input's completion (M1 F1.5) and quick SQL
+// (F1.7) need; M3's scanner (§9.1) grows it for statements, highlighting
+// and the console.
 package sqlkit
 
 import (
@@ -84,6 +85,24 @@ func Tokens(s string) []Token {
 		out = append(out, Token{kind, start, i})
 	}
 	return out
+}
+
+// SelectLike reports whether s is a statement a cursor can be declared for:
+// its first word, past spaces, comments and opening parentheses, is select,
+// values, table or with, as psql's FETCH_COUNT tells (common.c
+// is_select_command) (§12 快速 SQL).
+// ponytail: the first word only; M3's read / write judgment (§9.3) replaces it.
+func SelectLike(s string) bool {
+	for _, t := range Tokens(s) {
+		switch w := strings.ToLower(s[t.Start:t.End]); {
+		case t.Kind == Space, t.Kind == Comment, w == "(":
+		case t.Kind == Word:
+			return w == "select" || w == "values" || w == "table" || w == "with"
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // advance is past the runes from i that are in: whole runes, so a

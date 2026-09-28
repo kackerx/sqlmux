@@ -3,6 +3,7 @@ package ui
 import (
 	"image/color"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -176,5 +177,23 @@ func TestGridView(t *testing.T) {
 		if _, left := g.View(area); left != c.want {
 			t.Errorf("cursor on %d from left %d: left %d, want %d", c.col, c.left, left, c.want)
 		}
+	}
+}
+
+// A grid with no current cell is only looked at: its view stays where it
+// was put, and nothing in it takes a click.
+func TestGridNoCursor(t *testing.T) {
+	g := Grid{Cols: []GridCol{{Name: "n"}}, Row: -1, Col: -1, Top: 5}
+	for i := range 20 {
+		g.Rows = append(g.Rows, vals([]string{strconv.Itoa(i)})...)
+	}
+	area := uv.Rect(0, 0, 20, 8)
+	if top, _ := g.View(area); top != 5 {
+		t.Errorf("top %d, want 5", top)
+	}
+	f := NewFrame(20, 8, TokyonightStorm)
+	g.Draw(f, area)
+	for _, h := range f.Hits {
+		t.Errorf("a hit region: %+v", h.Target)
 	}
 }

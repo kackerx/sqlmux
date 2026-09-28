@@ -14,7 +14,8 @@ import (
 	"sqlmux/internal/ui"
 )
 
-// completion is the candidate list under a WHERE being typed (§9.7).
+// completion is the candidate list under a WHERE or a quick SQL being
+// typed (§9.7, §12).
 type completion struct {
 	items  []candidate
 	sel    int
@@ -69,36 +70,65 @@ func (a *App) complete(t *dataTab) {
 		}
 		groups = [][]candidate{cols, kws}
 	}
-	c := &completion{start: w.Start}
+	t.comp = ranked(pattern, w.Start, groups...)
+}
+
+// ranked is the candidates of groups that pattern matches, group by group
+// and best first within each (§9.7), completing what starts at start in the
+// input; nil when none does.
+func ranked(pattern string, start int, groups ...[]candidate) *completion {
+	c := &completion{start: start}
 	for _, g := range groups {
 		labels := make([]string, len(g))
 		for i, cd := range g {
 			labels[i] = cd.label
 		}
-		for _, m := range ui.Filter(pattern, labels) { // best first within the group
+		for _, m := range ui.Filter(pattern, labels) {
 			cd := g[m.Index]
 			cd.pos = m.Pos
 			c.items = append(c.items, cd)
 		}
 	}
-	if len(c.items) > 0 {
-		t.comp = c
+	if len(c.items) == 0 {
+		return nil
 	}
+	return c
 }
 
-// acceptCompletion puts the selected candidate in place of what it completes.
-func (t *dataTab) acceptCompletion() {
-	c, in := t.comp, &t.where
-	cd := c.items[c.sel]
-	in.Text = in.Text[:c.start] + cd.insert + in.Text[in.Pos:]
-	in.Pos = c.start + len(cd.insert)
+// completing is the candidate list that is up, if any: the palette's quick
+// SQL's, else the WHERE's being typed.
+func (a *App) completing() *completion {
+	if a.palette != nil {
+		return a.palette.comp
+	}
+	if t := a.typingTab(); t != nil {
+		return t.comp
+	}
+	return nil
+}
+
+// acceptCompletion puts the selected candidate in place of what it
+// completes, and closes the list.
+func (a *App) acceptCompletion() {
+	if p := a.palette; p != nil {
+		p.comp.accept(&p.input)
+		p.comp = nil
+		return
+	}
+	t := a.typingTab()
+	t.comp.accept(&t.where)
 	t.comp = nil
 }
 
-// completeMove moves the selection by d; with none picked yet, down picks
-// the first and up the last, as vim's popup menu does.
-func (t *dataTab) completeMove(d int) {
-	c := t.comp
+func (c *completion) accept(in *ui.Input) {
+	cd := c.items[c.sel]
+	in.Text = in.Text[:c.start] + cd.insert + in.Text[in.Pos:]
+	in.Pos = c.start + len(cd.insert)
+}
+
+// move moves the selection by d; with none picked yet, down picks the
+// first and up the last, as vim's popup menu does.
+func (c *completion) move(d int) {
 	switch {
 	case c.chosen:
 		c.sel = max(min(c.sel+d, len(c.items)-1), 0)
@@ -115,19 +145,18 @@ func (a *App) whereAt(p *Pane, t *dataTab) uv.Position {
 	return a.queryBar(p, t).InputRect(bodyRect(a.layout()[p.ID])).Min
 }
 
-func (a *App) completeView(p *Pane, t *dataTab) (ui.Complete, uv.Rectangle, int) {
+// completeView is c as it opens under the input cell at, where what it
+// completes starts.
+func (a *App) completeView(c *completion, at uv.Position) (ui.Complete, uv.Rectangle, int) {
 	v := ui.Complete{Sel: -1} // nothing looks picked until something is: ↵ runs then (§9.7)
-	if t.comp.chosen {
-		v.Sel = t.comp.sel
+	if c.chosen {
+		v.Sel = c.sel
 	}
 	w := 20
-	for _, cd := range t.comp.items {
+	for _, cd := range c.items {
 		v.Items = append(v.Items, ui.CompleteItem{Text: cd.label, Pos: cd.pos, Note: cd.note})
 		w = max(w, ui.Width(cd.label+"  "+cd.note)+4)
 	}
-	at := a.whereAt(p, t)
-	at.X += ui.Width(t.where.Text[:t.comp.start]) // under what it completes
-	// ponytail: off by the input's scroll once the text outgrows it
 	box, rows := ui.CompleteBox(a.window(), at, w, len(v.Items))
 	v.Top = max(0, v.Sel-rows+1)
 	return v, box, rows
@@ -215,7 +244,8 @@ func sameQuery(x, y config.Query) bool {
 	return x.Where == y.Where && x.Order == y.Order && x.Desc == y.Desc && x.Limit == y.Limit
 }
 
-// historyRows is how many WHERE runs a table keeps (§9.7).
+// historyRows is how many runs a history keeps: a table's WHERE's (§9.7),
+// a connection's quick SQL's (§12).
 const historyRows = 50
 
 // runWhere runs the WHERE typed, from the first page, counting again; a

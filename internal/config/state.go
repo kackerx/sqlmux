@@ -12,10 +12,12 @@ import (
 )
 
 // State is what the app keeps between runs (§14), in state.json: the
-// palette's recent picks, and each table's WHERE history and favorites.
+// palette's recent picks, each table's WHERE history and favorites, and
+// each connection's quick SQL history.
 type State struct {
 	Recent []Recent               `json:"recent,omitempty"`
 	Tables map[string]*TableState `json:"tables,omitempty"` // by "<connection>/<schema>.<table>"
+	SQL    map[string][]string    `json:"sql,omitempty"`    // by connection, newest first (§12)
 }
 
 // Recent is one palette pick (§12): its kind and its id within the kind.

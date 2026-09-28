@@ -28,27 +28,52 @@ type Palette struct {
 	Sel, Top int
 	Footer   []Hint // left: moving, scopes, closing
 	Enter    []Hint // right: what ↵ (and C-t) do
+	Result   *PaletteResult
 }
 
-const paletteRows = 12
+// PaletteResult is quick SQL's result area, under the list (§12): a title
+// row, then the table, or the database's error in its place.
+type PaletteResult struct {
+	Title string // "100+ 行 · 12ms · 只读"
+	Hints []Hint // right of the title: C-y CSV
+	Err   string
+	Grid  Grid
+}
+
+const (
+	paletteRows = 12
+	resultRows  = 8 // the least a result's table gets while there is room (§12)
+)
 
 // PaletteBox is where the palette sits for n candidates (§12): at most 100
 // wide and centered, its top edge a sixth of the way down, leaving the lower
 // half to SQL results, and fixed so the input stays put as the list grows
-// and shrinks; list rows = how many show.
-func PaletteBox(screen uv.Rectangle, n int) (box uv.Rectangle, rows int) {
+// and shrinks; list rows = how many show. With a result the box reaches
+// down to a row above the status bar, and grid is where the result's table
+// goes, the list giving up rows before it does.
+func PaletteBox(screen uv.Rectangle, n int, result bool) (box uv.Rectangle, rows int, grid uv.Rectangle) {
 	w := min(100, screen.Dx()-4)
-	top := screen.Min.Y + screen.Dy()/6
-	// border, scopes, input, rule | list | rule, footer, border
-	rows = max(min(n, paletteRows, screen.Max.Y-top-7), 0)
-	return uv.Rect(screen.Min.X+(screen.Dx()-w)/2, top, w, rows+7), rows
+	x, top := screen.Min.X+(screen.Dx()-w)/2, screen.Min.Y+screen.Dy()/6
+	if !result {
+		// border, scopes, input, rule | list | rule, footer, border
+		rows = max(min(n, paletteRows, screen.Max.Y-top-7), 0)
+		return uv.Rect(x, top, w, rows+7), rows, uv.Rectangle{}
+	}
+	box = uv.Rect(x, top, w, max(screen.Max.Y-1-top, 0))
+	// border, scopes, input, rule | list, rule | title | table | rule, footer, border
+	rows = max(min(n, paletteRows, box.Dy()-9-resultRows), 0)
+	y := top + 4 + rows + 1 // under the title
+	if rows > 0 {
+		y++ // and the list's rule
+	}
+	return box, rows, uv.Rect(x+1, y, w-2, max(box.Max.Y-3-y, 0))
 }
 
 // Draw dims what is behind (§7.5), paints the box over it and returns where
 // the input's cursor goes.
 func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 	th := f.Theme
-	box, rows := PaletteBox(screen, len(p.Rows))
+	box, rows, grid := PaletteBox(screen, len(p.Rows), p.Result != nil)
 	f.Dim()
 	f.Region(f.Bounds(), Target{Kind: KindBackdrop}) // a click outside closes it
 	if box.Dx() < 8 {
@@ -120,6 +145,20 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 		nx := x0 + iconW + 1
 		f.TextMatch(nx, y, min(nx+nameW, right-1), name, inName, st, hl)
 		f.TextMatch(nx+nameW+2, y, right-1, r.Where, inWhere, faint, hl)
+	}
+	if r := p.Result; r != nil {
+		if rows > 0 {
+			rule(y)
+			y++
+		}
+		f.Text(x0, y, x1, r.Title, dim)
+		hintRow(f, x1-hintRowWidth(r.Hints), y, x1, r.Hints, dim, Target{Kind: KindButton})
+		if r.Err != "" { // in place of the table, as a data pane shows it (§7.6)
+			f.Text(grid.Min.X+1, grid.Min.Y, grid.Max.X-1, r.Err, uv.Style{Fg: th.Error, Bg: th.PaneBg})
+		} else {
+			r.Grid.Draw(f, grid)
+		}
+		y = grid.Max.Y
 	}
 	rule(y)
 	y++

@@ -102,6 +102,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotPage(msg)
 	case countMsg:
 		a.gotCount(msg)
+	case quickMsg:
+		return a, a.gotQuick(msg)
+	case colsMsg:
+		return a, a.gotCols(msg)
 	case stateErr:
 		return a, a.showToast(msg.err.Error(), toastTTL)
 	case toastExpired:
@@ -120,11 +124,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.win().TreeW = treeWidth(a.mouse.X, a.w)
 		}
 		if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow { // hover selects (K-03, §9.7)
-			switch tab := a.typingTab(); {
+			switch c := a.completing(); {
+			case c != nil:
+				c.sel, c.chosen = t.I, true
 			case a.palette != nil:
 				a.palette.sel = t.I
-			case tab != nil && tab.comp != nil:
-				tab.comp.sel, tab.comp.chosen = t.I, true
 			}
 		}
 	case tea.MouseReleaseMsg:
@@ -194,20 +198,20 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols = false, false, nil, nil, nil
 		a.res.Reset()
 	case ui.KindRow:
-		switch tab := a.typingTab(); {
-		case tab != nil && tab.comp != nil:
-			tab.comp.sel = t.I
-			tab.acceptCompletion()
+		switch tab, c := a.typingTab(), a.completing(); {
+		case c != nil:
+			c.sel = t.I
+			a.acceptCompletion()
 			return nil
+		case a.palette != nil:
+			return a.paletteRun(t.I, false)
 		case tab != nil && tab.hist != nil:
 			return a.histApply(tab, a.histIndex(tab, t.I))
 		case a.drop != nil:
 			return a.dropPick(t.I)
 		case a.cols != nil: // a column's row: show or hide it (Q-04)
 			a.colsToggle(t.I)
-			return nil
 		}
-		return a.paletteRun(t.I, false)
 	case ui.KindTable:
 		a.win().tree.cursor = t.I
 		return a.run("tree.open", 0)
@@ -261,6 +265,14 @@ func (a *App) wheel(m tea.Mouse) {
 	if m.Mod.Contains(tea.ModShift) {
 		down, right = 0, down
 	}
+	if a.palette != nil && a.quickShows() { // over the result's table: that scrolls
+		_, ms := a.paletteMatches()
+		if _, _, area := a.paletteBox(len(ms)); uv.Pos(m.X, m.Y).In(area) {
+			q := a.palette.quick
+			q.top, q.left, _, _ = a.quickView(q).Grid.Scroll(area, down*wheelStep, right)
+			return
+		}
+	}
 	for id, r := range a.layout() {
 		if uv.Pos(m.X, m.Y).In(r) {
 			a.scrollPane(id, down, right)
@@ -280,7 +292,7 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 		for _, k := range r.Keys { // unbound keys go to the input that has them
 			switch t := a.typingTab(); {
 			case a.palette != nil:
-				a.paletteKey(k)
+				cmds = append(cmds, a.paletteKey(k))
 			case a.drop != nil:
 				a.dropKey(k)
 			case a.cols != nil:
@@ -312,6 +324,8 @@ func (a *App) mode() keymap.Mode {
 // context tells the keymap which scopes apply to the next key (§6.4).
 func (a *App) context() keymap.Context {
 	switch typing := a.typingTab(); {
+	case a.palette != nil && a.palette.comp != nil: // ↵ and esc are the input's, as in a WHERE (§9.7)
+		return keymap.Context{Overlay: "complete", Focus: []string{"input"}, Mode: keymap.Command}
 	case a.palette != nil:
 		return keymap.Context{Overlay: "palette", Mode: keymap.Command}
 	case a.drop != nil:

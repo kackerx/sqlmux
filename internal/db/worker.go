@@ -28,6 +28,12 @@ func (w *Worker) Query(ctx context.Context, sql string, args ...Val) (r Result, 
 	return r, err
 }
 
+// Run runs f on the connection as one request: nothing else runs on it in
+// between, so f can keep a transaction open (§12 快速 SQL).
+func (w *Worker) Run(ctx context.Context, f func(context.Context, Conn) error) error {
+	return w.do(ctx, func(ctx context.Context) error { return f(ctx, w.conn) })
+}
+
 // Cancel cancels the request running now, if any; queued ones still run.
 func (w *Worker) Cancel() {
 	w.mu.Lock()

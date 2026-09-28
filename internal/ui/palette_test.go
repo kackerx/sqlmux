@@ -17,7 +17,7 @@ func TestPaletteColumns(t *testing.T) {
 		{Icon: Icon{Text: ":"}, Name: long, Where: "w-three", Tag: "命令", Pos: []int{59}},
 	}}
 	f := NewFrame(160, 45, TokyonightStorm)
-	box, _ := PaletteBox(uv.Rect(0, 0, 160, 44), len(p.Rows))
+	box, _, _ := PaletteBox(uv.Rect(0, 0, 160, 44), len(p.Rows), false)
 	p.Draw(f, uv.Rect(0, 0, 160, 44))
 	lines := strings.Split(f.String(), "\n")
 	var starts []int
@@ -42,6 +42,23 @@ func TestPaletteColumns(t *testing.T) {
 		}
 		if f.Buf.CellAt(want-3, y).Style.Bg == TokyonightStorm.Warn {
 			t.Error("a match cut off by the … must not light the … up")
+		}
+	}
+}
+
+// With a result the box reaches a row above the status bar and the table
+// keeps 8 rows, the list giving up rows first (§12).
+func TestPaletteBoxResult(t *testing.T) {
+	for _, c := range []struct{ h, n, rows, gridH int }{
+		{44, 20, 12, 15}, // tall: 12 listed, the table the rest
+		{30, 20, 7, 8},   // shorter: the list shrinks to keep the table at 8
+		{20, 20, 0, 8},   // short: no list at all
+		{44, 0, 0, 28},   // nothing listed: no rule under the list either
+	} {
+		screen := uv.Rect(0, 0, 160, c.h)
+		box, rows, grid := PaletteBox(screen, c.n, true)
+		if box.Max.Y != c.h-1 || rows != c.rows || grid.Dy() != c.gridH || grid.Max.Y != box.Max.Y-3 {
+			t.Errorf("h %d n %d: box %v rows %d grid %v", c.h, c.n, box, rows, grid)
 		}
 	}
 }
