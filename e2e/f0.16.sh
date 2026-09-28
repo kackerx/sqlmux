@@ -59,7 +59,7 @@ check "ascii: the palette entry still reads ~ C-p, the filter row keeps /" eval 
 # ---- the palette: commands only useful while editing a cell are not candidates
 start; pal '>'
 seen=""; for i in $(seq 90); do seen+=$'\n'"$(selected)"; e2e_keys Down; sleep 0.03; done
-check "empty command scope lists no cell.* commands (确定 / 完成编辑 / 加一 / 减一 / 下一段 / 上一段)" eval '! grep -qE "cell\.|^确定|^完成编辑|^加一|^减一|^下一段|^上一段" <<<"$seen" && grep -q "pane.zoom" <<<"$seen"'
+check "empty command scope lists no cell-only commands (确定 / 完成编辑 / 加一 / 减一 / 下一段 / 上一段); F2.3's 设为 NULL / DEFAULT are listed" eval '! grep -qE "cell\.(accept|done|up|down|segment)|^确定|^完成编辑|^加一|^减一|^下一段|^上一段" <<<"$seen" && grep -q "pane.zoom" <<<"$seen" && grep -q "cell.null" <<<"$seen"'
 e2e_keys Escape
 
 e2e_done
