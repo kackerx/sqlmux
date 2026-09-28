@@ -137,7 +137,7 @@ func TestHover(t *testing.T) {
 // The wheel scrolls the pane under the pointer, whatever has focus; the
 // tree's view moves and pulls the cursor along, as in nvim (§7.8).
 func TestWheelScrollsPaneUnderPointer(t *testing.T) {
-	a := sized(160, 18, "nerd") // 14 tables, 11 rows shown
+	a := sized(160, 18, "nerd") // 22 nodes, 11 rows shown
 	tree := &a.win().tree
 	wheel := func(id int, b tea.MouseButton) {
 		r := a.layout()[id]
@@ -151,18 +151,21 @@ func TestWheelScrollsPaneUnderPointer(t *testing.T) {
 	if tree.top != wheelStep || tree.cursor != wheelStep || a.win().Focus != 1 {
 		t.Fatalf("tree top %d cursor %d, focus %d", tree.top, tree.cursor, a.win().Focus)
 	}
-	// inside the border: the filter line and its rule, then the tables
+	// inside the border: the filter line and its rule, then the nodes
 	first := strings.Split(a.render().String(), "\n")[a.layout()[0].Min.Y+3]
-	if !strings.Contains(first, " mt_task ") {
-		t.Errorf("the tree should start %d tables down: %q", wheelStep, first)
+	if !strings.Contains(first, " Tables (14) ") {
+		t.Errorf("the tree should start %d nodes down: %q", wheelStep, first)
 	}
-	wheel(0, tea.MouseWheelDown)
-	if tree.top != 14-11 {
-		t.Fatalf("the last table stops at the bottom: top %d", tree.top)
+	for range 4 {
+		wheel(0, tea.MouseWheelDown)
 	}
-	tree.cursor = 13
-	wheel(0, tea.MouseWheelUp)
-	wheel(0, tea.MouseWheelUp)
+	if tree.top != 22-11 {
+		t.Fatalf("the last node stops at the bottom: top %d", tree.top)
+	}
+	a.treeGo(21)
+	for range 4 {
+		wheel(0, tea.MouseWheelUp)
+	}
 	if tree.top != 0 || tree.cursor != 10 {
 		t.Fatalf("scrolling up stops at the top: top %d, cursor %d kept in view", tree.top, tree.cursor)
 	}
@@ -240,43 +243,29 @@ func TestDragSidebarEdge(t *testing.T) {
 	}
 }
 
-// The sidebar's title is the schema, one button for tree.schema (§7.8).
-func TestSidebarSchemaTitle(t *testing.T) {
-	a := sized(160, 45, "nerd")
-	top := strings.Split(a.render().String(), "\n")[0]
-	if !strings.HasPrefix(top, "┌─ ⓪ "+ui.NerdIcons.Schema.Text+" public ▾ ─") || !strings.Contains(top, "SPC b ─┐") {
-		t.Fatalf("title: %q", top)
-	}
-	r := find(t, a, ui.Target{Kind: ui.KindHint, Action: "tree.schema"})
-	if r.Min.X != 2 || r.Dx() != ui.Width(" ⓪ "+ui.NerdIcons.Schema.Text+" public ▾ ") {
-		t.Errorf("the button covers the whole title: %v", r)
-	}
-	click(a, uv.Pos(r.Min.X+5, 0))
-	if a.win().Focus != 0 || a.drop == nil {
-		t.Error("clicking the title focuses the sidebar and opens the schema dropdown")
-	}
-}
-
-// A narrow sidebar keeps ⓪ <icon> and cuts the schema before it gives up
-// SPC b's room (§7.8); ascii at 24 columns still reads public ▾ whole.
-func TestSidebarTitleNarrow(t *testing.T) {
-	sch := ui.NerdIcons.Schema.Text
+// The sidebar's title is the session (§7.8): a click only focuses it; a
+// narrow one keeps ⓪ <icon>, drops SPC b and then cuts the name.
+func TestSidebarTitle(t *testing.T) {
+	conn := ui.NerdIcons.Conn.Text
 	for _, c := range []struct {
 		icons string
 		w     int
 		want  string
 	}{
-		{"nerd", 16, "┌─ ⓪ " + sch + " pub… ▾ ─┐"},
-		{"nerd", 17, "┌─ ⓪ " + sch + " publ… ▾ ─┐"},
-		{"nerd", 18, "┌─ ⓪ " + sch + " public ▾ ─┐"},
-		{"nerd", 22, "┌─ ⓪ " + sch + " public ▾ ─────┐"},
-		{"nerd", 26, "┌─ ⓪ " + sch + " public ▾ ─ SPC b ─┐"},
-		{"ascii", 24, "┌─ ⟨0⟩ # public ▾ ─────┐"},
+		{"nerd", 16, "┌─ ⓪ " + conn + " dorae… ─┐"},
+		{"nerd", 20, "┌─ ⓪ " + conn + " doraemon ───┐"},
+		{"nerd", 28, "┌─ ⓪ " + conn + " doraemon ─── SPC b ─┐"},
+		{"ascii", 24, "┌─ ⟨0⟩ @ doraemon ─────┐"},
 	} {
 		a := sized(160, 45, c.icons)
 		a.win().TreeW = c.w
 		if top := string([]rune(strings.Split(a.render().String(), "\n")[0])[:c.w]); top != c.want {
 			t.Errorf("%s %d: %q, want %q", c.icons, c.w, top, c.want)
 		}
+	}
+	a := sized(160, 45, "nerd")
+	click(a, uv.Pos(6, 0))
+	if a.win().Focus != 0 || a.drop != nil {
+		t.Error("clicking the title focuses the sidebar, nothing else")
 	}
 }

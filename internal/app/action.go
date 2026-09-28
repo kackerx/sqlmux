@@ -93,12 +93,13 @@ func init() {
 			On: func(a *App) bool { return a.win().TreeOpen }},
 		"tree.down":     {Title: "下移", Run: do(func(a *App, args Args) { a.treeMove(max(args.Count, 1)) })},
 		"tree.up":       {Title: "上移", Run: do(func(a *App, args Args) { a.treeMove(-max(args.Count, 1)) })},
-		"tree.top":      {Title: "第一项", Run: do(func(a *App, _ Args) { a.treeMove(-a.win().tree.cursor) })},
-		"tree.bottom":   {Title: "最后一项", Run: do(func(a *App, _ Args) { _, ms := a.treeTables(); a.treeMove(len(ms)) })}, // clamped to the last
+		"tree.top":      {Title: "第一项", Run: do(func(a *App, _ Args) { a.treeGo(0) })},
+		"tree.bottom":   {Title: "最后一项", Run: do(func(a *App, _ Args) { ns, _ := a.treeNodes(); a.treeGo(len(ns) - 1) })},
+		"tree.expand":   {Title: "展开", Run: func(a *App, _ Args) tea.Cmd { return a.treeExpand() }},
+		"tree.collapse": {Title: "折叠 / 到上一级", Run: func(a *App, _ Args) tea.Cmd { return a.treeCollapse() }},
 		"tree.open":     {Title: "打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(false) }},
 		"tree.open.tab": {Title: "在新 tab 打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(true) }},
 		"tree.filter":   {Title: "过滤", Run: do(func(a *App, _ Args) { a.treeFilter() })},
-		"tree.schema":   {Title: "切换 schema", Run: do(func(a *App, _ Args) { a.openDrop(dropSchema) })},
 		"tree.refresh":  {Title: "刷新表列表", Run: func(a *App, _ Args) tea.Cmd { clear(a.sess.cols); return a.loadCatalog() }},
 		// Keys inside the dropdowns and the COLS list (§6.8): untitled, like the palette's.
 		"dropdown.up":     {Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(-1); return nil })},

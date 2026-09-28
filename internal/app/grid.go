@@ -46,6 +46,7 @@ type dataTab struct {
 	hidden   map[string]bool // columns COLS hides
 	pageIn   ui.Input        // PAGE's page number, while typed
 	typing   string          // the input that has the keys: "where", "page" or ""
+	wantCol  string          // the column the cursor goes to once a page is in: a column node's ↵ (§7.8)
 	comp     *completion     // the WHERE's candidates, while typed (§9.7)
 	hist     *histMenu       // the WHERE's history and favorites, while open (Q-02)
 	recount  bool            // a count is owed once a page is in: a request asked for one (§8.3)
@@ -165,6 +166,10 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	}
 	t.err, t.cols, t.page, t.next, t.shown = "", m.cols, m.page, m.next, t.request
 	t.row = max(min(t.row, len(t.page.Rows)-1), 0)
+	if i := slices.IndexFunc(t.shownCols(), func(f int) bool { return t.page.Cols[f].Name == t.wantCol }); i >= 0 {
+		t.col = i
+	}
+	t.wantCol = ""
 	t.col = max(min(t.col, len(t.shownCols())-1), 0)
 	if t.recount {
 		t.recount = false

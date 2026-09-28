@@ -179,21 +179,26 @@ func (a *App) paletteMatches() (items []paletteItem, ms []ui.Match) {
 }
 
 // tabItems is the window's tabs of t: where each is, "① · 2", and what it
-// shows when not all rows in the default order, in dim (§7.8「打开已有的表」).
+// shows, in dim (§7.8「打开已有的表」).
 func (a *App) tabItems(t db.Table) []paletteItem {
 	var items []paletteItem
 	for k, at := range a.tabsOf(t) {
-		where := []string{a.icons.Number(at.n) + " · " + strconv.Itoa(at.i+1)}
-		s := at.p.Tabs[at.i].Data.shown
-		if strings.TrimSpace(s.applied) != "" {
-			where = append(where, s.applied)
-		}
-		if s.order != "" {
-			where = append(where, sortedBy(s.order, s.desc))
-		}
+		where := append([]string{a.icons.Number(at.n) + " · " + strconv.Itoa(at.i+1)}, tabSummary(at.p.Tabs[at.i].Data)...)
 		items = append(items, paletteItem{itemTab, strconv.Itoa(k), a.icons.Table, t.Name, strings.Join(where, " · ")})
 	}
 	return items
+}
+
+// tabSummary is what t shows when not all rows in the default order: its
+// WHERE, its ORDER (§7.8).
+func tabSummary(t *dataTab) (out []string) {
+	if s := t.shown; strings.TrimSpace(s.applied) != "" {
+		out = append(out, s.applied)
+	}
+	if s := t.shown; s.order != "" {
+		out = append(out, sortedBy(s.order, s.desc))
+	}
+	return out
 }
 
 // paletteView is what the palette draws.

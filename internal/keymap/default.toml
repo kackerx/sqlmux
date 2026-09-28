@@ -66,10 +66,11 @@ leader = "<Space>"
 "k" = "tree.up"
 "gg" = "tree.top"
 "G" = "tree.bottom"
+"l" = "tree.expand"
+"h" = "tree.collapse"
 "<CR>" = "tree.open"
 "t" = "tree.open.tab"
 "/" = "tree.filter"
-"gs" = "tree.schema"
 "R" = "tree.refresh"
 
 [keys.console] # NORMAL / VISUAL; everything else goes to the vim engine

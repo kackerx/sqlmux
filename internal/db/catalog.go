@@ -5,7 +5,11 @@ package db
 type Table struct {
 	Schema, Name string
 	Rows         float64 // the server's estimate; < 0 when it has none
+	Kind         string  // pg_class.relkind: r, p, f are tables; v, m views
 }
+
+// View reports whether t is listed under Views, not Tables (§7.8).
+func (t Table) View() bool { return t.Kind == "v" || t.Kind == "m" }
 
 // Column is one column's attributes, for the grid and the cell editor
 // (§8.4, §10.2).

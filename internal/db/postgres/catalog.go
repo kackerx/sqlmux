@@ -34,7 +34,7 @@ func Schemas(ctx context.Context, c db.Conn) (schemas []string, current string, 
 // out: their parent stands for them.
 func Tables(ctx context.Context, c db.Conn) ([]db.Table, error) {
 	r, err := c.Query(ctx, `
-select n.nspname, c.relname, c.reltuples
+select n.nspname, c.relname, c.reltuples, c.relkind
 from pg_class c join pg_namespace n on n.oid = c.relnamespace
 where c.relkind in ('r', 'p', 'v', 'm', 'f') and not c.relispartition and `+userSchema+`
 order by 1, 2`)
@@ -47,7 +47,7 @@ order by 1, 2`)
 		if err != nil {
 			return nil, err
 		}
-		ts[i] = db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows}
+		ts[i] = db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: row[3].S}
 	}
 	return ts, nil
 }

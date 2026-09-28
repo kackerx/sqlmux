@@ -2,35 +2,45 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"strconv"
 	"strings"
 
 	uv "github.com/charmbracelet/ultraviolet"
 )
 
-// TreeItem is one table in the schema tree.
-type TreeItem struct {
-	Name string
-	Rows float64 // estimated row count; < 0 when unknown
-	Pos  []int   // filter match positions in Name
-	Open bool    // the table ↵ would land on (§7.8)
+// TreeNode is one row of the tree (§7.8): at Depth, with ▸ / ▾ before it
+// when it has children, its icon (IconFg unless a theme colors it), the
+// text, dim Aside after it, and Note on the right in NoteFg.
+type TreeNode struct {
+	Depth        int
+	Branch, Open bool
+	Icon         Icon
+	IconFg       color.Color
+	Text         string
+	Pos          []int // filter match positions in Text
+	Aside        string
+	Note         string
+	NoteFg       color.Color
+	Current      bool // the table ↵ lands on, the focused tab: in focus color
 }
 
 // Tree is the ⟨0⟩ sidebar inside its border (§7.8): the filter row, the
-// tables, and the hint row.
+// nodes, and the hint row.
 type Tree struct {
-	Items       []TreeItem // what passes the filter
-	Total       int        // the schema's tables, filter or not
+	Nodes       []TreeNode // those showing, filter or not
+	Total       int        // the tables and views of every schema
+	Matches     int        // those the filter keeps
 	Filter      Input
 	Filtering   bool // the filter row is the input keys go to
-	Cursor, Top int  // into Items
+	Cursor, Top int  // into Nodes
 	Focused     bool
 	Icons       *Icons
 	Hints       []Hint
 	Pane        int
 }
 
-// TreeRows is how many tables a sidebar of inner height h lists.
+// TreeRows is how many nodes a sidebar of inner height h lists.
 func TreeRows(h int) int { return max(h-4, 0) }
 
 // Draw paints the tree over in and returns where the filter's cursor goes,
@@ -50,7 +60,7 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 		x = f.Text(x, y, right, "/ ", uv.Style{Fg: th.Fg, Bg: th.PaneBg})
 	}
 	if t.Filtering || t.Filter.Text != "" {
-		count := fmt.Sprintf("%d/%d", len(t.Items), t.Total)
+		count := fmt.Sprintf("%d/%d", t.Matches, t.Total)
 		cx := right - Width(count)
 		f.Text(cx, y, right, count, dim)
 		if c := t.Filter.Draw(f, uv.Rect(x, y, max(cx-1-x, 0), 1), uv.Style{Fg: th.Fg, Bg: th.PaneBg}); t.Filtering {
@@ -65,8 +75,8 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 	}
 	sep(y + 1)
 	list := uv.Rect(in.Min.X, y+2, in.Dx(), TreeRows(in.Dy()))
-	for i := t.Top; i < min(t.Top+list.Dy(), len(t.Items)); i++ {
-		it, row := t.Items[i], list.Min.Y+i-t.Top
+	for i := t.Top; i < min(t.Top+list.Dy(), len(t.Nodes)); i++ {
+		n, row := t.Nodes[i], list.Min.Y+i-t.Top
 		line := uv.Rect(list.Min.X, row, list.Dx(), 1)
 		bg := th.PaneBg
 		switch hover := f.Region(line, Target{Kind: KindTable, Pane: t.Pane, I: i}); {
@@ -76,18 +86,33 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 			bg = th.Row
 		}
 		f.Fill(line, uv.Style{Bg: bg})
-		icon, name := uv.Style{Fg: th.Func, Bg: bg}, uv.Style{Fg: th.Fg, Bg: bg}
-		if it.Open {
-			icon.Fg, name.Fg = th.Focus, th.Focus
+		icon, text := uv.Style{Fg: n.IconFg, Bg: bg}, uv.Style{Fg: th.Fg, Bg: bg}
+		if n.IconFg == nil {
+			icon.Fg = th.Fg
 		}
-		rows := Magnitude(it.Rows)
-		cx := right - Width(rows)
-		x := f.Text(list.Min.X+1, row, right, t.Icons.Table.Text, t.Icons.Table.On(icon))
-		x = f.Text(x, row, right, " ", icon)
-		// cut with …, as titles and the palette are: mv_order_by_stat would read as another table (§7.8)
-		n, pos := TruncateMatch(it.Name, it.Pos, cx-1-x)
-		f.TextMatch(x, row, cx-1, n, pos, name)
-		f.Text(cx, row, right, rows, uv.Style{Fg: th.Border, Bg: bg})
+		if n.Current {
+			icon.Fg, text.Fg = th.Focus, th.Focus
+		}
+		x := list.Min.X + 1 + 2*n.Depth
+		if n.Branch { // its own button: open or close, whatever the row does (§7.8)
+			f.Region(uv.Rect(x, row, 1, 1), Target{Kind: KindFold, Pane: t.Pane, I: i})
+			f.Text(x, row, right, map[bool]string{false: "▸", true: "▾"}[n.Open], uv.Style{Fg: th.Dim, Bg: bg})
+		}
+		x += 2
+		if n.Icon.Text != "" {
+			x = f.Text(x, row, right, n.Icon.Text, n.Icon.On(icon))
+			x = f.Text(x, row, right, " ", icon) // a space after every icon (§7.7)
+		}
+		room := right - x
+		if w := Width(n.Note); n.Note != "" && Width(n.Text)+1+w <= room { // the name goes first (§7.8)
+			f.Text(right-w, row, right, n.Note, uv.Style{Fg: n.NoteFg, Bg: bg})
+			room -= w + 1
+		}
+		name, pos := TruncateMatch(n.Text, n.Pos, room)
+		x = f.TextMatch(x, row, x+room, name, pos, text)
+		if n.Aside != "" && name == n.Text {
+			f.Text(x, row, x+max(room-Width(name), 0), Truncate("  "+n.Aside, room-Width(name)), uv.Style{Fg: th.Dim, Bg: bg})
+		}
 	}
 	if in.Dy() >= 4 {
 		sep(in.Max.Y - 2)

@@ -94,11 +94,13 @@ func (w *Window) pane(id int) *Pane {
 // Session is one connection (tech-design §5).
 type Session struct {
 	Name       string
-	Addr       string     // shown in the status bar, e.g. ctw@localhost:5432
-	Main, Meta *db.Worker // §8.2
-	Schema     string     // where the schema tree is (§8.6)
-	Schemas    []string   // the catalog's (§8.4)
-	Tables     []db.Table // every schema's, by schema and name
+	Addr       string          // shown in the status bar, e.g. ctw@localhost:5432
+	Main, Meta *db.Worker      // §8.2
+	Schema     string          // the tree's schema: the cursor's, or the last it was under (§7.8)
+	Schemas    []string        // the catalog's (§8.4)
+	home       string          // current_schema(), whose Tables the tree opens with
+	open       map[string]bool // tree nodes opened or closed by hand, by node ID; the rest as §7.8 says
+	Tables     []db.Table      // every schema's, by schema and name
 	cols       map[tableID]db.Columns
 	Windows    []*Window
 	Active     int

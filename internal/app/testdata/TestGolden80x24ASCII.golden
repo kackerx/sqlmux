@@ -1,23 +1,23 @@
-┌─ ⟨0⟩ # public ▾ ─────┐ ┌─ ⟨1⟩ = data ────────────────────────────────────────┐
-│ ? / 14 tables        │ │                                                     │
+┌─ ⟨0⟩ @ doraemon ─────┐ ┌─ ⟨1⟩ = data ────────────────────────────────────────┐
+│ ? / 15 tables        │ │                                                     │
 │──────────────────────│ │                                                     │
-│ + agent          124 │ │                                                     │
-│ + agent_version  530 │ │                                                     │
-│ + goal            57 │ │                                                     │
-│ + mt_task        812 │ │                                                     │
-│ + mt_task_log    96k │ │                                                     │
-│ + schema_migrati… 88 │ │                                                     │
-│ + t_order       1.2m │ │                                                     │
-│ + t_order_item  3.4m │ │                                                     │
-│ + t_payment     410k │ │                                                     │
-│ + t_refund       12k │ │                                                     │
-│ + t_sku         8.1k │ │                                                     │
-│ + t_user         38k │ │                                                     │
-│ + t_user_address 52k │ │                                                     │
-│ + t_user_profile 38k │ │                                                     │
-│                      │ │                                                     │
-│                      │ │                                                     │
-│                      │ │                                                     │
+│ ▾ pg doraemon        │ │                                                     │
+│   ▸ # agentable      │ │                                                     │
+│   ▾ # public         │ │                                                     │
+│     ▾ + Tables (14)  │ │                                                     │
+│       ▸ + agent  124 │ │                                                     │
+│       ▸ + agent_ver… │ │                                                     │
+│       ▸ + goal    57 │ │                                                     │
+│       ▸ + mt_task    │ │                                                     │
+│       ▸ + mt_task_l… │ │                                                     │
+│       ▸ + schema_mi… │ │                                                     │
+│       ▸ + t_order    │ │                                                     │
+│       ▸ + t_order_i… │ │                                                     │
+│       ▸ + t_payment  │ │                                                     │
+│       ▸ + t_refund   │ │                                                     │
+│       ▸ + t_sku 8.1k │ │                                                     │
+│       ▸ + t_user 38k │ │                                                     │
+│       ▸ + t_user_ad… │ │                                                     │
 │──────────────────────│ │                                                     │
 │ j/k move · ↵ open    │ │ +                                                   │
 └──────────────────────┘ └─────────────────────────────────────────────────────┘

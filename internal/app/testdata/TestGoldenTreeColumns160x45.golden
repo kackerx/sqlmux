@@ -11,7 +11,14 @@
 │       ▸  mt_task        812 │ │                                                                                                                             │
 │       ▸  mt_task_log    96k │ │                                                                                                                             │
 │       ▸  schema_migrations  │ │                                                                                                                             │
-│       ▸  t_order       1.2m │ │                                                                                                                             │
+│       ▾  t_order       6.0k │ │                                                                                                                             │
+│            id        bigint │ │                                                                                                                             │
+│            status           │ │                                                                                                                             │
+│            amount           │ │                                                                                                                             │
+│            paid     boolean │ │                                                                                                                             │
+│            meta       jsonb │ │                                                                                                                             │
+│            note        text │ │                                                                                                                             │
+│            created_at       │ │                                                                                                                             │
 │       ▸  t_order_item  3.4m │ │                                                                                                                             │
 │       ▸  t_payment     410k │ │                                                                                                                             │
 │       ▸  t_refund       12k │ │                                                                                                                             │
@@ -23,13 +30,6 @@
 │ ▾  工作区                   │ │                                                                                                                             │
 │   ▾  data                   │ │                                                                                                                             │
 │       ①                     │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
 │                              │ │                                                                                                                             │
 │                              │ │                                                                                                                             │
 │                              │ │                                                                                                                             │

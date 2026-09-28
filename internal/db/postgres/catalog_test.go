@@ -28,10 +28,10 @@ func TestTables(t *testing.T) {
 		t.Fatal(err)
 	}
 	var names []string
-	rows := map[string]float64{}
+	rows, kinds := map[string]float64{}, map[string]string{}
 	for _, tb := range ts {
 		names = append(names, tb.Schema+"."+tb.Name)
-		rows[tb.Name] = tb.Rows
+		rows[tb.Name], kinds[tb.Name] = tb.Rows, tb.Kind
 	}
 	want := []string{
 		"agentable.agent", "agentable.agent_version", "agentable.goal",
@@ -43,6 +43,9 @@ func TestTables(t *testing.T) {
 	}
 	if rows["t_order"] != 6000 || rows["v_paid_order"] >= 0 {
 		t.Errorf("estimates: t_order %v, a view %v", rows["t_order"], rows["v_paid_order"])
+	}
+	if kinds["t_order"] != "r" || kinds["t_event"] != "p" || kinds["v_paid_order"] != "v" || kinds["mv_order_by_status"] != "m" {
+		t.Errorf("kinds %v", kinds) // what sorts them into Tables and Views (§7.8)
 	}
 }
 

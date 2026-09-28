@@ -1,29 +1,29 @@
-┌─ ⓪  public ▾ ─────── SPC b ─┐ ┌─ ①  t_order ───────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  14 tables                  │ │ WHERE                                                                                                                     ▾ │
+┌─ ⓪  doraemon ─────── SPC b ─┐ ┌─ ①  t_order ───────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  15 tables                  │ │ WHERE                                                                                                                     ▾ │
 │──────────────────────────────│ │  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7                                                           auto · … 行 · 0s │
-│  agent                  124 │ │            │ 1                            │ 2                                   │ 3                            │ 4          │
-│  agent_version          530 │ │────────────┼──────────────────────────────┼─────────────────────────────────────┼──────────────────────────────┼────────────│
-│  goal                    57 │ │  id       │                            1 │                                   2 │                            3 │            │
-│  mt_task                812 │ │ status     │ running                      │ done                                │ failed                       │ pending    │
-│  mt_task_log            96k │ │ amount     │                         1.99 │                                2.99 │                         3.99 │            │
-│  schema_migrations       88 │ │ paid       │ t                            │ t                                   │ t                            │ t          │
-│  t_order               1.2m │ │ meta       │ {"n": 1, "tags": ["a", "b"]} │ {"n": 2, "tags": ["a", "b"]}        │ {"n": 3, "tags": ["a", "b"]} │ {"n": 4, "t│
-│  t_order_item          3.4m │ │ note       │ note 1                       │ line one↵line two after tab [31mred │ <null>                       │ note 4     │
-│  t_payment             410k │ │ created_at │ 2026-09-01 00:01:00+00       │ 2026-09-01 00:02:00+00              │ 2026-09-01 00:03:00+00       │ 2026-09-01 │
-│  t_refund               12k │ │                                                                                                                             │
-│  t_sku                 8.1k │ │                                                                                                                             │
-│  t_user                 38k │ │                                                                                                                             │
-│  t_user_address         52k │ │                                                                                                                             │
-│  t_user_profile         38k │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
+│ ▾  doraemon                 │ │            │ 1                            │ 2                                   │ 3                            │ 4          │
+│   ▸  agentable              │ │────────────┼──────────────────────────────┼─────────────────────────────────────┼──────────────────────────────┼────────────│
+│   ▾  public                 │ │  id       │                            1 │                                   2 │                            3 │            │
+│     ▾  Tables (14)          │ │ status     │ running                      │ done                                │ failed                       │ pending    │
+│       ▸  agent          124 │ │ amount     │                         1.99 │                                2.99 │                         3.99 │            │
+│       ▸  agent_version  530 │ │ paid       │ t                            │ t                                   │ t                            │ t          │
+│       ▸  goal            57 │ │ meta       │ {"n": 1, "tags": ["a", "b"]} │ {"n": 2, "tags": ["a", "b"]}        │ {"n": 3, "tags": ["a", "b"]} │ {"n": 4, "t│
+│       ▸  mt_task        812 │ │ note       │ note 1                       │ line one↵line two after tab [31mred │ <null>                       │ note 4     │
+│       ▸  mt_task_log    96k │ │ created_at │ 2026-09-01 00:01:00+00       │ 2026-09-01 00:02:00+00              │ 2026-09-01 00:03:00+00       │ 2026-09-01 │
+│       ▸  schema_migrations  │ │                                                                                                                             │
+│       ▸  t_order       1.2m │ │                                                                                                                             │
+│       ▸  t_order_item  3.4m │ │                                                                                                                             │
+│       ▸  t_payment     410k │ │                                                                                                                             │
+│       ▸  t_refund       12k │ │                                                                                                                             │
+│       ▸  t_sku         8.1k │ │                                                                                                                             │
+│       ▸  t_user         38k │ │                                                                                                                             │
+│       ▸  t_user_address 52k │ │                                                                                                                             │
+│       ▸  t_user_profile 38k │ │                                                                                                                             │
+│        Views (0)            │ │                                                                                                                             │
+│ ▾  工作区                   │ │                                                                                                                             │
+│   ▾  data                   │ │                                                                                                                             │
+│     ▾ ①                     │ │                                                                                                                             │
+│          t_order            │ │                                                                                                                             │
 │                              │ │                                                                                                                             │
 │                              │ │                                                                                                                             │
 │                              │ │                                                                                                                             │

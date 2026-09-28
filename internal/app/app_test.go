@@ -43,7 +43,7 @@ func (noDB) Close() error                                                { retur
 // public and one in agentable, with no database behind it.
 func testSession() *Session {
 	s := newSession("doraemon", "pg@localhost:5432", db.NewWorker(noDB{}), db.NewWorker(noDB{}))
-	s.Schema, s.Schemas = "public", []string{"agentable", "public"}
+	s.Schema, s.Schemas, s.home = "public", []string{"agentable", "public"}, "public"
 	s.Tables = []db.Table{{Schema: "agentable", Name: "planner", Rows: 3}}
 	for _, t := range []struct {
 		name string
@@ -419,7 +419,7 @@ func TestOpenExistingTab(t *testing.T) {
 		t.Errorf("C-t in the pick: tabs %v cur %d, %d fetches", tabNames(right), right.Cur, a.busy)
 	}
 	a.win().focus(0)
-	a.win().tree.cursor = slices.IndexFunc(a.sess.Tables[1:], func(t db.Table) bool { return t.Name == "t_user" })
+	treeTo(t, a, "t_user")
 	if feed(t, a, "<CR>"); a.palette == nil || a.palette.pick == nil || len(rowsOf(a)) != 3 {
 		t.Fatal("the tree's ↵ picks too")
 	}

@@ -226,20 +226,20 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 		return
 	}
 	paneRegions(f, win.Tree.ID, r)
-	b := ui.Block{
-		Num:     a.icons.Number(0),
-		Icon:    a.icons.Schema,
-		Hints:   bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
-		Focused: win.Focus == win.Tree.ID,
-		Pane:    win.Tree.ID,
-	}
-	if a.sess.Schema != "" { // the whole title opens the schema dropdown (§7.8)
-		b.Object, b.Suffix, b.ObjectFirst, b.TitleAction = a.sess.Schema, " ▾", true, "tree.schema"
+	b := ui.Block{ // the session's: the name goes before SPC b (§7.8)
+		Num:         a.icons.Number(0),
+		Icon:        a.icons.Conn,
+		Object:      a.sess.Name,
+		ObjectFirst: true,
+		Hints:       bound(ui.Hint{Key: a.keys.Hint("tree.toggle", "normal"), Action: "tree.toggle"}),
+		Focused:     win.Focus == win.Tree.ID,
+		Pane:        win.Tree.ID,
 	}
 	in := b.Draw(f, r)
-	ts, ms := a.treeTables()
+	ns, matches := a.treeNodes()
 	t := ui.Tree{
-		Total:     len(ts),
+		Total:     len(a.sess.Tables),
+		Matches:   matches,
 		Filter:    win.tree.filter,
 		Filtering: win.tree.filtering,
 		Focused:   b.Focused,
@@ -251,14 +251,9 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 		),
 		Pane: win.Tree.ID,
 	}
-	t.Cursor, t.Top = treeView(win.tree.cursor, win.tree.top, len(ms), ui.TreeRows(in.Dy()))
-	open := "" // the table ↵ would land on (§7.8)
-	if p := a.openTarget(); p != nil {
-		open = p.Object()
-	}
-	for _, m := range ms {
-		tb := ts[m.Index]
-		t.Items = append(t.Items, ui.TreeItem{Name: tb.Name, Rows: tb.Rows, Pos: m.Pos, Open: tb.Name == open})
+	t.Cursor, t.Top = a.treeAt(ns)
+	for _, n := range ns {
+		t.Nodes = append(t.Nodes, n.TreeNode)
 	}
 	if c := t.Draw(f, in); c.X >= 0 {
 		f.Cursor = &c

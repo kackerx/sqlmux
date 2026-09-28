@@ -145,7 +145,7 @@ func TestEmptyPane(t *testing.T) {
 	}
 	f, r := a.render(), a.layout()[p.ID]
 	lines := strings.Split(f.String(), "\n")
-	cells := func(y int) string { return strings.TrimSpace(string([]rune(lines[y])[r.Min.X+1 : r.Max.X-1])) }
+	cells := func(y int) string { return strings.TrimSpace(ansi.Cut(lines[y], r.Min.X+1, r.Max.X-1)) } // by cells: the tree's 工作区 is wide
 	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ① "+ui.NerdIcons.Console.Text+" ─") || strings.Contains(top, "run") || strings.Contains(top, "▾") {
 		t.Errorf("title, with no hints: %q", top)
 	}
@@ -290,7 +290,7 @@ table = { fg = "#a9dc76" }
 	if st := cell(0, "C console"); st.Fg != ic.Console.Fg {
 		t.Errorf("console icon %v, want %v", st.Fg, ic.Console.Fg)
 	}
-	if st := cell(3, ui.NerdIcons.Table.Text); st.Fg != ic.Table.Fg {
+	if st := cell(7, ui.NerdIcons.Table.Text); st.Fg != ic.Table.Fg { // the first table, under doraemon, public and Tables
 		t.Errorf("table icon %v, want %v", st.Fg, ic.Table.Fg)
 	}
 }
