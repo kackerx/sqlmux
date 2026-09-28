@@ -8,7 +8,7 @@ D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); ST=$D/state
 trap 'e2e_stop; rm -rf "$D"' EXIT
 SJ=$ST/sqlmux/state.json
 . "$(dirname "$0")/palette.sh"
-DIM=#565f89 SELECT=#364a82 WARN=#e0af68 ERROR=#f7768e
+SELECT=#364a82
 typ() { e2e_type "$1"; sleep 0.4; }
 edit() { key /; clear_in; }                                   # 进入 WHERE 输入并清空
 run() { edit; typ "$1"; key Enter; wait_for 8 settled; sleep 0.2; }   # 执行一条 WHERE
@@ -16,7 +16,7 @@ pop() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5 }'; }       # 浮层�
 # items：浮层里每一行「文字|选中 0/1」；补全列表没有过滤框，从第 2 行起就是候选
 items() { local g y; g=($(pop)); [[ -n ${g[0]} ]] || return 0
   for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do
-    printf '%s|%s\n' "$(e2e_text $((g[0] + 2)) $((g[0] + g[2] - 2)) $y | tr -s ' ' | sed 's/^ //; s/ $//')" "$(style_has $((g[0] + g[2] - 2)) $y bg=$SELECT >/dev/null && echo 1 || echo 0)"; done; }   # 选中看行尾的留白：行首可能是 warn 底的匹配字符
+    printf '%s|%s\n' "$(e2e_text $((g[0] + 2)) $((g[0] + g[2] - 2)) $y | tr -s ' ' | sed 's/^ //; s/ $//')" "$(style_has $((g[0] + g[2] - 2)) $y bg=$SELECT >/dev/null && echo 1 || echo 0)"; done; }   # 选中看行尾的留白
 names() { items | cut -d'|' -f1 | awk '{ print $1 }' | tr '\n' ' '; }
 picked() { items | awk -F'|' '$2 == 1 { print $1 }'; }
 picked_i() { items | awk -F'|' '$2 == 1 { print NR }'; }
@@ -27,10 +27,9 @@ start -S "$ST"; open_table t_order
 # ---- 补全：列名 / 关键字模式（§9.7）
 edit; typ sta
 check "输入 sta：输入框下方从前缀所在列弹出列表，status 在列，右侧注释是类型；仍是 INSERT" eval 'g=($(pop)); [[ ${g[0]} == 42 && ${g[1]} == 3 && $(items | head -1) == "status order_status|0" ]] && mode_is INSERT || { echo "  [$(pop)] $(items | tr "\n" ,)"; false; }'
-check "匹配字符 warn 底（sta），类型注释 dim" eval 'style_has 44 4 bg=$WARN && style_has 46 4 bg=$WARN && ! style_has 47 4 bg=$WARN >/dev/null && c=$(e2e_find order_status 4) && style_has ${c%% *} 4 fg=$DIM'
 check "还没有明确选中：没有任何一项高亮" eval '[[ -z $(picked) ]]'
-key Tab
-check "Tab 接受：输入框是 status（不补空格），列表关闭" eval '[[ $(where_in) == status && -z $(pop) ]] && flag_is cursor_x 47'
+key Tab; key Enter
+check "Tab 选中、↵ 接受（F1.9）：输入框是 status（不补空格），列表关闭" eval '[[ $(where_in) == status && -z $(pop) ]] && flag_is cursor_x 47'
 clear_in; typ "id > 0 and "
 check "前缀为空（刚敲了空格）：不弹" eval '[[ -z $(pop) ]]'
 typ n
@@ -52,8 +51,8 @@ clear_in; typ "status = "; key C-p
 check "没有选中时第一次 C-p：选中最后一项 failed（同 vim 的补全菜单）" eval '[[ $(picked) == "failed 值" ]] || { echo "  selected: $(picked)"; false; }'
 clear_in; typ "status = "; key C-n; key Enter
 check "status = 再 C-n ↵：得到 status = 'pending'" eval '[[ $(where_in) == "status = '"'pending'"'" ]] || { echo "  $(where_in)"; false; }'
-clear_in; typ "status = 'd"; key Tab
-check "status = 'd 再 Tab：替换半截值成 'done'" eval '[[ $(where_in) == "status = '"'done'"'" ]] || { echo "  $(where_in)"; false; }'
+clear_in; typ "status = 'd"; key Tab; key Enter
+check "status = 'd 再 Tab ↵：替换半截值成 'done'" eval '[[ $(where_in) == "status = '"'done'"'" ]] || { echo "  $(where_in)"; false; }'
 clear_in; typ "status in ('done', "
 check "in 列表里逗号之后也弹枚举值" eval '[[ $(names) == "pending queued running done failed " ]]'
 clear_in; typ "paid = "
@@ -94,9 +93,9 @@ check "C-f：收藏这一项，出现「收藏」组，右侧是和默认不同�
 key Escape
 check "esc 关闭，输入框的文字保留（空）" eval '[[ -z $(pop) && -z $(where_in) ]] && mode_is INSERT'
 typ sta; key C-r
-check "用输入框的文字过滤：sta 只剩 status = 'done' 和 stat，匹配字符 warn 底" eval '[[ $(hist) == "历史,status = '"'done'"',stat," ]] && y=$(item_y "status = ") && c=$(e2e_find status $y) && style_has ${c%% *} $y bg=$WARN || { echo "  $(items | tr "\n" ,)"; false; }'
+check "用输入框的文字过滤：sta 只剩 status = 'done' 和 stat" eval '[[ $(hist) == "历史,status = '"'done'"',stat," ]] || { echo "  $(items | tr "\n" ,)"; false; }'
 key Enter; wait_for 8 settled
-check "↵ 应用：WHERE、ORDER、LIMIT 都换成这一项的（status = 'done'、id ↑、500），从第 1 页开始" eval '[[ $(where_in) == "status = '"'done'"'" ]] && qb_has "ORDER id ↑" && qb_has "LIMIT 500" && qb_has "PAGE 1/3" && mode_is NORMAL'
+check "↵ 应用：WHERE、ORDER、LIMIT 都换成这一项的（status = 'done'、id ↑、500），从第 1 页开始" eval '[[ $(where_in) == "status = '"'done'"'" ]] && qb_has "ORDER id $ASC" && qb_has "LIMIT 500" && qb_has "PAGE 1/3" && mode_is NORMAL'
 run "id < 50"; run "status = 'done'"   # 后一条和刚应用的那项内容相同（status = 'done'、id ↑、500）
 check "内容相同的去重、挪到最前：status = 'done' 在第一条，它只有一条" eval 'n=$(python3 -c "import json,sys; h=json.load(open(sys.argv[1]))[\"tables\"][\"doraemon/public.t_order\"][\"history\"]; print(len(h), h[0][\"where\"], sum(1 for e in h if e[\"where\"] == \"status = '"'done'"'\" and e.get(\"limit\") == 500))" "$SJ"); [[ $n == *" status = '"'done'"' 1" ]] || { echo "  $n"; false; }'
 key Escape

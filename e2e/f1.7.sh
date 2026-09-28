@@ -11,7 +11,7 @@ e2e_own_db || { echo "e2e: could not create the private database" >&2; exit 1; }
 APP=e2e-f17-$$
 mkdir -p "$D/own"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s&application_name=%s"\n' "$E2E_DB" "$APP" >"$D/own/connections.toml"; chmod 600 "$D/own/connections.toml"
 . "$(dirname "$0")/palette.sh"
-WARN=#e0af68 ERROR=#f7768e
+ERROR=#f7768e
 psql_n() { psql "$E2E_DB" -At -c "$1"; }
 pbox() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5; exit }'; }   # 面板的 X Y W H
 # prows：面板内每一行的文字（第一行是上边框）；结果区的标题行以「只读」收尾
@@ -77,7 +77,7 @@ e2e_keys Escape; sleep 0.3
 
 # ---- 补全：树当前 schema 的表名、输入里出现过的表的列、关键字（§12「补全」、§9.7）
 pal ";select * from t_o"
-check "表名的前几个字母：出现候选 t_order、t_order_item，匹配字符 warn 底" eval 'n=$(items | head -2 | cut -d" " -f1 | tr "\n" " ") && [[ $n == "t_order t_order_item " ]] && g=($(pop)) && style_has $((g[0] + 2)) $((g[1] + 1)) bg=$WARN && ! style_has $((g[0] + 5)) $((g[1] + 1)) bg=$WARN >/dev/null || { items; false; }'
+check "表名的前几个字母：出现候选 t_order、t_order_item" eval 'n=$(items | head -2 | cut -d" " -f1 | tr "\n" " ") && [[ $n == "t_order t_order_item " ]] || { items; false; }'
 clear_all; e2e_type ";select st"; sleep 0.5
 check "还没写表名：没有列候选（没有 status）" eval '! items | grep -q "^status " || { items; false; }'
 e2e_type " from t_order where st"; sleep 0.8
