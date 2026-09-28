@@ -59,8 +59,17 @@ func (a *App) gotCatalog(m catalogMsg) tea.Cmd {
 		s.Schema = s.home
 	}
 	a.clampTree()
-	return nil
+	var cmds []tea.Cmd
+	for _, t := range s.Tables { // R dropped the columns; an open table keeps showing them (§7.8)
+		if _, ok := s.cols[idOf(t)]; !ok && a.opened(tableNode(t), false) {
+			cmds = append(cmds, a.fetchCols(t))
+		}
+	}
+	return tea.Batch(cmds...)
 }
+
+// tableNode is table t's node ID.
+func tableNode(t db.Table) string { return "table:" + t.Schema + "." + t.Name }
 
 // nodeKind is what a tree node stands for (§7.8).
 type nodeKind int
@@ -168,7 +177,7 @@ func (a *App) treeNodes() (ns []node, matches int) {
 					continue
 				}
 				for _, t := range shown {
-					tid := "table:" + sc + "." + t.Name
+					tid := tableNode(t)
 					rows := ui.Magnitude(t.Rows)
 					if t.Kind == "v" { // a plain view has no rows to count
 						rows = ""

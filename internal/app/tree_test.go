@@ -148,6 +148,15 @@ func TestTreeExpand(t *testing.T) {
 	if i < 0 || ns[i].Text != "id" || ns[i].Icon != ui.NerdIcons.Key || ns[i].Note != "integer" || ns[i+1].Icon != ui.NerdIcons.Column {
 		t.Fatalf("columns:\n%s", treeTexts(a))
 	}
+	a.Update(teaKey("R")) // drops the columns; planner, still open, fetches them again
+	_, cmd = a.Update(catalogMsg{schemas: a.sess.Schemas, current: a.sess.home, tables: a.sess.Tables})
+	if cmd == nil {
+		t.Fatal("R: the open planner's columns are not fetched again")
+	}
+	if m, ok := cmd().(colsMsg); !ok || m.table != planner {
+		t.Fatalf("R: no fetch of the open planner's columns")
+	}
+	a.Update(colsMsg{planner, db.Columns{PK: []string{"id"}, Cols: []db.Column{{Name: "id", Type: "integer"}, {Name: "name", Type: "text"}}}, nil})
 	for _, c := range []struct{ keys, want string }{
 		{"l", "id"}, {"l", "id"}, {"h", "planner"}, {"h", "planner"}, {"h", "Tables (1)"}, {"k", "agentable"},
 	} {
