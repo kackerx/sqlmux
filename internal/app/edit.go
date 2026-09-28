@@ -194,7 +194,7 @@ func (a *App) optionsView(p *Pane, t *dataTab) (ui.Complete, uv.Rectangle, int) 
 // setEdit makes e cell k's change; one giving back what was loaded is
 // none. A change starts over what the last save said (§10.3).
 func (t *dataTab) setEdit(k editKey, e edit) {
-	t.note, t.failed = "", ""
+	t.note, t.failed = ui.Note{}, ""
 	if !e.def && e.val == e.orig {
 		delete(t.edits, k)
 		return
@@ -266,22 +266,21 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 	t.saving = false
 	switch {
 	case errors.Is(m.err, context.Canceled):
-		t.note, t.noteFg = "已取消，已回滚", a.theme.Warn
+		t.note = ui.Note{Head: "已取消，已回滚", Fg: a.theme.Warn}
 	case m.err != nil:
-		msg := m.err.Error() + "，已回滚"
+		t.note = ui.Note{Mid: postgres.ErrorText(m.err), Tail: "，已回滚", Fg: a.theme.Error}
 		if m.failed >= 0 {
 			key := m.rows[m.failed].Key
 			var named []string
 			for i, c := range t.cols.Key() {
 				named = append(named, c+" = "+key[i])
 			}
-			row := strings.Join(named, ", ")
-			if msg = row + "：" + msg; errors.Is(m.err, postgres.ErrStale) {
-				msg = row + " 的" + m.err.Error() + "，已回滚"
+			t.note.Head = strings.Join(named, ", ") + "："
+			if errors.Is(m.err, postgres.ErrStale) {
+				t.note.Head, t.note.Mid = strings.Join(named, ", ")+" 的"+m.err.Error(), ""
 			}
 			t.failed = strings.Join(key, "\x00")
 		}
-		t.note, t.noteFg = msg, a.theme.Error
 	default:
 		for k, e := range m.sent {
 			switch now, ok := t.edits[k]; {
@@ -293,7 +292,7 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 			}
 		}
 		cmd := a.fetch(t, true) // the rows may leave the WHERE now
-		t.note, t.noteFg = fmt.Sprintf("已保存 %d 行 · %s", len(m.rows), m.took.Round(time.Millisecond)), nil
+		t.note = ui.Note{Head: fmt.Sprintf("已保存 %d 行 · %s", len(m.rows), m.took.Round(time.Millisecond))}
 		return cmd
 	}
 	return nil

@@ -9,8 +9,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/exp/golden"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"sqlmux/internal/db"
+	"sqlmux/internal/db/postgres"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -283,16 +285,15 @@ func TestSave(t *testing.T) {
 	if len(tab.edits) != 0 || tab.saving || a.busy != busy || !tab.recount {
 		t.Fatalf("saved: edits %q, busy %d → %d", editsOf(tab), busy, a.busy)
 	}
-	bar := a.queryBar(a.focused(), tab)
-	if !strings.HasPrefix(bar.Right, "已保存 2 行 · ") || bar.RightFg != nil {
-		t.Errorf("right %q", bar.Right)
+	if n := a.queryBar(a.focused(), tab).Note; !strings.HasPrefix(n.Head, "已保存 2 行 · ") || n.Fg != nil {
+		t.Errorf("note %+v", n)
 	}
 	answer(a, tab) // the page again: the note stays
-	if !strings.HasPrefix(a.queryBar(a.focused(), tab).Right, "已保存") {
+	if !strings.HasPrefix(a.queryBar(a.focused(), tab).Note.Head, "已保存") {
 		t.Error("the reload dropped the note")
 	}
 	feed(t, a, "R")
-	if strings.HasPrefix(a.queryBar(a.focused(), tab).Right, "已保存") {
+	if a.queryBar(a.focused(), tab).Note != (ui.Note{}) {
 		t.Error("a fetch of the user's keeps the note")
 	}
 	if _, cmd := a.Update(teaKey("<C-s>")); cmd != nil {
@@ -308,20 +309,25 @@ func TestSaveFails(t *testing.T) {
 	feed(t, a, "lix<Esc>")
 	_, cmd := a.Update(teaKey("<C-s>"))
 	a.Update(cmd())
-	bar := a.queryBar(a.focused(), tab)
-	if bar.Right != "id = 1 的行数据已变化或行不存在，已回滚" || bar.RightFg != a.theme.Error || len(tab.edits) != 1 {
-		t.Fatalf("right %q, edits %q", bar.Right, editsOf(tab))
+	if n := a.queryBar(a.focused(), tab).Note; n != (ui.Note{Head: "id = 1 的行数据已变化或行不存在", Tail: "，已回滚", Fg: a.theme.Error}) || len(tab.edits) != 1 {
+		t.Fatalf("note %+v, edits %q", n, editsOf(tab))
 	}
 	if g := a.grid(a.focused(), tab); !g.Failed[0] {
 		t.Error("row 1's number is not marked")
 	}
 	feed(t, a, "jiy<Esc>")
-	if tab.note != "" || tab.failed != "" {
-		t.Errorf("a change starts over: %q", tab.note)
+	if tab.note != (ui.Note{}) || tab.failed != "" {
+		t.Errorf("a change starts over: %+v", tab.note)
 	}
 	a.Update(saveMsg{tab: tab, failed: -1, err: context.Canceled})
-	if tab.note != "已取消，已回滚" || len(tab.edits) != 2 {
-		t.Errorf("cancelled: %q", tab.note)
+	if tab.note.Head != "已取消，已回滚" || len(tab.edits) != 2 {
+		t.Errorf("cancelled: %+v", tab.note)
+	}
+	// the server's error: its message alone, cut to fit between the row and 已回滚
+	bad := &pgconn.PgError{Severity: "ERROR", Code: "22P02", Message: `invalid input syntax for type numeric: "abc"`}
+	a.Update(saveMsg{tab: tab, rows: []postgres.Row{{Key: []string{"12"}}}, failed: 0, err: bad})
+	if n := tab.note; n.Head != "id = 12：" || n.Mid != bad.Message || n.Tail != "，已回滚" {
+		t.Errorf("a server's error: %+v", n)
 	}
 }
 

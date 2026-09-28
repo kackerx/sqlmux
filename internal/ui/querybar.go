@@ -49,8 +49,8 @@ type QueryBar struct {
 	Typing  bool // the WHERE input has the keys
 	Chips   []Chip
 	Buttons []Button
-	Right   string      // "auto · 6000 行 · 12ms", or how a save went (Q-06)
-	RightFg color.Color // Right's color; dim when nil
+	Right   string // "auto · 6000 行 · 12ms"
+	Note    Note   // how a save went, in Right's place while it stands (Q-06)
 	Pane    int
 }
 
@@ -154,12 +154,23 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 		f.Text(x+1+Width(b.Icon.Text), y, r.Max.X-1, tail, st)
 		x += Width(b.Icon.Text) + 2 + len(tail)
 	}
-	if rx := r.Max.X - 1 - Width(q.Right); rx > x {
-		st := dim
-		if q.RightFg != nil {
-			st.Fg = q.RightFg
+	right, st := q.Right, dim
+	if n := q.Note; n != (Note{}) { // its middle cut to fit, the ends whole (§10.3)
+		room := r.Max.X - 2 - x - Width(n.Head+n.Tail)
+		if Width(n.Mid) > room {
+			n.Mid = Truncate(n.Mid, max(room, 1))
 		}
-		f.Text(rx, y, r.Max.X-1, q.Right, st)
+		right, st.Fg = n.Head+n.Mid+n.Tail, n.Fg
+	}
+	if rx := r.Max.X - 1 - Width(right); rx > x {
+		f.Text(rx, y, r.Max.X-1, right, st)
 	}
 	return cursor
+}
+
+// Note is how a save went (§10.3): Mid, a database's error, is cut to fit
+// between Head (the row) and Tail (，已回滚).
+type Note struct {
+	Head, Mid, Tail string
+	Fg              color.Color
 }

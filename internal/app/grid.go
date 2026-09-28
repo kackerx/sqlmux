@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"image/color"
 	"slices"
 	"strconv"
 	"strings"
@@ -50,8 +49,7 @@ type dataTab struct {
 	cell     *cellEdit        // the cell being edited, while typing is "cell" (§10.1)
 	edits    map[editKey]edit // changes not saved, of every page (§10.1)
 	saving   bool             // a save is on its way (§10.3)
-	note     string           // how the last save went, in place of the query bar's right (Q-06)
-	noteFg   color.Color      // its color; dim when nil
+	note     ui.Note          // how the last save went, until the next fetch or change (Q-06)
 	failed   string           // the row key a failed save names (§10.3)
 	wantCol  string           // the column the cursor goes to once a page is in: a column node's ↵ (§7.8)
 	comp     *completion      // the WHERE's candidates, while typed (§9.7)
@@ -127,7 +125,7 @@ func (t *dataTab) query() postgres.Query {
 // is in (§8.3): owed by the tab, so a newer request taking this one's
 // place still pays it.
 func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
-	t.note, t.failed = "", "" // until the next fetch the user asks for (§10.3)
+	t.note, t.failed = ui.Note{}, "" // until the next fetch the user asks for (§10.3)
 	t.seq++
 	t.recount = t.recount || recount
 	a.busy++
@@ -386,11 +384,8 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	if t.page.Cols != nil {
 		right += " · " + t.page.Took.Round(time.Millisecond).String()
 	}
-	if t.note != "" {
-		right = t.note
-	}
 	return ui.QueryBar{
-		Where: t.where, Typing: t.typing == "where", Pane: p.ID, Right: right, RightFg: t.noteFg,
+		Where: t.where, Typing: t.typing == "where", Pane: p.ID, Right: right, Note: t.note,
 		Chips: []ui.Chip{
 			order,
 			{Label: "LIMIT", Value: strconv.Itoa(t.shown.limit), Action: "grid.limit"},

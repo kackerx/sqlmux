@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"sqlmux/internal/db"
 )
@@ -29,6 +30,16 @@ type Change struct {
 
 // ErrStale is a row that no longer holds what was loaded, or is gone.
 var ErrStale = errors.New("行数据已变化或行不存在")
+
+// ErrorText is err as a line says it: a server's error its Message alone,
+// without pgconn's "ERROR:" and "(SQLSTATE …)" (§10.3).
+func ErrorText(err error) string {
+	var pe *pgconn.PgError
+	if errors.As(err, &pe) {
+		return pe.Message
+	}
+	return err.Error()
+}
 
 // endTimeout bounds COMMIT and ROLLBACK, which a cancel must not reach: a
 // COMMIT the server has done would come back as an error (§10.3).
