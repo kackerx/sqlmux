@@ -126,7 +126,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow { // hover selects (K-03, §9.7)
 			switch c := a.completing(); {
 			case c != nil:
-				c.sel, c.chosen = t.I, true
+				c.sel = t.I
 			case a.palette != nil:
 				a.palette.sel = t.I
 			}

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
@@ -17,10 +18,9 @@ import (
 // completion is the candidate list under a WHERE or a quick SQL being
 // typed (§9.7, §12).
 type completion struct {
-	items  []candidate
-	sel    int
-	chosen bool // moved to by key or pointer: lit strong, and ↵ takes it (§9.7)
-	start  int  // where the text it replaces starts in the input
+	items []candidate
+	sel   int // the first as it opens: ↵ takes it (§9.7)
+	start int // where the text it replaces starts in the input
 }
 
 type candidate struct {
@@ -75,9 +75,12 @@ func (a *App) complete(t *dataTab) {
 
 // ranked is the candidates of groups that pattern matches, group by group
 // and best first within each (§9.7), completing what starts at start in the
-// input; nil when none does.
+// input; nil when none does. A candidate starts with pattern's first
+// character, fuzzy past it as VS Code's and nvim-cmp's do: tord still finds
+// t_order, but x no longer max.
 func ranked(pattern string, start int, groups ...[]candidate) *completion {
 	c := &completion{start: start}
+	first, _ := utf8.DecodeRuneInString(pattern)
 	for _, g := range groups {
 		labels := make([]string, len(g))
 		for i, cd := range g {
@@ -85,6 +88,9 @@ func ranked(pattern string, start int, groups ...[]candidate) *completion {
 		}
 		for _, m := range ui.Filter(pattern, labels) {
 			cd := g[m.Index]
+			if r, _ := utf8.DecodeRuneInString(cd.label); pattern != "" && !strings.EqualFold(string(r), string(first)) {
+				continue
+			}
 			cd.pos = m.Pos
 			c.items = append(c.items, cd)
 		}
@@ -108,35 +114,37 @@ func (a *App) completing() *completion {
 }
 
 // acceptCompletion puts the selected candidate in place of what it
-// completes, and closes the list.
-func (a *App) acceptCompletion() {
+// completes, closes the list, and reports whether the text changed: ↵ runs
+// as usual when it would not (§9.7, VS Code's acceptSuggestionOnEnter
+// smart).
+func (a *App) acceptCompletion() bool {
 	if p := a.palette; p != nil {
-		p.comp.accept(&p.input)
+		changed := p.comp.accept(&p.input)
 		p.comp = nil
-		return
+		return changed
 	}
 	t := a.typingTab()
-	t.comp.accept(&t.where)
+	changed := t.comp.accept(&t.where)
 	t.comp = nil
+	return changed
 }
 
-func (c *completion) accept(in *ui.Input) {
+// accept leaves in as it is when the candidate differs from the word only
+// in case, as SQL's keywords and bare names do: NULL stays NULL.
+func (c *completion) accept(in *ui.Input) bool {
 	cd := c.items[c.sel]
-	in.Text = in.Text[:c.start] + cd.insert + in.Text[in.Pos:]
-	in.Pos = c.start + len(cd.insert)
+	text := in.Text[:c.start] + cd.insert + in.Text[in.Pos:]
+	if strings.EqualFold(text, in.Text) {
+		return false
+	}
+	in.Text, in.Pos = text, c.start+len(cd.insert)
+	return true
 }
 
-// move moves the selection by d. The first press picks the first (down)
-// or the last (up), as vim's popup menu does; before it the first is lit
-// weakly, where Tab goes (§9.7).
+// move moves the selection by d, around the ends (§9.7).
 func (c *completion) move(d int) {
-	switch {
-	case c.chosen:
-		c.sel = max(min(c.sel+d, len(c.items)-1), 0)
-	case d < 0:
-		c.sel = len(c.items) - 1
-	}
-	c.chosen = true
+	n := len(c.items)
+	c.sel = ((c.sel+d)%n + n) % n
 }
 
 // whereAt is where pane p's WHERE input starts: lists open under it.
@@ -147,7 +155,7 @@ func (a *App) whereAt(p *Pane, t *dataTab) uv.Position {
 // completeView is c as it opens under the input cell at, where what it
 // completes starts.
 func (a *App) completeView(c *completion, at uv.Position) (ui.Complete, uv.Rectangle, int) {
-	v := ui.Complete{Sel: c.sel, Soft: !c.chosen}
+	v := ui.Complete{Sel: c.sel}
 	w := 20
 	for _, cd := range c.items {
 		v.Items = append(v.Items, ui.CompleteItem{Text: cd.label, Pos: cd.pos, Note: cd.note})

@@ -99,7 +99,7 @@ leader = "<Space>"
 "<CR>" = "dropdown.select"
 "<Esc>" = "dropdown.close"
 
-[keys.complete] # §9.7: ↵ (takes the one picked, else runs) and esc are the input's
+[keys.complete] # §9.7: ↵ (takes the selected one, runs if that changes nothing) and esc are the input's
 "<Tab>" = "complete.down"
 "<C-n>" = "complete.down"
 "<Down>" = "complete.down"

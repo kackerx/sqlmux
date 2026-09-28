@@ -9,35 +9,33 @@ import (
 	"sqlmux/internal/ui"
 )
 
-// Completion (§9.7): columns and keywords while a word is typed, an enum's
-// values where one goes. The first is lit weakly as the list opens and ↵
-// still runs; the first Tab picks it (the first S-Tab the last), then they
-// move; ↵ takes a pick; esc closes the list before the input.
+// Completion (§9.7): columns and keywords starting as the word typed does,
+// an enum's values where one goes. The first is selected as the list opens,
+// Tab and S-Tab move around the ends, ↵ takes the selected one and runs
+// when that changes nothing; esc closes the list before the input.
 func TestWhereCompletion(t *testing.T) {
 	a, tab, _ := withRecorder(t, 160, 45)
-	feed(t, a, "/sta")
-	if tab.comp == nil || tab.comp.items[0].label != "status" || tab.comp.chosen || a.mode() != keymap.Insert {
-		t.Fatalf("sta: %+v", tab.comp)
+	feed(t, a, "/a")
+	if tab.comp == nil || len(tab.comp.items) != 2 || tab.comp.items[0].label != "amount" || tab.comp.sel != 0 || a.mode() != keymap.Insert {
+		t.Fatalf("a: amount, and: %+v", tab.comp)
 	}
 	at := a.whereAt(a.focused(), tab)
-	bgOf := func(s string) any {
-		f := a.render()
-		row := strings.Split(f.String(), "\n")[at.Y+2] // under the input and the list's border
-		i := strings.Index(row, s)
-		if i < 0 {
-			t.Fatalf("no %q in %q", s, row)
-		}
-		return f.Buf.CellAt(ui.Width(row[:i])-1, at.Y+2).Style.Bg // the cell before it: the row's, not the match's
+	f := a.render()
+	row := strings.Split(f.String(), "\n")[at.Y+2] // under the input and the list's border
+	i := strings.Index(row, "amount")
+	if bg := f.Buf.CellAt(ui.Width(row[:i])-1, at.Y+2).Style.Bg; bg != a.theme.Select { // the cell before it: the row's, not the match's
+		t.Errorf("selected as it opens: %v", bg)
 	}
-	if bg := bgOf("status"); bg != a.theme.Row {
-		t.Errorf("weak: %v", bg)
+	if feed(t, a, "<Tab>"); tab.comp.sel != 1 {
+		t.Fatalf("the first Tab moves to the second: %+v", tab.comp)
 	}
-	if feed(t, a, "<Tab>"); !tab.comp.chosen || tab.comp.sel != 0 || bgOf("status") != a.theme.Select {
-		t.Fatalf("the first Tab picks the first: %+v", tab.comp)
+	feed(t, a, "<BS>sta")
+	if tab.comp == nil || tab.comp.items[0].label != "status" || tab.comp.sel != 0 {
+		t.Fatalf("sta: %+v", tab.comp)
 	}
 	feed(t, a, "<CR>")
 	if tab.where.Text != "status" || tab.comp != nil || tab.applied != "" {
-		t.Fatalf("↵ takes the pick: %q applied %q", tab.where.Text, tab.applied)
+		t.Fatalf("↵ takes status: %q applied %q", tab.where.Text, tab.applied)
 	}
 	feed(t, a, " = ")
 	var labels []string
@@ -50,7 +48,7 @@ func TestWhereCompletion(t *testing.T) {
 	for _, c := range []struct {
 		keys string
 		sel  int
-	}{{"<S-Tab>", 3}, {"<Tab>", 3}, {"<C-p><Up>", 1}, {"<S-Tab>", 0}, {"<C-n><Down>", 2}, {"<S-Tab>", 1}} {
+	}{{"<S-Tab>", 3}, {"<Tab>", 0}, {"<C-p><Up>", 2}, {"<C-n><Down>", 0}, {"<Down>", 1}} {
 		if feed(t, a, c.keys); tab.comp.sel != c.sel {
 			t.Errorf("%s: sel %d, want %d", c.keys, tab.comp.sel, c.sel)
 		}
@@ -59,13 +57,13 @@ func TestWhereCompletion(t *testing.T) {
 	if tab.where.Text != "status = 'running'" || tab.applied != "" {
 		t.Fatalf("↵ on running: %q applied %q", tab.where.Text, tab.applied)
 	}
-	feed(t, a, " and pa")
-	if tab.comp == nil {
-		t.Fatal("pa: no list")
+	feed(t, a, " and paid is not nu")
+	if tab.comp == nil || tab.comp.items[0].label != "null" || len(tab.comp.items) != 1 {
+		t.Fatalf("nu: only null starts with n, not is null: %+v", tab.comp)
 	}
-	feed(t, a, "<CR>")
-	if tab.applied != "status = 'running' and pa" || tab.typing != "" {
-		t.Errorf("↵ with nothing picked runs: %q", tab.applied)
+	feed(t, a, "ll<CR>")
+	if tab.applied != "status = 'running' and paid is not null" || tab.typing != "" {
+		t.Errorf("↵ that changes nothing runs: %q", tab.applied)
 	}
 	feed(t, a, "/ i<Esc>")
 	if tab.comp != nil || tab.typing != "where" {
@@ -74,6 +72,20 @@ func TestWhereCompletion(t *testing.T) {
 	feed(t, a, "<Esc>")
 	if tab.typing != "" {
 		t.Error("the second esc leaves the input")
+	}
+}
+
+// Taking a candidate that differs from the word only in case changes
+// nothing: SQL's keywords and bare names ignore it (§9.7).
+func TestAcceptIgnoresCase(t *testing.T) {
+	c := &completion{items: []candidate{{label: "null", insert: "null"}}, start: 4}
+	in := ui.Input{Text: "a = NULL", Pos: 8}
+	if c.accept(&in) || in.Text != "a = NULL" {
+		t.Errorf("NULL: changed to %q", in.Text)
+	}
+	in = ui.Input{Text: "a = nu", Pos: 6}
+	if !c.accept(&in) || in.Text != "a = null" || in.Pos != 8 {
+		t.Errorf("nu: %q at %d", in.Text, in.Pos)
 	}
 }
 
