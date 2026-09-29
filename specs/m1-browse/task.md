@@ -1,6 +1,6 @@
 # M1 浏览（PostgreSQL，只读）· 任务清单
 
-- **状态**：完成。F1.1–F1.14 全部 passed，完整回归在 c113b29 上全绿（816 项 e2e）；用户决定 F1.14 通过即验收通过（2026-09-28），tag `m1`。开发清单已按 worker 的核对意见补充，决策者已确认（2026-09-23）。
+- **状态**：完成。F1.1–F1.14 全部 passed，完整回归在 fc9cfc6 上全绿（816 项 e2e）；用户决定 F1.14 通过即验收通过（2026-09-28），tag `m1`。开发清单已按 worker 的核对意见补充，决策者已确认（2026-09-23）。
 - **目标**：连接 PostgreSQL，浏览 schema 和表数据，全程只读。M1 完成后，就有一个可以日常用来查数据的版本。
 - **范围**：
   - PRD：D-01~D-04、Q-01~Q-06（保存除外）、G-01、G-04~G-06、T-01~T-03、S-01（只含单个 session）、F-01~F-03（快速 SQL 的只读部分）
@@ -21,7 +21,7 @@
 
 ---
 
-## F1.1 测试数据库与连接 · 状态：passed（1157e3d；e2e 017f052）
+## F1.1 测试数据库与连接 · 状态：passed（879abbc；e2e 626f104）
 
 - **依赖**：M0
 - **涉及**：`docker-compose.yml`、`testdata/seed/pg.sql`、`internal/db`（Conn、Worker、postgres）、`internal/config`（connections.toml）
@@ -71,7 +71,7 @@
 - [x] 没有 `connections.toml` 时，错误里写明配置文件的路径；`sqlmux <名字>` 的名字不存在时，列出已有的连接名。
 - [x] `connections.toml` 中写有明文密码且权限为 0644 时，出现警告。
 
-## F1.2 catalog 与 schema 树 · 状态：passed（f0a7db2；e2e a65a8cf）
+## F1.2 catalog 与 schema 树 · 状态：passed（e5258b4；e2e 24a939a）
 
 - **依赖**：F1.1
 - **涉及**：`internal/db`（catalog）、`internal/ui`（tree）
@@ -102,7 +102,7 @@
   - 用 `↵`、`t` 和鼠标都能打开表（data pane 标题显示表名）；
   - 用 `gs` 切换到 `agentable` 后，列出该 schema 下的表。
 
-## F1.3 data pane 表格（只读） · 状态：passed（febd031；e2e 766323c）
+## F1.3 data pane 表格（只读） · 状态：passed（a9f6b2b；e2e 1b5c432）
 
 - **依赖**：F1.2
 - **涉及**：`internal/ui`（grid）、`internal/app`（DataTab）、`internal/db`
@@ -145,7 +145,7 @@
 - [x] 长查询（例如 WHERE 中带 `pg_sleep(3) is not null`）执行时显示忙碌提示；按 `C-c` 后查询被取消，并有提示。
 - [x] 表格渲染的 golden 测试通过（160×45，固定数据：一个打开了 t_order 的 data tab，含 NULL、枚举、json、timestamptz、带换行的文本各一列；外加一张转置视图）。
 
-## F1.4 查询条 · 状态：passed（d8c2447；e2e 2207c8b）
+## F1.4 查询条 · 状态：passed（c6c70d0；e2e b980c37）
 
 - **依赖**：F1.3
 - **涉及**：`internal/ui`（querybar、dropdown）、`internal/app`
@@ -184,7 +184,7 @@
 - [x] 悬停行有底色且光标不动；点击行号后光标移到该行、列号不变。
 - [x] 查询条的 golden 测试通过。
 
-## F1.5 WHERE 补全与历史 / 收藏 · 状态：passed（233aa6d；e2e 2207c8b）
+## F1.5 WHERE 补全与历史 / 收藏 · 状态：passed（02c0d02；e2e b980c37）
 
 - **依赖**：F1.4
 - **涉及**：`internal/sqlkit`（补全上下文的 WHERE 部分）、`internal/ui`（补全列表、WHERE 下拉）、`internal/config`（state.json）
@@ -210,7 +210,7 @@
 - [x] 执行过的 WHERE 会进入历史；收藏的条件在重启后仍然存在；`C-r` 下拉的模糊过滤正确。
 - [x] `state.json` 的权限为 0600；把它写坏后启动，有 toast 报错、原文件被改名为 `state.json.broken`、程序照常可用。
 
-## F1.6 data pane 的 tab · 状态：passed（1fab6bc；e2e 380fa9d）
+## F1.6 data pane 的 tab · 状态：passed（69e5221；e2e b9bc919）
 
 - **依赖**：F1.3，可以与 F1.4、F1.5 交错开发
 - **涉及**：`internal/app`（tab）、`internal/ui`（tabbar）
@@ -231,7 +231,7 @@
   - 点击 `+` 后聚焦树的过滤框，选中的表在新 tab 中打开；
   - 同一张表在两个 pane 里各开一个 tab 后，从面板和树按 `↵` 都出现选择列表，选中后焦点落到对应的 pane 和 tab；只开了一个时直接切过去。
 
-## F1.7 命令面板：快速 SQL（只读） · 状态：passed（1fab6bc；e2e 380fa9d）
+## F1.7 命令面板：快速 SQL（只读） · 状态：passed（69e5221；e2e b9bc919）
 
 - **依赖**：F1.3（表格）、F1.5（补全列表、state.json）。用户确认 M0 时要求提前，原计划在 M4。
 - **涉及**：`internal/app`（palette）、`internal/ui`（palette 的结果区）、`internal/db`
@@ -264,7 +264,7 @@
 
 以下为 M1 用户验收的改进项（2026-09-28）。
 
-## F1.8 图标间距、查询条按钮与 ORDER 方向 · 状态：passed（fdd2b79；e2e da546b3）
+## F1.8 图标间距、查询条按钮与 ORDER 方向 · 状态：passed（dcac2a0；e2e bb37ae1）
 
 - **依赖**：F1.7
 - **涉及**：`internal/ui`（各处绘制图标的地方、querybar）、`internal/app`（grid.order.toggle）、`internal/keymap`（图标名）
@@ -280,7 +280,7 @@
 - [x] e2e：点击方向图标后发出的 SQL 方向翻转，chip 的图标跟着变；默认排序时点击得到行标识列降序；点击 chip 的列名部分打开下拉框。
 - [x] 主题的 `[icon]` 给 `save`、`refresh`、`transpose`、`sort_asc` 写 `fg` 后生效。
 
-## F1.9 补全列表的按键 · 状态：passed（fdd2b79；e2e da546b3）
+## F1.9 补全列表的按键 · 状态：passed（dcac2a0；e2e bb37ae1）
 
 - **依赖**：F1.7
 - **涉及**：`internal/ui`（complete）、`internal/app`（WHERE 输入框、面板）、`internal/keymap/default.toml`
@@ -299,7 +299,7 @@
   - 快速 SQL 里列表开着时 `Tab` 移动候选，关着时 `Tab` 切换范围。
 - [x] golden：补全列表和命令面板里匹配到的字符是 `match` 色前景、没有底色；主题里写 `match` 后生效。
 
-## F1.10 `;` 直接打开快速 SQL · 状态：passed（fdd2b79；e2e da546b3）
+## F1.10 `;` 直接打开快速 SQL · 状态：passed（dcac2a0；e2e bb37ae1）
 
 - **依赖**：F1.7
 - **涉及**：`internal/keymap/default.toml`、`internal/app`（palette）
@@ -310,7 +310,7 @@
 **验收**
 - [x] e2e：焦点在表格、树、空 pane 时按 `;`，面板打开在 SQL 范围，输入 `select 1` 后 `↵` 能执行。
 
-## F1.11 LIMIT 自定义每页行数 · 状态：passed（fdd2b79；e2e da546b3）
+## F1.11 LIMIT 自定义每页行数 · 状态：passed（dcac2a0；e2e bb37ae1）
 
 - **依赖**：F1.7
 - **涉及**：`internal/app`（LIMIT 下拉）
@@ -321,7 +321,7 @@
 **验收**
 - [x] e2e：输入 `250` 后 `↵`，chip 显示 `LIMIT 250`，发出的 SQL 为 `LIMIT 251`；输入 `99999` 得到 10000。
 
-## F1.12 层级目录树 · 状态：passed（d36f567；e2e 8d39e0a）
+## F1.12 层级目录树 · 状态：passed（bfb7853；e2e a4926c3）
 
 - **依赖**：F1.8（图标间距）
 - **涉及**：`internal/ui`（tree）、`internal/app`（树的状态与按键、工作区节点）、`internal/db`（列查询已有，复用）
@@ -347,7 +347,7 @@
   - 光标移到 `agentable` 下后，快速 SQL 的 `select * from agent` 能找到表。
   - 分出 ② 并聚焦它，`C-h` 回到树后按 `↵` 打开一张表，表开在 ② 里；树和工作区的高亮都指向 ②。
 
-## F1.13 键位配置的完整导出 · 状态：passed（d36f567；e2e 8d39e0a）
+## F1.13 键位配置的完整导出 · 状态：passed（bfb7853；e2e a4926c3）
 
 - **依赖**：F1.12（树的按键定下来之后再导出）
 - **涉及**：`cmd/sqlmux`（keys 子命令）、`internal/keymap`
@@ -360,7 +360,7 @@
 - [x] 把 `sqlmux keys --format toml` 的输出原样放进隔离的 `config.toml` 后启动，`sqlmux keys` 的输出与没有配置时完全一致。
 - [x] 输出里每个有标题的 Action 至少出现一次；有绑定的出现在绑定行里（一个 Action 绑多个键时有多行），没有绑定的恰好出现一次，是注释行。
 
-## F1.14 补全：默认选中、循环切换、智能回车 · 状态：passed（c113b29；e2e 676d878）
+## F1.14 补全：默认选中、循环切换、智能回车 · 状态：passed（fc9cfc6；e2e ecd3443）
 
 - **依赖**：F1.9
 - **涉及**：`internal/ui`（complete、match.go）、`internal/app`（WHERE 输入框、面板）

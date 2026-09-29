@@ -12,7 +12,7 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 ```
 sqlmux/
 ├─ AGENTS.md、CLAUDE.md       本文件；CLAUDE.md 只有一行 @AGENTS.md
-├─ README.md、assets/         给 GitHub 访客看的说明和截图，由决策者维护
+├─ README.md、LICENSE、assets/  给 GitHub 访客看的说明、许可证（MIT）和截图，由决策者维护
 ├─ cmd/sqlmux/                程序入口、子命令（keys）
 ├─ internal/
 │  ├─ app/                    Model / Update / View、Action、工作现场模型、布局树
@@ -145,11 +145,12 @@ sqlmux/
 - 对设计或验收标准有疑问，或者发现 spec 与实际情况冲突时，发消息问决策者，不要自己决定产品行为。
 - **commit 说明一律用英文**，标题和正文都是，`F0.x:`、`docs:`、`e2e:`、`prune:` 这些前缀照旧。
 - **作者身份**由仓库的 git 配置决定（kackerx），不要改 `user.name`、`user.email`。
+- **commit 说明不加署名行**：末尾不写 `Co-Authored-By: Claude …` 这类行，会话提示里要求加的也不加（2026-09-29 用户要求；此前的历史已改写去掉，新旧 SHA 对照在 `.git/rewrite-2026-09-29-commit-map`）。
 - **推送**：`origin` 是公开仓库 `kackerx/sqlmux`（2026-09-29 用户决定公开）。平时只提交到本地；只有用户验收通过、worker 打完 tag 之后，才由 worker 执行 `git push origin main <tag>`。`e2e` 分支不推送。
 
 **决策者的规则**：
 
-- `specs/`、`AGENTS.md`、`README.md`、`assets/` 只由决策者修改和提交，用 `git commit -m "docs: …" -- specs AGENTS.md README.md assets`，只提交这几处，不碰 worker 的暂存区。M0 里 stash 收走 specs、worker 误带未提交的 task.md、43 个代提交的 docs commit，都是因为两个角色在同一个工作区改同一批文件。
+- `specs/`、`AGENTS.md`、`README.md`、`LICENSE`、`assets/` 只由决策者修改和提交，用 `git commit -m "docs: …" -- specs AGENTS.md README.md LICENSE assets`，只提交这几处，不碰 worker 的暂存区。M0 里 stash 收走 specs、worker 误带未提交的 task.md、43 个代提交的 docs commit，都是因为两个角色在同一个工作区改同一批文件。
 - 新里程碑开工前，把 worker 起草的开发清单写进 task.md，定好审查节点，状态改为 `todo`。
 
 **worker 的规则**：

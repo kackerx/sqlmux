@@ -9,7 +9,7 @@
 
 ---
 
-## F0.1 工程初始化、启动与退出 · 状态：passed（a98b991；e2e fb74c03）
+## F0.1 工程初始化、启动与退出 · 状态：passed（1fc51ab；e2e b837d40）
 
 - **依赖**：无
 - **涉及**：`cmd/sqlmux`、`internal/app`
@@ -26,7 +26,7 @@
 - [x] 按 `C-c` 不退出，出现提示
 - [x] 窗口调到 100×30 再调回原尺寸，重绘正确，没有残影，不 panic
 
-## F0.2 Frame、Block、主题与静态布局 · 状态：passed（b43d1d1；e2e 2dc37fb）
+## F0.2 Frame、Block、主题与静态布局 · 状态：passed（c8c8314；e2e 57a4720）
 
 - **依赖**：F0.1
 - **涉及**：`internal/ui`（frame、block、theme、icons）、`internal/app`（组装 View）
@@ -46,7 +46,7 @@
 - [x] 80×24 下不 panic、不越界。标题栏空间不够时，按 §7.8 的顺序退让：先截短标题中的对象名，再从优先级最低的提示开始丢；160×45 下，console 标题栏的 `doraemon.public ▾` 和 `▶ run ↵` 都能完整显示
 - [x] 布局尺寸符合 §7.8：侧栏 32 列（窗口宽度小于 100 列时为 24 列）、data 与 console 为 5 : 4、横向间隔 1 列
 
-## F0.3 keymap 引擎与配置 · 状态：passed（32c49a1；e2e cad10a2）
+## F0.3 keymap 引擎与配置 · 状态：passed（d6aba24；e2e 890f2ab）
 
 - **依赖**：F0.1。这一项是纯逻辑加命令行，不依赖 F0.2 的界面，可以和 F0.2 交错进行。
 - **涉及**：`internal/keymap`、`internal/config`、`cmd/sqlmux`（`keys` 子命令）
@@ -74,7 +74,7 @@
 - [x] 在配置中写入重复绑定后，`sqlmux keys --check` 以非零状态码退出，并指出冲突的作用域和键
 - [x] 把 `XDG_CONFIG_HOME` 指向临时目录后，写入的配置能生效（例如 `icons = "ascii"`）
 
-## F0.4 Action 注册表与命令行 · 状态：passed（0e26160；e2e 6967c6a）
+## F0.4 Action 注册表与命令行 · 状态：passed（c97df56；e2e 9fae5f9）
 
 - **依赖**：F0.3
 - **涉及**：`internal/app`（action、mode、cmdline）
@@ -101,7 +101,7 @@
 - [x] 按 esc 或把命令行删空，命令行关闭，回到 NORMAL
 - [x] 所有键位最终都经由 Action 执行：单测里能直接调用 Action，结果与按键一致
 
-## F0.5 状态栏 · 状态：passed（0883129；e2e 6967c6a）
+## F0.5 状态栏 · 状态：passed（52686d6；e2e 9fae5f9）
 
 - **依赖**：F0.2、F0.3、F0.4
 - **涉及**：`internal/ui`（statusline）
@@ -126,7 +126,7 @@
 - [x] 窗口继续变窄时，各段按 §7.8 的顺序省略，session 块、当前 window、`C-p` 入口、待输入序列和模式块始终都在
 - [x] 待输入序列在 3 列以内时（如 `SPC`、`g`、`5`），`C-p` 入口的位置与没有待输入时相同
 
-## F0.6 which-key · 状态：passed（80898e4；e2e 6967c6a）
+## F0.6 which-key · 状态：passed（4bddd58；e2e 9fae5f9）
 
 - **依赖**：F0.3、F0.4、F0.5
 - **涉及**：`internal/ui`（whichkey）、`internal/app`
@@ -143,7 +143,7 @@
 - [x] 在浮层中按键，效果与不打开浮层时直接按键相同
 - [x] 按 esc 后浮层关闭，状态栏的待输入序列清空
 
-## F0.7 布局树与 pane 操作（键盘） · 状态：passed（7be424c；e2e 96cb31e）
+## F0.7 布局树与 pane 操作（键盘） · 状态：passed（ebc76cf；e2e 694c1e0）
 
 - **依赖**：F0.2、F0.4
 - **涉及**：`internal/app`（layout、workspace）
@@ -173,7 +173,7 @@
   - 折叠后显示 3 列宽的细栏，再按一次恢复
 - [x] 按方向切焦点有多个候选时，回到最近用过的那个：把 data 上下分割，在下面那个 pane 里按 C-l 到 console，再按 C-h，回到下面那个；在上面那个 pane 里做同样的操作，回到上面那个
 
-## F0.8 命中表与鼠标 · 状态：passed（f91026e；e2e 31fa267）
+## F0.8 命中表与鼠标 · 状态：passed（72732ec；e2e e20b7e1）
 
 - **依赖**：F0.5、F0.6、F0.7
 - **涉及**：`internal/ui`（hit）、`internal/app`（鼠标事件的分发）
@@ -196,7 +196,7 @@
 - [x] 点击浮层外部后，浮层关闭
 - [x] `SPC q` 显示编号时，点击某个 pane（包括侧栏），焦点移到这个 pane，编号关闭；点击状态栏，编号关闭，之后的按键照常生效，不会被吞掉
 
-## F0.9 表格网格样式 · 状态：passed（b8186b8；e2e 96cb31e）
+## F0.9 表格网格样式 · 状态：passed（dac7fb2；e2e 694c1e0）
 
 - **依赖**：F0.2。用户在验证 F0.2 后提出。可以在 F0.5 之后的任意时间插进来做。
 - **涉及**：`internal/ui`（grid 的绘制，以后 M1 F1.3 的真实表格会直接复用这部分）、主题（新增 token `row_alt`）
@@ -214,7 +214,7 @@
 - [x] 竖线、表头横线和 `┼` 的位置与列宽一致；斑马纹隔行出现；当前行和当前单元格的底色符合 §7.3。
 - [x] 窄宽度下列宽被压缩后，竖线仍然与表头对齐，不越界。
 
-## F0.10 字符宽度统一按字素簇 · 状态：passed（261fb17；e2e 816a0bc）
+## F0.10 字符宽度统一按字素簇 · 状态：passed（0b2fe64；e2e f39621c）
 
 - **依赖**：F0.2。tester 测 F0.4 时发现，可以在任意时间插进来做。
 - **涉及**：`internal/app`（启动）
@@ -233,7 +233,7 @@
 
 以下 F0.11–F0.16 是用户体验 M0 之后提出的改进（2026-09-23），按编号顺序做。
 
-## F0.11 精简默认键位 · 状态：passed（d6af259；e2e 264b62f）
+## F0.11 精简默认键位 · 状态：passed（fa4edab；e2e d91f6c1）
 
 - **依赖**：F0.10
 - **涉及**：`internal/keymap`（default.toml）、`internal/app`（Action 注册表）
@@ -251,7 +251,7 @@
 - [x] 在 `config.toml` 里写 `[keys.normal] "<Leader>h" = "pane.focus.left"` 后，`SPC h` 能切焦点，which-key 里也出现这一项。
 - [x] 默认键位的兼容性单测照常通过。
 
-## F0.12 主题文件：颜色、按类型配色、图标 · 状态：passed（3a9fb36；e2e 56c7f50）
+## F0.12 主题文件：颜色、按类型配色、图标 · 状态：passed（ccae11b；e2e 262c1d7）
 
 - **依赖**：F0.9
 - **涉及**：`internal/ui`（theme、grid、icons）、`internal/config`、`internal/app`
@@ -279,7 +279,7 @@
 - [x] 主题文件里写 `[icon] console = { text = "C", fg = "#ff0000" }`：console 标题的图标变成红色的 `C`。只写 `fg` 时字形不变、只改颜色。`icons = "ascii"` 时覆盖照样生效。
 - [x] `[icon]` 里写了不存在的名字，或者颜色写错：启动报错并指出是哪一项。
 
-## F0.13 命令面板：框架与命令范围 · 状态：passed（e027152；e2e 3ee4fe6）
+## F0.13 命令面板：框架与命令范围 · 状态：passed（4320182；e2e 531f637）
 
 - **依赖**：F0.11
 - **涉及**：`internal/ui`（palette、遮罩、`match.go`、单行输入）、`internal/app`、`internal/keymap`
@@ -318,7 +318,7 @@
 - [x] 列表往下滚动之后，执行开关类命令（如 `pane.zoom`），选中项仍然在可视区域内。
 - [x] `match.go` 的单测覆盖：排序结果、高亮位置、扩展语法。
 
-## F0.14 命令面板：表、pane、window 范围 · 状态：passed（bf453c0；e2e c3e9a0a）
+## F0.14 命令面板：表、pane、window 范围 · 状态：passed（33a75f1；e2e 464eaaa）
 
 - **依赖**：F0.13
 - **涉及**：`internal/app`、`internal/ui`（palette）
@@ -338,7 +338,7 @@
 - [x] 在 pane 范围选中 console，按 ↵ 后焦点移到 console。
 - [x] 「所有」范围里同时有命令、表、pane 和 window，每一行都有类型标签。
 
-## F0.15 侧栏：拖动调宽、标题显示当前 schema · 状态：passed（897932e；e2e 5551bb9）
+## F0.15 侧栏：拖动调宽、标题显示当前 schema · 状态：passed（019f4eb；e2e ab56b54）
 
 - **依赖**：F0.8
 - **涉及**：`internal/app`（layout）、`internal/ui`
@@ -356,7 +356,7 @@
 - [x] 侧栏标题显示 `public ▾`；窗口变窄时按 §7.8 的规则截短。
 - [x] golden 测试随之更新并通过。
 
-## F0.16 去掉多余的说明文字和面板候选 · 状态：passed（dc66e2e；e2e 2f01ef7）
+## F0.16 去掉多余的说明文字和面板候选 · 状态：passed（2969a94；e2e adfb442）
 
 - **依赖**：F0.15。用户试用主题时提出（2026-09-23）。
 - **涉及**：`internal/ui`（block、statusline、icons）、`internal/app`（view）
@@ -381,7 +381,7 @@
 - [x] 侧栏拖到 16–22 列时，标题按「先留编号和图标，再放 schema 名，最后才放 SPC b」分配，不会在还有空位时只剩编号。ascii 24 列时仍是完整的 `public ▾`（80×24 的 golden 不变）。
 - [x] 命令面板在输入为空时，不出现「确定」「完成编辑」「加一」「减一」「下一段」「上一段」这类只在单元格编辑时才有用的命令。
 
-## F0.17 命令面板的布局 · 状态：passed（c161d7a；e2e 36407a7）
+## F0.17 命令面板的布局 · 状态：passed（fe117d3；e2e 28ca38a）
 
 - **依赖**：F0.14。用户确认 M0 时提出（2026-09-24）。
 - **涉及**：`internal/ui`（palette）、`internal/app`

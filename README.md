@@ -46,3 +46,7 @@ Then run `bin/sqlmux` to open the first connection, or `bin/sqlmux <name>` to op
 ## Keys
 
 `sqlmux keys` lists every action and its keys; `sqlmux keys --format toml` prints them as a `config.toml` snippet you can edit. `sqlmux keys --check` reports conflicts in your config.
+
+## License
+
+[MIT](LICENSE)

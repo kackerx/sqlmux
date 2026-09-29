@@ -1,6 +1,6 @@
 # M3 console 与结果区 · 任务清单
 
-- **状态**：F3.1–F3.11 全部 passed，完整回归在 fedc81d 上全绿（1104 项 e2e）。用户验收 M2 / M3 时提了 13 条意见（2026-09-29），能现在做的整理成改进项 F3.12–F3.24；多连接 session、console 的事务控件排进 M5。改进项全部通过后，M2、M3 一起验收。
+- **状态**：F3.1–F3.11 全部 passed，完整回归在 e8f8e8c 上全绿（1104 项 e2e）。用户验收 M2 / M3 时提了 13 条意见（2026-09-29），能现在做的整理成改进项 F3.12–F3.24；多连接 session、console 的事务控件排进 M5。改进项全部通过后，M2、M3 一起验收。
 - **目标**：
   - vim 编辑器写 SQL；
   - 执行语句，结果显示在底部结果区；
@@ -32,7 +32,7 @@
 
 ---
 
-## F3.1 编辑器核心与差分测试框架 · 状态：passed（f551bac；e2e 428c35d）
+## F3.1 编辑器核心与差分测试框架 · 状态：passed（1887d22；e2e 43bb04b）
 
 - **依赖**：M0
 - **涉及**：`internal/editor`
@@ -49,7 +49,7 @@
 - [x] 差分用例覆盖移动、INSERT / REPLACE、次数、撤销，结果与 nvim 全部一致。
 - [x] 运行 `go test ./internal/editor` 不需要安装 nvim。
 
-## F3.2 操作符、文本对象、VISUAL 与寄存器 · 状态：passed（f551bac；e2e 428c35d）
+## F3.2 操作符、文本对象、VISUAL 与寄存器 · 状态：passed（1887d22；e2e 43bb04b）
 
 - **依赖**：F3.1
 - **涉及**：`internal/editor`
@@ -61,7 +61,7 @@
 **验收**
 - [x] 差分用例覆盖每一个操作符与文本对象的组合类别，结果与 nvim 全部一致。
 
-## F3.3 搜索与命令行 · 状态：passed（f551bac；e2e 428c35d）
+## F3.3 搜索与命令行 · 状态：passed（1887d22；e2e 43bb04b）
 
 - **依赖**：F3.2
 - **涉及**：`internal/editor`
@@ -75,7 +75,7 @@
 - [x] F3.1–F3.3 的差分用例合计至少 200 条，覆盖每一类操作，结果与 nvim 全部一致。
 - [x] RE2 与 vim 语法不同的写法（`+`、`?`、`|`、`()`）有单测。
 
-## F3.4 块选择（VISUAL BLOCK） · 状态：passed（f551bac；e2e 428c35d）
+## F3.4 块选择（VISUAL BLOCK） · 状态：passed（1887d22；e2e 43bb04b）
 
 - **依赖**：F3.2
 - **涉及**：`internal/editor`
@@ -95,7 +95,7 @@
 **验收**
 - [x] 差分用例覆盖上面列出的全部操作，结果与 nvim 一致，包括短行上的 `I` / `A` / `c`、块边界落在 Tab 上或宽字符中间的情况。
 
-## F3.5 sqlkit：词法、分句、读写判定、自动 LIMIT · 状态：passed（f551bac；e2e 428c35d）
+## F3.5 sqlkit：词法、分句、读写判定、自动 LIMIT · 状态：passed（1887d22；e2e 43bb04b）
 
 - **依赖**：M1
 - **涉及**：`internal/sqlkit`
@@ -116,7 +116,7 @@
   - 语句已有 LIMIT 或 FETCH 时，不再追加 LIMIT；末尾带 `--` 注释时追加的 LIMIT 仍然生效。
 - [x] e2e：WHERE 输入 `1=1; drop table t_log` 后执行，pane 第一行显示「WHERE 里不能有 ;」，没有发出查询。
 
-## F3.6 console tab · 状态：passed（ae9c41d；e2e 8b1ae1b）
+## F3.6 console tab · 状态：passed（374d987；e2e 4ac9bd0）
 
 - **依赖**：F3.3、F3.5
 - **涉及**：`internal/ui`（console.go）、`internal/app`（consoleTab）、`internal/config`
@@ -154,7 +154,7 @@
   - f0.8：点击 `▶ run` 先让 console 获得焦点；悬停 `▶ run` 为 warn 底、移开恢复；指针在 console 上滚动只滚 console、焦点不变；
   - f0.12：nerd 下 console 图标 U+F489，ascii 下为 `>`。
 
-## F3.7 pane 混放 tab 与引导页 · 状态：passed（ae9c41d；e2e 8b1ae1b）
+## F3.7 pane 混放 tab 与引导页 · 状态：passed（374d987；e2e 4ac9bd0）
 
 - **依赖**：F3.6
 - **涉及**：`internal/app`（Pane、Tab、openTarget、作用域）、`internal/ui`（tab 栏、引导页）
@@ -181,7 +181,7 @@
 - [x] golden：引导页；混放后的 tab 栏。
 - [x] tester 改写 f1.6 里依赖「`+` 聚焦树的过滤框」的用例，f0.12 里检查 `data` 图标的断言跟着改。
 
-## F3.8 执行与结果区 · 状态：passed（ae9c41d；e2e 8b1ae1b）
+## F3.8 执行与结果区 · 状态：passed（374d987；e2e 4ac9bd0）
 
 - **依赖**：F3.7
 - **涉及**：`internal/app`（结果区、日志）、`internal/ui`（结果 tab、工具行）、`internal/db`、`internal/config`
@@ -215,7 +215,7 @@
   - 导出的 CSV 文件在当前目录。
 - [x] golden：结果区标题与按钮在几种宽度下的舍弃；日志 tab。
 
-## F3.9 格式化 · 状态：passed（fedc81d；e2e 5c11624）
+## F3.9 格式化 · 状态：passed（e8f8e8c；e2e 8921890）
 
 - **依赖**：F3.6
 - **涉及**：`internal/sqlkit`（format，embed sql-formatter）
@@ -240,7 +240,7 @@
 - [x] `gqap` 格式化光标所在段落的语句，不进入 INSERT；超时时 toast、缓冲区不变。
 - [x] 配置 `formatprg` 后，改用外部命令格式化；格式化失败时，缓冲区内容不变。
 
-## F3.10 console 的补全 · 状态：passed（fedc81d；e2e 5c11624）
+## F3.10 console 的补全 · 状态：passed（e8f8e8c；e2e 8921890）
 
 - **依赖**：F3.5、F3.6
 - **涉及**：`internal/sqlkit`（补全上下文）、`internal/app`
@@ -261,7 +261,7 @@
   - CTE 的名字会出现在候选中；
   - 快速 SQL 里 `select o. from t_order o` 的 `o.` 后面列出 t_order 的列。
 
-## F3.11 schema 下拉框（PG） · 状态：passed（fedc81d；e2e 5c11624）
+## F3.11 schema 下拉框（PG） · 状态：passed（e8f8e8c；e2e 8921890）
 
 - **依赖**：F3.8
 - **涉及**：`internal/app`（consoleTab.Schema、dropdown）、`internal/db`

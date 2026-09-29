@@ -1,6 +1,6 @@
 # M2 编辑 · 任务清单
 
-- **状态**：F2.1–F2.4 全部 passed，完整回归在 4df4996 上全绿（906 项 e2e）。用户决定不单独验收，与 M3 一起验收（2026-09-28）；验收通过后再打 tag `m2`。
+- **状态**：F2.1–F2.4 全部 passed，完整回归在 b693d29 上全绿（906 项 e2e）。用户决定不单独验收，与 M3 一起验收（2026-09-28）；验收通过后再打 tag `m2`。
 - **目标**：在表格中编辑单元格，并保存回数据库。
 - **范围**：
   - PRD：G-02、G-03、Q-05、Q-06（保存结果的提示）
@@ -19,7 +19,7 @@
 
 ---
 
-## F2.1 单元格编辑与待提交标记 · 状态：passed（8eeba30；e2e e4ddb78）
+## F2.1 单元格编辑与待提交标记 · 状态：passed（5c1a4c1；e2e 4e8b0fd）
 
 - **依赖**：M1
 - **涉及**：`internal/app`（dataTab.Edits）、`internal/ui`（grid、单元格输入框、Input 的全选）
@@ -41,7 +41,7 @@
 - [x] 原值为 NULL 的格进入编辑后什么都不改就 `esc`，不产生修改。
 - [x] golden：编辑中的输入框（全选状态、超出单元格宽度）；带三种修改值的表格。
 
-## F2.2 保存、刷新与确认框 · 状态：passed（8eeba30；e2e e4ddb78）
+## F2.2 保存、刷新与确认框 · 状态：passed（5c1a4c1；e2e 4e8b0fd）
 
 - **依赖**：F2.1
 - **涉及**：`internal/db/postgres`（UPDATE 生成与执行）、`internal/app`、`internal/ui`（Confirm）、`internal/keymap/default.toml`
@@ -66,7 +66,7 @@
   - 有修改时 `:qa`、连按两次 `C-c`、`x`、`SPC x` 都出现确认框；
   - 有修改时从树按 `↵` 打开另一张表，新开了 tab，原 tab 的修改还在。
 
-## F2.3 选项浮层：NULL、DEFAULT、原值、布尔、枚举 · 状态：passed（4df4996；e2e 495f53f）
+## F2.3 选项浮层：NULL、DEFAULT、原值、布尔、枚举 · 状态：passed（b693d29；e2e 0e752fa）
 
 - **依赖**：F2.1
 - **涉及**：`internal/ui`（选项浮层）、`internal/app`
@@ -85,7 +85,7 @@
   - 没有选中任何选项时，`↵` 提交文字，不会误写成 NULL；
   - 从面板执行「设为 NULL」，作用于光标所在的格。
 
-## F2.4 时间分段 · 状态：passed（4df4996；e2e 495f53f）
+## F2.4 时间分段 · 状态：passed（b693d29；e2e 0e752fa）
 
 - **依赖**：F2.3
 - **涉及**：`internal/ui`（时间分段）、`internal/app`
