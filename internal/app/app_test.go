@@ -788,8 +788,25 @@ func TestFoldSidebar(t *testing.T) {
 		t.Error("a folded sidebar takes no focus")
 	}
 	feed(t, a, "<Space>b")
-	if r := a.layout()[0]; r.Dx() != 32 {
-		t.Errorf("unfolded width %d", r.Dx())
+	if r := a.layout()[0]; r.Dx() != 32 || a.win().Focus != 0 {
+		t.Errorf("unfolded width %d, focus %d", r.Dx(), a.win().Focus)
+	}
+}
+
+// SPC b unfolding the tree puts the focus on it, its cursor on the node of
+// the tab focused before, the nodes above it opened: a table's under its
+// schema, a console's in the workspace (F3.29).
+func TestFoldSidebarReveals(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	loadOrders(t, a, 3)
+	a.sess.open[schemaNode("public")] = false // folded by hand
+	feed(t, a, "<Space>b<Space>b")
+	if n, _ := a.treeNode(); a.win().Focus != 0 || n.kind != nodeTable || n.table.Name != "t_order" {
+		t.Fatalf("t_order's: focus %d, node %+v", a.win().Focus, n.TreeNode)
+	}
+	feed(t, a, "<Space>b<C-l><Space>b") // console_1
+	if n, _ := a.treeNode(); n.kind != nodeTab || n.Text != "console_1" {
+		t.Errorf("console_1's: node %+v", n.TreeNode)
 	}
 }
 

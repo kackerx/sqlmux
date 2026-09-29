@@ -152,7 +152,7 @@ func (s *Session) dropCols() {
 // which has what its file kept (§11). A file that cannot be read leaves
 // that pane with no tab too: opened empty, the autosave would write over it.
 func newSession(name, addr string, main, meta *db.Worker) *Session {
-	s := &Session{Name: name, Addr: addr, Main: main, Meta: meta, cols: map[tableID]db.Columns{}, colsAsked: map[tableID]bool{}}
+	s := &Session{Name: name, Addr: addr, Main: main, Meta: meta, open: map[string]bool{}, cols: map[tableID]db.Columns{}, colsAsked: map[tableID]bool{}}
 	data := &Pane{ID: 1, Prev: -1}
 	console := &Pane{ID: 2, Prev: -1}
 	if cons, err := openConsole(name, 1); err != nil {
@@ -454,10 +454,15 @@ func (a *App) toggleZoom() {
 	}
 }
 
+// toggleTree is SPC b: the sidebar folded, or open with the focus on it,
+// its cursor on the node of the tab focused before (§7.8, F3.29).
 func (a *App) toggleTree() {
 	win := a.win()
-	win.TreeOpen = !win.TreeOpen
-	if !win.TreeOpen && win.Focus == win.Tree.ID {
+	switch win.TreeOpen = !win.TreeOpen; {
+	case win.TreeOpen:
+		a.revealTab(a.focused())
+		win.focus(win.Tree.ID)
+	case win.Focus == win.Tree.ID:
 		win.focus(win.Root.Leaves()[0].ID)
 	}
 }

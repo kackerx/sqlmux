@@ -75,8 +75,46 @@ func (a *App) gotCatalog(m catalogMsg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// tableNode is table t's node ID.
+// tableNode is table t's node ID; schemaNode, groupNode, windowNode and
+// paneNode the others' above a table or a tab.
 func tableNode(t db.Table) string { return "table:" + t.Schema + "." + t.Name }
+
+func schemaNode(sc string) string { return "schema:" + sc }
+
+func groupNode(sc string, views bool) string {
+	if views {
+		return schemaNode(sc) + "/views"
+	}
+	return schemaNode(sc) + "/tables"
+}
+
+func windowNode(wi int) string { return fmt.Sprintf("window:%d", wi) }
+
+func paneNode(wi int, p *Pane) string { return fmt.Sprintf("%s/pane:%d", windowNode(wi), p.ID) }
+
+// revealTab puts the tree's cursor on the node of pane p's current tab,
+// the nodes above it opened, as nvim-tree's find_file (F3.29): a table's
+// under its schema, any other's in the workspace. Not showing (a filter,
+// the catalog not in), the cursor stays.
+func (a *App) revealTab(p *Pane) {
+	tab := p.tab()
+	if tab == nil || p == a.win().Tree {
+		return
+	}
+	path := []string{"workspace", windowNode(a.sess.Active), paneNode(a.sess.Active, p)}
+	is := func(n node) bool { return n.kind == nodeTab && n.pane == p && n.tab == p.Cur && n.win == a.sess.Active }
+	if t := tab.Data; t != nil {
+		path = []string{"session", schemaNode(t.table.Schema), groupNode(t.table.Schema, t.table.View())}
+		is = func(n node) bool { return n.kind == nodeTable && idOf(n.table) == idOf(t.table) }
+	}
+	for _, id := range path {
+		a.sess.open[id] = true
+	}
+	ns, _ := a.treeNodes()
+	if i := slices.IndexFunc(ns, is); i >= 0 {
+		a.treeGo(i)
+	}
+}
 
 // nodeKind is what a tree node stands for (§7.8).
 type nodeKind int
@@ -166,14 +204,14 @@ func (a *App) treeNodes() (ns []node, matches int) {
 			if len(kept(groups[0]))+len(kept(groups[1])) == 0 && filtering {
 				continue
 			}
-			id := "schema:" + sc
+			id := schemaNode(sc)
 			if !add(node{id: id, kind: nodeSchema, schema: sc, TreeNode: ui.TreeNode{Depth: 1, Branch: true, Open: open(id, sc == s.home), Icon: ic.Schema, IconFg: th.PK, Text: sc}}) {
 				continue
 			}
 			for g, ts := range groups {
-				label, icon, gid := "Tables", ic.Table, id+"/tables"
+				label, icon, gid := "Tables", ic.Table, groupNode(sc, g == 1)
 				if g == 1 {
-					label, icon, gid = "Views", ic.View, id+"/views"
+					label, icon = "Views", ic.View
 				}
 				shown := kept(ts)
 				if filtering && len(shown) == 0 {
@@ -221,12 +259,12 @@ func (a *App) treeNodes() (ns []node, matches int) {
 		if w.Root != nil {
 			leaves = w.Root.Leaves()
 		}
-		wid := fmt.Sprintf("window:%d", wi)
+		wid := windowNode(wi)
 		if !add(node{id: wid, kind: nodeWindow, win: wi, TreeNode: ui.TreeNode{Depth: 1, Branch: len(leaves) > 0, Open: a.opened(wid, true), Icon: ic.Window, IconFg: th.Info, Text: w.Name}}) {
 			continue
 		}
 		for n, p := range leaves { // pane-<n> by ⟨n⟩: the sidebar is 0; no icon, the tabs have theirs (§7.8)
-			pid := fmt.Sprintf("%s/pane:%d", wid, p.ID)
+			pid := paneNode(wi, p)
 			if !add(node{id: pid, kind: nodePane, win: wi, pane: p, TreeNode: ui.TreeNode{Depth: 2, Branch: len(p.Tabs) > 0, Open: a.opened(pid, true), Icon: ui.Icon{Text: " "}, Text: fmt.Sprintf("pane-%d", n+1)}}) {
 				continue
 			}
@@ -330,9 +368,6 @@ func (a *App) scrollTree(notches int) {
 func (a *App) treeFold(n node, open bool) tea.Cmd {
 	if !n.Branch {
 		return nil
-	}
-	if a.sess.open == nil {
-		a.sess.open = map[string]bool{}
 	}
 	a.sess.open[n.id] = open
 	a.clampTree()
