@@ -72,7 +72,7 @@ e2e_own_db() {
 }
 
 e2e_keys() { t send-keys -t t "$@"; }          # tmux key names: C-c Escape Enter Space ...
-e2e_type() { t send-keys -t t -l "$1"; }       # literal text
+e2e_type() { t send-keys -t t -l -- "$1"; }    # literal text (-- so "-0x1.8" isn't read as a flag)
 e2e_cap()  { t capture-pane -p -t t "$@"; }    # add -e for SGR colors
 e2e_flag() { t display -p -t t "#{$1}"; }      # e.g. alternate_on cursor_flag mouse_all_flag
 e2e_record() { t pipe-pane -t t -o "cat >> '$1'"; }   # FILE — append everything the program writes to the pane
@@ -180,6 +180,12 @@ tabs_are() { [[ $(tabbar "$1") == "$2" ]] || { echo "  ⟨$1⟩ tabs: '$(tabbar 
 tab_x() { local g t=$2; [[ $t == *:* ]] && t=${t%%:*}:; g=($(geom "$1")); e2e_find "$t" $((g[1] + g[3] - 2)) | tr ' ' '\n' | awk -v l=${g[0]} -v r=$((g[0] + g[2])) '$1 > l && $1 < r { print; exit }'; }
 click_tab() { e2e_click "$(tab_x "$1" "$2")" "$(tab_y "$1")"; sleep 0.4; }   # N TEXT: click a tab (or +) on pane N's tab bar
 palette_open() { e2e_plain | grep -q "┌─ 命令面板"; }
+# errbar N: pane N's error bar (§7.8「错误栏」, F3.20) — the error_bg rows right above its tab bar, one line each, trailing
+# blanks cut (the first ends in " ×", the gap before it squeezed); nothing when it has none. errbar_y N: its first row.
+ERROR_BG=#3b2230
+errbar_y() { local g y; g=($(geom "$1")); for ((y = g[1] + g[3] - 3; y > g[1]; y--)); do [[ $(e2e_style $((g[0] + 1)) $y) == *bg=$ERROR_BG* ]] || break; done; echo $((y + 1)); }
+errbar() { local g y; g=($(geom "$1")); for ((y = $(errbar_y "$1"); y <= g[1] + g[3] - 3; y++)); do e2e_text $((g[0] + 2)) $((g[0] + g[2] - 2)) $y | sed 's/ *$//; s/  *×$/ ×/'; done; }
+errbar_is() { local got; got=$(errbar "$1" | head -1); [[ $got == "$2" ]] || { echo "  ⟨$1⟩ error bar: '$got', want '$2'"; false; }; }   # N FIRST-ROW (with its " ×")
 
 # ---- the f1.*.sh scripts' data pane: 160x45, ① alone right of the sidebar (x 35..159)
 H() { e2e_flag pane_height; }

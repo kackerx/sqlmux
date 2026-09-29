@@ -112,8 +112,8 @@ check "t_sku 没有主键：按一个不可空的唯一索引排" eval '[[ $SQL 
 opened_sql t_log
 check "t_log 没有行标识列：不排序" eval '[[ $SQL == "select * from \"public\".\"t_log\" limit 101 offset 0" ]] || { echo "  $SQL"; false; }'
 
-# 空串、空表；行,列只在焦点 data pane 有已加载的非空表时显示（§7.8）
-open_table t_blank
+# 空串、空表；行,列只在焦点 data pane 有已加载的非空表时显示（§7.8）。F3.18 起 ↵ 一律新开 tab，上面开出了一排：重新开始
+start -C "$D/own"; open_table t_blank
 check "空串显示为空白，x 照常" eval 'x=$(col_x s); [[ $(e2e_text $x $x $(row_y 1)) == " " && $(e2e_text $x $x $(row_y 2)) == x ]]'
 check "有已加载的表：状态栏显示 1,1" pos_is 1,1
 key C-h; check "焦点在树上：不显示行,列" eval '[[ -z $(pos) ]]'
@@ -122,10 +122,10 @@ open_table t_empty
 check "空表：只有表头，不显示行,列" eval '[[ $(header) == *" id "* && -z $(pos) ]]'
 e2e_keys Space; e2e_type x; sleep 0.3
 
-# 数据库报错（§7.6）：pane 内容区第一行 error 色，不画表格
+# 数据库报错（§7.6、F3.20）：显示在 pane 底部的错误栏，第一次打开就出错时不画表格
 psql "$E2E_DB" -q -c "drop table t_gone"
 key C-p; e2e_type "@t_gone"; sleep 0.3; key Enter; sleep 0.5
-check "打开已被删掉的 t_gone：内容区第一行（查询条下面，F1.4）是 error 色的数据库错误，不画表格" eval 'l=$(e2e_text 35 159 4); [[ $l == *"does not exist"* && -z $(grid_y) ]] && c=$(e2e_find "does not exist" 4) && style_has ${c%% *} 4 fg=$ERROR || { echo "  row 4: $l"; false; }'
+check "打开已被删掉的 t_gone：错误栏是 error 色的 [42P01] 数据库错误，不画表格" eval 'errbar_is 1 "[42P01] relation \"public.t_gone\" does not exist ×" && [[ -z $(grid_y) ]] && style_has 36 $(errbar_y 1) fg=$ERROR'
 
 # busy 与取消（§8.3）：另一个会话锁住 t_user，打开它就一直在等
 waiting() { psql "$E2E_DB" -At -c "select count(*) from pg_stat_activity where application_name = '$APP' and wait_event_type = 'Lock'"; }
@@ -133,12 +133,12 @@ open_table t_order
 e2e_lock t_user
 key C-p; e2e_type "@t_user"; sleep 0.3; key Enter
 check "取数中：状态栏在模式块左边显示 warn 色的 busy · C-c 取消" eval '[[ $(bar) == *" busy · C-c 取消  NORMAL " ]] && c=$(e2e_find "busy" $(H)) && style_has ${c%% *} $(H) fg=$WARN || { echo "  $(bar)"; false; }'
-check "取数中：不画「加载中」占位（↵ 把当前 tab 换成了 t_user，第一次打开，内容区空白）" eval '[[ -z $(grid_y) && -z $(e2e_text 35 159 4 | tr -d " ") && $(e2e_text 34 160 1) == *" t_user ─"* ]]'
+check "取数中：不画「加载中」占位（↵ 新开了 t_user 的 tab，第一次打开，内容区空白）" eval '[[ -z $(grid_y) && -z $(e2e_text 35 159 4 | tr -d " ") && $(e2e_text 34 160 1) == *" t_user ─"* ]]'
 check "服务端确实在等锁" eval '[[ $(waiting) == 1 ]]'
 key C-c
 check "C-c：取消，toast「查询已取消」，busy 消失，不弹退出提示" eval 'toast_is "查询已取消" && [[ $(bar) != *busy* ]] && ! screen_has "再按一次"'
 check "服务端的查询也被取消了（不再等锁）" eval 'wait_for 3 eval "[[ \$(waiting) == 0 ]]"'
-check "第一次打开时取消：tab 还是 t_user，是空表" eval '[[ -z $(grid_y) && $(e2e_text 34 160 43 | noicon) == *"1:t_user*"* ]]'
+check "第一次打开时取消：tab 还是 t_user，是空表" eval '[[ -z $(grid_y) ]] && tabs_are 1 "1:t_blank │ 2:t_gone │ 3:t_order- │ 4:t_user*"'
 key C-c
 check "空闲时 C-c 照旧：「再按一次 C-c 退出」" toast_is "再按一次 C-c 退出"
 sleep 2.2
@@ -150,7 +150,7 @@ sleep 0.5; key C-p; e2e_type "@t_user"; sleep 0.3; key C-t; sleep 0.5
 check "锁释放后再打开 t_user：正常显示，同一条 Meta 连接还能用" eval '[[ $(e2e_text 99 159 $(hy)) == *name* ]] || { echo "  $(e2e_text 99 159 $(hy))"; false; }'
 
 # R（F1.2 的刷新）之后，已经打开的表仍保留类型颜色和钥匙图标
-e2e_keys Space; e2e_type x; sleep 0.3; open_table t_order     # 关掉 ②，在 ① 打开 t_order
+e2e_keys Space; e2e_type x; sleep 0.3; open_table t_order     # 关掉 ②，切到 ① 的 t_order（只开着一个，F1.6）
 key C-h; key R; sleep 0.5; key C-l
 check "R 之后 ① 的 t_order 仍有 number 色和钥匙图标" eval 'x=$(col_x id); style_has 45 $(row_y 1) fg=$NUMBER && [[ $(e2e_text $((x - 2)) $((x - 2)) $(hy)) == "$(printf "\xef\x82\x84")" ]]'
 

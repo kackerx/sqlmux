@@ -67,8 +67,8 @@ e2e_keys C-p; sleep 0.3; e2e_type "@t_order"; sleep 0.3; key C-t; wait_for 8 set
 key C-h; goto amount; key Enter
 check "t_order 开着两个 tab 时列节点 ↵：面板进入「选择 tab」" eval 'is_open && [[ $(footer) == *"↵ 切过去"* ]]'
 key Enter; wait_for 8 settled
-check "选定 ① · 1：切过去，光标也移到 amount（1,4）（§7.8，docs cc95d0d）" eval '[[ $(e2e_text 34 160 43 | noicon) == *"1:t_order*"* ]] && pos_is 1,4'
-key g t; key x                                                                   # 关掉 tab 2，回到 tab 1
+check "选定 ① · 2（F3.18 起 agent 在 tab 1）：切过去，光标也移到 amount（1,4）（§7.8，docs cc95d0d）" eval '[[ $(e2e_text 34 160 43 | noicon) == *"2:t_order*"* ]] && pos_is 1,4'
+key g t; key x                                                                   # 关掉 tab 3，回到 tab 2
 
 # ---- 鼠标：单击 ▸ / ▾ 展开折叠；单击表与 ↵ 相同；中键与 t 相同
 key C-h; y=$(y_of t_sku); x=$(e2e_find ▸ "$y" | cut -d' ' -f1)
@@ -77,18 +77,28 @@ check "单击 t_sku 的 ▸：展开（列出 code、title）" eval 'open_mark t
 e2e_click "$x" "$y"; sleep 0.3
 check "再单击 ▾：折叠" eval '! open_mark t_sku && ! shown code'
 mclick "$(x_of t_log)" "$(y_of t_log)"; wait_for 8 settled
-check "中键 t_log：在 ① 新开 tab，焦点到 ①" eval '[[ $(title) == *" t_log ─"* && $(focused) == 1 && $(e2e_text 34 160 43 | noicon) == *"2:t_log*"* ]] || { e2e_text 34 160 43; false; }'
+check "中键 t_log：在 ① 新开 tab，焦点到 ①" eval '[[ $(title) == *" t_log ─"* && $(focused) == 1 && $(e2e_text 34 160 43 | noicon) == *"3:t_log*"* ]] || { e2e_text 34 160 43; false; }'
 
 # ---- 工作区：tab 节点跟着变；单击或 ↵ 切到对应的 pane 和 tab
 key C-h
-check "工作区的 ① 下有两个 tab 节点 t_order、t_log" eval '[[ $(tree | cut -d"|" -f1 | sed -n "/工作区/,\$p" | grep -cE " (t_order|t_log)( |$)") == 2 ]] || tree'
+ws_tabs() { tree | cut -d"|" -f1 | sed -n "/工作区/,\$p" | grep -cE " (agent|t_order|t_log)( |$)"; }   # 工作区里 tab 节点的个数
+check "工作区的 pane-1 下有三个 tab 节点 agent、t_order、t_log" eval '[[ $(ws_tabs) == 3 ]] || tree'
 wsy() { tree | cut -d'|' -f1 | grep -n '' | sed -n '/工作区/,$p' | grep -E " $1( |$)" | head -1 | cut -d: -f1 | awk '{ print $1 + 3 }'; }
+# F3.19：pane 节点叫 pane-1，单击 / ↵ 只展开折叠；单击时焦点和点别的节点一样到树上，不跳到 ①
+key C-l; e2e_click "$(x_of pane-1)" "$(y_of pane-1)"; sleep 0.4
+check "焦点在 ① 时单击 pane-1：折叠（tab 节点隐藏），焦点到树上，不跳到 ①" eval '[[ $(focused) == 0 && $(ws_tabs) == 0 ]] && ! open_mark pane-1'
+e2e_click "$(x_of pane-1)" "$(y_of pane-1)"; sleep 0.4
+check "再单击 pane-1：展开，焦点仍在树上" eval '[[ $(focused) == 0 && $(ws_tabs) == 3 ]] && open_mark pane-1'
+goto pane-1; key Enter
+check "↵ pane-1：折叠，焦点不动" eval '[[ $(focused) == 0 && $(ws_tabs) == 0 ]] && cur_is pane-1'
+key Enter
+check "再 ↵：展开" eval '[[ $(focused) == 0 && $(ws_tabs) == 3 ]] && cur_is pane-1'
 e2e_click "$(e2e_find t_order "$(wsy t_order)" | cut -d' ' -f1)" "$(wsy t_order)"; sleep 0.4
-check "单击工作区的 t_order 节点：焦点到 ①，切到 tab 1" eval '[[ $(focused) == 1 && $(e2e_text 34 160 43 | noicon) == *"1:t_order*"* ]]'
+check "单击工作区的 t_order 节点：焦点到 ①，切到 tab 2" eval '[[ $(focused) == 1 && $(e2e_text 34 160 43 | noicon) == *"2:t_order*"* ]]'
 key C-h; goto "工作区"; for ((i = 0; i < 6; i++)); do [[ $(cur) == *t_log* ]] && break; key j; done; key Enter
-check "↵ 工作区的 t_log 节点：焦点到 ①，切到 tab 2" eval '[[ $(focused) == 1 && $(e2e_text 34 160 43 | noicon) == *"2:t_log*"* ]]'
+check "↵ 工作区的 t_log 节点：焦点到 ①，切到 tab 3" eval '[[ $(focused) == 1 && $(e2e_text 34 160 43 | noicon) == *"3:t_log*"* ]]'
 key x; key C-h
-check "x 关掉 t_log 之后：工作区只剩 t_order 一个 tab 节点" eval '[[ $(tree | cut -d"|" -f1 | sed -n "/工作区/,\$p" | grep -cE " (t_order|t_log)( |$)") == 1 ]] || tree'
+check "x 关掉 t_log 之后：工作区只剩 agent、t_order 两个 tab 节点" eval '[[ $(ws_tabs) == 2 ]] || tree'
 
 # ---- 过滤：只匹配表和视图，能跨 schema；匹配项的上级展开，其余隐藏
 goto agentable; key h                                                          # 先把 agentable 折起来

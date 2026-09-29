@@ -60,7 +60,7 @@ key C-h; tree_open t_log
 check "①、② 当前都是 console 时从树 ↵ 打开表：在最近聚焦的 ① 新开 tab，console_2 还在" eval 'tabs_are 1 "1:t_order │ 2:t_order │ 3:console_2- │ 4:t_log*" && tabs_are 2 "1:console_1*" && focus_is 1'
 key C-l; key Space; e2e_type q; sleep 0.3; e2e_type 0; sleep 0.3      # ② 聚焦过之后按编号跳到树
 tree_open t_sku
-check "最近聚焦的 ② 当前是 console、① 当前是表：表开到 ①（↵ 替换当前 tab），② 不变" eval '[[ $(tabbar 1) == *"4:t_sku*" ]] && tabs_are 2 "1:console_1*" && focus_is 1'
+check "最近聚焦的 ② 当前是 console、① 当前是表：表开到 ① 的新 tab（F3.18），原来的 t_log 还在，② 不变" eval '[[ $(tabbar 1) == *"4:t_log- │ 5:t_sku*" ]] && tabs_are 2 "1:console_1*" && focus_is 1 || { echo "  $(tabbar 1)"; false; }'
 
 # ---- 分割出的新 pane 显示引导页
 key Space; e2e_type %; sleep 0.3
@@ -68,15 +68,14 @@ check "SPC % 分出的新 pane：引导页，标题只有 ⟨n⟩" eval 'landing
 key Space; e2e_type x; sleep 0.3
 
 # ---- :wq（§11「文件」）：表 tab 上先保存，成功后才关闭；失败时 tab 留着，不弹丢弃确认
-# 默认布局里 ① 只有 70 列：保存结果和错误优先于 chip，放不下时 chip 从右往左让位（§7.8 查询条，026fe0e）
+# 失败用外键：user_id = 999 过得了前置校验（F3.21），数据库报 23503；原因在 ① 底部的错误栏（F3.20）
 start -C "$D/own"; open_table t_order
-qb1() { e2e_text 35 102 3; }
-key l; key l; key l; cell_edit abc
+key l; cell_edit 999
 key :; e2e_type wq; sleep 0.3; key Enter; sleep 1.5
-check ":wq 保存失败（amount = abc）：tab 留着、没有丢弃确认，70 列的查询条上也显示原因，库里没变" eval 'tabs_are 1 "1:t_order*" && ! screen_has 关闭会丢弃 && [[ $(qb1) == *"id = 1："*"，已回滚"* && $(psql_n "select amount from t_order where id = 1") == 1.99 ]] || { echo "  $(qb1)"; false; }'
-cell_edit 7.5
-check "再编辑一次：原因消失，让位的 chip 回来" eval '[[ $(qb1) == *ORDER*LIMIT*PAGE*COLS* && $(qb1) != *已回滚* ]] || { echo "  $(qb1)"; false; }'
+check ":wq 保存失败（user_id = 999）：tab 留着、没有丢弃确认，错误栏写原因，库里没变" eval 'tabs_are 1 "1:t_order*" && ! screen_has 关闭会丢弃 && [[ $(errbar 1 | head -1) == "[23503] id = 1："*"，已回滚 ×" && $(psql_n "select user_id from t_order where id = 1") == 2 ]] || { errbar 1; false; }'
+cell_edit 3
+check "再编辑一次：错误栏还在（编辑单元格不清，F3.20）" eval '[[ $(errbar 1 | head -1) == "[23503] id = 1："* ]]'
 key :; e2e_type wq; sleep 0.3; key Enter; sleep 1.5
-check ":wq 保存成功：写进库，tab 关掉" eval '[[ $(psql_n "select amount from t_order where id = 1") == 7.50 && -z $(grid_y) ]] && ! screen_has t_order\ ─'
+check ":wq 保存成功：写进库，tab 关掉" eval '[[ $(psql_n "select user_id from t_order where id = 1") == 3 && -z $(grid_y) ]] && ! screen_has t_order\ ─'
 
 e2e_done

@@ -62,7 +62,7 @@ key C-h
 check "C-h 聚焦树：光标行为 select 底" eval 'cursor_on doraemon && style_has 30 4 bg=$SELECT'
 key 3 j; check "3j：下移 3 个节点（Tables (6)）" cursor_on "Tables (6)"
 key k;   check "k：上移 1 个（public）" cursor_on public
-key G;   check "G：最后一个节点（工作区的 ①）" cursor_on ①
+key G;   check "G：最后一个节点（工作区的 pane-1，F3.19）" cursor_on pane-1
 key g g; check "gg：第一个节点" cursor_on doraemon
 e2e_move 20 $(item_y t_sku); sleep 0.3
 check "悬停 t_sku：row 底，光标不动" eval 'style_has 30 $(item_y t_sku) bg=$ROW && style_has 30 4 bg=$SELECT'
@@ -81,7 +81,7 @@ check "esc：清空过滤、回到 NORMAL，光标仍在 t_order_item" eval 'mod
 typ /sku; key C-c
 check "C-c 等同 esc：清空过滤，光标在 t_sku，不弹退出提示" eval 'text_is 4 14 2 " $n tables " && cursor_on t_sku && ! screen_has "再按一次" && running'
 
-# ---- 打开表（§7.8、§12）：↵ 当前 tab，t 新 tab，单击当前 tab，中键新 tab；打开后焦点移到 data pane
+# ---- 打开表（§7.8、§12）：↵、t、单击、中键都新开 tab（F3.18 起 ↵ 和单击不再替换当前 tab，只替换引导 tab）；打开后焦点移到 data pane
 key k k; key Enter
 check "↵ 打开 t_order：① 标题显示 t_order，焦点移到 ①" eval '[[ $(data_title) == "┌─ ① "?" t_order ─"* && $(focused) == 1 && $(data_tabs) == "│ 1:t_order* │ +" ]] || { echo "  $(data_title) | $(data_tabs) | focus $(focused)"; false; }'
 check "当前打开的表 t_order：图标和表名 focus 色；树失焦，光标行为 row 底" eval 'lit t_order && style_has 30 $(item_y t_order) bg=$ROW'
@@ -90,9 +90,9 @@ check "光标和当前打开的表分开画：t_order 仍是 focus 色、不是�
 key t
 check "t 在新 tab 打开 t_order_item，焦点移到 ①" eval '[[ $(data_tabs) == "│ 1:t_order- │ 2:t_order_item* │ +" && $(focused) == 1 ]] || { echo "  $(data_tabs) focus $(focused)"; false; }'
 e2e_click $(e2e_find t_sku $(item_y t_sku) | cut -d' ' -f1) $(item_y t_sku); sleep 0.3
-check "单击 t_sku：在当前 tab 打开，焦点在 ①" eval '[[ $(data_tabs) == "│ 1:t_order- │ 2:t_sku* │ +" && $(focused) == 1 && $(data_title) == *" t_sku ─"* ]] || { echo "  $(data_tabs) focus $(focused)"; false; }'
+check "单击 t_sku：新开 tab（F3.18），焦点在 ①" eval '[[ $(data_tabs) == "│ 1:t_order │ 2:t_order_item- │ 3:t_sku* │ +" && $(focused) == 1 && $(data_title) == *" t_sku ─"* ]] || { echo "  $(data_tabs) focus $(focused)"; false; }'
 mclick $(e2e_find t_user $(item_y t_user) | cut -d' ' -f1) $(item_y t_user); sleep 0.3
-check "中键 t_user：在新 tab 打开，焦点在 ①" eval '[[ $(data_tabs) == "│ 1:t_order │ 2:t_sku- │ 3:t_user* │ +" && $(focused) == 1 ]] || { echo "  $(data_tabs) focus $(focused)"; false; }'
+check "中键 t_user：在新 tab 打开，焦点在 ①" eval '[[ $(data_tabs) == "│ 1:t_order │ 2:t_order_item │ 3:t_sku- │ 4:t_user* │ +" && $(focused) == 1 ]] || { echo "  $(data_tabs) focus $(focused)"; false; }'
 check "当前打开的表跟着 ① 的当前 tab：t_user 高亮，t_order / t_sku 不再高亮" eval 'lit t_user && ! lit t_order >/dev/null && ! lit t_sku >/dev/null'
 key Space %
 check "焦点在空的 ②：↵ 会打开到 ②，树里没有高亮的表" none_lit
@@ -114,7 +114,7 @@ key C-h
 e2e_wheel 10 6 down; sleep 0.3
 check "滚一格：视图下移 3 个节点（Tables (6) 起）；光标被夹到 Tables (6)" eval '[[ $(tree | head -1) == "Tables (6)" ]] && cursor_on "Tables (6)"'
 for i in 1 2 3 4; do e2e_wheel 10 6 down; sleep 0.2; done
-check "滚到底：最后一个节点 ① 贴着底边，不再往下" eval '[[ $(tree | tail -1) == ① && $(e2e_text 2 31 $(last_y)) == *①* ]]'
+check "滚到底：最后一个节点 pane-1 贴着底边，不再往下" eval '[[ $(tree | tail -1) == pane-1 && $(e2e_text 2 31 $(last_y)) == *pane-1* ]]'
 for i in 1 2 3 4 5 6; do e2e_wheel 10 6 up; sleep 0.2; done
 check "往回滚：回到顶部" eval '[[ $(tree | head -1) == doraemon ]]'
 
