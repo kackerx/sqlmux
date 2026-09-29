@@ -174,19 +174,26 @@ func execEach(ctx context.Context, w *db.Worker, stmts ...string) (rs []db.Resul
 }
 
 // A console's schema goes first on search_path, the started one after it:
-// agentable's tables need no prefix, public's still resolve (§8.6).
+// agentable's tables need no prefix, public's still resolve. The started
+// path goes as a parameter: "" (the server's search_path set empty) and
+// $user,public (a DSN's) take no quoting (§8.6).
 func TestSetSearchPath(t *testing.T) {
 	c := connect(t, false)
 	ctx := context.Background()
-	if _, err := c.Exec(ctx, SetSearchPath("agentable", c.SearchPath), 0); err != nil {
+	for _, started := range []string{c.SearchPath, `""`, "$user,public", ""} {
+		if err := SetSearchPath(ctx, c, "agentable", started); err != nil {
+			t.Fatalf("%s: %v", started, err)
+		}
+	}
+	if err := SetSearchPath(ctx, c, "agentable", c.SearchPath); err != nil {
 		t.Fatal(err)
 	}
 	r, err := c.Query(ctx, "select current_schemas(false)::text, (select count(*) from agent) >= 0, (select count(*) from t_order) >= 0")
 	if err != nil || r.Rows[0][0].S != "{agentable,public}" {
 		t.Fatalf("%v %v", r.Rows, err)
 	}
-	if got := SetSearchPath(`we"ird`, ""); got != `set search_path to "we""ird"` {
-		t.Errorf("quoted: %s", got)
+	if c.Database != "sqlmux" || c.TxStatus() != 'I' {
+		t.Errorf("database %q, tx %c", c.Database, c.TxStatus())
 	}
 }
 

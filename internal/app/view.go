@@ -134,7 +134,7 @@ func (a *App) render() *ui.Frame {
 	}
 	if a.drop != nil {
 		d := a.dropView()
-		box, rows := a.dropBox(d)
+		box, rows := a.dropBox(d, f.Hits) // this frame's: the panes are drawn
 		if c := d.Draw(f, box, rows); c.X >= 0 {
 			f.Cursor = &c
 		}

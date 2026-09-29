@@ -59,13 +59,9 @@ func (a *App) gotCatalog(m catalogMsg) tea.Cmd {
 	if !slices.Contains(s.Schemas, s.Schema) { // the first load, or the schema is gone (§7.8)
 		s.Schema = s.home
 	}
-	for _, w := range s.Windows { // the consoles opened before the tree had a schema (§8.6)
-		for _, p := range w.Root.Leaves() {
-			for _, t := range p.Tabs {
-				if t.Console != nil && t.Console.schema == "" {
-					t.Console.schema = s.Schema
-				}
-			}
+	for _, c := range s.consoles() { // opened before the tree had a schema, or in one gone: the tree's (§8.6)
+		if !slices.Contains(s.Schemas, c.schema) {
+			c.schema = s.Schema
 		}
 	}
 	a.clampTree()

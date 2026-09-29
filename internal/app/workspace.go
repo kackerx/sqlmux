@@ -130,8 +130,8 @@ type Session struct {
 	RunSeq     int    // the last run's number, #42 on its result tabs (§11)
 	warning    string // console_1's file could not be read: a toast on start (§11)
 	// DB is the database, on console titles; startedPath Main's search_path
-	// as it connected; mainPath the one a console's run last set on Main,
-	// "" when not known, touched in Main's requests only (§8.6).
+	// as it connected; mainPath the schema a console's run last put first
+	// on it, "" when not known, touched in Main's requests only (§8.6).
 	DB                    string
 	startedPath, mainPath string
 }
@@ -301,16 +301,22 @@ func (a *App) newConsole() tea.Cmd {
 
 // consoleOpen is whether a console of the session is open on path.
 func (a *App) consoleOpen(path string) bool {
-	for _, w := range a.sess.Windows {
+	return slices.ContainsFunc(a.sess.consoles(), func(c *consoleTab) bool { return c.path == path })
+}
+
+// consoles is the session's consoles, in every window.
+func (s *Session) consoles() []*consoleTab {
+	var out []*consoleTab
+	for _, w := range s.Windows {
 		for _, p := range w.Root.Leaves() {
 			for _, t := range p.Tabs {
-				if t.Console != nil && t.Console.path == path {
-					return true
+				if t.Console != nil {
+					out = append(out, t.Console)
 				}
 			}
 		}
 	}
-	return false
+	return out
 }
 
 // paneShowing is the pane of the window whose current tab is t; nil when

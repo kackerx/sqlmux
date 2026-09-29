@@ -60,25 +60,23 @@ func Connect(ctx context.Context, dsn, password string, readOnly bool) (*Conn, e
 	if err != nil {
 		return nil, err
 	}
-	c := &Conn{pg: pg, Addr: fmt.Sprintf("%s@%s:%d", cfg.User, cfg.Host, cfg.Port), Database: cfg.Database}
-	r, err := c.Query(ctx, "show search_path")
+	c := &Conn{pg: pg, Addr: fmt.Sprintf("%s@%s:%d", cfg.User, cfg.Host, cfg.Port)}
+	r, err := c.Query(ctx, "select current_setting('search_path'), current_database()") // the DSN may name no database
 	if err != nil {
 		c.Close()
 		return nil, err
 	}
-	c.SearchPath = r.Rows[0][0].S
+	c.SearchPath, c.Database = r.Rows[0][0].S, r.Rows[0][1].S
 	return c, nil
 }
 
-// SetSearchPath is the statement that puts schema first on search_path,
-// before started, what the connection started with, so extensions there
-// are still found (§8.6).
-func SetSearchPath(schema, started string) string {
-	path := pgx.Identifier{schema}.Sanitize()
-	if started != "" {
-		path += ", " + started
-	}
-	return "set search_path to " + path
+// SetSearchPath puts schema first on c's search_path, then started, the
+// path it connected with, so extensions there are still found (§8.6). By
+// set_config with parameters: started may be "" or $user,public, which
+// SET … TO written out cannot take.
+func SetSearchPath(ctx context.Context, c db.Conn, schema, started string) error {
+	_, err := c.Query(ctx, "select set_config('search_path', concat_ws(', ', $1::text, nullif($2::text, '')), false)", db.Val{S: pgx.Identifier{schema}.Sanitize()}, db.Val{S: started})
+	return err
 }
 
 func (c *Conn) Exec(ctx context.Context, sql string, maxRows int) ([]db.Result, error) {
@@ -111,6 +109,11 @@ func (c *Conn) Query(ctx context.Context, sql string, args ...db.Val) (db.Result
 }
 
 func (c *Conn) Close() error { return c.pg.Close(context.Background()) }
+
+// TxStatus is where the last request left the connection, as the
+// server's ReadyForQuery said: 'I' out of a transaction, 'T' in one, 'E'
+// in one that failed (§8.6).
+func (c *Conn) TxStatus() byte { return c.pg.TxStatus() }
 
 // types names the built-in OIDs; others (enums, domains) are left unnamed.
 var types = pgtype.NewMap()

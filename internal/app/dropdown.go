@@ -120,30 +120,30 @@ func (a *App) dropMatches() []ui.Match {
 
 // dropBox is where v, the dropdown as drawn, opens (§8.6, §7.8): under its
 // chip, left aligned with it, as wide as its longest item. A schema one
-// opens under the console title's button, to the pane's right border at
-// least; under the title's right end when the button was left out.
-func (a *App) dropBox(v ui.Dropdown) (uv.Rectangle, int) {
+// opens under the console title's button, as hits, the frame's, have it,
+// its right edge on the pane's right border; with the button left out, at
+// that border.
+func (a *App) dropBox(v ui.Dropdown, hits []ui.Hit) (uv.Rectangle, int) {
 	d := a.drop
-	var entry uv.Rectangle
 	w := 16
+	items, _ := a.dropItems()
+	for _, s := range items {
+		w = max(w, ui.Width(s)+4) // border and padding on both sides
+	}
+	var entry uv.Rectangle
 	switch d.kind {
 	case dropSchema:
 		r := a.layout()[d.pane.ID]
-		entry = uv.Rect(r.Max.X-1, r.Min.Y, 1, 1)
-		for _, h := range a.hits { // the button as the last frame drew it
+		entry = uv.Rect(r.Max.X-w, r.Min.Y, w, 1)
+		for _, h := range hits {
 			if h.Target == (ui.Target{Kind: ui.KindHint, Pane: d.pane.ID, Action: "console.schema"}) {
-				entry = h.Rect
+				entry, w = h.Rect, max(w, r.Max.X-h.Rect.Min.X)
 			}
 		}
-		w = max(w, r.Max.X-entry.Min.X)
 	case dropOrder:
 		entry = a.chipRect(d.pane, d.tab, "grid.order")
 	case dropLimit:
 		entry = a.chipRect(d.pane, d.tab, "grid.limit")
-	}
-	items, _ := a.dropItems()
-	for _, s := range items {
-		w = max(w, ui.Width(s)+4) // border and padding on both sides
 	}
 	return v.Box(a.window(), entry, w)
 }
@@ -151,7 +151,7 @@ func (a *App) dropBox(v ui.Dropdown) (uv.Rectangle, int) {
 func (a *App) dropMove(d int) {
 	m := a.drop
 	n := len(a.dropMatches())
-	_, rows := a.dropBox(a.dropView())
+	_, rows := a.dropBox(a.dropView(), a.hits)
 	m.sel = max(min(m.sel+d, n-1), 0)
 	m.top = max(min(m.top, m.sel), m.sel-rows+1)
 }
