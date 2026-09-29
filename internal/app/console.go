@@ -86,6 +86,7 @@ func (a *App) consoleView(p *Pane, t *consoleTab) (ui.Console, uv.Rectangle) {
 		Cursor: ui.TextPos(ed.Cursor()), CursorCol: ed.CursorCol(), Normal: ed.Mode() == editor.Normal,
 		Failed: t.failed, Pane: p.ID,
 	}
+	c.Names, _ = a.sqlNames(strings.Join(c.Lines, "\n"), cmp.Or(t.schema, a.sess.Schema), nil)
 	c.Prompt, c.Text, c.Pos, _ = ed.CmdLine()
 	if from, to, ok := ed.Selection(); ok {
 		c.Sel = ui.Sel{Mode: ui.SelChars, From: ui.TextPos(from), To: ui.TextPos(to)}

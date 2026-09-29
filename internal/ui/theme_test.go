@@ -28,6 +28,7 @@ row = "#6c6a6d"
 string = "#FFD866"
 match = "#00ff00"
 visual = "#6c6a6d"
+sql_column = "#010203"
 [icon]
 console = { text = "C", fg = "#ff0000" }
 table = { fg = "#a9dc76" }
@@ -36,7 +37,7 @@ sort_asc = { fg = "#ff0000" }
 	if err != nil {
 		t.Fatal(err)
 	}
-	if th.Row != c("#6c6a6d") || th.String != c("#ffd866") || th.Match != c("#00ff00") || th.Visual != c("#6c6a6d") {
+	if th.Row != c("#6c6a6d") || th.String != c("#ffd866") || th.Match != c("#00ff00") || th.Visual != c("#6c6a6d") || th.SQLColumn != c("#010203") {
 		t.Errorf("tokens not set: row %v string %v", th.Row, th.String)
 	}
 	if th.Bar != TokyonightStorm.Bar || th.Fg != TokyonightStorm.Fg {

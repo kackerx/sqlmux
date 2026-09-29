@@ -28,6 +28,8 @@ type Theme struct {
 	Bar                      color.Color // status bar and toast background
 	Sep                      color.Color // separators and tab dividers (§7.8)
 	Match                    color.Color // fuzzy-matched characters' foreground, on the row's own background
+
+	SQLTable, SQLColumn, SQLOperator color.Color // SQL's names the catalog knows, and its operators (§7.3)
 }
 
 var TokyonightStorm = &Theme{
@@ -46,6 +48,8 @@ var TokyonightStorm = &Theme{
 	Bar:   c("#292e42"),
 	Sep:   c("#2f3549"),
 	Match: c("#ff9e64"),
+
+	SQLTable: c("#2ac3de"), SQLColumn: c("#73daca"), SQLOperator: c("#89ddff"),
 }
 
 // Themes are the built-in themes by name.
@@ -135,5 +139,7 @@ func (th *Theme) tokens() map[string]*color.Color {
 		"bar":   &th.Bar,
 		"sep":   &th.Sep,
 		"match": &th.Match,
+
+		"sql_table": &th.SQLTable, "sql_column": &th.SQLColumn, "sql_operator": &th.SQLOperator,
 	}
 }

@@ -465,8 +465,9 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	if t.page.Cols != nil {
 		right += " · " + t.page.Took.Round(time.Millisecond).String()
 	}
+	names, _ := a.sqlNames(t.where.Text, t.table.Schema, &t.cols)
 	return ui.QueryBar{
-		Where: t.where, Typing: t.typing == "where", Pane: p.ID, Right: right, Note: t.note,
+		Where: t.where, Typing: t.typing == "where", Pane: p.ID, Right: right, Note: t.note, Names: names,
 		Chips: []ui.Chip{
 			order,
 			{Label: "LIMIT", Value: strconv.Itoa(t.shown.limit), Action: "grid.limit"},

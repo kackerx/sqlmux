@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"image/color"
+	"strings"
+
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -64,6 +67,17 @@ func (in *Input) Right() {
 // a dim ↵, §7.6), selected on the visual color, scrolled so the cursor
 // stays in view, and returns where the cursor goes.
 func (in Input) Draw(f *Frame, r uv.Rectangle, st uv.Style) uv.Position {
+	return in.draw(f, r, st, nil)
+}
+
+// DrawSQL is Draw with the text in SQL's colors, names telling its tables
+// and columns apart (§7.3): a WHERE's.
+func (in Input) DrawSQL(f *Frame, r uv.Rectangle, st uv.Style, names SQLNames) uv.Position {
+	return in.draw(f, r, st, SQLColors(f.Theme, in.Text, names))
+}
+
+// draw is Draw, the text's bytes in colors, when there are any.
+func (in Input) draw(f *Frame, r uv.Rectangle, st uv.Style, colors []color.Color) uv.Position {
 	start := 0
 	for Width(Printable(in.Text[start:in.Pos])) >= r.Dx() && start < in.Pos { // the cursor takes a cell too
 		gr, _ := ansi.FirstGraphemeCluster(in.Text[start:], ansi.GraphemeWidth)
@@ -74,6 +88,17 @@ func (in Input) Draw(f *Frame, r uv.Rectangle, st uv.Style) uv.Position {
 	}
 	mark := st
 	mark.Fg = f.Theme.Dim
-	drawCell(f, r.Min.X, r.Min.Y, r.Max.X, Printable(in.Text[start:]), st, mark)
+	if colors == nil {
+		drawCell(f, r.Min.X, r.Min.Y, r.Max.X, Printable(in.Text[start:]), st, mark)
+	}
+	for i, x := start, r.Min.X; colors != nil && i < len(in.Text); { // grapheme by grapheme, in its first byte's color
+		gr, _ := ansi.FirstGraphemeCluster(in.Text[i:], ansi.GraphemeWidth)
+		cst := mark
+		if !strings.Contains(gr, "\n") {
+			cst = st
+			cst.Fg = colors[i]
+		}
+		x, i = f.Text(x, r.Min.Y, r.Max.X, Printable(gr), cst), i+len(gr)
+	}
 	return uv.Pos(r.Min.X+Width(Printable(in.Text[start:in.Pos])), r.Min.Y)
 }

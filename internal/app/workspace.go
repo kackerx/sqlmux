@@ -125,6 +125,7 @@ type Session struct {
 	open       map[string]bool // tree nodes opened or closed by hand, by node ID; the rest as §7.8 says
 	Tables     []db.Table      // every schema's, by schema and name
 	cols       map[tableID]db.Columns
+	colsAsked  map[tableID]bool // for names' colors (§7.3): asked once, till cols is dropped
 	Windows    []*Window
 	Active     int
 	RunSeq     int    // the last run's number, #42 on its result tabs (§11)
@@ -138,12 +139,18 @@ type Session struct {
 
 func (a *App) win() *Window { return a.sess.Windows[a.sess.Active] }
 
+// dropCols forgets the columns fetched: the catalog loads anew (§7.8).
+func (s *Session) dropCols() {
+	clear(s.cols)
+	clear(s.colsAsked)
+}
+
 // newSession is a session's default workspace (§5): one window, data, with
 // the sidebar, a pane with no tab and console_1 beside it at 5 : 4 (§7.8),
 // which has what its file kept (§11). A file that cannot be read leaves
 // that pane with no tab too: opened empty, the autosave would write over it.
 func newSession(name, addr string, main, meta *db.Worker) *Session {
-	s := &Session{Name: name, Addr: addr, Main: main, Meta: meta, cols: map[tableID]db.Columns{}}
+	s := &Session{Name: name, Addr: addr, Main: main, Meta: meta, cols: map[tableID]db.Columns{}, colsAsked: map[tableID]bool{}}
 	data := &Pane{ID: 1, Prev: -1}
 	console := &Pane{ID: 2, Prev: -1}
 	if cons, err := openConsole(name, 1); err != nil {

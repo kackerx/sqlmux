@@ -105,7 +105,13 @@ func (a *App) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+// Update is update, then the columns the consoles on screen want (§7.3).
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	_, cmd := a.update(msg)
+	return a, tea.Batch(cmd, a.wantCols())
+}
+
+func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/exp/golden"
 )
 
 // ORDER's direction button sits where the chip's text puts the icon: a
@@ -45,4 +46,13 @@ func TestQueryBarNoteCut(t *testing.T) {
 	if row := strings.Split(f.String(), "\n")[1]; !strings.HasSuffix(strings.TrimRight(row, " "), "id = 12：short，已回滚") {
 		t.Errorf("whole: %q", row)
 	}
+}
+
+// The WHERE in SQL's colors, its table's columns among them, focused or
+// not (§7.3).
+func TestGoldenWhereColors(t *testing.T) {
+	q := QueryBar{Where: Input{Text: "user_id = '2' and status = 'running'"}, Names: sqlNames("t_order", "user_id", "status")}
+	f := NewFrame(50, 1, consoleTheme)
+	q.Draw(f, uv.Rect(0, 0, 50, 1))
+	golden.RequireEqual(t, colorShot(f, uv.Pos(-1, -1)))
 }

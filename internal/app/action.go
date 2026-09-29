@@ -155,7 +155,7 @@ func init() {
 		"tree.open":     {Title: "打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(false) }},
 		"tree.open.tab": {Title: "在新 tab 打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(true) }},
 		"tree.filter":   {Title: "过滤", Run: do(func(a *App, _ Args) { a.treeFilter() })},
-		"tree.refresh":  {Title: "刷新表列表", Run: func(a *App, _ Args) tea.Cmd { clear(a.sess.cols); return a.loadCatalog() }},
+		"tree.refresh":  {Title: "刷新表列表", Run: func(a *App, _ Args) tea.Cmd { a.sess.dropCols(); return a.loadCatalog() }},
 		// Keys inside the dropdowns and the COLS list (§6.8): untitled, like the palette's.
 		"dropdown.up":     {Title: "上移", Local: true, Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(-1); return nil })},
 		"dropdown.down":   {Title: "下移", Local: true, Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(1); return nil })},

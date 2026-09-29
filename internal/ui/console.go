@@ -34,6 +34,7 @@ type Console struct {
 	Pos          int
 	Failed       int // the first line of the statement whose last run failed: its ▶ in error; -1 for none
 	Pane         int
+	Names        SQLNames // the tables and columns among the text's names, for their colors; nil for none
 }
 
 // TextPos is a line and a byte offset into it, both from 0.
@@ -89,7 +90,7 @@ func (c Console) Draw(f *Frame, r uv.Rectangle) uv.Position {
 	if i := sqlkit.StmtAt(text, stmts, starts[cur.Line]+cur.Col); i >= 0 && c.Normal {
 		from, to = lineOf(stmts[i].Lead), lineOf(stmts[i].End) // with the comment lines above it (§9.2)
 	}
-	colors := c.colors(th, text)
+	colors := SQLColors(th, text, c.Names)
 	ta, width := c.TextArea(r), c.gutter()-2
 	for y := range r.Dy() {
 		n, row := c.Top+y, r.Min.Y+y
@@ -182,9 +183,24 @@ func (c Console) selected(n, col, v, w int) bool {
 	return (n > s.From.Line || n == s.From.Line && col >= s.From.Col) && (n < s.To.Line || n == s.To.Line && col <= s.To.Col)
 }
 
-// colors are the text's colors by byte (§7.3): keywords, numbers, strings,
-// comments, a name right before ( as a function, the rest fg.
-func (c Console) colors(th *Theme, text string) []color.Color {
+// SQLName is what a name in SQL is to SQLColors.
+type SQLName uint8
+
+const (
+	OtherName SQLName = iota
+	TableName
+	ColumnName
+)
+
+// SQLNames tells what the name at byte at of some SQL is: word is it as
+// written, "quoted" or not.
+type SQLNames func(at int, word string) SQLName
+
+// SQLColors are SQL text's colors by byte (§7.3), a console's and a WHERE
+// input's: keywords, numbers, strings, comments, operators, a name right
+// before ( as a function, the tables and columns names says it is, the
+// rest fg.
+func SQLColors(th *Theme, text string, names SQLNames) []color.Color {
 	out := make([]color.Color, len(text))
 	ts := sqlkit.Scan(text, sqlkit.PG)
 	for i, t := range ts {
@@ -198,9 +214,18 @@ func (c Console) colors(th *Theme, text string) []color.Color {
 			col = th.SQLString
 		case sqlkit.Comment:
 			col = th.Comment
-		case sqlkit.Ident:
-			if i+1 < len(ts) && ts[i+1].Start == t.End && text[t.End] == '(' {
+		case sqlkit.Op:
+			col = th.SQLOperator
+		case sqlkit.Ident, sqlkit.Quoted:
+			if t.Kind == sqlkit.Ident && i+1 < len(ts) && ts[i+1].Start == t.End && text[t.End] == '(' {
 				col = th.Func
+			} else if names != nil {
+				switch names(t.Start, text[t.Start:t.End]) {
+				case TableName:
+					col = th.SQLTable
+				case ColumnName:
+					col = th.SQLColumn
+				}
 			}
 		}
 		for j := t.Start; j < t.End; j++ {

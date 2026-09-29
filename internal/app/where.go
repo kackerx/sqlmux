@@ -2,7 +2,9 @@ package app
 
 import (
 	"cmp"
+	"math"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -140,6 +142,102 @@ func wordStart(rs []rune, i int) bool {
 	return i == 0 || strings.ContainsRune("_.-$", rs[i-1]) || unicode.IsLower(rs[i-1]) && unicode.IsUpper(rs[i])
 }
 
+// tableNamed is the session's table name of schema, as PG folds what
+// isn't quoted.
+func (a *App) tableNamed(schema, name string) (db.Table, bool) {
+	for _, t := range a.sess.Tables {
+		if strings.EqualFold(t.Schema, schema) && strings.EqualFold(t.Name, name) {
+			return t, true
+		}
+	}
+	return db.Table{}, false
+}
+
+// sqlNames tells the names in SQL text apart for their colors (§7.3): a
+// table is one of the session's, any schema's; a column is one of the
+// tables its statement names, of schema when unqualified, or with cols
+// given, one of those (a WHERE's table's). missing is the statements'
+// tables whose columns the cache lacks.
+// ponytail: by the tokens alone: a CTE or an alias named as a table is
+// colored as one, as is a column; a table's name wins over a column's
+func (a *App) sqlNames(text, schema string, cols *db.Columns) (names ui.SQLNames, missing []db.Table) {
+	tables := map[string]bool{}
+	for _, t := range a.sess.Tables {
+		tables[t.Name] = true
+	}
+	type span struct {
+		end  int
+		cols map[string]bool
+	}
+	var spans []span // by statement, in order
+	add := func(end int, cs db.Columns) {
+		if len(spans) == 0 || spans[len(spans)-1].end != end {
+			spans = append(spans, span{end, map[string]bool{}})
+		}
+		for _, c := range cs.Cols {
+			spans[len(spans)-1].cols[c.Name] = true
+		}
+	}
+	var stmts []sqlkit.Stmt
+	if cols != nil {
+		add(math.MaxInt, *cols)
+	} else {
+		stmts = sqlkit.Statements(text, sqlkit.PG)
+	}
+	for _, st := range stmts {
+		add(st.End, db.Columns{})
+		c := sqlkit.CompletionContext(text[st.Start:st.End], 0, sqlkit.PG)
+		for _, r := range c.Tables {
+			if r.Schema == "" && slices.ContainsFunc(c.CTEs, func(n string) bool { return strings.EqualFold(n, r.Name) }) {
+				continue
+			}
+			t, ok := a.tableNamed(cmp.Or(r.Schema, schema), r.Name)
+			cs, cached := a.sess.cols[idOf(t)]
+			if ok && !cached {
+				missing = append(missing, t)
+			}
+			add(st.End, cs)
+		}
+	}
+	return func(at int, word string) ui.SQLName {
+		name := strings.ToLower(word) // PG folds a name unless it is quoted
+		if strings.HasPrefix(word, `"`) {
+			name = strings.ReplaceAll(strings.TrimSuffix(word[1:], `"`), `""`, `"`)
+		}
+		i := sort.Search(len(spans), func(i int) bool { return spans[i].end > at })
+		switch {
+		case tables[name]:
+			return ui.TableName
+		case i < len(spans) && spans[i].cols[name]:
+			return ui.ColumnName
+		}
+		return ui.OtherName
+	}, missing
+}
+
+// wantCols asks for the columns of the tables the consoles on screen name
+// that the cache lacks, for their names' colors (§7.3): each once, till
+// the cache is dropped.
+// ponytail: the consoles are scanned after every message, as they are
+// drawn; keep the tables a console names per change if a big file lags
+func (a *App) wantCols() tea.Cmd {
+	var cmds []tea.Cmd
+	for id := range a.layout() {
+		c := consoleOf(a.win().pane(id))
+		if c == nil {
+			continue
+		}
+		_, missing := a.sqlNames(strings.Join(c.ed.Lines(), "\n"), cmp.Or(c.schema, a.sess.Schema), nil)
+		for _, t := range missing {
+			if !a.sess.colsAsked[idOf(t)] {
+				a.sess.colsAsked[idOf(t)] = true
+				cmds = append(cmds, a.fetchCols(t))
+			}
+		}
+	}
+	return tea.Batch(cmds...)
+}
+
 // sqlComplete is the candidates for the cursor at pos in sql, a console's
 // or the quick SQL's (§9.7): by what CompletionContext says goes there,
 // tables of schema (the console's; the tree's for the quick SQL, §8.6), of
@@ -156,15 +254,7 @@ func (a *App) sqlComplete(sql string, pos int, schema string, asked map[tableID]
 		return nil, nil
 	}
 	var cmds []tea.Cmd
-	table := func(in, name string) (db.Table, bool) { // PG folds what isn't quoted
-		in = cmp.Or(in, schema)
-		for _, t := range a.sess.Tables {
-			if strings.EqualFold(t.Schema, in) && strings.EqualFold(t.Name, name) {
-				return t, true
-			}
-		}
-		return db.Table{}, false
-	}
+	table := func(in, name string) (db.Table, bool) { return a.tableNamed(cmp.Or(in, schema), name) }
 	columns := func(t db.Table) (out []candidate) {
 		cs, ok := a.sess.cols[idOf(t)]
 		if !ok && !asked[idOf(t)] {

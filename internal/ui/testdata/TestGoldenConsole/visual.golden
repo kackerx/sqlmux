@@ -2,10 +2,10 @@
  |.ddd.cccccccccccc.......................|
  |                                        |
  |▶  2 select id, count(*) from t_user    |
- |>ddd.kkkkkk.....fffff....kkkk...........|
+ |>ddd.kkkkkk.....fffff.o..kkkk...........|
  |            vvvvvvvvvvvvvvvvvvvvvvvvv   |
 @|   3 where name = 'a' and n > 42        |
- |.....kkkkk........sss.kkk.....nn........|
+ |.....kkkkk......o.sss.kkk...o.nn........|
  |     vvvvvvvvvv                         |
  |   4 group by id;                       |
  |.ddd.kkkkk.kk...........................|

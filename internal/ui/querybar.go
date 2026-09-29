@@ -73,6 +73,7 @@ type QueryBar struct {
 	Right   string        // "auto · 6000 行 · 12ms"
 	Note    Note          // how a save went, in Right's place while it stands (Q-06)
 	Pane    int
+	Names   SQLNames // the WHERE's tables and columns, for its colors (§7.3)
 }
 
 // QueryBarRows is how tall a query bar is.
@@ -156,7 +157,7 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 		vst.Bg = th.Select
 	}
 	f.Text(vx, r.Min.Y, r.Max.X, "▾", vst)
-	if c := q.Where.Draw(f, q.InputRect(r), bg); q.Typing {
+	if c := q.Where.DrawSQL(f, q.InputRect(r), bg, q.Names); q.Typing {
 		cursor = c
 	}
 	if r.Dy() < 2 {

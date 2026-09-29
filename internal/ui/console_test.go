@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"cmp"
 	"fmt"
 	"image/color"
+	"slices"
 	"strings"
 	"testing"
 
@@ -15,21 +17,26 @@ import (
 // share one in tokyonight-storm).
 var consoleTheme = func() *Theme {
 	th := *TokyonightStorm
-	for i, p := range []*color.Color{&th.Fg, &th.Keyword, &th.Number, &th.SQLString, &th.Comment, &th.Func, &th.Dim, &th.Focus, &th.Error, &th.PaneBg, &th.Row, &th.Visual} {
+	for i, p := range []*color.Color{&th.Fg, &th.Keyword, &th.Number, &th.SQLString, &th.Comment, &th.Func, &th.Dim, &th.Focus, &th.Error, &th.PaneBg, &th.Row, &th.Visual, &th.SQLTable, &th.SQLColumn, &th.SQLOperator} {
 		*p = color.RGBA{uint8(i + 1), 0, 0, 0xff}
 	}
 	return &th
 }()
 
-// consoleShot draws c on a w × h frame and shows each row three times: as
-// text, its foreground by token (k keyword, n number, s string, c comment,
-// f func, . fg, d dim, > focus, e error) and its background (r row, v
-// visual); @ marks the cursor.
+// consoleShot draws c on a w × h frame, as colorShot shows it.
 func consoleShot(c Console, w, h int) string {
-	th := consoleTheme
-	f := NewFrame(w, h, th)
-	cur := c.Draw(f, uv.Rect(0, 0, w, h))
-	fgs := map[color.Color]string{th.Fg: ".", th.Keyword: "k", th.Number: "n", th.SQLString: "s", th.Comment: "c", th.Func: "f", th.Dim: "d", th.Focus: ">", th.Error: "e"}
+	f := NewFrame(w, h, consoleTheme)
+	return colorShot(f, c.Draw(f, uv.Rect(0, 0, w, h)))
+}
+
+// colorShot shows each row of f three times: as text, its foreground by
+// token (k keyword, n number, s string, c comment, f func, t table, l
+// column, o operator, . fg, d dim, > focus, e error) and its background
+// (r row, v visual), ? for any other; @ marks the cursor at cur.
+func colorShot(f *Frame, cur uv.Position) string {
+	th, w, h := consoleTheme, f.Bounds().Dx(), f.Bounds().Dy()
+	fgs := map[color.Color]string{th.Fg: ".", th.Keyword: "k", th.Number: "n", th.SQLString: "s", th.Comment: "c", th.Func: "f", th.Dim: "d", th.Focus: ">", th.Error: "e",
+		th.SQLTable: "t", th.SQLColumn: "l", th.SQLOperator: "o"}
 	bgs := map[color.Color]string{th.PaneBg: " ", th.Row: "r", th.Visual: "v"}
 	var b strings.Builder
 	for y := range h {
@@ -41,8 +48,8 @@ func consoleShot(c Console, w, h int) string {
 			}
 			text.WriteString(cell.Content)
 			for range cell.Width {
-				fg.WriteString(fgs[cell.Style.Fg])
-				bg.WriteString(bgs[cell.Style.Bg])
+				fg.WriteString(cmp.Or(fgs[cell.Style.Fg], "?"))
+				bg.WriteString(cmp.Or(bgs[cell.Style.Bg], "?"))
 			}
 		}
 		mark := " "
@@ -61,6 +68,19 @@ where name = 'a' and n > 42
 group by id;
 
 select now();`
+
+// sqlNames says the tables and columns are those it is given.
+func sqlNames(table string, columns ...string) SQLNames {
+	return func(_ int, word string) SQLName {
+		switch {
+		case word == table:
+			return TableName
+		case slices.Contains(columns, word):
+			return ColumnName
+		}
+		return OtherName
+	}
+}
 
 // The console's highlighting, gutter, statement range, selections and
 // command line (§7.8, §9.2, §11).
@@ -83,6 +103,7 @@ func TestGoldenConsole(t *testing.T) {
 		{"scrolled", Console{Lines: scrolled, Left: 24, Cursor: TextPos{0, 32}, CursorCol: 31, Normal: true}, 20, 2},
 		{"wide cut at the left", Console{Lines: []string{"a中" + strings.Repeat("x", 20)}, Left: 2, Cursor: TextPos{0, 17}, CursorCol: 16, Normal: true}, 20, 1},
 		{"insert", Console{Lines: []string{"select 1;", ""}, Cursor: TextPos{1, 0}}, 20, 3},
+		{"names", Console{Lines: []string{"select * from t_order where user_id = 'df'"}, Cursor: TextPos{0, 0}, Names: sqlNames("t_order", "user_id")}, 50, 1},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			c.c.TabWidth = 2

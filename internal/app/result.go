@@ -307,7 +307,7 @@ func (a *App) gotRun(m runDone) tea.Cmd {
 		selectTab(p, at)
 	}
 	if ddl {
-		clear(a.sess.cols) // as tree.refresh
+		a.sess.dropCols() // as tree.refresh
 		cmds = append(cmds, a.loadCatalog())
 	}
 	return tea.Batch(cmds...)

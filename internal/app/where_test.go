@@ -5,7 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"sqlmux/internal/config"
+	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -254,4 +257,46 @@ func openPaletteOn(t *testing.T, a *App) *App {
 	t.Helper()
 	feed(t, a, "<C-p>")
 	return a
+}
+
+// Names in SQL for their colors: a table the catalog has, folded unless
+// quoted; a column of the tables its statement names, not of an alias's
+// or a CTE's; the tables whose columns are not fetched yet missing, and
+// asked for once, the consoles on screen's (§7.3).
+func TestSQLNames(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	text := `select o.status, "status", "Status", AMOUNT from T_ORDER o; select status from t_user; with x as (select 1) select status from x`
+	names, missing := a.sqlNames(text, "public", nil)
+	for _, c := range []struct {
+		word string
+		n    int // the nth of it in text
+		want ui.SQLName
+	}{
+		{"T_ORDER", 0, ui.TableName}, {"t_user", 0, ui.TableName}, {"o", 0, ui.OtherName},
+		{"status", 0, ui.ColumnName}, {`"status"`, 0, ui.ColumnName}, {`"Status"`, 0, ui.OtherName}, {"AMOUNT", 0, ui.ColumnName},
+		{"status", 2, ui.OtherName}, // t_user's, not fetched
+		{"status", 3, ui.OtherName}, // x's, a CTE
+	} {
+		at := -1
+		for range c.n + 1 {
+			at += 1 + strings.Index(text[at+1:], c.word)
+		}
+		if got := names(at, c.word); got != c.want {
+			t.Errorf("%s #%d at %d: %v, want %v", c.word, c.n, at, got, c.want)
+		}
+	}
+	if len(missing) != 1 || missing[0].Name != "t_user" {
+		t.Errorf("missing %v", missing)
+	}
+	if n := a.queryBar(a.focused(), tab).Names; n(0, "note") != ui.ColumnName || n(0, "t_user") != ui.TableName {
+		t.Error("the WHERE's: the table's columns")
+	}
+	consoleOf(a.win().pane(2)).ed = editor.New("select * from t_user") // on screen
+	if _, cmd := a.Update(tea.WindowSizeMsg{Width: 160, Height: 45}); cmd == nil || !a.sess.colsAsked[tableID{"public", "t_user"}] {
+		t.Fatal("the console's t_user: its columns asked for")
+	}
+	if _, cmd := a.Update(tea.WindowSizeMsg{Width: 160, Height: 45}); cmd != nil {
+		t.Error("asked again")
+	}
 }
