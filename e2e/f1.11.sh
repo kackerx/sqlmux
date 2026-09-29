@@ -22,7 +22,7 @@ sent key Enter
 check "↵：chip 为 LIMIT 250，SQL 为 limit 251，从第 3 页回到第 1 页" eval 'qb_has "LIMIT 250   PAGE 1/24" && [[ $SQL == *"limit 251 offset 0" ]] || { echo "  $SQL / $(qb)"; false; }'
 limit 99999; key Enter; wait_for 8 settled
 check "输入 99999：按上限 10000" qb_has "LIMIT 10000   PAGE 1/1"
-limit 100
+limit 100; wait_for 3 eval '[[ $(dd_rows) == "100 1000 " ]]'             # 负载高时过滤结果会晚一帧
 check "输入 100：列表是 100 1000，预设的 100 不重复" eval '[[ $(dd_rows) == "100 1000 " ]] || { echo "  $(dd_rows)"; false; }'
 key Escape
 limit 0
