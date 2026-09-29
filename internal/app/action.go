@@ -264,6 +264,9 @@ func init() {
 				t.typing, t.cell = "", nil
 			}
 		})},
+		// a row added's cell being edited: the next field's edit (F3.33)
+		"cell.field.next": {Title: "下一个字段", Local: true, Run: func(a *App, _ Args) tea.Cmd { return a.cellField(1) }},
+		"cell.field.prev": {Title: "上一个字段", Local: true, Run: func(a *App, _ Args) tea.Cmd { return a.cellField(-1) }},
 		// the options under a cell being edited (§10.2)
 		"cell.option.next":  {Title: "下一个选项", Local: true, Run: onCell(func(t *dataTab) { t.moveOption(1) })},
 		"cell.option.prev":  {Title: "上一个选项", Local: true, Run: onCell(func(t *dataTab) { t.moveOption(-1) })},

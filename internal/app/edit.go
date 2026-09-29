@@ -504,6 +504,28 @@ func (a *App) deleteRow() tea.Cmd {
 	return nil
 }
 
+// cellField is Tab and S-Tab in a row added (F3.33): the cell's edit
+// ended as ↵ ends it, and the field d away edited; past the first or the
+// last field the edit just ends. Text that is no value of the column
+// keeps it where it is (§10.7).
+func (a *App) cellField(d int) tea.Cmd {
+	t := a.typingTab()
+	if t == nil || t.cell == nil {
+		return nil
+	}
+	if t.acceptCell(); t.cell != nil { // ◷ 现在 put the time in, which goes too; or the text is no value
+		if t.cellHint() != "" {
+			return nil
+		}
+		t.commitCell()
+	}
+	if next := t.col + d; next >= 0 && next < len(t.shownCols()) {
+		a.gridGoto(fmt.Sprintf("%d %d", t.row, next))
+		return a.editCell(nil)
+	}
+	return nil
+}
+
 // endEdit commits the focused cell's edit before anything else happens:
 // a click elsewhere, the wheel, a key that isn't the cell's (§10.1). It is
 // false when the text is no value of the column: the edit stays, and so

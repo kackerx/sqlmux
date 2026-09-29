@@ -107,6 +107,7 @@ func TestSequences(t *testing.T) {
 		{Context{Focus: []string{"cell"}, Mode: Insert}, "<Tab>", []string{"keys <Tab>"}}, // the floats' keys (§10.2)
 		{Context{Overlay: "segments", Focus: []string{"cell"}, Mode: Insert}, "<Tab>", []string{"cell.segment.next"}},
 		{Context{Overlay: "options", Focus: []string{"cell"}, Mode: Insert}, "<Tab>", []string{"cell.option.next"}},
+		{Context{Overlay: "newrow", Under: "options", Focus: []string{"cell"}, Mode: Insert}, "<Tab><Down>", []string{"cell.field.next", "cell.option.next"}},
 		// COMMAND is typing too: no counts, no widget keys, no user maps
 		{Context{Overlay: "palette", Mode: Command}, "5<CR>", []string{"keys 5", "palette.run"}},
 	} {

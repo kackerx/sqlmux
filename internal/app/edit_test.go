@@ -930,6 +930,33 @@ func TestRowAddDelete(t *testing.T) {
 	}
 }
 
+// In a row added Tab ends a cell's edit and edits the next field, S-Tab
+// the one before, over the options' Tab; past the last or the first the
+// edit ends there. Text that is no value stays (F3.33).
+func TestNewRowTab(t *testing.T) {
+	a := wide(160, 45)
+	tab := loadOrders(t, a, 3)
+	feed(t, a, "oi5<Tab>")
+	if tab.cell == nil || tab.cell.key.col != "status" || tab.added[0].cells["id"].val.S != "5" {
+		t.Fatalf("Tab: cell %+v, row %+v", tab.cell, tab.added[0].cells)
+	}
+	if feed(t, a, "<Tab>x<Tab>"); tab.cell == nil || tab.cell.key.col != "amount" || tab.cellHint() == "" {
+		t.Fatalf("status's options have no Tab; x in amount stays: %+v", tab.cell)
+	}
+	if feed(t, a, "<BS>7<S-Tab>"); tab.cell == nil || tab.cell.key.col != "status" || tab.added[0].cells["amount"].val.S != "7" {
+		t.Fatalf("S-Tab: %+v", tab.cell)
+	}
+	if feed(t, a, "<S-Tab><S-Tab>"); tab.cell != nil || tab.col != 0 {
+		t.Errorf("past the first: cell %+v, col %d", tab.cell, tab.col)
+	}
+	if feed(t, a, "$i<Tab>"); tab.cell != nil || tab.col != 6 {
+		t.Errorf("past the last: cell %+v, col %d", tab.cell, tab.col)
+	}
+	if feed(t, a, "k0li<Tab>"); tab.cell == nil || tab.cell.sel != 0 {
+		t.Errorf("a page row's Tab picks an option: %+v", tab.cell)
+	}
+}
+
 // A row added stays on its page, under its row; one past the last page or
 // past its page's rows, a LIMIT cut since or not, goes at the last page's
 // end (§10.6).

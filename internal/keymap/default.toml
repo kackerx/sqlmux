@@ -162,6 +162,10 @@ leader = "<Space>"
 "n" = "confirm.no"
 "<Esc>" = "confirm.no"
 
+[keys.newrow] # F3.33: a cell of a row added, over its options' and segments' keys
+"<Tab>" = "cell.field.next"
+"<S-Tab>" = "cell.field.prev"
+
 [keys.options] # §10.2: a cell's options, while they show (a time's: segments)
 "<Tab>" = "cell.option.next"
 "<C-n>" = "cell.option.next"

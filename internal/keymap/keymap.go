@@ -20,7 +20,7 @@ var defaultTOML string
 // pressed over it resolve as without it (§6.5).
 var tables = []string{
 	"keys.confirm", "keys.palette", "keys.where", "keys.cols", "keys.dropdown", "keys.sessions",
-	"keys.complete", "keys.options", "keys.segments", "keys.keyhelp", "keys.cell", "keys.input",
+	"keys.complete", "keys.newrow", "keys.options", "keys.segments", "keys.keyhelp", "keys.cell", "keys.input",
 	"keys.result", "keys.grid", "keys.tree", "keys.console", "keys.landing", "keys.normal", "keys.global",
 	"map.console.normal", "map.console.visual", "map.grid.normal", "map.grid.visual",
 	"map.tree.normal", "map.tree.visual", "map.normal", "map.visual",
@@ -230,6 +230,7 @@ var when = map[string]string{
 	"keys.cell":     "编辑单元格时（M2）",
 	"keys.sessions": "session 列表打开时（M5）",
 	"keys.confirm":  "确认框打开时",
+	"keys.newrow":   "编辑还没保存的新行的格时，叠在选项 / 分段浮层之上（F3.33）",
 	"keys.options":  "非时间列的单元格，选项浮层展开、而且有选项时",
 	"keys.segments": "时间列的单元格，分段浮层展开时",
 	"keys.keyhelp":  "? 键位帮助打开时",

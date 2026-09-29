@@ -25,6 +25,7 @@ func (m Mode) typing() bool { return m == Insert || m == Command }
 // Context is where a key press lands; it picks and orders the scopes (§6.4).
 type Context struct {
 	Overlay string   // topmost overlay scope, if one is open
+	Under   string   // an overlay under it, whose keys come next: options or segments under newrow (F3.33)
 	Focus   []string // focused widget scopes, most specific first: {"result", "grid"}
 	Pane    string   // pane type for [map.<pane>.<mode>]: console | grid | tree
 	Mode    Mode
@@ -36,8 +37,10 @@ type Context struct {
 // when normal itself is not in play.
 func (m *Map) scopes(c Context, maps bool) []string {
 	var ts []string
-	if c.Overlay != "" {
-		ts = append(ts, "keys."+c.Overlay)
+	for _, o := range []string{c.Overlay, c.Under} {
+		if o != "" {
+			ts = append(ts, "keys."+o)
+		}
 	}
 	if maps && !c.Mode.typing() {
 		if c.Pane != "" {
