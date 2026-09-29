@@ -267,7 +267,9 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 		return uv.Style{Fg: th.Dim, Bg: bg}
 	}
 
-	// seps are the x of each │: after the labels, then between the columns shown.
+	// seps are the x of each │: after the labels, then between the columns
+	// shown; none when not even the labels fit.
+	labelEnd := min(area.Min.X+labelW+2, area.Max.X)
 	seps := []int{area.Min.X + labelW + 2}
 	cols := []int{}
 	for c := hoff; c < v.cols && seps[len(seps)-1] < area.Max.X; c++ {
@@ -327,9 +329,9 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 		if g.Transpose {
 			st := name
 			st.Bg = bg
-			f.Text(area.Min.X+1, y, seps[0], Truncate(label, labelW), st)
+			f.Text(area.Min.X+1, y, labelEnd, Truncate(label, labelW), st)
 			if field := g.Cols[r]; field.PK && g.Key.Fg != nil {
-				f.Text(area.Min.X+1, y, seps[0], g.Key.Text, g.Key.On(st))
+				f.Text(area.Min.X+1, y, labelEnd, g.Key.Text, g.Key.On(st))
 			}
 		} else {
 			rowNo(uv.Rect(area.Min.X, y, labelW+2, 1), r)
@@ -337,7 +339,7 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 			if rec, _ := v.data(r, 0); g.Failed[rec] {
 				st.Fg = th.Error
 			}
-			f.Text(area.Min.X+1+labelW-Width(label), y, seps[0], label, st)
+			f.Text(area.Min.X+1+labelW-Width(label), y, labelEnd, label, st)
 		}
 		for i, c := range cols {
 			val, typ := v.val(r, c)

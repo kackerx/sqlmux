@@ -72,6 +72,22 @@ func TestGridLines(t *testing.T) {
 	}
 }
 
+// A grid narrower than its row numbers draws what fits, as a pane of 7
+// columns does (38 wide, the default layout).
+func TestGridNarrowerThanLabels(t *testing.T) {
+	for _, transpose := range []bool{false, true} {
+		g := testGrid()
+		g.Transpose = transpose
+		f := NewFrame(10, 7, TokyonightStorm)
+		g.Draw(f, uv.Rect(0, 0, 3, 7))
+		for _, r := range strings.Split(f.String(), "\n") {
+			if Width(strings.TrimRight(r, " ")) > 3 {
+				t.Errorf("transpose %v: past the area: %q", transpose, r)
+			}
+		}
+	}
+}
+
 func TestGridContent(t *testing.T) {
 	f := NewFrame(60, 7, TokyonightStorm)
 	testGrid().Draw(f, uv.Rect(0, 0, 60, 7))
