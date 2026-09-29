@@ -283,6 +283,19 @@ func (t *dataTab) setEdit(k editKey, e edit) {
 	t.edits[k] = e
 }
 
+// revertCell is r (§10.1): the grid's current cell back to what was
+// loaded, as its options' ↺ 原值.
+func (a *App) revertCell() {
+	_, t, ok := a.focusedGrid()
+	if !ok || len(t.page.Rows) == 0 || t.cols.Key() == nil {
+		return
+	}
+	k := editKey{t.rowKey(t.row), t.page.Cols[t.fieldAt(t.col)].Name}
+	if e, ok := t.edits[k]; ok {
+		t.setEdit(k, edit{val: e.orig, orig: e.orig})
+	}
+}
+
 // endEdit commits the focused cell's edit before anything else happens:
 // a click elsewhere, the wheel, a key that isn't the cell's (§10.1). It is
 // false when the text is no value of the column: the edit stays, and so

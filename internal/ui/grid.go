@@ -49,6 +49,7 @@ type Grid struct {
 	Pane      int
 	Edited    map[[2]int]bool // changed cells not saved, by record and field (§7.6)
 	Failed    map[int]bool    // records a save failed on: numbers in error (§10.3)
+	Changed   map[int]bool    // records with changes: numbers in warn, Failed first (§10.1)
 	Edit      *Input          // the current cell's edit, drawn over it (§10.1)
 	EditMenu  bool            // the edit has options: a ▾ at its right shows or hides them (§10.2)
 	EditBad   bool            // the edit is no value of its column: an error wavy line under it (§10.7)
@@ -294,9 +295,7 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 		case g.Transpose:
 			rowNo(uv.Rect(cellX(i)-1, y, ws[c]+2, 1), c)
 			st := num(c == cc, th.PaneBg)
-			if g.Failed[c] {
-				st.Fg = th.Error
-			}
+			st.Fg = g.recColor(th, c, st.Fg)
 			f.Text(cellX(i), y, right, h, st)
 		default:
 			f.Text(cellX(i), y, right, h, name)
@@ -337,9 +336,8 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 		} else {
 			rowNo(uv.Rect(area.Min.X, y, labelW+2, 1), r)
 			st := num(r == cr, bg)
-			if rec, _ := v.data(r, 0); g.Failed[rec] {
-				st.Fg = th.Error
-			}
+			rec, _ := v.data(r, 0)
+			st.Fg = g.recColor(th, rec, st.Fg)
 			f.Text(area.Min.X+1+labelW-Width(label), y, labelEnd, label, st)
 		}
 		for i, c := range cols {
@@ -434,4 +432,16 @@ func drawCell(f *Frame, x, y, right int, s string, st, mark uv.Style) {
 		}
 		x = f.Text(x, y, right, part, st)
 	}
+}
+
+// recColor is record rec's number's color: error where a save failed on
+// it, warn where it has changes, else fg (§10.1, §10.3).
+func (g Grid) recColor(th *Theme, rec int, fg color.Color) color.Color {
+	switch {
+	case g.Failed[rec]:
+		return th.Error
+	case g.Changed[rec]:
+		return th.Warn
+	}
+	return fg
 }

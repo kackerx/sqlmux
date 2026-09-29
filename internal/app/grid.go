@@ -332,6 +332,10 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 		g.Cols = append(g.Cols, ui.GridCol{Name: name, PK: slices.Contains(t.cols.PK, name), Type: colType(t.typeOf(name))})
 	}
 	keyed := len(t.edits) > 0 && t.cols.Key() != nil
+	changed := map[string]bool{} // rows with changes, COLS hiding them or not
+	for k := range t.edits {
+		changed[k.row] = true
+	}
 	for rec, row := range t.page.Rows {
 		vals := make([]db.Val, len(shown))
 		key := ""
@@ -354,6 +358,12 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 		}
 		if key != "" && key == t.failed {
 			g.Failed = map[int]bool{rec: true}
+		}
+		if changed[key] {
+			if g.Changed == nil {
+				g.Changed = map[int]bool{}
+			}
+			g.Changed[rec] = true
 		}
 		g.Rows = append(g.Rows, vals)
 	}

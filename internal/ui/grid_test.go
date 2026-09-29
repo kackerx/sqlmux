@@ -213,3 +213,27 @@ func TestGridNoCursor(t *testing.T) {
 		t.Errorf("a hit region: %+v", h.Target)
 	}
 }
+
+// A record's number: warn with changes, error where a save failed on it,
+// that first; the same across when transposed (§10.1, §10.3).
+func TestGridRecordNumbers(t *testing.T) {
+	th := TokyonightStorm
+	g := testGrid()
+	g.Changed, g.Failed = map[int]bool{0: true, 1: true}, map[int]bool{1: true}
+	for _, tr := range []bool{false, true} {
+		g.Transpose = tr
+		f := NewFrame(60, 7, th)
+		g.Draw(f, uv.Rect(0, 0, 60, 7))
+		num := func(label string) color.Color { // its digit's
+			for y, row := range strings.Split(f.String(), "\n") {
+				if x := strings.Index(row, label); x >= 0 {
+					return f.Buf.CellAt(len([]rune(row[:x]))+1, y).Style.Fg
+				}
+			}
+			return nil
+		}
+		if num(" 1 ") != th.Warn || num(" 2 ") != th.Error || num(" 3 ") == th.Warn {
+			t.Errorf("transposed %v: %v %v %v", tr, num(" 1 "), num(" 2 "), num(" 3 "))
+		}
+	}
+}

@@ -743,3 +743,22 @@ func TestCellCheckBlocks(t *testing.T) {
 		t.Errorf("a number goes: %q", editsOf(tab))
 	}
 }
+
+// r takes the cursor's cell back to what was loaded, that cell alone; a
+// row with changes is marked, for its number in warn (§10.1). In the
+// result area r does nothing: its tables are not edited.
+func TestRevert(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	feed(t, a, "lix<Esc>lli7<Esc>")
+	if g := a.grid(a.focused(), tab); !g.Changed[0] || g.Changed[1] {
+		t.Fatalf("changed rows: %v", g.Changed)
+	}
+	if feed(t, a, "r"); editsOf(tab) != "1/status=x" {
+		t.Fatalf("r on amount: %q", editsOf(tab))
+	}
+	if feed(t, a, "hhr"); len(tab.edits) != 0 || a.grid(a.focused(), tab).Changed[0] {
+		t.Errorf("all taken back: %q", editsOf(tab))
+	}
+	a.run("grid.revert", 0) // no change here: nothing to take back
+}
