@@ -12,7 +12,6 @@ import (
 
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
-	"sqlmux/internal/sqlkit"
 	"sqlmux/internal/ui"
 )
 
@@ -137,59 +136,24 @@ func (a *App) copyQuick() tea.Cmd {
 	return tea.SetClipboard(csvOf(q.res))
 }
 
-// completeSQL finds the candidates for the word being typed in the quick
-// SQL (§12「补全」): the columns of the tables it names, the tree's schema's
-// tables, then keywords. The columns of a table it names that the catalog
-// hasn't got are fetched, once a palette.
+// completeSQL finds the candidates for the quick SQL's cursor (§12「补全」),
+// as a console's (sqlComplete).
 func (a *App) completeSQL() tea.Cmd {
 	p := a.palette
 	p.comp = nil
 	scope, sql := a.paletteScope()
-	if scope != sqlScope || p.pick != nil {
+	pos := p.input.Pos - len(scopes[scope].prefix) // none while the cursor is in the ; itself
+	if scope != sqlScope || p.pick != nil || pos < 0 {
 		return nil
 	}
-	words := map[string]bool{} // PG folds what isn't quoted to lower case
-	for _, tk := range sqlkit.Scan(sql, sqlkit.PG) {
-		if tk.Kind == sqlkit.Ident || tk.Kind == sqlkit.Keyword {
-			words[strings.ToLower(sql[tk.Start:tk.End])] = true
-		}
+	if p.asked == nil {
+		p.asked = map[tableID]bool{}
 	}
-	var cols, tables []candidate
-	var cmds []tea.Cmd
-	for _, t := range a.sess.Tables {
-		if t.Schema != a.sess.Schema {
-			continue
-		}
-		tables = append(tables, candidate{label: t.Name, insert: t.Name, note: "表"})
-		cs, ok := a.sess.cols[idOf(t)]
-		switch {
-		case !words[t.Name]:
-		case ok:
-			for _, c := range cs.Cols {
-				cols = append(cols, candidate{label: c.Name, insert: c.Name, note: c.Type + " · " + t.Name})
-			}
-		case !p.asked[idOf(t)]:
-			if p.asked == nil {
-				p.asked = map[tableID]bool{}
-			}
-			p.asked[idOf(t)] = true
-			cmds = append(cmds, a.fetchCols(t))
-		}
+	c, cmds := a.sqlComplete(sql, pos, p.asked, false)
+	if c != nil {
+		c.start += len(scopes[scope].prefix)
 	}
-	// the word the cursor is at the end of, as in a WHERE (§9.7); none
-	// while the cursor is in the ; itself
-	pos := p.input.Pos - len(scopes[scope].prefix)
-	if pos < 0 {
-		return tea.Batch(cmds...)
-	}
-	if ts := sqlkit.Scan(sql[:pos], sqlkit.PG); len(ts) > 0 && (ts[len(ts)-1].Kind == sqlkit.Ident || ts[len(ts)-1].Kind == sqlkit.Keyword) {
-		w := ts[len(ts)-1]
-		kws := make([]candidate, len(sqlkit.Common))
-		for i, k := range sqlkit.Common {
-			kws[i] = candidate{label: k, insert: k, note: "关键字"}
-		}
-		p.comp = ranked(sql[w.Start:pos], w.Start+len(scopes[scope].prefix), cols, tables, kws)
-	}
+	p.comp = c
 	return tea.Batch(cmds...)
 }
 
@@ -202,7 +166,8 @@ func (a *App) fetchCols(t db.Table) tea.Cmd {
 	}
 }
 
-// gotCols caches what fetchCols read and completes again with it.
+// gotCols caches what fetchCols read and completes again with it: the
+// quick SQL, or the focused console, still in INSERT where it asked.
 func (a *App) gotCols(m colsMsg) tea.Cmd {
 	if m.err != nil {
 		return nil
@@ -210,6 +175,9 @@ func (a *App) gotCols(m colsMsg) tea.Cmd {
 	a.sess.cols[idOf(m.table)] = m.cols
 	if a.palette != nil {
 		return a.completeSQL()
+	}
+	if t := a.focusedConsole(); t != nil && t.wait != nil && t.wait.at == t.ed.Cursor() && t.wait.ver == t.ver {
+		return a.consoleComplete(t, t.wait.manual) // in INSERT only
 	}
 	return nil
 }

@@ -162,7 +162,7 @@ func init() {
 		"dropdown.close":  {Run: when(inDrop, func(a *App) tea.Cmd { a.drop = nil; return nil })},
 		"complete.up":     {Run: when(inComplete, func(a *App) tea.Cmd { a.completing().move(-1); return nil })},
 		"complete.down":   {Run: when(inComplete, func(a *App) tea.Cmd { a.completing().move(1); return nil })},
-		"complete.accept": {Run: when(inComplete, func(a *App) tea.Cmd { a.acceptCompletion(); return nil })},
+		"complete.accept": {Run: when(inComplete, func(a *App) tea.Cmd { _, cmd := a.acceptCompletion(); return cmd })},
 		"where.up":        {Run: when(inHist, func(a *App) tea.Cmd { a.histMove(a.typingTab(), -1); return nil })},
 		"where.down":      {Run: when(inHist, func(a *App) tea.Cmd { a.histMove(a.typingTab(), 1); return nil })},
 		"where.apply":     {Run: when(inHist, func(a *App) tea.Cmd { t := a.typingTab(); return a.histApply(t, t.hist.sel) })},

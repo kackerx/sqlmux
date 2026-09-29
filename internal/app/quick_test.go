@@ -255,6 +255,11 @@ func TestQuickSQLCompletion(t *testing.T) {
 	if a.palette.input.Pos != 1 || a.palette.comp != nil {
 		t.Errorf("pos %d, comp %v", a.palette.input.Pos, a.palette.comp)
 	}
+	a.palette.input = ui.Input{Text: ";select  from t_order o", Pos: len(";select ")}
+	feed(t, a, "o.") // an alias's columns, nothing typed after its . (§9.7)
+	if c := a.palette.comp; c == nil || c.items[0].label != "id" || len(c.items) != len(cols.Cols) {
+		t.Errorf("o.: %+v", c)
+	}
 }
 
 // C-y copies the result as CSV, NULL as nothing (F-04).

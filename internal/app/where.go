@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"slices"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"sqlmux/internal/config"
+	"sqlmux/internal/db"
 	"sqlmux/internal/sqlkit"
 	"sqlmux/internal/ui"
 )
@@ -103,11 +105,117 @@ func ranked(pattern string, start int, groups ...[]candidate) *completion {
 	return c
 }
 
+// sqlComplete is the candidates for the cursor at pos in sql, a console's
+// or the quick SQL's (§9.7): by what CompletionContext says goes there,
+// tables of the tree's schema, of X. after a schema X, a table's columns
+// after its name or alias, else the statement's tables' columns, those at
+// the cursor's depth first, the other tables and keywords. It opens with a
+// word typed, or right after a qualifier that resolves; manual (C-n) with
+// nothing. The columns the cache lacks are fetched, a table once per asked.
+// ponytail: names go in bare, as the catalog has them; one that wants
+// quotes (upper case, a space) needs them typed.
+func (a *App) sqlComplete(sql string, pos int, asked map[tableID]bool, manual bool) (*completion, []tea.Cmd) {
+	c := sqlkit.CompletionContext(sql, pos, sqlkit.PG)
+	if !c.OK {
+		return nil, nil
+	}
+	var cmds []tea.Cmd
+	table := func(schema, name string) (db.Table, bool) { // PG folds what isn't quoted
+		schema = cmp.Or(schema, a.sess.Schema)
+		for _, t := range a.sess.Tables {
+			if strings.EqualFold(t.Schema, schema) && strings.EqualFold(t.Name, name) {
+				return t, true
+			}
+		}
+		return db.Table{}, false
+	}
+	columns := func(t db.Table) (out []candidate) {
+		cs, ok := a.sess.cols[idOf(t)]
+		if !ok && !asked[idOf(t)] {
+			asked[idOf(t)] = true
+			cmds = append(cmds, a.fetchCols(t))
+		}
+		for _, col := range cs.Cols {
+			out = append(out, candidate{label: col.Name, insert: col.Name, note: col.Type + " · " + t.Name})
+		}
+		return out
+	}
+	tables := func(schema string, skip map[tableID]bool) (out []candidate) {
+		for _, t := range a.sess.Tables {
+			if t.Schema == schema && !skip[idOf(t)] {
+				note := "表"
+				if t.View() {
+					note = "视图"
+				}
+				out = append(out, candidate{label: t.Name, insert: t.Name, note: note})
+			}
+		}
+		return out
+	}
+	var ctes []candidate
+	isCTE := map[string]bool{}
+	for _, n := range c.CTEs {
+		ctes, isCTE[strings.ToLower(n)] = append(ctes, candidate{label: n, insert: n, note: "CTE"}), true
+	}
+	var groups [][]candidate
+	resolved := false
+	switch c.Kind {
+	case sqlkit.CompColumns: // an alias or a table named, a CTE (no columns), a table, a schema
+		q := c.Qualifier
+		i := slices.IndexFunc(c.Tables, func(r sqlkit.TableRef) bool { return strings.EqualFold(r.Alias, q) })
+		if i < 0 {
+			i = slices.IndexFunc(c.Tables, func(r sqlkit.TableRef) bool { return r.Schema == "" && strings.EqualFold(r.Name, q) })
+		}
+		switch {
+		case i >= 0 && c.Tables[i].Schema == "" && isCTE[strings.ToLower(c.Tables[i].Name)], isCTE[strings.ToLower(q)]:
+		case i >= 0:
+			if t, ok := table(c.Tables[i].Schema, c.Tables[i].Name); ok {
+				groups, resolved = [][]candidate{columns(t)}, true
+			}
+		default:
+			if t, ok := table("", q); ok {
+				groups, resolved = [][]candidate{columns(t)}, true
+			} else if j := slices.IndexFunc(a.sess.Schemas, func(s string) bool { return strings.EqualFold(s, q) }); j >= 0 {
+				groups, resolved = [][]candidate{tables(a.sess.Schemas[j], nil)}, true
+			}
+		}
+	case sqlkit.CompTables:
+		groups = [][]candidate{append(ctes, tables(a.sess.Schema, nil)...)}
+	default:
+		var near, far []candidate
+		named := map[tableID]bool{}
+		for _, r := range c.Tables {
+			t, ok := table(r.Schema, r.Name)
+			if !ok || named[idOf(t)] || r.Schema == "" && isCTE[strings.ToLower(r.Name)] {
+				continue
+			}
+			named[idOf(t)] = true
+			if r.Depth == c.Depth {
+				near = append(near, columns(t)...)
+			} else {
+				far = append(far, columns(t)...)
+			}
+		}
+		kws := make([]candidate, len(sqlkit.Common))
+		for i, k := range sqlkit.Common {
+			kws[i] = candidate{label: k, insert: k, note: "关键字"}
+		}
+		groups = [][]candidate{near, far, append(ctes, tables(a.sess.Schema, named)...), kws}
+	}
+	if c.Prefix == "" && !manual && !resolved {
+		return nil, cmds
+	}
+	return ranked(c.Prefix, c.Start, groups...), cmds
+}
+
 // completing is the candidate list that is up, if any: the palette's quick
-// SQL's, else the WHERE's being typed.
+// SQL's, else the focused console's or the WHERE's being typed.
 func (a *App) completing() *completion {
 	if a.palette != nil {
 		return a.palette.comp
+	}
+	if t := a.focusedConsole(); t != nil {
+		return t.comp
 	}
 	if t := a.typingTab(); t != nil {
 		return t.comp
@@ -118,17 +226,20 @@ func (a *App) completing() *completion {
 // acceptCompletion puts the selected candidate in place of what it
 // completes, closes the list, and reports whether the text changed: ↵ runs
 // as usual when it would not (§9.7, VS Code's acceptSuggestionOnEnter
-// smart).
-func (a *App) acceptCompletion() bool {
+// smart). A console's change is saved as typing is (cmd).
+func (a *App) acceptCompletion() (changed bool, cmd tea.Cmd) {
 	if p := a.palette; p != nil {
-		changed := p.comp.accept(&p.input)
+		changed = p.comp.accept(&p.input)
 		p.comp = nil
-		return changed
+		return changed, nil
+	}
+	if t := a.focusedConsole(); t != nil {
+		return a.consoleAccept(t)
 	}
 	t := a.typingTab()
-	changed := t.comp.accept(&t.where)
+	changed = t.comp.accept(&t.where)
 	t.comp = nil
-	return changed
+	return changed, nil
 }
 
 // accept leaves in as it is when the candidate differs from the word only

@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/exp/golden"
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/editor"
@@ -284,11 +285,79 @@ func TestConsoleExternal(t *testing.T) {
 	}
 }
 
+// In a console the candidates follow the cursor's place (§9.7): tables
+// after FROM; an alias's columns right after its ., fetched once and
+// completed again as they come; CTE names among the tables; C-n with
+// nothing typed. ↵ takes one as typing it would, part of the INSERT's undo
+// step, and is a newline when that changes nothing; esc closes the list
+// first; a character not of a name closes it.
+func TestConsoleCompletion(t *testing.T) {
+	a, c := inConsole(t, "")
+	table, cols, _ := ordersTable(0)
+	for i, tb := range a.sess.Tables {
+		if tb.Name == "t_order" {
+			a.sess.Tables[i] = table
+		}
+	}
+	feed(t, a, "iselect * from t_o")
+	if c.comp == nil || c.comp.items[0].label != "t_order" || a.context().Overlay != "complete" {
+		t.Fatalf("after from: %+v, overlay %q", c.comp, a.context().Overlay)
+	}
+	feed(t, a, "<CR>")
+	if text(c) != "select * from t_order" || c.comp != nil || c.ed.Mode() != editor.Insert {
+		t.Fatalf("↵ takes t_order: %q in %v", text(c), c.ed.Mode())
+	}
+	feed(t, a, " o where o.")
+	if !c.asked[idOf(table)] || c.comp != nil {
+		t.Fatalf("o.: asked %v, list %+v", c.asked, c.comp)
+	}
+	a.Update(colsMsg{table, cols, nil})
+	if c.comp == nil || c.comp.items[0].label != "id" || c.comp.items[0].note != "bigint · t_order" {
+		t.Fatalf("the columns in: %+v", c.comp)
+	}
+	feed(t, a, "st<CR>")
+	if text(c) != "select * from t_order o where o.status" {
+		t.Fatalf("o.st ↵: %q", text(c))
+	}
+	feed(t, a, "s<CR>")
+	if text(c) != "select * from t_order o where o.statuss\n" {
+		t.Fatalf("no candidate: ↵ is a newline: %q", text(c))
+	}
+	feed(t, a, "<Esc>u")
+	if text(c) != "" {
+		t.Fatalf("u takes back the INSERT, what was taken with it: %q", text(c))
+	}
+	feed(t, a, "iwith recent as (select 1) select * from ")
+	if c.comp != nil {
+		t.Fatal("a blank opens nothing")
+	}
+	feed(t, a, "<C-n>")
+	if c.comp == nil || c.comp.items[0].label != "recent" || c.comp.items[0].note != "CTE" {
+		t.Fatalf("C-n: %+v", c.comp)
+	}
+	feed(t, a, "<Esc>")
+	if c.comp != nil || c.ed.Mode() != editor.Insert {
+		t.Fatalf("esc: list %+v in %v", c.comp, c.ed.Mode())
+	}
+	feed(t, a, "t_o;")
+	if c.comp != nil {
+		t.Error("; closes it")
+	}
+}
+
+// The console's candidates open under the word they complete (§9.7).
+func TestGoldenConsoleCompletion160x45(t *testing.T) {
+	a, _ := inConsole(t, "")
+	feed(t, a, "iselect 1;<CR>select * from t_o")
+	golden.RequireEqual(t, a.render().String())
+}
+
 // What the console draws is the editor's state: the selection by kind,
 // the command line.
 func TestConsoleView(t *testing.T) {
 	a, c := inConsole(t, "")
-	feed(t, a, "iab<CR>c\td<Esc>")
+	c.ed.Load("ab\nc\td")
+	feed(t, a, "Gfd")
 	view := func() ui.Console { v, _ := a.consoleView(a.focused(), c); return v }
 	if v := view(); v.Cursor != (ui.TextPos{Line: 1, Col: 2}) || v.CursorCol != 2 || !v.Normal || v.Sel.Mode != ui.SelNone || v.Prompt != "" {
 		t.Errorf("NORMAL: %+v", v)

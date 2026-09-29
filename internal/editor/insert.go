@@ -98,6 +98,23 @@ func (e *Editor) editKey(k string) {
 	e.want = wantUnset
 }
 
+// Complete puts text in place of the cursor's line from col start to the
+// cursor, in INSERT, as typing it would: the cursor after it, part of the
+// INSERT's undo step (a completion taken, §9.7).
+func (e *Editor) Complete(start int, text string) Effect {
+	e.eff = Effect{}
+	if e.mode != Insert || start > e.cur.Col {
+		return e.eff
+	}
+	e.arrived()
+	l := e.line()
+	e.setLine(e.cur.Line, l[:start]+text+l[e.cur.Col:])
+	e.cur.Col, e.want = start+len(text), wantUnset
+	e.ins.ai = false
+	e.scrollToCursor()
+	return e.eff
+}
+
 // arrived is called as INSERT is about to change the text, before the
 // cursor moves (edit.c stop_arrow): typing starts anew where an arrow key
 // left the cursor, and the first change of a run keeps the line for U.

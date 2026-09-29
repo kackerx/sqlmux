@@ -485,8 +485,10 @@ func (a *App) scrollPane(id, down, right int) {
 	case p != nil && resultOf(p) != nil && resultOf(p).run == nil: // the log
 		a.logMove(p, func(r, c, _, _ int) (int, int) { return r + down*wheelStep, c })
 	case p != nil && consoleOf(p) != nil: // not sideways: nowrap scrolls with the cursor (§11)
-		a.consoleView(p, consoleOf(p))
-		consoleOf(p).ed.Scroll(down * wheelStep)
+		c := consoleOf(p)
+		a.consoleView(p, c)
+		c.ed.Scroll(down * wheelStep)
+		c.comp = nil
 	case p != nil:
 		a.scrollGrid(p, down*wheelStep, right)
 	}

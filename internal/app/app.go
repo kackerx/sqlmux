@@ -257,8 +257,8 @@ func (a *App) click(p uv.Position) tea.Cmd {
 			}
 		case c != nil:
 			c.sel = t.I
-			a.acceptCompletion()
-			return nil
+			_, cmd := a.acceptCompletion()
+			return cmd
 		case a.palette != nil:
 			return a.paletteRun(t.I, false)
 		case tab != nil && tab.hist != nil:
@@ -303,7 +303,7 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		a.focusPane(t.Pane)
 		if c, n, v := a.consoleAt(t.Pane, p); c != nil {
 			c.ed.Click(n, v)
-			a.dragText = t.Pane
+			a.dragText, c.comp = t.Pane, nil
 		}
 	case ui.KindTab:
 		a.focusPane(t.Pane)
@@ -449,6 +449,8 @@ func (a *App) context() keymap.Context {
 		return keymap.Context{Overlay: "where", Focus: []string{"input"}, Mode: keymap.Command}
 	case typing != nil && typing.comp != nil:
 		return keymap.Context{Overlay: "complete", Focus: []string{"input"}, Mode: keymap.Insert}
+	case a.focusedConsole() != nil && a.focusedConsole().comp != nil: // ↵ and esc are its vim's, as a WHERE's
+		return keymap.Context{Overlay: "complete", Focus: []string{"console"}, Mode: keymap.Insert}
 	case typing != nil && typing.cell != nil && !typing.cell.folded && len(typing.options()) > 0:
 		return keymap.Context{Overlay: "options", Focus: []string{"cell"}, Mode: keymap.Insert}
 	case typing != nil && typing.cell != nil:

@@ -126,6 +126,12 @@ func (a *App) render() *ui.Frame {
 			v.Draw(f, box, rows)
 		}
 	}
+	if t := a.focusedConsole(); t != nil && t.comp != nil && f.Cursor != nil { // under what it completes, which ends at the cursor
+		at, cur := *f.Cursor, t.ed.Cursor()
+		at.X -= ui.Width(t.ed.Lines()[cur.Line][t.comp.start:cur.Col])
+		v, box, rows := a.completeView(t.comp, at)
+		v.Draw(f, box, rows)
+	}
 	if a.drop != nil {
 		d := a.dropView()
 		box, rows := a.dropBox(d)

@@ -25,6 +25,19 @@ type consoleTab struct {
 	ver, saved int  // changes made, and the one the file has
 	failed     int  // the first line of the statement whose last run failed, its ▶ red; -1 for none
 	running    *run // the run going on, if one is: another ↵ waits for it (§11)
+	// The candidate list in INSERT (§9.7); the tables whose columns were
+	// fetched for it this INSERT, and where it last completed: columns in
+	// while the cursor is still there complete again.
+	comp  *completion
+	asked map[tableID]bool
+	wait  *compWait
+}
+
+// compWait is where a console last completed, C-n's or not.
+type compWait struct {
+	at     editor.Pos
+	ver    int
+	manual bool
 }
 
 // openConsole is connection conn's console n, with what its file keeps (§11).
@@ -82,10 +95,67 @@ func (a *App) consoleView(p *Pane, t *consoleTab) (ui.Console, uv.Rectangle) {
 	return c, body
 }
 
-// consoleKey gives key k to the editor of console t, in pane p.
+// consoleKey gives key k to the editor of console t, in pane p. With the
+// candidates up, ↵ takes the selected one, and is the editor's when that
+// changes nothing; esc closes them first (§9.7). In INSERT a character
+// typed completes; C-n does with nothing typed.
 func (a *App) consoleKey(p *Pane, t *consoleTab, k keymap.Key) tea.Cmd {
 	a.consoleView(p, t)
-	return a.consoleDid(t, t.ed.Feed(string(k)))
+	switch {
+	case t.comp != nil && k == keymap.Esc:
+		t.comp, t.wait = nil, nil
+		return nil
+	case t.comp != nil && k == "<CR>":
+		if ok, cmd := a.consoleAccept(t); ok {
+			return cmd
+		}
+	case t.comp == nil && k == "<C-n>" && t.ed.Mode() == editor.Insert:
+		return a.consoleComplete(t, true)
+	}
+	open := t.comp != nil
+	cmd := a.consoleDid(t, t.ed.Feed(string(k)))
+	switch {
+	case t.ed.Mode() != editor.Insert:
+		t.asked, t.wait = nil, nil
+	case keymap.Text(k) != "" || open && (k == "<BS>" || k == "<C-h>"):
+		return tea.Batch(cmd, a.consoleComplete(t, false))
+	}
+	return cmd
+}
+
+// consoleComplete finds console t's candidates for its cursor, in INSERT
+// (sqlComplete); manual is C-n's.
+func (a *App) consoleComplete(t *consoleTab, manual bool) tea.Cmd {
+	t.comp = nil
+	if t.ed.Mode() != editor.Insert {
+		return nil
+	}
+	lines, cur := t.ed.Lines(), t.ed.Cursor()
+	pos := cur.Col // the cursor's offset in the text
+	for _, l := range lines[:cur.Line] {
+		pos += len(l) + 1
+	}
+	if t.asked == nil {
+		t.asked = map[tableID]bool{}
+	}
+	c, cmds := a.sqlComplete(strings.Join(lines, "\n"), pos, t.asked, manual)
+	if c != nil {
+		c.start -= pos - cur.Col // a column of the cursor's line: it is a word before the cursor
+	}
+	t.comp, t.wait = c, &compWait{cur, t.ver, manual} // columns fetched now or before may still come
+	return tea.Batch(cmds...)
+}
+
+// consoleAccept puts console t's selected candidate in place of the word
+// it completes, as typing it would, and closes the list. ok is false when
+// that changes nothing, the case aside (§9.7).
+func (a *App) consoleAccept(t *consoleTab) (ok bool, cmd tea.Cmd) {
+	c, cur := t.comp, t.ed.Cursor()
+	t.comp = nil
+	if cd := c.items[c.sel]; !strings.EqualFold(t.ed.Lines()[cur.Line][c.start:cur.Col], cd.insert) {
+		return true, a.consoleDid(t, t.ed.Complete(c.start, cd.insert))
+	}
+	return false, nil
 }
 
 type autosave struct {
@@ -98,8 +168,10 @@ var autosaveDelay = time.Second
 
 // consoleDid acts on what the editor did: the clipboard gets what was
 // yanked, a change drops the red ▶ and is written a second after the last
-// one, a : command it left runs here.
+// one, a : command it left runs here. The candidate list closes; typing
+// on opens it again (consoleKey).
 func (a *App) consoleDid(t *consoleTab, eff editor.Effect) tea.Cmd {
+	t.comp = nil
 	var cmds []tea.Cmd
 	if eff.Yanked {
 		cmds = append(cmds, tea.SetClipboard(t.ed.Register()))

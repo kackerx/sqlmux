@@ -393,7 +393,7 @@ func (a *App) paletteKey(k keymap.Key) tea.Cmd {
 	p := a.palette
 	switch {
 	case p.comp != nil && k == "<CR>":
-		if a.acceptCompletion() {
+		if changed, _ := a.acceptCompletion(); changed {
 			return nil
 		}
 		return a.paletteRun(p.sel, false)

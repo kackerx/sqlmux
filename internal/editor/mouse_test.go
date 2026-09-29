@@ -138,6 +138,23 @@ func TestScroll(t *testing.T) {
 	}
 }
 
+// A completion taken replaces the word before the cursor as typing would:
+// one undo step with what was typed before it.
+func TestComplete(t *testing.T) {
+	e := New("x")
+	feedAll(t, e, "Aselect * from t_o")
+	if eff := e.Complete(15, "t_order"); !eff.Changed || e.Lines()[0] != "xselect * from t_order" || e.Cursor().Col != 22 {
+		t.Fatalf("%v %q %v", eff, e.Lines(), e.Cursor())
+	}
+	feedAll(t, e, " o<Esc>u")
+	if e.Lines()[0] != "x" {
+		t.Errorf("u: %q", e.Lines())
+	}
+	if eff := e.Complete(0, "y"); eff.Changed {
+		t.Error("in NORMAL")
+	}
+}
+
 // Loading new text is one undo step; the same text changes nothing.
 func TestLoad(t *testing.T) {
 	e := New("ab\ncd")
