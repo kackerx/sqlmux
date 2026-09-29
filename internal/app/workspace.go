@@ -197,59 +197,34 @@ func (s *Session) Close() {
 	s.Meta.Close()
 }
 
-// openTable shows table t and focuses where it shows (§7.8「打开已有的表」,
-// §12). A new tab (C-t, the tree's t) opens in openTarget's pane. Else a
-// tab of the window that has t is switched to, or, with several, picked
-// from the palette; with none, t opens in a new tab there too. Only a
-// landing tab is replaced (§5「引导页」).
-func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
-	p := a.openTarget()
-	if !newTab {
-		switch open := a.tabsOf(t); len(open) {
-		case 0:
-		case 1:
-			a.showTab(open[0])
-			return nil
-		default:
-			a.palette = &palette{pick: &t}
-			return nil
-		}
-	}
-	return a.openTableIn(p, t, p.tab().landing())
-}
+// openTable shows table t in openTarget's pane and focuses it (§7.8
+// 「打开已有的表」, §12).
+func (a *App) openTable(t db.Table) tea.Cmd { return a.openTableIn(a.openTarget(), t) }
 
-// openTableIn opens table t in pane p, over its current tab or in a new
-// one, and focuses it.
-func (a *App) openTableIn(p *Pane, t db.Table, over bool) tea.Cmd {
+// openTableIn shows table t in pane p and focuses it: p's tab of t, a pane
+// having one at most (F3.37), else a new one. A landing tab current gives
+// way to it, replaced, or closed for the tab there (§5「引导页」).
+func (a *App) openTableIn(p *Pane, t db.Table) tea.Cmd {
 	a.showPane(p.ID)
+	landing := p.tab().landing()
+	if i := slices.IndexFunc(p.Tabs, func(tb Tab) bool { return tb.Data != nil && idOf(tb.Data.table) == idOf(t) }); i >= 0 {
+		if closed := p.Cur; landing {
+			if a.closeTab(p); closed < i {
+				i--
+			}
+		}
+		selectTab(p, i)
+		return nil
+	}
 	tab := Tab{Name: t.Name, Data: newDataTab(t)}
-	putTab(p, tab, over)
+	putTab(p, tab, landing)
 	return a.fetch(tab.Data, true)
 }
 
-// tabAt is a tab of the window: tab i of pane p, which is ⟨n⟩.
-type tabAt struct {
-	p    *Pane
-	n, i int
-}
-
-// tabsOf is the window's tabs of table t, in ⟨n⟩ and then tab order.
-func (a *App) tabsOf(t db.Table) []tabAt {
-	var out []tabAt
-	for n, p := range a.panesByNumber() {
-		for i, tb := range p.Tabs {
-			if tb.Data != nil && idOf(tb.Data.table) == idOf(t) {
-				out = append(out, tabAt{p, n, i})
-			}
-		}
-	}
-	return out
-}
-
-// showTab focuses the tab's pane and switches to it.
-func (a *App) showTab(at tabAt) {
-	a.showPane(at.p.ID)
-	selectTab(at.p, at.i)
+// showTab focuses pane p and switches to its tab i.
+func (a *App) showTab(p *Pane, i int) {
+	a.showPane(p.ID)
+	selectTab(p, i)
 }
 
 // selectTab makes tab i pane p's current one; the one it was becomes the

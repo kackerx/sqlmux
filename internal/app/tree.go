@@ -415,22 +415,23 @@ func (a *App) treeCollapse() tea.Cmd {
 	return nil
 }
 
-// treeOpen is ↵ (and t, newTab) on the cursor's node (§7.8): a table opens,
-// a column opens its table on that column, a tab of this window is
-// switched to; the rest, panes too, open and close. t only opens tables.
-func (a *App) treeOpen(newTab bool) tea.Cmd {
+// treeOpen is ↵ (and t, tabOnly) on the cursor's node (§7.8): a table
+// opens, a column opens its table on that column, a tab of this window is
+// switched to; the rest, panes too, open and close. t only opens tables,
+// as ↵ does since a pane has a tab of a table at most (F3.37).
+func (a *App) treeOpen(tabOnly bool) tea.Cmd {
 	n, ok := a.treeNode()
 	switch {
 	case !ok:
 	case n.kind == nodeTable:
-		return a.openTable(n.table, newTab)
-	case newTab:
+		return a.openTable(n.table)
+	case tabOnly:
 	case n.kind == nodeColumn:
-		cmd := a.openTable(n.table, false)
+		cmd := a.openTable(n.table)
 		a.gotoColumn(n.table, n.column)
 		return cmd
 	case n.kind == nodeTab && n.win == a.sess.Active:
-		a.showTab(tabAt{p: n.pane, i: n.tab})
+		a.showTab(n.pane, n.tab)
 	case n.kind != nodeTab: // a window's switch waits for M5, as another's tabs
 		return a.treeFold(n, !n.Open)
 	}
@@ -438,13 +439,8 @@ func (a *App) treeOpen(newTab bool) tea.Cmd {
 }
 
 // gotoColumn puts the cursor of the table just opened on column col: now,
-// or once its page is in; with several tabs of it, once one is picked.
-// Hidden by COLS, it stays where it is (§7.8).
+// or once its page is in. Hidden by COLS, it stays where it is (§7.8).
 func (a *App) gotoColumn(t db.Table, col string) {
-	if a.palette != nil {
-		a.palette.pickCol = col
-		return
-	}
 	dt := dataOf(a.focused())
 	if dt == nil || idOf(dt.table) != idOf(t) {
 		return
@@ -521,25 +517,19 @@ func editInput(in *ui.Input, k keymap.Key) bool {
 }
 
 // openTarget is the pane a table opens in (§5, §12): the focused one;
-// with the tree or the result area focused, the one focused most recently
-// whose current tab is no console, else the most recent of all (the
-// first, if none ever was). Never the result area.
+// with the tree or the result area focused, the one focused most recently,
+// a console's too (F3.37); the first, if none ever was. Never the result
+// area.
 func (a *App) openTarget() *Pane {
 	win := a.win()
 	if p := a.focused(); p != win.Tree && p != win.Result {
 		return p
 	}
-	var best, recent *Pane
+	var recent *Pane
 	for _, p := range win.Root.Leaves() {
-		if p == win.Result {
-			continue
-		}
-		if recent == nil || a.recent(p.ID, recent.ID) {
+		if p != win.Result && (recent == nil || a.recent(p.ID, recent.ID)) {
 			recent = p
 		}
-		if consoleOf(p) == nil && (best == nil || a.recent(p.ID, best.ID)) {
-			best = p
-		}
 	}
-	return cmp.Or(best, recent)
+	return recent
 }

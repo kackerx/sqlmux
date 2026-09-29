@@ -254,18 +254,6 @@ func TestTreeColumnOpens(t *testing.T) {
 	if feed(t, a, "<CR>"); tab.col != 5 {
 		t.Errorf("hidden: col %d, want it to stay", tab.col)
 	}
-	delete(tab.hidden, "status")
-	a.win().focus(0)
-	treeTo(t, a, "t_order")
-	feed(t, a, "t") // a second tab of it: a column's ↵ now goes through the pick
-	a.win().focus(0)
-	treeTo(t, a, "amount")
-	if feed(t, a, "<CR>"); a.palette == nil || a.palette.pick == nil {
-		t.Fatal("two tabs of t_order: no pick")
-	}
-	if feed(t, a, "<CR>"); a.palette != nil || dataOf(a.focused()) != tab || tab.col != 2 {
-		t.Errorf("picked the first: col %d, want amount's 2", tab.col)
-	}
 }
 
 // The workspace lists this window's panes and their tabs, the one ↵ on a

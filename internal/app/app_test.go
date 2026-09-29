@@ -399,49 +399,36 @@ func TestTabCycle(t *testing.T) {
 	}
 }
 
-// Opening a table the window has a tab of switches to that tab, fetching
-// nothing; with several, the palette lists them to pick one, and C-t opens
-// it again (§7.8「打开已有的表」).
+// Opening a table goes to the target pane's tab of it, fetching nothing,
+// a pane having one at most; another pane opens its own, to compare them.
+// C-t and the tree's t do as ↵. The target is the pane focused last, a
+// console's too (§7.8「打开已有的表」, §12, F3.37).
 func TestOpenExistingTab(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	left := a.focused()
-	feed(t, a, "<C-p>@t_user<CR><C-p>@t_sku<C-t><Space>%<C-p>@t_user<CR>")
+	feed(t, a, "<C-p>@t_user<CR><C-p>@t_sku<C-t><C-p>@t_user<CR>")
 	if a.win().Focus != left.ID || tabNames(left) != "t_user t_sku" || left.Cur != 0 || left.Prev != 1 || a.busy != 2 {
 		t.Fatalf("one t_user: focus %d tabs %v cur %d prev %d, %d fetches", a.win().Focus, tabNames(left), left.Cur, left.Prev, a.busy)
 	}
-	feed(t, a, "<C-l><C-p>@t_user<C-t>") // C-t: always a new tab
+	if feed(t, a, "<C-p>@t_sku<C-t>"); tabNames(left) != "t_user t_sku" || left.Cur != 1 || a.busy != 2 {
+		t.Fatalf("C-t as ↵: tabs %v cur %d, %d fetches", tabNames(left), left.Cur, a.busy)
+	}
+	if feed(t, a, "<C-p>@t_user"); len(a.paletteView().Enter) != 1 { // ↵ 打开 alone
+		t.Errorf("the footer: %v", a.paletteView().Enter)
+	}
+	feed(t, a, "<Esc><C-l><C-p>@t_user<CR>") // ⟨2⟩ is console_1's: it opens there too, its own
 	right := a.focused()
-	right.Tabs[0].Data.shown = request{applied: "id > 1", order: "id", desc: true}
-	feed(t, a, "<C-p>@t_user<CR>")
-	if a.palette == nil || a.palette.pick == nil || a.busy != 3 {
-		t.Fatalf("two t_user: no pick, %d fetches", a.busy)
-	}
-	if got := strings.Join(rowsOf(a), " | "); got != "① · 1= | ② · 1 · id > 1 · id ↓=" {
-		t.Errorf("rows %q", got)
-	}
-	if v := a.paletteView(); len(v.Scopes) != 1 || len(v.Enter) != 2 || v.Enter[0].Label != "切过去" {
-		t.Errorf("scopes %v, enter %v", v.Scopes, v.Enter)
-	}
-	feed(t, a, "<C-n><CR>")
-	if a.palette != nil || a.win().Focus != right.ID || right.Cur != 0 {
-		t.Fatalf("↵ on the second: focus %d, want %d", a.win().Focus, right.ID)
-	}
-	feed(t, a, "<C-p>@t_user<CR><C-t>")
-	if tabNames(right) != "t_user t_user" || right.Cur != 1 || a.busy != 4 {
-		t.Errorf("C-t in the pick: tabs %v cur %d, %d fetches", tabNames(right), right.Cur, a.busy)
+	if tabNames(right) != "console_1 t_user" || a.busy != 3 {
+		t.Fatalf("another pane's: tabs %v, %d fetches", tabNames(right), a.busy)
 	}
 	a.win().focus(0)
 	treeTo(t, a, "t_user")
-	if feed(t, a, "<CR>"); a.palette == nil || a.palette.pick == nil || len(rowsOf(a)) != 3 {
-		t.Fatal("the tree's ↵ picks too")
-	}
-	feed(t, a, "<Esc>t") // t: a new tab, no pick, in the pane focused last (§12)
-	if a.palette != nil || tabNames(right) != "t_user t_user t_user" {
-		t.Errorf("the tree's t: tabs %v", tabNames(right))
+	if feed(t, a, "t"); a.win().Focus != right.ID || tabNames(right) != "console_1 t_user" || a.busy != 3 {
+		t.Errorf("the tree's t, in the pane focused last: tabs %v, %d fetches", tabNames(right), a.busy)
 	}
 	a.sess.Tables = append(a.sess.Tables, db.Table{Schema: "agentable", Name: "t_user"})
 	feed(t, a, "<C-p>@t_user agentable<CR>") // the same name in another schema is another table
-	if a.palette != nil || tabNames(right) != "t_user t_user t_user t_user" || dataOf(right).table.Schema != "agentable" {
+	if tabNames(right) != "console_1 t_user t_user" || dataOf(right).table.Schema != "agentable" {
 		t.Errorf("agentable.t_user: tabs %v, schema %s", tabNames(right), dataOf(right).table.Schema)
 	}
 }
@@ -465,8 +452,9 @@ func TestClickTab(t *testing.T) {
 }
 
 // + opens a landing tab and switches to it. Its 打开表 puts the table
-// picked in its place, open elsewhere or not, with ↵ or C-t; its 新建
-// console a console, the least console_n not open (§5「引导页」). x closes it.
+// picked in its place, with ↵ or C-t, or, one this pane has open, goes to
+// that tab, the landing tab closed (F3.37); its 新建 console a console,
+// the least console_n not open (§5「引导页」). x closes it.
 func TestLandingTab(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	left := a.focused()
@@ -488,23 +476,23 @@ func TestLandingTab(t *testing.T) {
 	if a.palette == nil || a.palette.into != left || a.palette.input.Text != "@" {
 		t.Fatalf("t: palette %+v", a.palette)
 	}
-	feed(t, a, "t_user<CR>") // open in ⟨1⟩ already: no pick, it takes the landing tab's place
-	if tabNames(left) != "t_user t_user" || left.Cur != 1 || a.palette != nil {
-		t.Fatalf("打开表 ↵: tabs %v cur %d", tabNames(left), left.Cur)
+	feed(t, a, "t_user<CR>") // open in ⟨1⟩ already: to its tab, the landing tab gone
+	if tabNames(left) != "t_user" || left.Cur != 0 || a.palette != nil {
+		t.Fatalf("打开表 ↵ of one open: tabs %v cur %d", tabNames(left), left.Cur)
 	}
 	plus()
 	click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: left.ID, Action: "tab.table"}).Min)
 	feed(t, a, "t_sku<C-t>")
-	if tabNames(left) != "t_user t_user t_sku" || left.Cur != 2 {
+	if tabNames(left) != "t_user t_sku" || left.Cur != 1 {
 		t.Fatalf("打开表 C-t: tabs %v cur %d", tabNames(left), left.Cur)
 	}
 	plus()
 	feed(t, a, "c") // console_1 is open in ⟨2⟩
-	if tabNames(left) != "t_user t_user t_sku console_2" || consoleOf(left) == nil || a.paneScope() != "console" {
+	if tabNames(left) != "t_user t_sku console_2" || consoleOf(left) == nil || a.paneScope() != "console" {
 		t.Fatalf("c: tabs %v scope %s", tabNames(left), a.paneScope())
 	}
 	plus()
-	if feed(t, a, "x"); tabNames(left) != "t_user t_user t_sku console_2" || a.confirm != nil {
+	if feed(t, a, "x"); tabNames(left) != "t_user t_sku console_2" || a.confirm != nil {
 		t.Errorf("x on a landing tab: tabs %v", tabNames(left))
 	}
 }
@@ -541,16 +529,16 @@ func TestNewConsole(t *testing.T) {
 	}
 }
 
-// From the tree a table goes to the pane focused last whose current tab is
-// no console: not beside console_1 in the default layout (§5).
-func TestOpenTargetSkipsConsoles(t *testing.T) {
+// From the tree a table goes to the pane focused last, a console's too:
+// beside console_1 in the default layout (§5, F3.37).
+func TestOpenTargetConsoles(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-l><C-h><C-h>") // ⟨2⟩, then ⟨1⟩, then the tree
 	a.win().focus(2)
 	a.win().focus(0)
 	treeTo(t, a, "t_user")
 	feed(t, a, "<CR>")
-	if p := a.focused(); p.ID != 1 || tabNames(p) != "t_user" || tabNames(a.win().pane(2)) != "console_1" {
+	if p := a.focused(); p.ID != 2 || tabNames(p) != "console_1 t_user" {
 		t.Fatalf("opened in ⟨%d⟩: %v", p.ID, tabNames(p))
 	}
 }

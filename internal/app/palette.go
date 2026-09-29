@@ -18,10 +18,8 @@ import (
 // palette is the open command palette (§12).
 type palette struct {
 	input    ui.Input
-	sel, top int       // selected candidate, first one shown
-	pick     *db.Table // listing its tabs instead, to pick one: it is open in several (§7.8「打开已有的表」)
-	pickCol  string    // a column node's ↵ led to the pick: the tab picked goes to that column
-	into     *Pane     // a landing tab's 打开表: the table picked takes its place, open elsewhere or not (§5)
+	sel, top int   // selected candidate, first one shown
+	into     *Pane // a landing tab's 打开表: the table picked opens there (§5)
 
 	// Quick SQL's (§12).
 	comp  *completion
@@ -38,12 +36,11 @@ const (
 	itemPane
 	itemTable
 	itemCommand
-	itemTab // an open tab of the table being picked
 	itemSQL // a quick SQL from the history
 )
 
-// itemTags name a row's kind. The lists of one kind, the tabs to pick and
-// the SQL history, have none (§7.8, §12).
+// itemTags name a row's kind. The SQL history, a list of one kind, has
+// none (§12).
 var itemTags = [...]string{itemWindow: "窗口", itemPane: "Pane", itemTable: "表", itemCommand: "命令", itemSQL: ""}
 
 // scopes are the palette's tabs (K-02). The prefix typed in the input is the
@@ -164,15 +161,10 @@ func (a *App) paletteItems() []paletteItem {
 }
 
 // paletteMatches ranks the candidates in scope for what is typed: fzf over
-// "name where", every kind mixed by score (§12). Picking a tab, they are
-// the tabs.
+// "name where", every kind mixed by score (§12).
 func (a *App) paletteMatches() (items []paletteItem, ms []ui.Match) {
 	scope, query := a.paletteScope()
-	switch t := a.palette.pick; {
-	case t != nil:
-		items, query = a.tabItems(*t), a.palette.input.Text
-	case scope == sqlScope && strings.TrimSpace(query) != "": // SQL typed: nothing to list
-	default:
+	if scope != sqlScope || strings.TrimSpace(query) == "" { // SQL typed: nothing to list
 		for _, it := range a.paletteItems() {
 			if slices.Contains(scopes[scope].kinds, it.kind) {
 				items = append(items, it)
@@ -189,17 +181,6 @@ func (a *App) paletteMatches() (items []paletteItem, ms []ui.Match) {
 		ms = slices.Insert(slices.DeleteFunc(ms, func(m ui.Match) bool { return m.Index == i }), 0, ui.Match{Index: i})
 	}
 	return items, ms
-}
-
-// tabItems is the window's tabs of t: where each is, "① · 2", and what it
-// shows, in dim (§7.8「打开已有的表」).
-func (a *App) tabItems(t db.Table) []paletteItem {
-	var items []paletteItem
-	for k, at := range a.tabsOf(t) {
-		where := append([]string{a.icons.Number(at.n) + " · " + strconv.Itoa(at.i+1)}, tabSummary(at.p.Tabs[at.i].Data)...)
-		items = append(items, paletteItem{itemTab, strconv.Itoa(k), a.icons.Table, t.Name, strings.Join(where, " · ")})
-	}
-	return items
 }
 
 // tabSummary is what t shows when not all rows in the default order: its
@@ -222,9 +203,6 @@ func (a *App) paletteView() ui.Palette {
 	for _, s := range scopes {
 		p.Scopes = append(p.Scopes, strings.TrimSpace(s.label+" "+s.prefix)) // "表 @": the tab says what to type
 	}
-	if a.palette.pick != nil { // no scopes: only the tabs are there to pick
-		p.Scopes, p.Scope = []string{"选择 tab"}, 0
-	}
 	for _, m := range ms {
 		it := items[m.Index]
 		right := ""
@@ -237,16 +215,13 @@ func (a *App) paletteView() ui.Palette {
 		p.Rows = append(p.Rows, ui.PaletteRow{Icon: it.icon, Name: it.name, Where: it.where, Pos: m.Pos, Right: right, Tag: itemTags[it.kind]})
 	}
 	scopeKeys := a.hints("palette", "/", "palette.scope.next", "palette.scope.prev")
-	if a.palette.pick != nil {
-		scopeKeys = ""
-	}
 	p.Footer = bound(
 		ui.Hint{Key: a.hints("palette", "/", "palette.up", "palette.down"), Label: "移动"},
 		ui.Hint{Key: scopeKeys, Label: "范围"},
 		ui.Hint{Key: a.keys.Hint("palette.close", "palette"), Label: "关闭", Action: "palette.close"},
 	)
 	switch run := a.keys.Hint("palette.run", "palette"); {
-	case scope == sqlScope && a.palette.pick == nil && strings.TrimSpace(query) != "":
+	case scope == sqlScope && strings.TrimSpace(query) != "":
 		label := "执行"
 		if q := a.palette.quick; q != nil && run != "" && query != q.last() { // F-03
 			run, label = "已修改，"+run, "重新执行"
@@ -254,14 +229,11 @@ func (a *App) paletteView() ui.Palette {
 		p.Enter = bound(ui.Hint{Key: run, Label: label, Action: "palette.run"})
 	case a.palette.sel < len(ms):
 		it := items[ms[a.palette.sel].Index]
-		enter := [...]string{itemWindow: "切换", itemPane: "聚焦", itemTable: "打开", itemCommand: "执行", itemTab: "切过去", itemSQL: "执行"}[it.kind]
+		enter := [...]string{itemWindow: "切换", itemPane: "聚焦", itemTable: "打开", itemCommand: "执行", itemSQL: "执行"}[it.kind]
 		if it.kind == itemCommand && actions[it.id].On != nil {
 			enter = "切换"
 		}
-		p.Enter = bound(ui.Hint{Key: run, Label: enter, Action: "palette.run"})
-		if it.kind == itemTable || it.kind == itemTab {
-			p.Enter = append(p.Enter, bound(ui.Hint{Key: a.keys.Hint("palette.open.tab", "palette"), Label: "新 tab", Action: "palette.open.tab"})...)
-		}
+		p.Enter = bound(ui.Hint{Key: run, Label: enter, Action: "palette.run"}) // C-t is ↵ for a table: no hint of its own (F3.37)
 	}
 	if a.quickShows() {
 		p.Result = a.quickView(a.palette.quick)
@@ -298,15 +270,12 @@ func (a *App) paletteBox(n int) (box uv.Rectangle, rows int, grid uv.Rectangle) 
 // quickShows is whether the palette shows a quick SQL's result area.
 func (a *App) quickShows() bool {
 	s, _ := a.paletteScope()
-	return s == sqlScope && a.palette.pick == nil && a.palette.quick != nil
+	return s == sqlScope && a.palette.quick != nil
 }
 
 // paletteScopeTo switches to scope i, wrapping around, by rewriting the
 // input's prefix; what was typed after it stays.
 func (a *App) paletteScopeTo(i int) {
-	if a.palette.pick != nil {
-		return
-	}
 	scope, query := a.paletteScope()
 	i = (i + len(scopes)) % len(scopes)
 	pos := max(a.palette.input.Pos-len(scopes[scope].prefix), 0) + len(scopes[i].prefix)
@@ -314,27 +283,12 @@ func (a *App) paletteScopeTo(i int) {
 	a.palette.sel, a.palette.top, a.palette.comp = 0, 0, nil
 }
 
-// paletteRun runs candidate i (K-04); newTab is C-t, which only tables and
-// the tab being picked take.
+// paletteRun runs candidate i (K-04); newTab is C-t, which only tables
+// take, opening them as ↵ does (F3.37).
 // A toggle leaves the palette open, so its ON / OFF can be seen to change
 // (§12); a window only closes it until windows can switch (M5).
 func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 	items, ms := a.paletteMatches()
-	if t := a.palette.pick; t != nil && (newTab || i < len(ms)) { // C-t opens t again whatever is picked
-		col := a.palette.pickCol
-		a.palette = nil
-		var cmd tea.Cmd
-		if newTab {
-			cmd = a.openTable(*t, true)
-		} else {
-			k, _ := strconv.Atoi(items[ms[i].Index].id)
-			a.showTab(a.tabsOf(*t)[k])
-		}
-		if col != "" {
-			a.gotoColumn(*t, col)
-		}
-		return cmd
-	}
 	if scope, sql := a.paletteScope(); scope == sqlScope { // run what is typed, or the history's pick
 		if strings.TrimSpace(sql) == "" && i < len(ms) {
 			sql = items[ms[i].Index].id
@@ -355,11 +309,11 @@ func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 	r := it.recent()
 	a.state.Recent = slices.Insert(slices.DeleteFunc(a.state.Recent, func(k config.Recent) bool { return k == r }), 0, r)
 	a.state.Recent = a.state.Recent[:min(len(a.state.Recent), recentRows)]
-	return tea.Batch(a.saveState(), a.paletteDo(it, newTab))
+	return tea.Batch(a.saveState(), a.paletteDo(it))
 }
 
 // paletteDo does what candidate it stands for.
-func (a *App) paletteDo(it paletteItem, newTab bool) tea.Cmd {
+func (a *App) paletteDo(it paletteItem) tea.Cmd {
 	if it.kind == itemCommand && actions[it.id].On != nil {
 		cmd := a.run(it.id, 0)
 		items, ms := a.paletteMatches() // it may have moved up among the recent ones
@@ -375,9 +329,9 @@ func (a *App) paletteDo(it paletteItem, newTab bool) tea.Cmd {
 	case itemTable:
 		if i := slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Schema+"."+t.Name == it.id }); i >= 0 {
 			if into != nil {
-				return a.openTableIn(into, a.sess.Tables[i], true)
+				return a.openTableIn(into, a.sess.Tables[i])
 			}
-			return a.openTable(a.sess.Tables[i], newTab)
+			return a.openTable(a.sess.Tables[i])
 		}
 	case itemPane:
 		id, _ := strconv.Atoi(it.id)
@@ -402,7 +356,7 @@ func (a *App) paletteKey(k keymap.Key) tea.Cmd {
 		return nil
 	}
 	edit := editInput
-	if scope, _ := a.paletteScope(); scope == sqlScope && p.pick == nil && p.input.Pos > 0 { // the SQL after the ; pairs (§7.9)
+	if scope, _ := a.paletteScope(); scope == sqlScope && p.input.Pos > 0 { // the SQL after the ; pairs (§7.9)
 		edit = a.editPaired
 	}
 	if edit(&p.input, k) {

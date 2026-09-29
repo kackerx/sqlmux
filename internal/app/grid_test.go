@@ -55,7 +55,7 @@ func ordersTable(n int) (db.Table, db.Columns, db.Result) {
 func loadOrders(t *testing.T, a *App, n int) *dataTab {
 	t.Helper()
 	table, cols, page := ordersTable(n)
-	if a.openTable(table, false) == nil {
+	if a.openTable(table) == nil {
 		t.Fatal("opening a table fetches it")
 	}
 	tab := dataOf(a.focused())
@@ -144,21 +144,12 @@ func TestTabCloseClick(t *testing.T) {
 	}
 }
 
-// A table open in two tabs, one of them filtered: the palette lists them
-// to pick one (§7.8「打开已有的表」).
-func TestGoldenTabPick160x45(t *testing.T) {
-	a := wide(160, 45)
-	loadOrders(t, a, 60).shown.applied = "status = 'done'"
-	feed(t, a, "<C-p>@t_order<C-t><C-p>@t_order<CR>")
-	golden.RequireEqual(t, a.render().String())
-}
-
 // A fetch shows busy until it answers; an answer to an older request is
 // dropped (§8.3).
 func TestGridFetch(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	table, cols, page := ordersTable(3)
-	a.openTable(table, false)
+	a.openTable(table)
 	tab := dataOf(a.focused())
 	if a.busy != 1 || !strings.Contains(statusRow(a), " busy · C-c 取消 ") {
 		t.Fatalf("while fetching: busy %d, status %q", a.busy, statusRow(a))

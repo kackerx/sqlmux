@@ -295,8 +295,8 @@ func TestTreeOpensInNewTab(t *testing.T) {
 	}
 }
 
-// A table opens in a new tab of the focused data pane, else of the
-// window's first; the tab that was current stays (§12).
+// A table opens in a new tab of the focused pane, else of the one focused
+// last; the tab that was current stays (§12).
 func TestPaletteOpensTables(t *testing.T) {
 	a := twoPanes(160, 45, "nerd")
 	data := a.focused()
@@ -305,12 +305,12 @@ func TestPaletteOpensTables(t *testing.T) {
 		t.Fatalf("↵: tabs %v cur %d", tabNames(data), data.Cur)
 	}
 	a.win().focus(2)
-	a.win().focus(0) // from the tree, ⟨2⟩ focused last: its current tab is a console (§5)
+	a.win().focus(0) // from the tree, ⟨2⟩ focused last, a console's pane (F3.37)
 	feed(t, a, "<C-p>@t_sku<C-t>")
-	if tabNames(data) != "t_order t_user t_user t_sku" || data.Cur != 3 || data.Prev != 2 {
-		t.Fatalf("C-t: tabs %v cur %d prev %d", tabNames(data), data.Cur, data.Prev)
+	if console := a.win().pane(2); tabNames(console) != "console_1 t_sku" || console.Cur != 1 || console.Prev != 0 {
+		t.Fatalf("C-t: tabs %v cur %d prev %d", tabNames(console), console.Cur, console.Prev)
 	}
-	if a.win().Focus != data.ID {
+	if a.win().Focus != 2 {
 		t.Errorf("focus %d: the pane the table opened in takes it", a.win().Focus)
 	}
 	if feed(t, a, "<C-p>"); namesOf(a)[0] != "表:t_sku" {

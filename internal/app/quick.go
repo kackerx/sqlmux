@@ -143,7 +143,7 @@ func (a *App) completeSQL() tea.Cmd {
 	p.comp = nil
 	scope, sql := a.paletteScope()
 	pos := p.input.Pos - len(scopes[scope].prefix) // none while the cursor is in the ; itself
-	if scope != sqlScope || p.pick != nil || pos < 0 {
+	if scope != sqlScope || pos < 0 {
 		return nil
 	}
 	if p.asked == nil {
