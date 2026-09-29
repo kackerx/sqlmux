@@ -59,6 +59,15 @@ func (a *App) gotCatalog(m catalogMsg) tea.Cmd {
 	if !slices.Contains(s.Schemas, s.Schema) { // the first load, or the schema is gone (§7.8)
 		s.Schema = s.home
 	}
+	for _, w := range s.Windows { // the consoles opened before the tree had a schema (§8.6)
+		for _, p := range w.Root.Leaves() {
+			for _, t := range p.Tabs {
+				if t.Console != nil && t.Console.schema == "" {
+					t.Console.schema = s.Schema
+				}
+			}
+		}
+	}
 	a.clampTree()
 	var cmds []tea.Cmd
 	for _, t := range s.Tables { // R dropped the columns; an open table keeps showing them (§7.8)

@@ -107,23 +107,24 @@ func ranked(pattern string, start int, groups ...[]candidate) *completion {
 
 // sqlComplete is the candidates for the cursor at pos in sql, a console's
 // or the quick SQL's (§9.7): by what CompletionContext says goes there,
-// tables of the tree's schema, of X. after a schema X, a table's columns
+// tables of schema (the console's; the tree's for the quick SQL, §8.6), of
+// X. after a schema X, a table's columns
 // after its name or alias, else the statement's tables' columns, those at
 // the cursor's depth first, the other tables and keywords. It opens with a
 // word typed, or right after a qualifier that resolves; manual (C-n) with
 // nothing. The columns the cache lacks are fetched, a table once per asked.
 // ponytail: names go in bare, as the catalog has them; one that wants
 // quotes (upper case, a space) needs them typed.
-func (a *App) sqlComplete(sql string, pos int, asked map[tableID]bool, manual bool) (*completion, []tea.Cmd) {
+func (a *App) sqlComplete(sql string, pos int, schema string, asked map[tableID]bool, manual bool) (*completion, []tea.Cmd) {
 	c := sqlkit.CompletionContext(sql, pos, sqlkit.PG)
 	if !c.OK {
 		return nil, nil
 	}
 	var cmds []tea.Cmd
-	table := func(schema, name string) (db.Table, bool) { // PG folds what isn't quoted
-		schema = cmp.Or(schema, a.sess.Schema)
+	table := func(in, name string) (db.Table, bool) { // PG folds what isn't quoted
+		in = cmp.Or(in, schema)
 		for _, t := range a.sess.Tables {
-			if strings.EqualFold(t.Schema, schema) && strings.EqualFold(t.Name, name) {
+			if strings.EqualFold(t.Schema, in) && strings.EqualFold(t.Name, name) {
 				return t, true
 			}
 		}
@@ -140,9 +141,9 @@ func (a *App) sqlComplete(sql string, pos int, asked map[tableID]bool, manual bo
 		}
 		return out
 	}
-	tables := func(schema string, skip map[tableID]bool) (out []candidate) {
+	tables := func(in string, skip map[tableID]bool) (out []candidate) {
 		for _, t := range a.sess.Tables {
-			if t.Schema == schema && !skip[idOf(t)] {
+			if t.Schema == in && !skip[idOf(t)] {
 				note := "表"
 				if t.View() {
 					note = "视图"
@@ -180,7 +181,7 @@ func (a *App) sqlComplete(sql string, pos int, asked map[tableID]bool, manual bo
 			}
 		}
 	case sqlkit.CompTables:
-		groups = [][]candidate{append(ctes, tables(a.sess.Schema, nil)...)}
+		groups = [][]candidate{append(ctes, tables(schema, nil)...)}
 	default:
 		var near, far []candidate
 		named := map[tableID]bool{}
@@ -200,7 +201,7 @@ func (a *App) sqlComplete(sql string, pos int, asked map[tableID]bool, manual bo
 		for i, k := range sqlkit.Common {
 			kws[i] = candidate{label: k, insert: k, note: "关键字"}
 		}
-		groups = [][]candidate{near, far, append(ctes, tables(a.sess.Schema, named)...), kws}
+		groups = [][]candidate{near, far, append(ctes, tables(schema, named)...), kws}
 	}
 	if c.Prefix == "" && !manual && !resolved {
 		return nil, cmds

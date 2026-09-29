@@ -164,6 +164,32 @@ func TestReadOnlyRefusesWrites(t *testing.T) {
 	}
 }
 
+// execEach is a console's run on w, as one request.
+func execEach(ctx context.Context, w *db.Worker, stmts ...string) (rs []db.Result, err error) {
+	err = w.Run(ctx, func(ctx context.Context, c db.Conn) error {
+		rs, err = db.ExecEach(ctx, c, stmts, 0)
+		return err
+	})
+	return rs, err
+}
+
+// A console's schema goes first on search_path, the started one after it:
+// agentable's tables need no prefix, public's still resolve (§8.6).
+func TestSetSearchPath(t *testing.T) {
+	c := connect(t, false)
+	ctx := context.Background()
+	if _, err := c.Exec(ctx, SetSearchPath("agentable", c.SearchPath), 0); err != nil {
+		t.Fatal(err)
+	}
+	r, err := c.Query(ctx, "select current_schemas(false)::text, (select count(*) from agent) >= 0, (select count(*) from t_order) >= 0")
+	if err != nil || r.Rows[0][0].S != "{agentable,public}" {
+		t.Fatalf("%v %v", r.Rows, err)
+	}
+	if got := SetSearchPath(`we"ird`, ""); got != `set search_path to "we""ird"` {
+		t.Errorf("quoted: %s", got)
+	}
+}
+
 // A console's run (§11「执行」): each statement commits on its own, and the
 // first to fail stops the rest; a cancelled run leaves Main usable.
 func TestExecEach(t *testing.T) {
@@ -177,7 +203,7 @@ func TestExecEach(t *testing.T) {
 	if _, err := w.Exec(ctx, "create table t_run (n int)", 0); err != nil {
 		t.Fatal(err)
 	}
-	rs, err := w.ExecEach(ctx, []string{"insert into t_run values (1)", "insert into t_run values ('two')", "insert into t_run values (3)"}, 0)
+	rs, err := execEach(ctx, w, "insert into t_run values (1)", "insert into t_run values ('two')", "insert into t_run values (3)")
 	if sqlState(err) != "22P02" || len(rs) != 1 || rs[0].Tag != "INSERT 0 1" {
 		t.Fatalf("second fails: %v %+v", err, rs)
 	}
@@ -185,7 +211,7 @@ func TestExecEach(t *testing.T) {
 		t.Fatalf("the first committed, the third never ran: %v %v", r.Rows, err)
 	}
 	time.AfterFunc(200*time.Millisecond, w.Cancel)
-	rs, err = w.ExecEach(ctx, []string{"select 1", "select pg_sleep(10)", "insert into t_run values (4)"}, 0)
+	rs, err = execEach(ctx, w, "select 1", "select pg_sleep(10)", "insert into t_run values (4)")
 	if !errors.Is(err, context.Canceled) || len(rs) != 1 {
 		t.Fatalf("cancelled: %v %+v", err, rs)
 	}

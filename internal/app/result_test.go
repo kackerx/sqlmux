@@ -88,12 +88,14 @@ func runOf(t *testing.T, cmd tea.Cmd) runDone {
 	return runDone{}
 }
 
-// inRun is inConsole with Main answering from d and the console holding text.
+// inRun is inConsole with Main answering from d and the console holding
+// text, with no schema of its own: no search_path is set (TestRunSchema).
 func inRun(t *testing.T, d *execDB, text string) (*App, *consoleTab) {
 	t.Helper()
 	a, c := inConsole(t, "")
 	a.sess.Main = db.NewWorker(d)
 	c.ed.Load(text)
+	c.schema = ""
 	return a, c
 }
 
@@ -241,6 +243,45 @@ func TestResultKeys(t *testing.T) {
 	press(t, a, "q")
 	if a.run("tab.close", 0); tabNames(res) != "日志" {
 		t.Error("q or tab.close (:q) closed the log")
+	}
+}
+
+// A console's run sets search_path to its schema first when Main has
+// another, in the same request, out of the log; a set, reset or discard
+// in a run makes the next set it again. Two consoles take turns. A SET
+// that fails stops the run, logged, no ▶ red (§8.6).
+func TestRunSchema(t *testing.T) {
+	d := &execDB{res: map[string]db.Result{"select 1": rows(1)}}
+	a, c := inRun(t, d, "select 1")
+	a.sess.startedPath = `"$user", public`
+	c.schema = "agentable"
+	setA := `set search_path to "agentable", "$user", public`
+	press(t, a, "<CR><CR>")
+	if strings.Join(d.ran, "; ") != setA+"; select 1\nLIMIT 1001; select 1\nLIMIT 1001" || strings.Contains(logText(a), "search_path") {
+		t.Fatalf("ran %q, log %q", d.ran, logText(a))
+	}
+	d.ran = nil
+	a.consoleDid(c, c.ed.Load("set search_path to public;\nselect 1"))
+	press(t, a, "ggVG<CR><CR>")
+	if len(d.ran) != 4 || d.ran[0] != "set search_path to public" || d.ran[2] != setA { // Main had it: no SET the first time
+		t.Fatalf("after a set: %q", d.ran)
+	}
+	d.ran = nil
+	a.run("console.new", 0)
+	c2 := consoleOf(a.focused())
+	a.consoleDid(c2, c2.ed.Load("select 1"))
+	press(t, a, "<CR>")
+	selectTab(a.focused(), 0) // console_1, beside it
+	a.consoleDid(c, c.ed.Load("select 1"))
+	press(t, a, "<CR>")
+	if len(d.ran) != 4 || d.ran[0] != `set search_path to "public", "$user", public` || d.ran[2] != setA {
+		t.Fatalf("console_2 in public, then console_1: %q", d.ran)
+	}
+	d.fail = map[string]error{setA: &pgconn.PgError{Severity: "ERROR", Message: `schema "agentable" does not exist`}}
+	a.sess.mainPath = ""
+	press(t, a, "<CR>")
+	if !strings.HasSuffix(logText(a), setA+`  ERROR: schema "agentable" does not exist`) || c.failed != -1 || a.win().Result.Cur != 0 {
+		t.Errorf("SET fails: log %q, red ▶ %d", logText(a), c.failed)
 	}
 }
 

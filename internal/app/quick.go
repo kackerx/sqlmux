@@ -149,7 +149,7 @@ func (a *App) completeSQL() tea.Cmd {
 	if p.asked == nil {
 		p.asked = map[tableID]bool{}
 	}
-	c, cmds := a.sqlComplete(sql, pos, p.asked, false)
+	c, cmds := a.sqlComplete(sql, pos, a.sess.Schema, p.asked, false)
 	if c != nil {
 		c.start += len(scopes[scope].prefix)
 	}

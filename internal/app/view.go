@@ -200,10 +200,12 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		)
 	case consoleOf(p) != nil:
 		// Drawn left to right; Prio says what goes first when space runs out
-		// (§7.8). The schema dropdown comes before ▶ run in F3.11.
-		b.Hints = append([]ui.Hint{
-			{Label: "▶ run", Action: "console.run", Button: true},
-		}, bound(ui.Hint{Key: a.keys.Hint("console.run", "console"), Action: "console.run", Prio: 2, Attached: true})...)
+		// (§7.8): ▶ run, the schema, ↵.
+		if s := consoleOf(p).schema; s != "" {
+			b.Hints = append(b.Hints, ui.Hint{Label: a.sess.DB + "." + s + " ▾", Action: "console.schema", Color: th.PK, Prio: 1})
+		}
+		b.Hints = append(b.Hints, ui.Hint{Label: "▶ run", Action: "console.run", Button: true})
+		b.Hints = append(b.Hints, bound(ui.Hint{Key: a.keys.Hint("console.run", "console"), Action: "console.run", Prio: 2, Attached: true})...)
 		tabHints = bound(
 			ui.Hint{Key: a.keys.Hint("console.format", "console"), Label: "format", Action: "console.format"},
 			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},

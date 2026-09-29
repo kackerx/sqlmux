@@ -129,6 +129,11 @@ type Session struct {
 	Active     int
 	RunSeq     int    // the last run's number, #42 on its result tabs (§11)
 	warning    string // console_1's file could not be read: a toast on start (§11)
+	// DB is the database, on console titles; startedPath Main's search_path
+	// as it connected; mainPath the one a console's run last set on Main,
+	// "" when not known, touched in Main's requests only (§8.6).
+	DB                    string
+	startedPath, mainPath string
 }
 
 func (a *App) win() *Window { return a.sess.Windows[a.sess.Active] }
@@ -173,7 +178,9 @@ func Open(ctx context.Context, c config.Connection) (*Session, error) {
 		main.Close()
 		return nil, err
 	}
-	return newSession(c.Name, main.Addr, db.NewWorker(main), db.NewWorker(meta)), nil
+	s := newSession(c.Name, main.Addr, db.NewWorker(main), db.NewWorker(meta))
+	s.DB, s.startedPath = main.Database, main.SearchPath
+	return s, nil
 }
 
 func (s *Session) Close() {
@@ -286,6 +293,7 @@ func (a *App) newConsole() tea.Cmd {
 	if err != nil {
 		return a.showToast(err.Error(), toastTTL)
 	}
+	c.schema = a.sess.Schema // then its own (§8.6)
 	a.showPane(p.ID)
 	putTab(p, Tab{Name: fmt.Sprintf("console_%d", n), Console: c}, p.tab().landing())
 	return nil

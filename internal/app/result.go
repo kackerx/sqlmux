@@ -79,6 +79,7 @@ type (
 		r   *run
 		rs  []db.Result
 		err error
+		set string // the SET of search_path when it is what failed
 	}
 	runTick struct{ r *run }
 )
@@ -163,13 +164,39 @@ func (a *App) runSQL(t *consoleTab, name, sql string, base, ver int) tea.Cmd {
 	selectTab(p, at)
 	a.busy++
 	texts := make([]string, len(stmts))
+	resets := false // what search_path is past this run is not known (§8.6)
 	for i, s := range stmts {
 		texts[i] = sqlkit.AutoLimit(sql[s.Start:s.End], sqlkit.PG, a.maxRows+1)
+		switch sqlkit.FirstWord(texts[i], sqlkit.PG) {
+		case "set", "reset", "discard":
+			resets = true
+		}
 	}
-	main, maxRows := a.sess.Main, a.maxRows
+	set := ""
+	if t.schema != "" {
+		set = postgres.SetSearchPath(t.schema, a.sess.startedPath)
+	}
+	s, maxRows := a.sess, a.maxRows
 	return tea.Batch(func() tea.Msg {
-		rs, err := main.ExecEach(context.Background(), texts, maxRows)
-		return runDone{r, rs, err}
+		m := runDone{r: r}
+		m.err = s.Main.Run(context.Background(), func(ctx context.Context, c db.Conn) error {
+			// mainPath is read and written in Main's requests only, one at
+			// a time: runs of two consoles may queue in either order
+			if set != "" && s.mainPath != set {
+				if _, err := c.Exec(ctx, set, 0); err != nil {
+					s.mainPath, m.set = "", set
+					return err
+				}
+				s.mainPath = set
+			}
+			var err error
+			m.rs, err = db.ExecEach(ctx, c, texts, maxRows)
+			if resets {
+				s.mainPath = ""
+			}
+			return err
+		})
+		return m
 	}, a.runTick(r))
 }
 
@@ -234,6 +261,9 @@ func (a *App) gotRun(m runDone) tea.Cmd {
 	if m.err != nil {
 		s := r.stmts[len(m.rs)]
 		stmt := r.sql[s.Start:s.End]
+		if m.set != "" { // none of the run's ran: no ▶ is to blame (§8.6)
+			stmt = m.set
+		}
 		if errors.Is(m.err, context.Canceled) {
 			a.log(r, stmt, "已取消", false)
 			cmds = append(cmds, a.showToast("查询已取消", toastTTL))
@@ -243,7 +273,7 @@ func (a *App) gotRun(m runDone) tea.Cmd {
 			for _, l := range lines[1:] {
 				r.win.log = append(r.win.log, ui.LogLine{Tail: "    " + l, Err: true})
 			}
-			if r.from.ver == r.ver { // the text is still what ran
+			if r.from.ver == r.ver && m.set == "" { // the text is still what ran
 				r.from.failed = strings.Count(strings.Join(r.from.ed.Lines(), "\n")[:r.base+s.Start], "\n")
 			}
 		}

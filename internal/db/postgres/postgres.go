@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgconn/ctxwatch"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -15,8 +16,9 @@ import (
 )
 
 type Conn struct {
-	pg   *pgconn.PgConn
-	Addr string // user@host:port, for the status bar (§7.8)
+	pg       *pgconn.PgConn
+	Addr     string // user@host:port, for the status bar (§7.8)
+	Database string // on console titles, before the schema (§8.6)
 	// SearchPath is search_path as the connection started, before any
 	// console sets its own schema in front of it (§8.6).
 	SearchPath string
@@ -58,7 +60,7 @@ func Connect(ctx context.Context, dsn, password string, readOnly bool) (*Conn, e
 	if err != nil {
 		return nil, err
 	}
-	c := &Conn{pg: pg, Addr: fmt.Sprintf("%s@%s:%d", cfg.User, cfg.Host, cfg.Port)}
+	c := &Conn{pg: pg, Addr: fmt.Sprintf("%s@%s:%d", cfg.User, cfg.Host, cfg.Port), Database: cfg.Database}
 	r, err := c.Query(ctx, "show search_path")
 	if err != nil {
 		c.Close()
@@ -66,6 +68,17 @@ func Connect(ctx context.Context, dsn, password string, readOnly bool) (*Conn, e
 	}
 	c.SearchPath = r.Rows[0][0].S
 	return c, nil
+}
+
+// SetSearchPath is the statement that puts schema first on search_path,
+// before started, what the connection started with, so extensions there
+// are still found (§8.6).
+func SetSearchPath(schema, started string) string {
+	path := pgx.Identifier{schema}.Sanitize()
+	if started != "" {
+		path += ", " + started
+	}
+	return "set search_path to " + path
 }
 
 func (c *Conn) Exec(ctx context.Context, sql string, maxRows int) ([]db.Result, error) {

@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"sqlmux/internal/config"
@@ -343,6 +344,52 @@ func TestConsoleCompletion(t *testing.T) {
 	if c.comp != nil {
 		t.Error("; closes it")
 	}
+}
+
+// A console's schema (§8.6): on its title, gs or a click opens the
+// dropdown there, its own schema marked, ↵ picks; a new console takes the
+// tree's, then each keeps its own; completion lists its schema's tables.
+func TestConsoleSchema(t *testing.T) {
+	a, c := inConsole(t, "")
+	title := func() string { return strings.Split(a.render().String(), "\n")[0] }
+	if !strings.Contains(title(), " doraemon.public ▾  ▶ run ") {
+		t.Fatalf("title %q", title())
+	}
+	feed(t, a, "gs")
+	if a.drop == nil || a.drop.kind != dropSchema || a.dropView().Mark != 1 {
+		t.Fatalf("gs: %+v", a.drop)
+	}
+	feed(t, a, "age<CR>")
+	if c.schema != "agentable" || a.drop != nil || !strings.Contains(title(), " doraemon.agentable ▾ ") {
+		t.Fatalf("picked: %q, title %q", c.schema, title())
+	}
+	click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: a.focused().ID, Action: "console.schema"}).Min)
+	if a.drop == nil || a.drop.console != c {
+		t.Fatal("a click opens it")
+	}
+	feed(t, a, "<Esc>")
+	a.run("console.new", 0)
+	if c2 := consoleOf(a.focused()); c2 == c || c2.schema != "public" {
+		t.Fatalf("a new console: %q", c2.schema)
+	}
+	selectTab(a.focused(), 0)
+	feed(t, a, "iselect * from pl")
+	if c.comp == nil || c.comp.items[0].label != "planner" {
+		t.Errorf("agentable's tables: %+v", c.comp)
+	}
+}
+
+// The console's title as the window narrows: ▶ run stays longest, then
+// the schema, then ↵ (§7.8); at 200 columns everything and the name.
+func TestGoldenConsoleTitle(t *testing.T) {
+	var titles []string
+	for _, w := range []int{200, 160, 130, 110, 100, 90} {
+		a, _ := inConsole(t, "")
+		a.Update(tea.WindowSizeMsg{Width: w, Height: 20})
+		r := a.layout()[a.focused().ID]
+		titles = append(titles, ansi.Cut(strings.Split(a.render().String(), "\n")[r.Min.Y], r.Min.X, r.Max.X))
+	}
+	golden.RequireEqual(t, strings.Join(titles, "\n")+"\n")
 }
 
 // The console's candidates open under the word they complete (§9.7).

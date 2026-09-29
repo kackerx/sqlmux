@@ -45,7 +45,8 @@ func (noDB) Close() error                                                { retur
 // public and one in agentable, with no database behind it.
 func testSession() *Session {
 	s := newSession("doraemon", "pg@localhost:5432", db.NewWorker(noDB{}), db.NewWorker(noDB{}))
-	s.Schema, s.Schemas, s.home = "public", []string{"agentable", "public"}, "public"
+	s.Schema, s.Schemas, s.home, s.DB = "public", []string{"agentable", "public"}, "public", "doraemon"
+	consoleOf(s.Windows[0].Root.B.Pane).schema = "public" // as the catalog's coming sets it
 	s.Tables = []db.Table{{Schema: "agentable", Name: "planner", Rows: 3}}
 	for _, t := range []struct {
 		name string

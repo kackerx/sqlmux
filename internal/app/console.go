@@ -25,6 +25,9 @@ type consoleTab struct {
 	ver, saved int  // changes made, and the one the file has
 	failed     int  // the first line of the statement whose last run failed, its ▶ red; -1 for none
 	running    *run // the run going on, if one is: another ↵ waits for it (§11)
+	// schema is the one it runs in, first on search_path (§8.6): the
+	// tree's as it opens, "" until the catalog is in.
+	schema string
 	// The candidate list in INSERT (§9.7); the tables whose columns were
 	// fetched for it this INSERT, and where it last completed: columns in
 	// while the cursor is still there complete again.
@@ -110,6 +113,8 @@ func (a *App) consoleKey(p *Pane, t *consoleTab, k keymap.Key) tea.Cmd {
 			return cmd
 		}
 	case t.comp == nil && k == "<C-n>" && t.ed.Mode() == editor.Insert:
+		// ponytail: C-n is fixed here, not in the keymap: [keys.console] is
+		// NORMAL's; add a console INSERT scope when it has to be remappable
 		return a.consoleComplete(t, true)
 	}
 	open := t.comp != nil
@@ -138,7 +143,7 @@ func (a *App) consoleComplete(t *consoleTab, manual bool) tea.Cmd {
 	if t.asked == nil {
 		t.asked = map[tableID]bool{}
 	}
-	c, cmds := a.sqlComplete(strings.Join(lines, "\n"), pos, t.asked, manual)
+	c, cmds := a.sqlComplete(strings.Join(lines, "\n"), pos, cmp.Or(t.schema, a.sess.Schema), t.asked, manual)
 	if c != nil {
 		c.start -= pos - cur.Col // a column of the cursor's line: it is a word before the cursor
 	}

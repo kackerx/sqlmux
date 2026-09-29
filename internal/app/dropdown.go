@@ -13,19 +13,21 @@ import (
 )
 
 // dropKind is what an open dropdown picks: a table's ORDER or LIMIT (§7.8
-// 「查询条」). M3's console adds its schema (§8.6).
+// 「查询条」), a console's schema (§8.6).
 type dropKind int
 
 const (
 	dropOrder dropKind = iota
 	dropLimit
+	dropSchema
 )
 
-// dropdown is the open one-pick dropdown; tab and pane are the table an
-// ORDER or LIMIT one acts on.
+// dropdown is the open one-pick dropdown; tab or console, in pane, is what
+// it acts on.
 type dropdown struct {
 	kind     dropKind
 	tab      *dataTab
+	console  *consoleTab
 	pane     *Pane
 	input    ui.Input
 	sel, top int
@@ -59,10 +61,23 @@ func (a *App) openDrop(k dropKind) {
 	a.dropMove(0)
 }
 
+// openSchemaDrop opens the focused console's schema dropdown (gs, §8.6),
+// its selection on the schema it has.
+func (a *App) openSchemaDrop() {
+	p := a.focused()
+	if c := consoleOf(p); c != nil && len(a.sess.Schemas) > 0 {
+		a.drop = &dropdown{kind: dropSchema, console: c, pane: p}
+		_, a.drop.sel = a.dropItems()
+		a.dropMove(0)
+	}
+}
+
 // dropItems is what the dropdown offers, and which of them is current.
 func (a *App) dropItems() (items []string, current int) {
 	d := a.drop
 	switch d.kind {
+	case dropSchema:
+		return a.sess.Schemas, slices.Index(a.sess.Schemas, d.console.schema)
 	case dropOrder: // first the row identity, "默认"; then the columns
 		items = []string{"默认"}
 		current = 0
@@ -104,14 +119,28 @@ func (a *App) dropMatches() []ui.Match {
 }
 
 // dropBox is where v, the dropdown as drawn, opens (§8.6, §7.8): under its
-// chip, left aligned with it, as wide as its longest item.
+// chip, left aligned with it, as wide as its longest item. A schema one
+// opens under the console title's button, to the pane's right border at
+// least; under the title's right end when the button was left out.
 func (a *App) dropBox(v ui.Dropdown) (uv.Rectangle, int) {
 	d := a.drop
-	chip := "grid.order"
-	if d.kind == dropLimit {
-		chip = "grid.limit"
+	var entry uv.Rectangle
+	w := 16
+	switch d.kind {
+	case dropSchema:
+		r := a.layout()[d.pane.ID]
+		entry = uv.Rect(r.Max.X-1, r.Min.Y, 1, 1)
+		for _, h := range a.hits { // the button as the last frame drew it
+			if h.Target == (ui.Target{Kind: ui.KindHint, Pane: d.pane.ID, Action: "console.schema"}) {
+				entry = h.Rect
+			}
+		}
+		w = max(w, r.Max.X-entry.Min.X)
+	case dropOrder:
+		entry = a.chipRect(d.pane, d.tab, "grid.order")
+	case dropLimit:
+		entry = a.chipRect(d.pane, d.tab, "grid.limit")
 	}
-	entry, w := a.chipRect(d.pane, d.tab, chip), 16
 	items, _ := a.dropItems()
 	for _, s := range items {
 		w = max(w, ui.Width(s)+4) // border and padding on both sides
@@ -137,6 +166,10 @@ func (a *App) dropPick(i int) tea.Cmd {
 	}
 	at := ms[i].Index
 	item := items[at]
+	if d.kind == dropSchema { // the next run sets it (§8.6)
+		d.console.schema = item
+		return nil
+	}
 	switch t := d.tab; d.kind {
 	case dropOrder:
 		switch {
