@@ -42,12 +42,24 @@ func (e *Editor) deleteLines(from, to int) {
 }
 
 // joinNext puts line n+1 on the end of line n, after sep and without its
-// first skip bytes (ops.c do_join); marks on it go along.
+// first skip bytes (ops.c do_join); marks on it go along (col_adjust): one
+// in the blanks that go stays where sep starts, or at 0 when the blanks
+// were longer than line n.
 func (e *Editor) joinNext(n int, sep string, skip int) {
 	head := e.lines[n]
+	removed := skip - len(sep)
+	amount := len(head) - removed
 	for _, p := range e.marks() {
-		if p.Line == n+1 {
-			*p = Pos{n, max(p.Col-skip+len(head)+len(sep), len(head))}
+		if p.Line != n+1 {
+			continue
+		}
+		switch {
+		case amount < 0 && p.Col <= -amount:
+			*p = Pos{n, 0}
+		case p.Col < removed:
+			*p = Pos{n, len(head)}
+		default:
+			*p = Pos{n, p.Col + amount}
 		}
 	}
 	e.setLine(n, head+sep+e.lines[n+1][skip:])

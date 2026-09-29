@@ -218,14 +218,18 @@ qa!
 }
 
 // vimKeys is keys as the inside of a vim "string": <Esc> becomes \<Esc>.
+// A <…> the keymap reads as characters (\<ab\> in a pattern) stays
+// characters, so nvim and the editor get the same keys.
 func vimKeys(keys string) string {
 	var b strings.Builder
 	for keys != "" {
 		if keys[0] == '<' {
 			if end := strings.IndexByte(keys, '>'); end > 1 {
-				b.WriteString(`\` + keys[:end+1])
-				keys = keys[end+1:]
-				continue
+				if ks, err := keymap.Parse(keys[:end+1]); err == nil && len(ks) == 1 {
+					b.WriteString(`\` + keys[:end+1])
+					keys = keys[end+1:]
+					continue
+				}
 			}
 		}
 		if keys[0] == '\\' || keys[0] == '"' {

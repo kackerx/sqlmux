@@ -148,7 +148,9 @@ type matcher struct {
 func compile(pattern string, ignore bool) (matcher, error) {
 	var m matcher
 	pattern, m.bow = strings.CutPrefix(pattern, `\<`)
-	pattern, m.eow = strings.CutSuffix(pattern, `\>`)
+	if strings.HasSuffix(pattern, `\>`) && backslashes(pattern, len(pattern)-1)%2 == 1 { // not a\\>
+		pattern, m.eow = pattern[:len(pattern)-2], true
+	}
 	re, err := regexp.Compile(pattern) // first without (?i), for the error
 	if err == nil && ignore {
 		re, err = regexp.Compile("(?i)" + pattern)
@@ -314,50 +316,65 @@ func star(back bool) motion {
 
 // ex runs a : line: {n} goes to line n and s substitutes; the rest is the
 // console's (:w, :q), handed on as Effect.Ex.
+// Lines of the text are from 0 here, so line 0 of an ex range is -1.
+
+// badRange is vim's E16, a range past the text.
+const badRange = "范围无效"
+
 func (e *Editor) ex(line string) {
 	line = strings.TrimSpace(line)
-	from, to, rest, err := e.lineRange(line)
+	from, to, given, rest, err := e.lineRange(line)
+	last := len(e.lines) - 1
 	switch {
 	case err != "":
 		e.eff.Error = err
-	case rest == "" && line != "":
-		e.cur.Line = to
-		e.cur.Col = e.coladvance(to, e.want)
+	case rest == "" && given: // :{n}: past the end is the last line (ex_docmd.c)
+		if to < -1 {
+			e.eff.Error = badRange
+			return
+		}
+		e.cur.Line = min(max(to, 0), last)
+		e.cur.Col = e.coladvance(e.cur.Line, e.want)
 	case len(rest) >= 2 && rest[0] == 's' && strings.IndexByte(`\"| `, rest[1]) < 0 &&
 		!unicode.IsLetter(rune(rest[1])) && !unicode.IsDigit(rune(rest[1])):
-		e.substitute(from, to, rest[1:])
+		if from < -1 || to > last { // invalid_range; line 0 is line 1 (correct_range)
+			e.eff.Error = badRange
+			return
+		}
+		e.substitute(max(from, 0), max(to, 0), rest[1:])
 	case line != "":
 		e.eff.Ex = line
 	}
 }
 
 // lineRange reads the lines a : command is for (ex_docmd.c
-// parse_cmd_range): % or one or two addresses split by a comma, each ., $,
-// a number, '< or '>, with +n or -n after; the cursor's line when none.
-// err is what went wrong.
-func (e *Editor) lineRange(s string) (from, to int, rest, err string) {
+// parse_cmd_range): % or addresses split by commas, each ., $, a number,
+// '< or '>, with +n or -n after; one left out is the cursor's line. given
+// is whether s has one; a backward range is turned round. err is what went
+// wrong.
+func (e *Editor) lineRange(s string) (from, to int, given bool, rest, err string) {
 	if r, ok := strings.CutPrefix(s, "%"); ok {
-		return 0, len(e.lines) - 1, r, ""
+		return 0, len(e.lines) - 1, true, r, ""
 	}
-	from, to = e.cur.Line, e.cur.Line
-	for i := 0; i < 2; i++ {
-		n, r, ok := e.address(s)
+	to = e.cur.Line
+	for n := 0; ; n++ {
+		from, to = to, e.cur.Line
+		line, r, ok := e.address(s)
 		if !ok {
-			return 0, 0, "", "没有选区" // vim's E20: '< and '> not set
+			return 0, 0, false, "", "没有选区" // vim's E20: '< and '> not set
 		}
-		if r == s {
-			break
+		if r != s {
+			to, s, given = line, r, true
 		}
-		if s = r; i == 0 {
-			from = n
+		if n == 0 {
+			from = to
 		}
-		to = n
 		if s, ok = strings.CutPrefix(s, ","); !ok {
 			break
 		}
+		given = true
 	}
-	from, to = max(min(from, len(e.lines)-1), 0), max(min(to, len(e.lines)-1), 0)
-	return min(from, to), max(from, to), s, ""
+	return min(from, to), max(from, to), given, s, ""
 }
 
 // address reads one line address off s; rest is s when there is none. ok
@@ -448,6 +465,8 @@ func (e *Editor) substitute(from, to int, arg string) {
 			last = x[1]
 		}
 		if changed < 0 {
+			// ponytail: after a \r U puts back this line; nvim's do_sub keeps
+			// the line it split last for U. Follow it if that is missed.
 			e.cur = Pos{n, 0}
 			e.saveLine(n, l, e.cur)
 		}

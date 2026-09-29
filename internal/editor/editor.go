@@ -192,6 +192,10 @@ func parse(keys []string, visual bool) (c cmd, st status) {
 		}
 		// dd, gUU, gUgU: the line. gcc is a mapping of its own in nvim, which a
 		// count does not split.
+		// ponytail: gcgc is gc on nvim's o_gc text object, the block of
+		// comment lines around the cursor; here it is the line, the same on
+		// one line. Add o_gc (and dgc with it) to the objects if blocks of
+		// comments are to be taken whole.
 		if c.name == c.op || c.name == c.op[len(c.op)-1:] && (c.op != "gc" || n == 0) {
 			c.name = "_"
 			return c, complete

@@ -6734,3 +6734,244 @@ x名字
 a█bcdef
 ab
 a
+
+## rr: gcgc plain
+gcgc
+█a
+b
+
+## rr: shift linewise want
+$>>j
+█ab cd
+abcdefghijkl
+
+## rr: shift j want
+$>jjj
+█ab cd
+ab
+abcdefghijkl
+abcdefghijkl
+
+## rr: dd short line then j
+8ljddj
+█abcdefghij
+abcdefghij
+ab
+abcdefghij
+
+## rr: dd short line then k
+8ljddk
+█abcdefghij
+abcdefghij
+ab
+abcdefghij
+
+## rr: 2dd want then j
+5l2ddj
+█abcdefgh
+ab
+x
+abcdefgh
+
+## rr: << want j
+$<<j
+█    ab
+abcdefghijkl
+
+## rr: shift charwise want
+$>wj
+█ab cd
+abcdefghijkl
+
+## rr: > visual want then j
+$Vj>jj
+█ab cd
+ab
+x
+abcdefghijkl
+
+## rr: gv after deleting last lines
+jVjdgvy
+█a
+b
+c
+
+## rr: visual range after deleting last lines 2
+jVjd:'<,'>s/a/x/<CR>
+█a
+a
+a
+
+## rr: count colon past end
+5:s/a/x/<CR>
+a
+█a
+a
+
+## rr: range past end
+:1,9s/a/x/<CR>
+a
+█a
+a
+
+## rr: range before start
+:.-3s/a/x/<CR>
+a
+█a
+a
+
+## rr: goto negative
+:-5<CR>
+a
+█a
+a
+
+## rr: goto past end
+:9<CR>
+a
+█a
+a
+
+## rr: range trailing comma
+:3,s/a/x/<CR>
+a
+█a
+a
+
+## rr: range leading comma
+:,3s/a/x/<CR>
+a
+█a
+a
+
+## rr: range dollar minus
+:$-1s/a/x/<CR>
+a
+a
+█a
+
+## rr: range zero
+:0s/a/x/<CR>
+a
+█a
+a
+
+## rr: search bs gt
+/a\\><CR>
+█x a\> y
+
+## rr: search bow eow typed
+/\<lt>ab\><CR>
+█xab abc ab
+
+## rr: search bow typed
+/\<lt>ab<CR>
+█xab abc ab
+
+## rr: s bow eow g
+:s/\<lt>a\>/x/g<CR>
+█a ab a
+
+## rr: search escaped bs then lt
+/\\<lt>b<CR>
+█x a\<b y
+
+## rr: star then s reuse
+*:s//X/g<CR>
+█ab xab ab
+
+## rr: s with star pattern and n
+*:s//X/<CR>n
+█ab xab ab
+ab
+
+## rr: undo p empty reg
+ia<Esc>pu
+█bc
+
+## rr: join marks in removed blanks
+jlv<Esc>kJgvy
+█a
+    b
+
+## rr: join marks in removed blanks 2
+jllv<Esc>kJgvy
+█a
+    b
+
+## rr: join marks head long
+jlv<Esc>kJgvy
+█abcdef
+    b
+
+## rr: V same line left y
+5lVhhy
+█abcdefgh
+
+## rr: V same line left U
+5lVhhU
+█abcdefgh
+
+## rr: V same line left colon esc
+5lVhh:<Esc>
+█abcdefgh
+
+## rr: V same line left d
+5lVhhd
+█abcdefgh
+ijklmnop
+
+## rr: undo i esc
+xi<Esc>u
+a█bc
+
+## rr: undo 3i esc
+x3i<Esc>u
+a█bc
+
+## rr: undo d0 at col 0
+ia<Esc>0d0u
+█bc
+
+## rr: undo >> empty line
+ia<Esc>j>>u
+█bc
+
+## rr: s cr then u
+:s/,/\r/g<CR>u
+█a,b,c
+
+## rr: s cr all lines
+:%s/,/\r/<CR>
+█a,b
+c,d
+
+## rr: d percent comment multi line
+d%
+█/* a
+b */ c
+
+## rr: percent in string then next line
+%
+x "█(" y
+)
+
+## rr: ins bs join marks
+jv<Esc>A<Esc>0i<BS><Esc>gvy
+█ab
+cd
+
+## rr: del join marks
+jlv<Esc>kA<Del><Esc>gvy
+█ab
+cd
+
+## rr: J count marks
+jlv<Esc>k3Jgvy
+█a
+bc
+de
+
+## w4: search typed bow eow without lt
+/\<id\><CR>
+█idx id

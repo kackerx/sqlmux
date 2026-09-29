@@ -17280,3 +17280,323 @@ a X
 reg: "" ""
 top: 1
 mode: n
+
+## rr: gcgc plain
+█-- a
+b
+reg: "" ""
+top: 1
+mode: n
+
+## rr: shift linewise want
+  ab cd
+abcdef█ghijkl
+reg: "" ""
+top: 1
+mode: n
+
+## rr: shift j want
+  ab cd
+  ab
+abcdef█ghijkl
+abcdefghijkl
+reg: "" ""
+top: 1
+mode: n
+
+## rr: dd short line then j
+abcdefghij
+ab
+a█bcdefghij
+reg: "V" "abcdefghij\n"
+top: 1
+mode: n
+
+## rr: dd short line then k
+a█bcdefghij
+ab
+abcdefghij
+reg: "V" "abcdefghij\n"
+top: 1
+mode: n
+
+## rr: 2dd want then j
+x
+█abcdefgh
+reg: "V" "abcdefgh\nab\n"
+top: 1
+mode: n
+
+## rr: << want j
+  ab
+abc█defghijkl
+reg: "" ""
+top: 1
+mode: n
+
+## rr: shift charwise want
+  ab cd
+abcdef█ghijkl
+reg: "" ""
+top: 1
+mode: n
+
+## rr: > visual want then j
+  ab cd
+  ab
+█x
+abcdefghijkl
+reg: "" ""
+top: 1
+mode: n
+
+## rr: gv after deleting last lines
+█a
+reg: "V" "b\nc\n"
+top: 1
+mode: n
+
+## rr: visual range after deleting last lines 2
+█a
+reg: "V" "a\na\n"
+top: 1
+mode: n
+
+## rr: count colon past end
+a
+█a
+a
+reg: "" ""
+top: 1
+mode: n
+
+## rr: range past end
+a
+█a
+a
+reg: "" ""
+top: 1
+mode: n
+
+## rr: range before start
+a
+█a
+a
+reg: "" ""
+top: 1
+mode: n
+
+## rr: goto negative
+a
+█a
+a
+reg: "" ""
+top: 1
+mode: n
+
+## rr: goto past end
+a
+a
+█a
+reg: "" ""
+top: 1
+mode: n
+
+## rr: range trailing comma
+a
+x
+█x
+reg: "" ""
+top: 1
+mode: n
+
+## rr: range leading comma
+a
+x
+█x
+reg: "" ""
+top: 1
+mode: n
+
+## rr: range dollar minus
+a
+█x
+a
+reg: "" ""
+top: 1
+mode: n
+
+## rr: range zero
+█x
+a
+a
+reg: "" ""
+top: 1
+mode: n
+
+## rr: search bs gt
+x █a\> y
+reg: "" ""
+top: 1
+mode: n
+
+## rr: search bow eow typed
+xab abc █ab
+reg: "" ""
+top: 1
+mode: n
+
+## rr: search bow typed
+xab █abc ab
+reg: "" ""
+top: 1
+mode: n
+
+## rr: s bow eow g
+█x ab x
+reg: "" ""
+top: 1
+mode: n
+
+## rr: search escaped bs then lt
+x a█\<b y
+reg: "" ""
+top: 1
+mode: n
+
+## rr: star then s reuse
+█X xab X
+reg: "" ""
+top: 1
+mode: n
+
+## rr: s with star pattern and n
+X xab █ab
+ab
+reg: "" ""
+top: 1
+mode: n
+
+## rr: undo p empty reg
+█abc
+reg: "" ""
+top: 1
+mode: n
+
+## rr: join marks in removed blanks
+█a b
+reg: "v" "a"
+top: 1
+mode: n
+
+## rr: join marks in removed blanks 2
+█a b
+reg: "v" "a"
+top: 1
+mode: n
+
+## rr: join marks head long
+abcdef█ b
+reg: "v" " "
+top: 1
+mode: n
+
+## rr: V same line left y
+█abcdefgh
+reg: "V" "abcdefgh\n"
+top: 1
+mode: n
+
+## rr: V same line left U
+█ABCDEFGH
+reg: "" ""
+top: 1
+mode: n
+
+## rr: V same line left colon esc
+█abcdefgh
+reg: "" ""
+top: 1
+mode: n
+
+## rr: V same line left d
+ijk█lmnop
+reg: "V" "abcdefgh\n"
+top: 1
+mode: n
+
+## rr: undo i esc
+a█bc
+reg: "v" "b"
+top: 1
+mode: n
+
+## rr: undo 3i esc
+a█bc
+reg: "v" "b"
+top: 1
+mode: n
+
+## rr: undo d0 at col 0
+█abc
+reg: "" ""
+top: 1
+mode: n
+
+## rr: undo >> empty line
+█abc
+reg: "" ""
+top: 1
+mode: n
+
+## rr: s cr then u
+█a,b,c
+reg: "" ""
+top: 1
+mode: n
+
+## rr: s cr all lines
+a
+b
+c
+█d
+reg: "" ""
+top: 1
+mode: n
+
+## rr: d percent comment multi line
+█ c
+reg: "v" "/* a\nb */"
+top: 1
+mode: n
+
+## rr: percent in string then next line
+x "(" y
+█)
+reg: "" ""
+top: 1
+mode: n
+
+## rr: ins bs join marks
+ab█cd
+reg: "v" "c"
+top: 1
+mode: n
+
+## rr: del join marks
+abc█d
+reg: "v" "d"
+top: 1
+mode: n
+
+## rr: J count marks
+a b█c de
+reg: "v" "c"
+top: 1
+mode: n
+
+## w4: search typed bow eow without lt
+idx █id
+reg: "" ""
+top: 1
+mode: n

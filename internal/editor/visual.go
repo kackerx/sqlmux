@@ -55,7 +55,7 @@ type visualArea struct {
 // gv selects what VISUAL selected last; in VISUAL the two swap.
 func (e *Editor) reselect() {
 	last := e.lastVisual
-	if last.mode == Normal {
+	if last.mode == Normal || last.start.Line >= len(e.lines) { // lines deleted from under it (nv_gv_cmd)
 		return
 	}
 	if e.visual() {

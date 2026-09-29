@@ -119,9 +119,9 @@ func (e *Editor) apply(op string, s span, amount, want int) {
 		}
 	}
 	// 'nostartofline': back to the column the command started in
-	// (do_pending_operator)
+	// (do_pending_operator); j and k go by where that is, as beginline set
+	// w_set_curswant
 	if s.linewise && !s.adjusted && (op == "d" || op == ">" || op == "<") {
-		e.want = want
 		e.cur.Col = e.coladvance(e.cur.Line, want)
 	}
 }
@@ -339,7 +339,8 @@ func (e *Editor) join(count int) {
 func (e *Editor) put(after bool, count int) {
 	r := e.reg
 	switch r.kind {
-	case 0:
+	case 0: // nothing to put, but vim has saved for undo
+		e.beginChange()
 		return
 	case blockKind:
 		e.putBlock(after, count)
