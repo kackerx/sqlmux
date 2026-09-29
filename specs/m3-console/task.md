@@ -1,6 +1,6 @@
 # M3 console 与结果区 · 任务清单
 
-- **状态**：F3.1–F3.11 全部 passed，完整回归在 e8f8e8c 上全绿（1104 项 e2e）。用户验收 M2 / M3 时提了 13 条意见（2026-09-29），能现在做的整理成改进项 F3.12–F3.24；多连接 session、console 的事务控件排进 M5。改进项全部通过后，M2、M3 一起验收。
+- **状态**：F3.1–F3.17 passed，F3.18–F3.24 在做；F3.1–F3.11 完整回归在 e8f8e8c 上全绿（1104 项 e2e）。用户验收 M2 / M3 时提了 13 条意见（2026-09-29），能现在做的整理成改进项 F3.12–F3.24；多连接 session、console 的事务控件排进 M5。改进项全部通过后，M2、M3 一起验收。
 - **目标**：
   - vim 编辑器写 SQL；
   - 执行语句，结果显示在底部结果区；
@@ -24,7 +24,7 @@
   2. F3.5 之后：F3.4–F3.5，块选择与 sqlkit（已通过）；
   3. F3.8 之后：F3.6–F3.8，console tab、混放与引导页、执行与结果区（已通过）；
   4. F3.11 之后：F3.9–F3.11，格式化、补全、schema 下拉（已通过）；
-  5. F3.17 之后：F3.12–F3.17，输入与按键类的改进；
+  5. F3.17 之后：F3.12–F3.17，输入与按键类的改进（已通过）；
   6. F3.24 之后：F3.18–F3.24，表格与目录树的改进。
 - **M1 / M2 的 e2e**：默认布局加入 console 后，⟨1⟩ 的宽度从占满变成 5/9，M1 / M2 脚本里依赖 data pane 宽度、`C-l` 焦点的地方可能失效。tester 在 `lib.sh` 里加一个开头先关掉 ⟨2⟩ 的辅助函数，不逐条改断言。
 
@@ -285,95 +285,95 @@
 
 以下为 M2 / M3 用户验收的改进项（2026-09-29）。用户的 13 条意见里，第 11 条（console 的事务模式与提交 / 回滚）和第 12 条（一个 session 多个连接）排进 M5，见 m5-workspace/task.md 开头。
 
-## F3.12 补全按词首匹配 · 状态：todo
+## F3.12 补全按词首匹配 · 状态：passed（d0d1d2b；e2e e42b702）
 
 - **依赖**：F3.10
 - **涉及**：`internal/app`（补全的候选过滤）
 
 **开发**
-- [ ] 取代 F1.14 的「首字符相同」：输入的第一个字符落在候选的词首就算匹配（开头，或 `_ . - $` 之后，或小写到大写的切换处），其余照 fzf（§9.7）。WHERE、快速 SQL、console 共用。
-- [ ] fzf 只给得分最高的一种对齐，它的首字符不在词首时，从每个首字符相同的词首起，用模式的其余部分再匹配一次后面的字符，匹配上就保留，高亮按这次的位置画。
-- [ ] 词首只算上面列的几种，空格、字母后面的数字都不算：`nu` 只补出 `null`，不出 `is null`。
+- [x] 取代 F1.14 的「首字符相同」：输入的第一个字符落在候选的词首就算匹配（开头，或 `_ . - $` 之后，或小写到大写的切换处），其余照 fzf（§9.7）。WHERE、快速 SQL、console 共用。
+- [x] fzf 只给得分最高的一种对齐，它的首字符不在词首时，从每个首字符相同的词首起，用模式的其余部分再匹配一次后面的字符，匹配上就保留，高亮按这次的位置画。
+- [x] 词首只算上面列的几种，空格、字母后面的数字都不算：`nu` 只补出 `null`，不出 `is null`。
 
 **验收**
-- [ ] 单测：`evt` → `mt_event`、`tord` → `t_order`、`ev` → `t_event` 匹配；`x` 不匹配 `max`、`exists`。
-- [ ] e2e：快速 SQL 输入 `select * from evt` 出现 `t_event`（seed 里没有 `mt_event`）。
+- [x] 单测：`evt` → `mt_event`、`tord` → `t_order`、`ev` → `t_event` 匹配；`x` 不匹配 `max`、`exists`。
+- [x] e2e：快速 SQL 输入 `select * from evt` 出现 `t_event`（seed 里没有 `mt_event`）。
 
-## F3.13 自动配对括号与引号 · 状态：todo
+## F3.13 自动配对括号与引号 · 状态：passed（d0d1d2b；e2e e42b702）
 
 - **依赖**：F3.6
 - **涉及**：`internal/editor`（INSERT 下的配对、导出的规则函数）、`internal/app`（editInput）、`internal/config`（`autopairs`）
 
 **开发**
-- [ ] 按 §7.9「自动配对」：console 的 INSERT、WHERE 输入框、快速 SQL；配对条件、跳过右括号、退格成对删除；配置 `autopairs`。
-- [ ] 编辑器里做成一个选项，nvim 差分测试的生成器和比对都关掉它：导出字段 `AutoPairs`，和 `TabWidth` 并列，零值是关，app 按配置打开。配置 `autopairs` 在顶层，布尔值，类型不对时照现有规则启动报错。
-- [ ] 带次数的 INSERT 重放时照样配对：`3i(<Esc>` 得到 `((()))`；`o` / `O` 带次数时每个重复出来的行各配一对，换行前先把光标移到行尾：`3o(<Esc>` 得到三行 `()`（reviewer 实测原来右括号全堆到最后一行）。粘贴在所有地方都原样插入，不配对、不跳过（WHERE 和快速 SQL 的粘贴原来逐字符走了配对）。REPLACE 模式和 `:` / `/` 命令行不配对。成对删除只管 BS / `C-h`，`C-w` / `C-u` 照旧。
-- [ ] 配对和删词的规则写成 editor 导出的纯函数，WHERE 和快速 SQL 在 `app.editInput` 里调用。ui 不 import editor，否则测试会循环 import（editor 测试 → keymap → config → ui）。
-- [ ] 接受补全时，插入的内容以引号结尾、光标后面正好是同一个引号，就把这个引号一起替换掉：WHERE 里 `status = '█'` 接受 `'done'` 得到 `status = 'done'█`，而不是 `'done''`。
+- [x] 按 §7.9「自动配对」：console 的 INSERT、WHERE 输入框、快速 SQL；配对条件、跳过右括号、退格成对删除；配置 `autopairs`。
+- [x] 编辑器里做成一个选项，nvim 差分测试的生成器和比对都关掉它：导出字段 `AutoPairs`，和 `TabWidth` 并列，零值是关，app 按配置打开。配置 `autopairs` 在顶层，布尔值，类型不对时照现有规则启动报错。
+- [x] 带次数的 INSERT 重放时照样配对：`3i(<Esc>` 得到 `((()))`；`o` / `O` 带次数时每个重复出来的行各配一对，换行前先把光标移到行尾：`3o(<Esc>` 得到三行 `()`（reviewer 实测原来右括号全堆到最后一行）。粘贴在所有地方都原样插入，不配对、不跳过（WHERE 和快速 SQL 的粘贴原来逐字符走了配对）。REPLACE 模式和 `:` / `/` 命令行不配对。成对删除只管 BS / `C-h`，`C-w` / `C-u` 照旧。
+- [x] 配对和删词的规则写成 editor 导出的纯函数，WHERE 和快速 SQL 在 `app.editInput` 里调用。ui 不 import editor，否则测试会循环 import（editor 测试 → keymap → config → ui）。
+- [x] 接受补全时，插入的内容以引号结尾、光标后面正好是同一个引号，就把这个引号一起替换掉：WHERE 里 `status = '█'` 接受 `'done'` 得到 `status = 'done'█`，而不是 `'done''`。
 
 **验收**
-- [ ] 单测覆盖配对、不配对（`don't`、光标后是字母）、跳过、成对删除。
-- [ ] e2e：WHERE 输入 `status = '` 后得到 `status = '█'`，接着输入 `done'` 得到 `status = 'done'█`；console 里输入 `count(` 得到 `count(█)`，一次 `u` 撤掉这次 INSERT 的全部内容；`autopairs = false` 时不配对。
+- [x] 单测覆盖配对、不配对（`don't`、光标后是字母）、跳过、成对删除。
+- [x] e2e：WHERE 输入 `status = '` 后得到 `status = '█'`，接着输入 `done'` 得到 `status = 'done'█`；console 里输入 `count(` 得到 `count(█)`，一次 `u` 撤掉这次 INSERT 的全部内容；`autopairs = false` 时不配对。
 
-## F3.14 输入框删词 · 状态：todo
+## F3.14 输入框删词 · 状态：passed（d0d1d2b；e2e e42b702）
 
 - **依赖**：F3.6
 - **涉及**：`internal/app`（editInput）、`internal/editor`（INSERT 和命令行的 `M-BS`、导出的切词函数）
 
 **开发**
-- [ ] 所有单行输入框加 `C-w`、`C-u`，所有能输入文字的地方把 `M-BS` 当作 `C-w`（§7.9「删词」）。
-- [ ] 单行输入框都经过 `app.editInput`，`C-w`、`C-u`、`M-BS` 加在这一处；`C-w` 的切词用编辑器命令行里 `C-w` 的那一份，导出后两处共用。
-- [ ] 单元格刚进入编辑、文字还是全选时，`C-w` / `C-u` 和 BS 一样，清空全部文字。
-- [ ] console 的 INSERT 和 `:` / `/` 命令行里，`M-BS` 完全等同于 `C-w`：INSERT 下先断开撤销步，带次数重放时记成 `<C-w>`。NORMAL / VISUAL 下 `M-BS` 什么也不做。
+- [x] 所有单行输入框加 `C-w`、`C-u`，所有能输入文字的地方把 `M-BS` 当作 `C-w`（§7.9「删词」）。
+- [x] 单行输入框都经过 `app.editInput`，`C-w`、`C-u`、`M-BS` 加在这一处；`C-w` 的切词用编辑器命令行里 `C-w` 的那一份，导出后两处共用。
+- [x] 单元格刚进入编辑、文字还是全选时，`C-w` / `C-u` 和 BS 一样，清空全部文字。
+- [x] console 的 INSERT 和 `:` / `/` 命令行里，`M-BS` 完全等同于 `C-w`：INSERT 下先断开撤销步，带次数重放时记成 `<C-w>`。NORMAL / VISUAL 下 `M-BS` 什么也不做。
 
 **验收**
-- [ ] 单测：`C-w` 的词划分和 vim INSERT 下一致（`select foo.bar|` → `select foo.`、`a  |` → 空）。
-- [ ] e2e：WHERE、面板、单元格编辑、console INSERT、console 的 `:` 命令行里，`C-w` 和 `M-BS` 都能删掉前一个词；`C-u` 删到行首。
+- [x] 单测：`C-w` 的词划分和 vim INSERT 下一致（`select foo.bar|` → `select foo.`、`a  |` → 空）。
+- [x] e2e：WHERE、面板、单元格编辑、console INSERT、console 的 `:` 命令行里，`C-w` 和 `M-BS` 都能删掉前一个词；`C-u` 删到行首。
 
-## F3.15 选项浮层用 Tab 选择 · 状态：todo
+## F3.15 选项浮层用 Tab 选择 · 状态：passed（d0d1d2b；e2e e42b702）
 
 - **依赖**：F2.3、F2.4
 - **涉及**：`internal/app`（options、segments 作用域）、`internal/keymap/default.toml`
 
 **开发**
-- [ ] 按 §10.2「键盘」：非时间列的选项浮层是作用域 `options`，`Tab` / `S-Tab` / `C-n` / `C-p` / `↑` / `↓` 移动并绕回；时间列的浮层是作用域 `segments`，`Tab` / `S-Tab` 切段、`↑` / `↓` 加减、`C-n` / `C-p` 在选项行里移动。`cell` 里只剩编辑文字的键。
-- [ ] `cell.up` / `cell.down` 以后只用来加减时间的段，id 不改（用户的 config.toml 里已经写着这些 id），去掉给非时间列移动选项的分支。
-- [ ] 浮层被 ▾ 收起时，两个浮层作用域都不生效，`Tab` / `↑` / `↓` 在单元格里不做事。时间浮层总有「◷ 现在」这一项，所以只要展开着，`segments` 就生效。
-- [ ] keymap 认可的作用域名加上 `segments` 和 `keyhelp`，供配置校验用。
+- [x] 按 §10.2「键盘」：非时间列的选项浮层是作用域 `options`，`Tab` / `S-Tab` / `C-n` / `C-p` / `↑` / `↓` 移动并绕回；时间列的浮层是作用域 `segments`，`Tab` / `S-Tab` 切段、`↑` / `↓` 加减、`C-n` / `C-p` 在选项行里移动。`cell` 里只剩编辑文字的键。
+- [x] `cell.up` / `cell.down` 以后只用来加减时间的段，id 不改（用户的 config.toml 里已经写着这些 id），去掉给非时间列移动选项的分支。
+- [x] 浮层被 ▾ 收起时，两个浮层作用域都不生效，`Tab` / `↑` / `↓` 在单元格里不做事。时间浮层总有「◷ 现在」这一项，所以只要展开着，`segments` 就生效。
+- [x] keymap 认可的作用域名加上 `segments` 和 `keyhelp`，供配置校验用。
 
 **验收**
-- [ ] e2e：paid 列编辑时 `Tab` 选中 true、再 `Tab` 到 false、`S-Tab` 回来，`↵` 应用；created_at 列 `Tab` 仍是切段。
+- [x] e2e：paid 列编辑时 `Tab` 选中 true、再 `Tab` 到 false、`S-Tab` 回来，`↵` 应用；created_at 列 `Tab` 仍是切段。
 
-## F3.16 VISUAL 选区颜色 · 状态：todo
+## F3.16 VISUAL 选区颜色 · 状态：passed（d0d1d2b；e2e e42b702）
 
 - **依赖**：F3.6
 - **涉及**：`internal/ui`（主题 token、console、Input）
 
 **开发**
-- [ ] 新增主题 token `visual`（默认 #2d3f76），console 的三种 VISUAL 选区和输入框的「全选」都用它（§7.3）。
+- [x] 新增主题 token `visual`（默认 #2d3f76），console 的三种 VISUAL 选区和输入框的「全选」都用它（§7.3）。
 
 **验收**
-- [ ] golden：console 的 VISUAL 选区用 `visual` 色；主题里写 `visual` 后生效。
-- [ ] 通过后决策者在用户的 ristretto 主题里加 `visual = "#6c6a6d"`（与当前行同色，用户要求）。
+- [x] golden：console 的 VISUAL 选区用 `visual` 色；主题里写 `visual` 后生效。
+- [ ] 通过后决策者在用户的 ristretto 主题里加 `visual = "#6c6a6d"`（与当前行同色，用户要求）。等验收版本重建时再加：用户手上的旧版本不认这个 token，加了会启动报错。
 
-## F3.17 `?` 键位帮助 · 状态：todo
+## F3.17 `?` 键位帮助 · 状态：passed（d0d1d2b；e2e e42b702）
 
 - **依赖**：F3.6
 - **涉及**：`internal/app`（which-key 浮层）、`internal/keymap/default.toml`
 
 **开发**
-- [ ] 按 §6.5「键位帮助」：`?` 在表格、树、引导页、结果区打开当前上下文的全部键位（作用域 `keyhelp`），前缀成组、按下往下一层，`esc` 关闭；`<leader>?` 在哪里都能打开，console 里用它。
-- [ ] 内容：打开时那个上下文合并后的键树，也就是 resolver 用的那一份，含用户映射，按绑定顺序列出。keymap 导出一个按前缀列出子节点的函数，which-key 也改用它。console 里只列 keymap 的绑定（↵ 执行、`gs`、normal、global），vim 本身的键不列。
-- [ ] 样子照 which-key 浮层：靠底、占满宽度、分列排列；上边框显示当前前缀，根一层显示打开帮助的那个键（从 keymap 读 `keyhelp.open`，默认 `?`）；前缀项和 which-key 一样画成 `g → …`。
-- [ ] 按来源分组（用户验收时要求，要能看出一个键属于哪个作用域、生效的是哪一层配置）：每一层的键按它来自的配置表分组，组标题就是表名，如 `[map.grid.normal]`、`[keys.grid]`、`[keys.normal]`、`[keys.global]`，组的顺序同 §6.4 的解析顺序。只列生效的绑定，被高层遮住的键不在低层的组里重复出现。前缀项放在贡献它的最高一层的组里，进入下一层后照样分组。which-key 浮层和它共用这套画法。
-- [ ] 已知上限，用 `ponytail:` 标出：用户在不同的表里造出跨表的歧义键（如 `[map.grid.normal]` 的 `xx` 和 `[keys.grid]` 的 `x`）时，`x` 归在建出这个节点的那一组，`xx` 这一层进不去。默认键位没有这种情况，`ambiguities()` 也只查同一张表。
-- [ ] 所有列出来的 Action 都有标题（§6.7「标题」），没有标题的补上，加单测。
-- [ ] 按键：按前缀往下一层，`<BS>` 回到上一层；按到一个绑定时先关掉帮助，再照原来的上下文执行它，等于当场按了一遍「前缀 + 这个键」；列表里没有的键不做事；`esc` 关闭；点击一项等于按下它，点浮层外面关闭。global 的键（`C-p` 等）照常生效，先关掉帮助。打开时模式块显示 COMMAND。
-- [ ] 滚动：放不下时 `C-d` / `C-u` 滚半屏（nvim which-key 的默认键），滚轮一次滚 1 行，不加滚动提示。
-- [ ] 键位：`[keys.grid]`、`[keys.tree]`、`[keys.landing]` 各加 `"?" = "keyhelp.open"`，结果区落到 grid 上照样能用；`[keys.normal]` 加 `"<Leader>?" = "keyhelp.open"`；`[keys.keyhelp]` 绑 `<Esc>`、`<BS>`、`<C-d>`、`<C-u>`。
+- [x] 按 §6.5「键位帮助」：`?` 在表格、树、引导页、结果区打开当前上下文的全部键位（作用域 `keyhelp`），前缀成组、按下往下一层，`esc` 关闭；`<leader>?` 在哪里都能打开，console 里用它。
+- [x] 内容：打开时那个上下文合并后的键树，也就是 resolver 用的那一份，含用户映射，按绑定顺序列出。keymap 导出一个按前缀列出子节点的函数，which-key 也改用它。console 里只列 keymap 的绑定（↵ 执行、`gs`、normal、global），vim 本身的键不列。
+- [x] 样子照 which-key 浮层：靠底、占满宽度、分列排列；上边框显示当前前缀，根一层显示打开帮助的那个键（从 keymap 读 `keyhelp.open`，默认 `?`）；前缀项和 which-key 一样画成 `g → …`。
+- [x] 按来源分组（用户验收时要求，要能看出一个键属于哪个作用域、生效的是哪一层配置）：每一层的键按它来自的配置表分组，组标题就是表名，如 `[map.grid.normal]`、`[keys.grid]`、`[keys.normal]`、`[keys.global]`，组的顺序同 §6.4 的解析顺序。只列生效的绑定，被高层遮住的键不在低层的组里重复出现。前缀项放在贡献它的最高一层的组里，进入下一层后照样分组。which-key 浮层和它共用这套画法。
+- [x] 已知上限，用 `ponytail:` 标出：用户在不同的表里造出跨表的歧义键（如 `[map.grid.normal]` 的 `xx` 和 `[keys.grid]` 的 `x`）时，`x` 归在建出这个节点的那一组，`xx` 这一层进不去。默认键位没有这种情况，`ambiguities()` 也只查同一张表。
+- [x] 所有列出来的 Action 都有标题（§6.7「标题」），没有标题的补上，加单测。
+- [x] 按键：按前缀往下一层，`<BS>` 回到上一层；按到一个绑定时先关掉帮助，再照原来的上下文执行它，等于当场按了一遍「前缀 + 这个键」；列表里没有的键不做事；`esc` 关闭；点击一项等于按下它，点浮层外面关闭。global 的键（`C-p` 等）照常生效，先关掉帮助。打开时模式块显示 COMMAND。
+- [x] 滚动：放不下时 `C-d` / `C-u` 滚半屏（nvim which-key 的默认键），滚轮一次滚 1 行，不加滚动提示。
+- [x] 键位：`[keys.grid]`、`[keys.tree]`、`[keys.landing]` 各加 `"?" = "keyhelp.open"`，结果区落到 grid 上照样能用；`[keys.normal]` 加 `"<Leader>?" = "keyhelp.open"`；`[keys.keyhelp]` 绑 `<Esc>`、`<BS>`、`<C-d>`、`<C-u>`。
 
 **验收**
-- [ ] e2e：在表格里按 `?` 列出 `hjkl`、`go`、`gl` 等和它们的名字，包括用户配置里加的键，它们出现在对应的组标题下（如 `[map.grid.normal]`）；按 `g` 进入 `g` 这一层；console 里 `<leader>?` 能打开，`?` 仍是反向搜索。
+- [x] e2e：在表格里按 `?` 列出 `hjkl`、`go`、`gl` 等和它们的名字，包括用户配置里加的键，它们出现在对应的组标题下（如 `[map.grid.normal]`）；按 `g` 进入 `g` 这一层；console 里 `<leader>?` 能打开，`?` 仍是反向搜索。
 
 ## F3.18 从树和面板打开表一律新开 tab · 状态：todo
 
