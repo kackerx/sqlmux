@@ -1358,6 +1358,8 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 | `~/.config/sqlmux/themes/*.toml` | 只有用户写 | 自定义主题 |
 | `~/.local/state/sqlmux/state.json` | 由应用写入 | 最近使用、每张表的 WHERE 历史与收藏、快速 SQL 历史；以后还有工作现场 |
 | `~/.local/share/sqlmux/consoles/` | 由应用写入 | console 的 SQL 文件 |
+| `~/.config/sqlmux/layouts/*.toml` | 用户手写，或「保存布局为…」写入 | 命名布局（M6 F6.5） |
+| `~/.local/state/sqlmux/last.toml` | 由应用写入 | 退出时的工作现场，`sqlmux` 不带参数时恢复（M6 F6.5） |
 
 - 连接定义单独放一个文件，是因为应用改写 TOML 时会丢掉注释，所以不能去改用户手写的 config.toml。
 - `name`、`engine`、`dsn` 必填。`name` 会用作 console 文件的目录名（§11），所以不允许含 `/`、`\`，也不能以 `.` 开头，否则启动报错。`engine` 在 M1 只接受 `postgres`，其他值报错「目前只支持 postgres」。
