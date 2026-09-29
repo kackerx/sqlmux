@@ -154,12 +154,12 @@ func TestEditEndsFirst(t *testing.T) {
 	if tab.cell != nil || tab.row != 2 || tab.col != 6 || editsOf(tab) != "1/status=x" {
 		t.Fatalf("click on a cell: cell %+v at %d,%d, %q", tab.cell, tab.row, tab.col, editsOf(tab))
 	}
-	feed(t, a, "iy")
+	feed(t, a, "hiy") // note: text
 	a.Update(tea.MouseWheelMsg{X: c.Min.X, Y: c.Min.Y, Button: tea.MouseWheelDown})
 	if tab.cell != nil || len(tab.edits) != 2 {
 		t.Fatalf("wheel: %q", editsOf(tab))
 	}
-	feed(t, a, "0iz<C-p>") // id has no options: C-p is the global key (§10.2)
+	feed(t, a, "0i7<C-p>") // id has no options: C-p is the global key (§10.2)
 	if tab.cell != nil || a.palette == nil || len(tab.edits) != 3 {
 		t.Fatalf("C-p: %q", editsOf(tab))
 	}
@@ -214,7 +214,8 @@ func TestEditLooks(t *testing.T) {
 }
 
 // Editing a cell with more text than it holds: the input runs on over the
-// cells to its right (§10.1).
+// cells to its right (§10.1); no number, a wavy line under it and the hint
+// at it, the options past the hint (§10.7).
 func TestGoldenCellEdit160x45(t *testing.T) {
 	a := wide(160, 45)
 	loadOrders(t, a, 60)
@@ -344,15 +345,15 @@ func TestSaveFails(t *testing.T) {
 // cell that was sent is checked against what was sent next time.
 func TestSaveKeepsNewer(t *testing.T) {
 	a, tab, _ := withMain(t, "UPDATE 1")
-	feed(t, a, "lix<Esc>lil<Esc>")
+	feed(t, a, "lix<Esc>li1<Esc>")
 	_, cmd := a.Update(teaKey("<C-s>"))
 	m := cmd().(saveMsg)
-	feed(t, a, "iz<Esc>jin<Esc>") // amount again, and row 2's
+	feed(t, a, "i2<Esc>ji3<Esc>") // amount again, and row 2's
 	a.Update(m)
-	if got := editsOf(tab); !strings.Contains(got, "1/amount=z") || !strings.Contains(got, "2/amount=n") || strings.Contains(got, "status") {
+	if got := editsOf(tab); !strings.Contains(got, "1/amount=2") || !strings.Contains(got, "2/amount=3") || strings.Contains(got, "status") {
 		t.Errorf("left: %q", got)
 	}
-	if e := tab.edits[editKey{"1", "amount"}]; e.orig.S != "l" {
+	if e := tab.edits[editKey{"1", "amount"}]; e.orig.S != "1" {
 		t.Errorf("changed again, the row holds what was sent: orig %+v", e.orig)
 	}
 }
@@ -381,7 +382,7 @@ func TestConfirm(t *testing.T) {
 		"<C-c><C-c>": "有 1 处修改未保存，退出会丢弃。",
 	} {
 		answer(a, tab)
-		feed(t, a, "lix<Esc>"+keys)
+		feed(t, a, "0lix<Esc>"+keys)
 		if a.confirm == nil || a.confirm.text != text {
 			t.Fatalf("%s: %+v", keys, a.confirm)
 		}
@@ -390,7 +391,7 @@ func TestConfirm(t *testing.T) {
 		}
 		tab.edits = nil
 	}
-	feed(t, a, "lix<Esc>:qa<CR>")
+	feed(t, a, "0lix<Esc>:qa<CR>")
 	click(a, uv.Pos(1, 1))
 	if a.confirm != nil {
 		t.Error("a click outside says no")
@@ -657,5 +658,88 @@ func TestSaveAndClose(t *testing.T) {
 	a, tab, _ := withMain(t, "UPDATE 1")
 	if a.run("tab.save.close", 0); dataOf(a.focused()) == tab {
 		t.Error("nothing to save: :wq closes at once")
+	}
+}
+
+// cellCases are cellCheck's cases, with whether PG 17 takes each (pg): the
+// integration test asks it. Where they differ, ours is a noted ceiling.
+var cellCases = []struct {
+	typ, text, want string
+	pg              bool
+}{
+	{"integer", "12", "", true}, {"integer", " 12 ", "", true}, {"integer", "+5", "", true}, {"integer", "0x1F", "", true},
+	{"integer", "1_000", "", true}, {"integer", "010", "", true}, {"integer", "", "", false},
+	{"integer", "1__0", "不是有效的整数", false}, {"integer", "_1", "不是有效的整数", false}, {"integer", "1.0", "不是有效的整数", false},
+	{"integer", "1e5", "不是有效的整数", false}, {"integer", "10d", "不是有效的整数", false}, {"integer", "--1", "不是有效的整数", false},
+	{"integer", "2147483648", "超出 int4 的范围", false}, {"integer", "-2147483648", "", true},
+	{"smallint", "32768", "超出 int2 的范围", false}, {"smallint", "-0x8000", "", true}, {"smallint", "0x_1F", "", true},
+	{"bigint", "9223372036854775808", "超出 int8 的范围", false},
+	{"numeric", "1.5", "", true}, {"numeric", " .5 ", "", true}, {"numeric", "5.", "", true}, {"numeric", "1e5", "", true},
+	{"numeric", "1_000.5", "", true}, {"numeric", "0x10", "", true}, {"numeric", "0b101", "", true}, {"numeric", "1_0e1_0", "", true},
+	{"numeric", "inf", "", true}, {"numeric", "+Infinity", "", true}, {"numeric", "-inf", "", true}, {"numeric", "NaN", "", true},
+	{"numeric", "1e", "不是有效的数字", false}, {"numeric", "e5", "不是有效的数字", false}, {"numeric(10,2)", "10d", "不是有效的数字", false},
+	{"double precision", " 1e3 ", "", true}, {"double precision", "Infinity", "", true}, {"double precision", "-inf", "", true},
+	{"double precision", "nan", "", true}, {"double precision", "1e400", "超出 float8 的范围", false},
+	{"double precision", "1_000", "不是有效的数字", false}, {"double precision", "abc", "不是有效的数字", false},
+	{"real", "3.5", "", true}, {"real", "1e39", "超出 float4 的范围", false},
+	{"boolean", "t", "", true}, {"boolean", "tr", "", true}, {"boolean", "ye", "", true}, {"boolean", "of", "", true},
+	{"boolean", "on", "", true}, {"boolean", " TrUe ", "", true}, {"boolean", "1", "", true}, {"boolean", "n", "", true},
+	{"boolean", "o", "不是有效的布尔值", false}, {"boolean", "2", "不是有效的布尔值", false}, {"boolean", "tx", "不是有效的布尔值", false},
+	{"uuid", "{a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}", "", true}, {"uuid", "a0eebc999c0b4ef8bb6d6bb9bd380a11", "", true},
+	{"uuid", "a0ee-bc99-9c0b-4ef8-bb6d-6bb9-bd38-0a11", "", true}, {"uuid", "A0EEBC99-9C0B-4EF8-BB6D-6BB9BD380A11", "", true},
+	{"uuid", "{a0eebc999c0b4ef8bb6d6bb9bd380a11", "不是有效的 UUID", false}, {"uuid", " a0eebc999c0b4ef8bb6d6bb9bd380a11", "不是有效的 UUID", false},
+	{"uuid", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a1-1", "不是有效的 UUID", false}, {"uuid", "-a0eebc999c0b4ef8bb6d6bb9bd380a11", "不是有效的 UUID", false},
+	{"uuid", "a0eebc99", "不是有效的 UUID", false},
+	{"jsonb", `{"a": [1, "b"]}`, "", true}, {"json", " 1 ", "", true}, {"jsonb", `[1,`, "不是有效的 JSON", false},
+	{"date", "2026-09-20", "", true}, {"date", "2026-9-1", "", true}, {"date", "2026-09-20 BC", "", true}, {"date", " now ", "", true},
+	{"date", "Today", "", true}, {"date", "epoch", "", true}, {"date", "-infinity", "", true},
+	{"date", "2026/09/20", "不是有效的日期 / 时间", true}, // PG's too: a ceiling
+	{"timestamp without time zone", "2026-09-01", "", true}, {"timestamp without time zone", "2026-09-01 10:00", "", true},
+	{"timestamp without time zone", "2026-09-01T10:00:00", "", true}, {"timestamp without time zone", "2026-09-01 10:00:00+08", "", true},
+	{"timestamp without time zone", "tomorrow", "", true},
+	{"timestamp(3) with time zone", "2026-09-01 10:00:00.5 +08:00", "", true}, {"timestamp with time zone", "2026-09-01 10:00Z", "", true},
+	{"timestamp with time zone", "+infinity", "", true}, {"timestamp with time zone", "2026-09-01 10", "不是有效的日期 / 时间", false},
+	{"time without time zone", "10:00", "", true}, {"time without time zone", "24:00:00", "", true},
+	{"time without time zone", "10:00:00.123", "", true}, {"time without time zone", "now", "", true}, {"time without time zone", "allballs", "", true},
+	{"time without time zone", "today", "不是有效的日期 / 时间", false}, {"time without time zone", "epoch", "不是有效的日期 / 时间", false},
+	{"time with time zone", "10:00:00+08", "", true}, {"time with time zone", "10:00", "", true},
+	{"text", "anything", "", true}, {"integer[]", "{1,2}", "", true},
+}
+
+// What a cell's edit warns of, type by type, as PG 17 reads them (§10.7).
+func TestCellCheck(t *testing.T) {
+	for _, c := range cellCases {
+		if got := cellCheck(c.typ, c.text); got != c.want {
+			t.Errorf("%s %q: %q, want %q", c.typ, c.text, got, c.want)
+		}
+	}
+}
+
+// Text that is no value of its column: a wavy line under it and the hint
+// at it; ↵, a click elsewhere, the wheel and a global key leave it be,
+// esc drops it for what the cell had before (§10.7).
+func TestCellCheckBlocks(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	p := a.focused()
+	feed(t, a, "lli5<Esc>i10d")
+	f := a.render()
+	if !strings.Contains(f.String(), "不是有效的数字") {
+		t.Fatal("no hint")
+	}
+	if st := styleOf(t, f, "10d"); st.Underline != uv.UnderlineCurly || st.UnderlineColor != a.theme.Error {
+		t.Errorf("the line under it: %+v", st)
+	}
+	feed(t, a, "<CR><C-p>")
+	click(a, find(t, a, ui.Target{Kind: ui.KindCell, Pane: p.ID, Action: "grid.goto 2 5"}).Min)
+	a.Update(tea.MouseWheelMsg{X: 100, Y: 20, Button: tea.MouseWheelDown})
+	if tab.cell == nil || a.palette != nil || tab.row != 0 || tab.cell.in.Text != "10d" {
+		t.Fatalf("it stays: cell %+v, palette %v, row %d", tab.cell, a.palette != nil, tab.row)
+	}
+	if feed(t, a, "<Esc>"); tab.cell != nil || editsOf(tab) != "1/amount=5" {
+		t.Fatalf("esc: back to 5: %q", editsOf(tab))
+	}
+	if feed(t, a, "i10d<BS><CR>"); tab.cell != nil || editsOf(tab) != "1/amount=10" {
+		t.Errorf("a number goes: %q", editsOf(tab))
 	}
 }

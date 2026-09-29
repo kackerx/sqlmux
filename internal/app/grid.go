@@ -290,7 +290,7 @@ func (t *dataTab) column(name string) db.Column {
 // stopTyping gives the keys back to the grid, the WHERE input showing what
 // is in effect again (§7.8), a cell's edit kept (§10.1).
 func (t *dataTab) stopTyping() {
-	if t.cell != nil {
+	if t.cell != nil && t.cellHint() == "" { // no value of the column: dropped (§10.7)
 		t.commitCell()
 	}
 	t.typing, t.where, t.comp, t.hist = "", ui.Input{Text: t.applied, Pos: len(t.applied)}, nil, nil
@@ -358,7 +358,7 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 		g.Rows = append(g.Rows, vals)
 	}
 	if t.cell != nil {
-		g.Edit, g.EditMenu = &t.cell.in, len(t.options()) > 0
+		g.Edit, g.EditMenu, g.EditBad = &t.cell.in, len(t.options()) > 0, t.cellHint() != ""
 	}
 	return g
 }

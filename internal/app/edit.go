@@ -2,14 +2,18 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
@@ -145,13 +149,16 @@ func (t *dataTab) moveOption(d int) {
 	}
 }
 
-// acceptCell is ↵ in a cell: the option picked, else the text (§10.2).
+// acceptCell is ↵ in a cell: the option picked, else the text, unless it
+// is no value of the column (§10.2, §10.7).
 func (t *dataTab) acceptCell() {
 	if os := t.options(); !t.cell.folded && t.cell.sel >= 0 && t.cell.sel < len(os) {
 		t.applyOption(os[t.cell.sel])
 		return
 	}
-	t.commitCell()
+	if t.cellHint() == "" {
+		t.commitCell()
+	}
 }
 
 // applyOption ends the edit with o's change, what was typed dropped; now
@@ -215,26 +222,52 @@ func (t *dataTab) moveSeg(d int) {
 func (a *App) drawCellMenu(f *ui.Frame, p *Pane, t *dataTab) {
 	os := t.options()
 	at := a.grid(p, t).EditRect(gridRect(a.layout()[p.ID], t)).Min
-	if k := t.cellKind(); k != ui.NotTime {
+	var box uv.Rectangle
+	var draw func()
+	switch k := t.cellKind(); {
+	case t.cell.folded:
+	case k != ui.NotTime:
 		v := ui.TimePick{Kind: k, Text: t.cell.in.Text, Seg: t.cell.seg, Sel: t.cell.sel}
 		for _, o := range os {
 			v.Options = append(v.Options, o.label)
 		}
 		w, h := v.Size()
-		box, _ := ui.CompleteBox(a.window(), at, w, h-2)
-		v.Draw(f, box)
-		return
+		box, _ = ui.CompleteBox(a.window(), at, w, h-2)
+		draw = func() { v.Draw(f, box) }
+	case len(os) > 0:
+		v := ui.Complete{Sel: t.cell.sel}
+		w := 20
+		for _, o := range os {
+			v.Items = append(v.Items, ui.CompleteItem{Text: o.label, Pos: o.pos, Note: o.note})
+			w = max(w, ui.Width(o.label+"  "+o.note)+4)
+		}
+		var rows int
+		box, rows = ui.CompleteBox(a.window(), at, w, len(v.Items))
+		v.Top = max(0, v.Sel-rows+1)
+		draw = func() { v.Draw(f, box, rows) }
 	}
-	v := ui.Complete{Sel: t.cell.sel}
-	w := 20
-	for _, o := range os {
-		v.Items = append(v.Items, ui.CompleteItem{Text: o.label, Pos: o.pos, Note: o.note})
-		w = max(w, ui.Width(o.label+"  "+o.note)+4)
+	if hint := t.cellHint(); hint != "" { // right at the edit, the menu past it, down or up (§10.7)
+		h := ui.CellHint{Text: hint}
+		hb, _ := ui.CompleteBox(a.window(), at, h.Width(), 1)
+		if draw != nil {
+			d := ui.CellHintRows
+			if box.Min.Y < at.Y {
+				hb.Min.Y, d = at.Y-d, -d
+			} else {
+				hb.Min.Y = at.Y + 1
+			}
+			hb.Max.Y, box = hb.Min.Y+ui.CellHintRows, box.Add(uv.Pos(0, d))
+		}
+		h.Draw(f, hb)
 	}
-	box, rows := ui.CompleteBox(a.window(), at, w, len(v.Items))
-	v.Top = max(0, v.Sel-rows+1)
-	v.Draw(f, box, rows)
+	if draw != nil {
+		draw()
+	}
 }
+
+// cellHint is what is wrong with the text of the cell being edited, if
+// anything (§10.7).
+func (t *dataTab) cellHint() string { return cellCheck(t.typeOf(t.cell.key.col), t.cell.in.Text) }
 
 // setEdit makes e cell k's change; one giving back what was loaded is
 // none. A change starts over what the last save said (§10.3).
@@ -251,11 +284,19 @@ func (t *dataTab) setEdit(k editKey, e edit) {
 }
 
 // endEdit commits the focused cell's edit before anything else happens:
-// a click elsewhere, the wheel, a key that isn't the cell's (§10.1).
-func (a *App) endEdit() {
-	if t := a.typingTab(); t != nil && t.cell != nil {
-		t.commitCell()
+// a click elsewhere, the wheel, a key that isn't the cell's (§10.1). It is
+// false when the text is no value of the column: the edit stays, and so
+// does what asked (§10.7).
+func (a *App) endEdit() bool {
+	t := a.typingTab()
+	if t == nil || t.cell == nil {
+		return true
 	}
+	if t.cellHint() != "" { // no value of the column: what would end it waits (§10.7)
+		return false
+	}
+	t.commitCell()
+	return true
 }
 
 // saveMsg answers save.
@@ -401,4 +442,117 @@ func (a *App) quit() tea.Cmd {
 		}
 		return tea.Quit
 	})
+}
+
+// intBits are the integer types' sizes, by format_type's names (§10.7).
+var intBits = map[string]int{"smallint": 16, "integer": 32, "bigint": 64}
+
+// pgInteger and pgDecimal are integer's and numeric's text past a sign as
+// PG 17 reads them: digits with a _ between two, or 0x, 0o and 0b ones;
+// numeric's also with a fraction and an exponent.
+var (
+	pgInteger = regexp.MustCompile(`^(\d+(_\d+)*|0[xX](_?[0-9a-fA-F])+|0[oO](_?[0-7])+|0[bB](_?[01])+)$`)
+	pgDecimal = regexp.MustCompile(`^(\d+(_\d+)*(\.(\d+(_\d+)*)?)?|\.\d+(_\d+)*)([eE][+-]?\d+(_\d+)*)?$`)
+)
+
+// cellCheck is what is wrong with text as a value of catalog type typ, as
+// the edit's hint says it (§10.7); "" when nothing is, or typ goes
+// unchecked. Valid is what PG 17's input functions take, spaces around
+// it and all; the database has the last word.
+func cellCheck(typ, text string) string {
+	s := strings.TrimSpace(text)
+	switch t := baseType(typ); {
+	case text == "":
+	case intBits[t] > 0:
+		n := strings.TrimLeft(s, "+-")
+		if len(s)-len(n) > 1 || !pgInteger.MatchString(n) {
+			return "不是有效的整数"
+		}
+		base, n := 10, strings.ReplaceAll(n, "_", "")
+		if len(n) > 1 && strings.ContainsAny(n[1:2], "xXoObB") { // 010 is ten, as in PG: base 0 only past a prefix
+			base = 0
+		}
+		if _, err := strconv.ParseInt(s[:len(s)-len(strings.TrimLeft(s, "+-"))]+n, base, intBits[t]); err != nil {
+			return fmt.Sprintf("超出 int%d 的范围", intBits[t]/8)
+		}
+	case t == "numeric", t == "real", t == "double precision":
+		n := strings.TrimLeft(s, "+-")
+		switch w := strings.ToLower(n); {
+		case len(s)-len(n) > 1:
+			return "不是有效的数字"
+		case w == "nan" || w == "inf" || w == "infinity":
+		case t == "numeric":
+			if !pgDecimal.MatchString(n) && !pgInteger.MatchString(n) {
+				return "不是有效的数字"
+			}
+		default:
+			// ponytail: Go's ParseFloat, not strtod: 0x10 is refused and
+			// 1e-400 taken, PG the other way round
+			bits := map[string]int{"real": 32, "double precision": 64}[t]
+			if _, err := strconv.ParseFloat(s, bits); errors.Is(err, strconv.ErrRange) {
+				return fmt.Sprintf("超出 float%d 的范围", bits/8)
+			} else if err != nil || strings.Contains(s, "_") { // Go's takes 1_000, strtod doesn't
+				return "不是有效的数字"
+			}
+		}
+	case t == "boolean": // a prefix of one of PG's words, on and off by two letters
+		w := strings.ToLower(s)
+		for _, word := range []string{"true", "false", "yes", "no", "on", "off", "1", "0"} {
+			if strings.HasPrefix(word, w) && (len(w) > 1 || word[0] != 'o') && w != "" {
+				return ""
+			}
+		}
+		return "不是有效的布尔值"
+	case t == "uuid":
+		if !validUUID(text) {
+			return "不是有效的 UUID"
+		}
+	case t == "json" || t == "jsonb":
+		if !json.Valid([]byte(text)) {
+			return "不是有效的 JSON"
+		}
+	case timeKind(typ) != ui.NotTime:
+		k := timeKind(typ)
+		words := []string{"now", "today", "tomorrow", "yesterday", "epoch", "infinity", "-infinity", "+infinity"}
+		if k == ui.Time || k == ui.TimeTZ {
+			words = []string{"now", "allballs"}
+		}
+		if !slices.Contains(words, strings.ToLower(s)) && !isoTime[k].MatchString(s) {
+			return "不是有效的日期 / 时间"
+		}
+	}
+	return ""
+}
+
+// isoTime is what cellCheck takes as each kind's text besides its words:
+// ISO dates and times, wider than the parts a time steps (§10.2), a zone
+// on any, which PG drops for a type without one.
+// ponytail: PG takes much more (2026/09/20, month names); add them when
+// someone is kept from one
+var isoTime = func() map[ui.TimeKind]*regexp.Regexp {
+	date, tm, zone := `\d{4,}-\d{1,2}-\d{1,2}`, `\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?`, `( ?([+-]\d{1,2}(:?\d{2})?|[zZ]))?`
+	at := `^` + date + `([ Tt]` + tm + zone + `)?( (?i:bc))?$`
+	return map[ui.TimeKind]*regexp.Regexp{
+		ui.Date: regexp.MustCompile(`^` + date + `( (?i:bc))?$`), ui.Timestamp: regexp.MustCompile(at), ui.TimestampTZ: regexp.MustCompile(at),
+		ui.Time: regexp.MustCompile(`^` + tm + zone + `$`), ui.TimeTZ: regexp.MustCompile(`^` + tm + zone + `$`),
+	}
+}()
+
+// validUUID is uuid_in's rule: 32 hex digits, a - after any four of them
+// but the last, in braces or not; no spaces.
+func validUUID(s string) bool {
+	if strings.HasPrefix(s, "{") != strings.HasSuffix(s, "}") {
+		return false
+	}
+	s = strings.TrimSuffix(strings.TrimPrefix(s, "{"), "}")
+	n := 0
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case '0' <= c && c <= '9', 'a' <= c && c <= 'f', 'A' <= c && c <= 'F':
+			n++
+		case c != '-' || n == 0 || n%4 != 0 || n == 32 || i+1 == len(s) || s[i+1] == '-':
+			return false
+		}
+	}
+	return n == 32
 }

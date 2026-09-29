@@ -67,3 +67,24 @@ func (c Complete) Draw(f *Frame, box uv.Rectangle, rows int) {
 		f.Text(nx, line.Min.Y, x1, it.Note, uv.Style{Fg: th.Dim, Bg: st.Bg})
 	}
 }
+
+// CellHint is what is wrong with a cell's edit, in a box of its own right
+// at it (§10.7).
+type CellHint struct{ Text string }
+
+// CellHintRows is a hint box's height: its line in a border.
+const CellHintRows = 3
+
+func (h CellHint) Width() int { return Width(h.Text) + 4 }
+
+func (h CellHint) Draw(f *Frame, box uv.Rectangle) {
+	th := f.Theme
+	if box.Dx() < 4 || box.Dy() < CellHintRows {
+		return
+	}
+	f.Region(box, Target{}) // a click inside is not outside
+	f.Fill(box, uv.Style{Bg: th.PaneBg})
+	border := uv.NormalBorder().Style(uv.Style{Fg: th.Error, Bg: th.PaneBg})
+	border.Draw(f.Buf, box)
+	f.Text(box.Min.X+2, box.Min.Y+1, box.Max.X-1, h.Text, uv.Style{Fg: th.Error, Bg: th.PaneBg})
+}

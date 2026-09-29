@@ -116,7 +116,7 @@ func (a *App) render() *ui.Frame {
 	}
 	if t := a.typingTab(); t != nil { // the WHERE's lists (§9.7), a cell's options (§10.2)
 		switch p := a.focused(); {
-		case t.cell != nil && !t.cell.folded:
+		case t.cell != nil:
 			a.drawCellMenu(f, p, t)
 		case t.hist != nil:
 			v, box, rows := a.histView(p, t)

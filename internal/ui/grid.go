@@ -51,6 +51,7 @@ type Grid struct {
 	Failed    map[int]bool    // records a save failed on: numbers in error (§10.3)
 	Edit      *Input          // the current cell's edit, drawn over it (§10.1)
 	EditMenu  bool            // the edit has options: a ▾ at its right shows or hides them (§10.2)
+	EditBad   bool            // the edit is no value of its column: an error wavy line under it (§10.7)
 }
 
 // maxColWidth caps a column's wish (§7.6).
@@ -387,7 +388,11 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 			}
 			f.Text(arrow.Min.X, arrow.Min.Y, arrow.Max.X, "▾ ", st)
 		}
-		cursor = g.Edit.Draw(f, text, uv.Style{Fg: th.Fg, Bg: th.Cursor})
+		st := uv.Style{Fg: th.Fg, Bg: th.Cursor}
+		if g.EditBad { // a plain line where a terminal has no curly one
+			st.Underline, st.UnderlineColor = uv.UnderlineCurly, th.Error
+		}
+		cursor = g.Edit.Draw(f, text, st)
 	}
 	return cursor
 }

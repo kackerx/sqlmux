@@ -246,7 +246,11 @@ func init() {
 		"grid.edit":      {Title: "编辑单元格", Run: func(a *App, _ Args) tea.Cmd { return a.editCell(nil) }},
 		// ↵ and esc end a cell's edit alike, keeping it (G-02)
 		"cell.accept": {Title: "确定这一格", Local: true, Run: onCell(func(t *dataTab) { t.acceptCell() })},
-		"cell.done":   {Title: "结束编辑", Local: true, Run: do(func(a *App, _ Args) { a.endEdit() })},
+		"cell.done": {Title: "结束编辑", Local: true, Run: do(func(a *App, _ Args) { // esc: an edit no value of the column goes, what was before it back (§10.7)
+			if t := a.typingTab(); t != nil && t.cell != nil && !a.endEdit() {
+				t.typing, t.cell = "", nil
+			}
+		})},
 		// the options under a cell being edited (§10.2)
 		"cell.option.next":  {Title: "下一个选项", Local: true, Run: onCell(func(t *dataTab) { t.moveOption(1) })},
 		"cell.option.prev":  {Title: "上一个选项", Local: true, Run: onCell(func(t *dataTab) { t.moveOption(-1) })},
@@ -403,8 +407,8 @@ func title(action string) string {
 // run executes "id [arg]" from the registry.
 func (a *App) run(action string, count int) tea.Cmd {
 	id, arg, _ := strings.Cut(action, " ")
-	if !strings.HasPrefix(id, "cell.") && id != "cancel" { // cancel is esc here, which commits itself
-		a.endEdit()
+	if !strings.HasPrefix(id, "cell.") && id != "cancel" && !a.endEdit() { // cancel is esc here, which ends it itself
+		return nil
 	}
 	if !strings.HasPrefix(id, "keyhelp.") && id != "cancel" { // a global key (C-p) goes past the ? help: it closes (§6.5)
 		a.keyHelp = nil

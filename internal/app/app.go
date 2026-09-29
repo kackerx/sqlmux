@@ -233,7 +233,9 @@ func (a *App) feed(k keymap.Key, maps bool) tea.Cmd {
 func (a *App) click(p uv.Position) tea.Cmd {
 	t, ok := ui.HitAt(a.hits, p)
 	if !ok || t != (ui.Target{}) && t.Kind != ui.KindRow && !strings.HasPrefix(t.Action, "cell.") { // not the cell's edit (a blank target), its options or ▾: that ends first (§10.1)
-		a.endEdit()
+		if !a.endEdit() { // or stays, a click going nowhere (§10.7)
+			return nil
+		}
 	}
 	if !ok {
 		return nil
@@ -344,7 +346,9 @@ func (a *App) wheel(m tea.Mouse) {
 		}
 		return
 	}
-	a.endEdit() // the cell it is in may scroll away (§10.1)
+	if !a.endEdit() { // the cell it is in may scroll away (§10.1)
+		return
+	}
 	down, right := 0, 0
 	switch m.Button {
 	case tea.MouseWheelUp:
