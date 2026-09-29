@@ -830,7 +830,7 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 ### 9.3 读写判定
 
 1. 第一个有效关键字是 SELECT、SHOW、EXPLAIN、TABLE、VALUES、DESC 之一时，判为读。
-2. 以 WITH 开头的，继续在顶层扫描：出现 INSERT、UPDATE、DELETE、MERGE 就判为写。
+2. 以 WITH 开头的，继续往后扫描，见第 6 条。
 3. `EXPLAIN ANALYZE` 后面跟写语句时判为写，因为它会真正执行；`EXPLAIN (ANALYZE, BUFFERS) …` 这种括号写法里的 ANALYZE 也算。
 4. PG 的 `SELECT … INTO 新表` 会建表，判为写。
 5. 带行锁子句的 SELECT（`FOR UPDATE` / `FOR SHARE` / `FOR NO KEY UPDATE` / `FOR KEY SHARE`）判为写，不论在不在 WITH 里：它会加锁，PG 的只读事务也拒绝它。
