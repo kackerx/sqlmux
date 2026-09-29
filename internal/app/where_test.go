@@ -10,15 +10,15 @@ import (
 	"sqlmux/internal/ui"
 )
 
-// Completion (§9.7): columns and keywords starting as the word typed does,
+// Completion (§9.7): columns and keywords with a word starting as the one typed does,
 // an enum's values where one goes. The first is selected as the list opens,
 // Tab and S-Tab move around the ends, ↵ takes the selected one and runs
 // when that changes nothing; esc closes the list before the input.
 func TestWhereCompletion(t *testing.T) {
 	a, tab, _ := withRecorder(t, 160, 45)
 	feed(t, a, "/a")
-	if tab.comp == nil || len(tab.comp.items) != 2 || tab.comp.items[0].label != "amount" || tab.comp.sel != 0 || a.mode() != keymap.Insert {
-		t.Fatalf("a: amount, and: %+v", tab.comp)
+	if tab.comp == nil || len(tab.comp.items) != 3 || tab.comp.items[0].label != "amount" || tab.comp.items[1].label != "created_at" || tab.comp.sel != 0 || a.mode() != keymap.Insert {
+		t.Fatalf("a: amount, created_at (a word of it), and: %+v", tab.comp)
 	}
 	at := a.whereAt(a.focused(), tab)
 	f := a.render()
@@ -91,6 +91,36 @@ func TestRankedIgnoresCase(t *testing.T) {
 	}
 	if feed(t, a, "<BS><BS><BS><BS><BS>T_ORD"); slices.Contains(namesOf(a), "表:t_order") {
 		t.Error("the palette's T_ORD must stay exact about case")
+	}
+}
+
+// The first character typed matches at a word start: the first, one after
+// _ . - $, or a lower-to-upper turn; the rest is fuzzy (§9.7).
+func TestRankedWordStart(t *testing.T) {
+	cands := []candidate{{label: "mt_event"}, {label: "t_order"}, {label: "t_event"}, {label: "max"}, {label: "exists"}, {label: "orderId"}, {label: "a.b-c$d"}}
+	for pattern, want := range map[string][]string{
+		"evt": {"t_event", "mt_event"}, "tord": {"t_order"}, "ev": {"t_event", "mt_event"}, "x": nil,
+		"id": {"orderId"}, "b": {"a.b-c$d"}, "c": {"a.b-c$d"}, "d": {"a.b-c$d"},
+	} {
+		var got []string
+		if c := ranked(pattern, 0, cands); c != nil {
+			for _, it := range c.items {
+				got = append(got, it.label)
+			}
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: %v, want %v", pattern, got, want)
+		}
+	}
+	// fzf's best match takes the run abcdef after x; the one from the word
+	// start after _ still counts, and is what gets highlighted
+	s := "xabcdef_a" + strings.Repeat("q", 20) + "bcdef"
+	if m := ui.Filter("abcdef", []string{s}); len(m) != 1 || m[0].Pos[0] != 1 {
+		t.Fatalf("fzf no longer prefers the run: %+v", m)
+	}
+	c := ranked("abcdef", 0, []candidate{{label: s}})
+	if c == nil || !slices.Equal(c.items[0].pos, []int{8, 29, 30, 31, 32, 33}) {
+		t.Errorf("from the word start: %+v", c)
 	}
 }
 

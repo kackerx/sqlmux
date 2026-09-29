@@ -5,8 +5,8 @@
 │   ▸  agentable              │ │                                                                    │ │                   │ t_order         表 │             │
 │   ▾  public                 │ │                                                                    │ │                   │ t_order_item    表 │             │
 │     ▾  Tables (14)          │ │                                                                    │ │                   │ t_user_profile  表 │             │
-│       ▸  agent          124 │ │                                                                    │ │                   └────────────────────┘             │
-│       ▸  agent_version  530 │ │                                                                    │ │                                                      │
+│       ▸  agent          124 │ │                                                                    │ │                   │ mt_task_log     表 │             │
+│       ▸  agent_version  530 │ │                                                                    │ │                   └────────────────────┘             │
 │       ▸  goal            57 │ │                                                                    │ │                                                      │
 │       ▸  mt_task        812 │ │                                                                    │ │                                                      │
 │       ▸  mt_task_log    96k │ │                                                                    │ │                                                      │

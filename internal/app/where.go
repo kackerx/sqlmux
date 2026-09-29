@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
@@ -77,25 +78,24 @@ func (a *App) complete(t *dataTab) {
 
 // ranked is the candidates of groups that pattern matches, group by group
 // and best first within each (§9.7), completing what starts at start in the
-// input; nil when none does. A candidate starts with pattern's first
-// character, fuzzy past it as VS Code's and nvim-cmp's do: tord still finds
+// input; nil when none does. Pattern's first character matches at a word
+// start, fuzzy past it as VS Code's does: evt finds mt_event and tord
 // t_order, but x no longer max.
 func ranked(pattern string, start int, groups ...[]candidate) *completion {
 	c := &completion{start: start}
-	first, _ := utf8.DecodeRuneInString(pattern)
+	// no smart case: an upper-case letter would make fzf exact about case
+	// (§9.7); the palette, tree and COLS keep it
+	pattern = strings.ToLower(pattern)
 	for _, g := range groups {
 		labels := make([]string, len(g))
 		for i, cd := range g {
 			labels[i] = cd.label
 		}
-		// no smart case: an upper-case letter would make fzf exact about case
-		// (§9.7); the palette, tree and COLS keep it
-		for _, m := range ui.Filter(strings.ToLower(pattern), labels) {
+		for _, m := range ui.Filter(pattern, labels) {
 			cd := g[m.Index]
-			if r, _ := utf8.DecodeRuneInString(cd.label); pattern != "" && !strings.EqualFold(string(r), string(first)) {
+			if cd.pos = atWordStart(pattern, cd.label, m.Pos); pattern != "" && cd.pos == nil {
 				continue
 			}
-			cd.pos = m.Pos
 			c.items = append(c.items, cd)
 		}
 	}
@@ -103,6 +103,37 @@ func ranked(pattern string, start int, groups ...[]candidate) *completion {
 		return nil
 	}
 	return c
+}
+
+// atWordStart is where pattern matches s with its first character at a
+// word start (§9.7), given fzf's best match at pos; nil when it can't.
+// fzf's match starts elsewhere when a run of consecutive characters
+// outscores the word start: the rest is matched again from each one.
+func atWordStart(pattern, s string, pos []int) []int {
+	rs := []rune(s)
+	if len(pos) == 0 || wordStart(rs, pos[0]) {
+		return pos
+	}
+	first, n := utf8.DecodeRuneInString(pattern)
+	for i, r := range rs {
+		if !wordStart(rs, i) || unicode.ToLower(r) != first {
+			continue
+		}
+		if ms := ui.Filter(pattern[n:], []string{string(rs[i+1:])}); len(ms) > 0 {
+			out := []int{i}
+			for _, p := range ms[0].Pos {
+				out = append(out, i+1+p)
+			}
+			return out
+		}
+	}
+	return nil
+}
+
+// wordStart reports whether rune i of rs starts a word: the first, one
+// after _ . - or $, or an upper case after a lower case.
+func wordStart(rs []rune, i int) bool {
+	return i == 0 || strings.ContainsRune("_.-$", rs[i-1]) || unicode.IsLower(rs[i-1]) && unicode.IsUpper(rs[i])
 }
 
 // sqlComplete is the candidates for the cursor at pos in sql, a console's
