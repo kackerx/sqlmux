@@ -191,9 +191,8 @@ func (s *Session) Close() {
 // openTable shows table t and focuses where it shows (§7.8「打开已有的表」,
 // §12). A new tab (C-t, the tree's t) opens in openTarget's pane. Else a
 // tab of the window that has t is switched to, or, with several, picked
-// from the palette; with none, t's first page is fetched in place of the
-// target's current tab, unless that is a console or has changes not saved.
-// A landing tab is always replaced (§5「引导页」).
+// from the palette; with none, t opens in a new tab there too. Only a
+// landing tab is replaced (§5「引导页」).
 func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 	p := a.openTarget()
 	if !newTab {
@@ -207,10 +206,7 @@ func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 			return nil
 		}
 	}
-	cur := p.tab()
-	// never over SQL the user wrote, nor over changes not saved (§5, §12)
-	newTab = newTab || cur != nil && (cur.Console != nil || cur.Data != nil && len(cur.Data.edits) > 0)
-	return a.openTableIn(p, t, !newTab || cur.landing())
+	return a.openTableIn(p, t, p.tab().landing())
 }
 
 // openTableIn opens table t in pane p, over its current tab or in a new

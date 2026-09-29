@@ -272,18 +272,42 @@ func TestPaletteScopesFilter(t *testing.T) {
 	}
 }
 
-// A table opens in the focused data pane, else the window's first (§12).
+// From the tree too a table not open yet takes a new tab, over neither a
+// table's tab nor a console's; a landing tab it replaces (§7.8, §12).
+func TestTreeOpensInNewTab(t *testing.T) {
+	a := twoPanes(160, 45, "nerd")
+	data := a.focused()
+	a.win().focus(0)
+	treeTo(t, a, "t_sku")
+	if feed(t, a, "<CR>"); tabNames(data) != "t_order t_user t_sku" || data.Cur != 2 {
+		t.Fatalf("over a table's tab: %v cur %d", tabNames(data), data.Cur)
+	}
+	console := a.win().pane(2)
+	a.win().focus(2)
+	feed(t, a, "<C-p>@t_user<CR>")
+	if tabNames(console) != "console_1 t_user" || console.Cur != 1 {
+		t.Fatalf("over a console's: %v", tabNames(console))
+	}
+	a.run("tab.new", 0)
+	feed(t, a, "<C-p>@t_order<CR>")
+	if tabNames(console) != "console_1 t_user t_order" {
+		t.Errorf("a landing tab is replaced: %v", tabNames(console))
+	}
+}
+
+// A table opens in a new tab of the focused data pane, else of the
+// window's first; the tab that was current stays (§12).
 func TestPaletteOpensTables(t *testing.T) {
 	a := twoPanes(160, 45, "nerd")
 	data := a.focused()
 	feed(t, a, "<C-p>@t_user<CR>")
-	if a.palette != nil || tabNames(data) != "t_user t_user" || data.Cur != 0 {
+	if a.palette != nil || tabNames(data) != "t_order t_user t_user" || data.Cur != 2 {
 		t.Fatalf("↵: tabs %v cur %d", tabNames(data), data.Cur)
 	}
 	a.win().focus(2)
 	a.win().focus(0) // from the tree, ⟨2⟩ focused last: its current tab is a console (§5)
 	feed(t, a, "<C-p>@t_sku<C-t>")
-	if tabNames(data) != "t_user t_user t_sku" || data.Cur != 2 || data.Prev != 0 {
+	if tabNames(data) != "t_order t_user t_user t_sku" || data.Cur != 3 || data.Prev != 2 {
 		t.Fatalf("C-t: tabs %v cur %d prev %d", tabNames(data), data.Cur, data.Prev)
 	}
 	if a.win().Focus != data.ID {

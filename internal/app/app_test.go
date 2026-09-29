@@ -441,7 +441,7 @@ func TestOpenExistingTab(t *testing.T) {
 	}
 	a.sess.Tables = append(a.sess.Tables, db.Table{Schema: "agentable", Name: "t_user"})
 	feed(t, a, "<C-p>@t_user agentable<CR>") // the same name in another schema is another table
-	if a.palette != nil || tabNames(right) != "t_user t_user t_user" || dataOf(right).table.Schema != "agentable" {
+	if a.palette != nil || tabNames(right) != "t_user t_user t_user t_user" || dataOf(right).table.Schema != "agentable" {
 		t.Errorf("agentable.t_user: tabs %v, schema %s", tabNames(right), dataOf(right).table.Schema)
 	}
 }
