@@ -12,6 +12,7 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 ```
 sqlmux/
 ├─ AGENTS.md、CLAUDE.md       本文件；CLAUDE.md 只有一行 @AGENTS.md
+├─ README.md、assets/         给 GitHub 访客看的说明和截图，由决策者维护
 ├─ cmd/sqlmux/                程序入口、子命令（keys）
 ├─ internal/
 │  ├─ app/                    Model / Update / View、Action、工作现场模型、布局树
@@ -143,11 +144,12 @@ sqlmux/
 
 - 对设计或验收标准有疑问，或者发现 spec 与实际情况冲突时，发消息问决策者，不要自己决定产品行为。
 - **commit 说明一律用英文**，标题和正文都是，`F0.x:`、`docs:`、`e2e:`、`prune:` 这些前缀照旧。
-- **作者身份**由仓库的 git 配置决定（kackerx），不要改 `user.name`、`user.email`。仓库配置了 `origin`（`kackerx/sqlmux`），但仍然只提交到本地，不 push。
+- **作者身份**由仓库的 git 配置决定（kackerx），不要改 `user.name`、`user.email`。
+- **推送**：`origin` 是公开仓库 `kackerx/sqlmux`（2026-09-29 用户决定公开）。平时只提交到本地；只有用户验收通过、worker 打完 tag 之后，才由 worker 执行 `git push origin main <tag>`。`e2e` 分支不推送。
 
 **决策者的规则**：
 
-- `specs/` 和 `AGENTS.md` 只由决策者修改和提交，用 `git commit -m "docs: …" -- specs AGENTS.md`，只提交这两处，不碰 worker 的暂存区。M0 里 stash 收走 specs、worker 误带未提交的 task.md、43 个代提交的 docs commit，都是因为两个角色在同一个工作区改同一批文件。
+- `specs/`、`AGENTS.md`、`README.md`、`assets/` 只由决策者修改和提交，用 `git commit -m "docs: …" -- specs AGENTS.md README.md assets`，只提交这几处，不碰 worker 的暂存区。M0 里 stash 收走 specs、worker 误带未提交的 task.md、43 个代提交的 docs commit，都是因为两个角色在同一个工作区改同一批文件。
 - 新里程碑开工前，把 worker 起草的开发清单写进 task.md，定好审查节点，状态改为 `todo`。
 
 **worker 的规则**：
@@ -163,7 +165,7 @@ sqlmux/
   - 严格按 task.md 的开发清单逐项实现，不跳步，不顺手做清单以外的事。
   - 开工一个 feature 前，把清单里没写死的细节连同你的提议，一条消息发给决策者；发现清单漏了东西或者不合理，也一并提。
 - **提交**：
-  - 只有 worker 在主工作区（本目录）改代码，并提交到 `main`；修剪期间例外，由 pruner 提交。只提交到本地，不 push。
+  - 只有 worker 在主工作区（本目录）改代码，并提交到 `main`；修剪期间例外，由 pruner 提交。只在打完 tag 后推送（见「通用规则」的「推送」）。
   - 不改、不提交 `specs/` 和 `AGENTS.md`。`git status` 里这两处的改动是决策者的，留着不动。
   - 不要对整个工作区执行 stash、checkout 或 reset。所有 worktree 共用同一个 stash 栈。需要把工作暂时放到一边时，只处理自己的代码路径，例如 `git stash push -u -m "<唯一标签>" -- internal/ cmd/`，或者提交一个临时的 WIP commit。
 - **每个 commit 自己保证测试通过**（按批审查后，没有人逐个 commit 替你把关）：

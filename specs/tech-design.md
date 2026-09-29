@@ -97,7 +97,8 @@ sqlmux/
 ├─ internal/sqlkit/         词法扫描、分句、读写判定、自动 LIMIT、WHERE 拼接校验、补全上下文判断、格式化（内嵌 sql-formatter）
 ├─ internal/db/             Conn/Engine 接口、Worker、postgres/、mysql/、catalog 查询
 ├─ internal/config/         config / connections / state 的读写与 XDG 路径
-└─ docker-compose.yml       集成测试用的 postgres 与 mysql
+├─ docker-compose.yml       集成测试用的 postgres 与 mysql
+└─ README.md、assets/       GitHub 上的说明与截图
 ```
 
 依赖：
