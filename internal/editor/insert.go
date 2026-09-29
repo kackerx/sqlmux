@@ -1,6 +1,10 @@
 package editor
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
 
 // insertion is an INSERT or REPLACE going on (nvim's edit.c).
 type insertion struct {
@@ -61,7 +65,12 @@ func (e *Editor) editKey(k string) {
 	case "<CR>":
 		e.newline()
 	case "<BS>", "<C-h>":
-		did = e.backspace(bsChar)
+		l, c := e.line(), e.cur.Col
+		pair := e.AutoPairs && e.mode == Insert && EmptyPair(l[:c], l[c:])
+		if did = e.backspace(bsChar); did && pair { // the closing half goes too
+			l := e.line()
+			e.setLine(e.cur.Line, l[:e.cur.Col]+l[e.cur.Col+1:])
+		}
 	case "<C-w>", "<C-u>":
 		mode := bsWord
 		if k == "<C-u>" {
@@ -89,7 +98,7 @@ func (e *Editor) editKey(k string) {
 		}
 		t := keyText(k)
 		if did = t != ""; did {
-			e.typeText(t)
+			e.typePaired(t)
 		}
 	}
 	if did {
@@ -134,6 +143,58 @@ func (e *Editor) arrived() {
 		e.saveLine(e.cur.Line, e.line(), e.cur)
 		in.fresh = false
 	}
+}
+
+// typePaired types t, with AutoPairs in INSERT: an opening half gets its
+// other after the cursor, a closing one there is stepped over (§7.9).
+func (e *Editor) typePaired(t string) {
+	if r, n := utf8.DecodeRuneInString(t); e.AutoPairs && e.mode == Insert && n == len(t) {
+		l, c := e.line(), e.cur.Col
+		switch close, skip := Pair(l[:c], l[c:], r); {
+		case skip:
+			e.cur.Col += n
+			e.ins.ai = false
+			return
+		case close != "":
+			e.typeText(t + close)
+			e.cur.Col -= len(close)
+			return
+		}
+	}
+	e.typeText(t)
+}
+
+// closers are the halves autopairs puts after an opening one (§7.9).
+var closers = map[rune]string{'(': ")", '[': "]", '{': "}", '\'': "'", '"': `"`, '`': "`"}
+
+// Pair is what typing r does with autopairs (§7.9), before and after
+// being the text on each side of the cursor: skip when r is a closing
+// half or a quote the cursor is right before, which it steps over; close
+// is the other half to put after the cursor when r opens a pair there:
+// with the end, a blank or a closing bracket after it, and for a quote
+// no letter, digit or the same quote before it: don't, and a quote
+// typed twice to escape it.
+func Pair(before, after string, r rune) (close string, skip bool) {
+	next, _ := utf8.DecodeRuneInString(after)
+	if next == r && strings.ContainsRune(")]}'\"`", r) {
+		return "", true
+	}
+	close, ok := closers[r]
+	if !ok || after != "" && !unicode.IsSpace(next) && !strings.ContainsRune(")]}", next) {
+		return "", false
+	}
+	if p, _ := utf8.DecodeLastRuneInString(before); close == string(r) && before != "" && (unicode.IsLetter(p) || unicode.IsDigit(p) || p == r) {
+		return "", false
+	}
+	return close, false
+}
+
+// EmptyPair reports whether the cursor is between the halves of an empty
+// pair, which BS takes both of with autopairs (§7.9).
+func EmptyPair(before, after string) bool {
+	p, _ := utf8.DecodeLastRuneInString(before)
+	close, ok := closers[p]
+	return ok && before != "" && strings.HasPrefix(after, close)
 }
 
 func (e *Editor) typeText(t string) {

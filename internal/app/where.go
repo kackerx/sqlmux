@@ -14,6 +14,8 @@ import (
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/db"
+	"sqlmux/internal/editor"
+	"sqlmux/internal/keymap"
 	"sqlmux/internal/sqlkit"
 	"sqlmux/internal/ui"
 )
@@ -285,7 +287,11 @@ func (a *App) acceptCompletion() (changed bool, cmd tea.Cmd) {
 // in case, as SQL's keywords and bare names do: NULL stays NULL.
 func (c *completion) accept(in *ui.Input) bool {
 	cd := c.items[c.sel]
-	text := in.Text[:c.start] + cd.insert + in.Text[in.Pos:]
+	after := in.Text[in.Pos:]
+	if n := len(cd.insert); n > 0 && strings.ContainsRune("'\"`", rune(cd.insert[n-1])) && strings.HasPrefix(after, cd.insert[n-1:]) {
+		after = after[1:] // the closing quote autopairs put there, or one typed: the insert has its own (§7.9)
+	}
+	text := in.Text[:c.start] + cd.insert + after
 	if strings.EqualFold(text, in.Text) {
 		return false
 	}
@@ -297,6 +303,31 @@ func (c *completion) accept(in *ui.Input) bool {
 func (c *completion) move(d int) {
 	n := len(c.items)
 	c.sel = ((c.sel+d)%n + n) % n
+}
+
+// editPaired is editInput with autopairs, a WHERE's and the quick SQL's
+// (§7.9): an opening half gets its other, a closing one after the cursor
+// is stepped over, and BS takes an empty pair.
+func (a *App) editPaired(in *ui.Input, k keymap.Key) bool {
+	before, after := in.Text[:in.Pos], in.Text[in.Pos:]
+	t := keymap.Text(k)
+	switch r, n := utf8.DecodeRuneInString(t); {
+	case !a.autoPairs:
+	case k == "<BS>" && editor.EmptyPair(before, after):
+		in.Text, in.Pos = before[:len(before)-1]+after[1:], in.Pos-1
+		return true
+	case n > 0 && n == len(t):
+		switch close, skip := editor.Pair(before, after, r); {
+		case skip:
+			in.Pos += n
+			return false
+		case close != "":
+			in.Insert(t + close)
+			in.Pos -= len(close)
+			return true
+		}
+	}
+	return editInput(in, k)
 }
 
 // whereAt is where pane p's WHERE input starts: lists open under it.

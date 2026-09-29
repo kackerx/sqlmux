@@ -124,6 +124,54 @@ func TestRankedWordStart(t *testing.T) {
 	}
 }
 
+// Autopairs in a WHERE, the quick SQL and a console's INSERT, not in a
+// cell's edit or the palette's other scopes, off with autopairs = false
+// (§7.9). Taking a value swallows the closing quote after the cursor.
+func TestAutoPairs(t *testing.T) {
+	a, tab, _ := withRecorder(t, 160, 45)
+	feed(t, a, "/status = '")
+	if tab.where.Text != "status = ''" || tab.where.Pos != 10 {
+		t.Fatalf("paired: %q at %d", tab.where.Text, tab.where.Pos)
+	}
+	if feed(t, a, "done'"); tab.where.Text != "status = 'done'" || tab.where.Pos != 15 {
+		t.Fatalf("stepped over: %q at %d", tab.where.Text, tab.where.Pos)
+	}
+	feed(t, a, "<BS><BS><BS><BS><BS><BS>")
+	if tab.where.Text != "status = " {
+		t.Fatalf("BS: %q", tab.where.Text)
+	}
+	if feed(t, a, "'ru<CR>"); tab.where.Text != "status = 'running'" || tab.where.Pos != 18 || tab.applied != "" {
+		t.Fatalf("taking 'running': %q at %d", tab.where.Text, tab.where.Pos)
+	}
+	feed(t, a, "<Esc>i(")
+	if tab.cell == nil || tab.cell.in.Text != "(" {
+		t.Fatalf("a cell's edit doesn't pair: %+v", tab.cell)
+	}
+	feed(t, a, "<Esc><C-p>(")
+	if a.palette.input.Text != "(" {
+		t.Fatalf("the palette's other scopes don't: %q", a.palette.input.Text)
+	}
+	if feed(t, a, "<BS>;select count("); a.palette.input.Text != ";select count()" || a.palette.input.Pos != 14 {
+		t.Fatalf("quick SQL: %q at %d", a.palette.input.Text, a.palette.input.Pos)
+	}
+	a.autoPairs = false
+	if in := (ui.Input{}); a.editPaired(&in, "(") && in.Text != "(" {
+		t.Errorf("off: %q", in.Text)
+	}
+
+	a, c := inConsole(t, "")
+	if feed(t, a, "icount("); text(c) != "count()" || c.ed.Cursor().Col != 6 {
+		t.Fatalf("console: %q at %v", text(c), c.ed.Cursor())
+	}
+	if feed(t, a, "<Esc>u"); text(c) != "" {
+		t.Errorf("one u takes the INSERT: %q", text(c))
+	}
+	a, c = inConsole(t, "autopairs = false")
+	if feed(t, a, "i("); text(c) != "(" {
+		t.Errorf("console off: %q", text(c))
+	}
+}
+
 // Taking a candidate that differs from the word only in case changes
 // nothing: SQL's keywords and bare names ignore it (§9.7).
 func TestAcceptIgnoresCase(t *testing.T) {

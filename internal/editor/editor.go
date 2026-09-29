@@ -62,6 +62,9 @@ const (
 // notation ("a", "<Esc>", "<C-d>", "<Space>").
 type Editor struct {
 	TabWidth int // tabstop and shiftwidth; Tab inserts spaces (expandtab)
+	// AutoPairs puts the other half of a bracket or quote typed in INSERT
+	// (§7.9); nvim has no such thing, so its diff tests keep it off.
+	AutoPairs bool
 
 	lines  []string
 	cur    Pos

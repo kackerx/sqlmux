@@ -401,7 +401,11 @@ func (a *App) paletteKey(k keymap.Key) tea.Cmd {
 		p.comp = nil
 		return nil
 	}
-	if editInput(&p.input, k) {
+	edit := editInput
+	if scope, _ := a.paletteScope(); scope == sqlScope && p.pick == nil && p.input.Pos > 0 { // the SQL after the ; pairs (§7.9)
+		edit = a.editPaired
+	}
+	if edit(&p.input, k) {
 		p.sel, p.top = 0, 0
 	}
 	return a.completeSQL()

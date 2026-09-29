@@ -244,3 +244,69 @@ func TestReplace(t *testing.T) {
 		t.Errorf("u: %q", e.Lines())
 	}
 }
+
+// Autopairs (§7.9): what typing r does between before and after.
+func TestPair(t *testing.T) {
+	for _, c := range []struct {
+		before, after string
+		r             rune
+		close         string
+		skip          bool
+	}{
+		{"count", "", '(', ")", false},
+		{"a ", " b", '[', "]", false},
+		{"f(", ")", '{', "}", false},   // a closing bracket after it
+		{"", "abc", '(', "", false},    // a letter after it
+		{"x = ", "", '\'', "'", false}, // a blank before a quote
+		{"don", "", '\'', "", false},   // a letter before it
+		{"n = 1", "", '"', "", false},  // a digit
+		{"'", "", '\'', "", false},     // the same quote: typing it twice
+		{"(", "'", '`', "", false},     // a quote after it is no end
+		{"(", ")", ')', "", true},
+		{"'a", "'", '\'', "", true},
+		{"(", "]", ')', "", false}, // not the same one: typed
+		{"", "", 'a', "", false},
+	} {
+		if close, skip := Pair(c.before, c.after, c.r); close != c.close || skip != c.skip {
+			t.Errorf("%q|%q %c: %q %v, want %q %v", c.before, c.after, c.r, close, skip, c.close, c.skip)
+		}
+	}
+	for _, c := range []struct {
+		before, after string
+		want          bool
+	}{{"(", ")", true}, {"'", "'", true}, {"(", "]", false}, {"a", ")", false}, {"", "", false}} {
+		if EmptyPair(c.before, c.after) != c.want {
+			t.Errorf("EmptyPair(%q, %q) != %v", c.before, c.after, c.want)
+		}
+	}
+}
+
+// With AutoPairs, INSERT pairs, steps over the closing half and takes an
+// empty pair with BS; all of it one undo step with the INSERT, typed
+// again for a count. REPLACE doesn't pair, nor an editor without it.
+func TestAutoPairs(t *testing.T) {
+	for _, c := range []struct {
+		text, keys, want string
+		col              int
+	}{
+		{"", "icount(", "count()", 6},
+		{"", "icount(*)", "count(*)", 8},
+		{"", "i(<BS>", "", 0},
+		{"", "ia = '<BS>x", "a = x", 5},
+		{"", "idon't", "don't", 5},
+		{"abc", "i(", "(abc", 1},
+		{"", "3i(<Esc>", "((()))", 2},
+		{"xy", "R(", "(y", 1},
+		{"x", "Acount(<Esc>u", "x", 0},
+	} {
+		e := New(c.text)
+		e.AutoPairs = true
+		if feedAll(t, e, c.keys); e.Lines()[0] != c.want || e.Cursor().Col != c.col {
+			t.Errorf("%q: %q at %d, want %q at %d", c.keys, e.Lines()[0], e.Cursor().Col, c.want, c.col)
+		}
+	}
+	e := New("")
+	if feedAll(t, e, "i("); e.Lines()[0] != "(" {
+		t.Errorf("off: %q", e.Lines())
+	}
+}

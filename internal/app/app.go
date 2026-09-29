@@ -30,6 +30,7 @@ type App struct {
 	resultHeight float64 // the share the result area first takes
 	keywordCase  string  // gq's (§9.5)
 	formatPrg    string
+	autoPairs    bool // a console's INSERT, a WHERE and the quick SQL (§7.9)
 
 	palette  *palette    // non-nil while the command palette is open (COMMAND mode)
 	drop     *dropdown   // non-nil while a one-pick dropdown is open (§8.6, §7.8)
@@ -78,7 +79,7 @@ var whichKeyDelay = 400 * time.Millisecond
 func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, warning string) *App {
 	return &App{
 		theme: cfg.Theme, icons: cfg.Icons, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, resultHeight: cfg.ResultHeight,
-		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg,
+		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg, autoPairs: cfg.AutoPairs,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess,
 		mouse: uv.Pos(-1, -1), warning: strings.Trim(warning+"；"+sess.warning, "；"), state: st,
 	}

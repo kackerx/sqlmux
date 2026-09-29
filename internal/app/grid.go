@@ -578,7 +578,7 @@ func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 		editInput(&t.pageIn, k)
 		return nil
 	}
-	editInput(&t.where, k)
+	a.editPaired(&t.where, k)
 	if t.hist == nil {
 		a.complete(t)
 	}

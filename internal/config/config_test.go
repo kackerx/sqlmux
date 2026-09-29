@@ -18,6 +18,7 @@ tab_width = 4
 result_height = 0.3
 keyword_case = "upper"
 formatprg = "pg_format -"
+autopairs = false
 [console]
 max_rows = 50
 [keys]
@@ -39,7 +40,7 @@ L = "5l"
 		{"map.normal", "J", "5j"},
 		{"map.console.normal", "L", "5l"},
 	}
-	if c.Icons != ui.ASCIIIcons || c.Timeoutlen != 300 || c.TabWidth != 4 || c.ResultHeight != 0.3 || c.MaxRows != 50 || c.KeywordCase != "upper" || c.FormatPrg != "pg_format -" || c.Leader != "<C-a>" || !reflect.DeepEqual(c.Bindings, want) {
+	if c.Icons != ui.ASCIIIcons || c.Timeoutlen != 300 || c.TabWidth != 4 || c.ResultHeight != 0.3 || c.MaxRows != 50 || c.KeywordCase != "upper" || c.FormatPrg != "pg_format -" || c.AutoPairs || c.Leader != "<C-a>" || !reflect.DeepEqual(c.Bindings, want) {
 		t.Fatalf("got %+v", c)
 	}
 }
@@ -51,6 +52,7 @@ func TestParseErrors(t *testing.T) {
 		`tab_width = 0`,
 		`result_height = 1`,
 		`keyword_case = "title"`,
+		`autopairs = "yes"`,
 		"[console]\nmax_rows = 0",
 		"[keys.normal]\nx = 1",
 		"[keys]\nx = \"a\"",

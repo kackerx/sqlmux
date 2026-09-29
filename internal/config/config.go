@@ -27,6 +27,7 @@ type Config struct {
 	// or a command to format with instead of it.
 	KeywordCase string
 	FormatPrg   string
+	AutoPairs   bool   // brackets and quotes typed get their other half (§7.9)
 	theme       string // the name Parse read; Load finds the theme, as it touches the disk
 
 	// Leader and Bindings are the raw [keys] and [map.*] entries; the keymap
@@ -43,7 +44,7 @@ type Binding struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 1000, KeywordCase: "lower"}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 1000, KeywordCase: "lower", AutoPairs: true}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -91,6 +92,7 @@ func Parse(data string) (*Config, error) {
 		Height     *float64 `toml:"result_height"`
 		Case       *string  `toml:"keyword_case"`
 		FormatPrg  string   `toml:"formatprg"`
+		AutoPairs  *bool    `toml:"autopairs"`
 		Console    struct {
 			MaxRows *int `toml:"max_rows"`
 		} `toml:"console"`
@@ -135,6 +137,9 @@ func Parse(data string) (*Config, error) {
 		c.KeywordCase = *k
 	}
 	c.FormatPrg = raw.FormatPrg
+	if raw.AutoPairs != nil {
+		c.AutoPairs = *raw.AutoPairs
+	}
 	if n := raw.Console.MaxRows; n != nil {
 		if *n <= 0 {
 			return nil, fmt.Errorf("[console] max_rows = %d：必须大于 0", *n)
