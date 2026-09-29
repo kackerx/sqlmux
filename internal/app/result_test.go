@@ -22,7 +22,7 @@ import (
 // execDB answers console runs: a statement's result by its SQL, the
 // LIMIT a read gets left off; fail says where one fails. A search_path
 // set is kept in ran as "search_path <schema> <started>"; tx is the
-// transaction status it reports ('I' when 0).
+// transaction status it reports ('I' when 0), which rollback ends.
 type execDB struct {
 	noDB
 	res  map[string]db.Result
@@ -44,6 +44,9 @@ func (d *execDB) TxStatus() byte { return cmp.Or(d.tx, 'I') }
 
 func (d *execDB) Exec(_ context.Context, sql string, _ int) ([]db.Result, error) {
 	d.ran = append(d.ran, sql)
+	if sql == "rollback" {
+		d.tx = 'I'
+	}
 	sql, _, _ = strings.Cut(sql, "\nLIMIT ")
 	if err := d.fail[sql]; err != nil {
 		return nil, err
@@ -303,7 +306,13 @@ func TestRunSchema(t *testing.T) {
 	if len(d.ran) != 5 || d.ran[1] != setA || d.ran[3] != setA {
 		t.Fatalf("in a transaction the SET is not counted on: %q", d.ran)
 	}
-	d.tx = 'I'
+	d.ran = nil
+	a.consoleDid(c, c.ed.Load("rollback"))
+	press(t, a, "<CR>") // set in the transaction, out of it at the end: the rollback took the SET back
+	a.consoleDid(c, c.ed.Load("select 1"))
+	if press(t, a, "<CR>"); len(d.ran) != 4 || d.ran[2] != setA {
+		t.Fatalf("SET in a transaction that ended: %q", d.ran)
+	}
 	d.fail = map[string]error{setA: &pgconn.PgError{Severity: "ERROR", Message: `schema "agentable" does not exist`}}
 	a.sess.mainPath = ""
 	press(t, a, "<CR>")
