@@ -6,9 +6,9 @@
 |---|---|---|---|
 | M0 骨架 | [m0-skeleton/task.md](m0-skeleton/task.md) | 界面骨架、按键系统、鼠标、命令面板、主题；不连数据库 | 完成（tag `m0`，7c1f353） |
 | M1 浏览 | [m1-browse/task.md](m1-browse/task.md) | 连接 PG，浏览 schema 与表数据，命令面板的快速 SQL；只读 | 完成（tag `m1`，fc9cfc6） |
-| M2 编辑 | [m2-edit/task.md](m2-edit/task.md) | 编辑单元格、选项浮层、保存与刷新 | 开发完成，与 M3 一起验收（用户定，2026-09-28）；验收后打 `m2` |
-| M3 console | [m3-console/task.md](m3-console/task.md) | vim 编辑器、执行、底部结果区、格式化、补全、schema 下拉；表格与 console 混放 tab | 改进项 F3.12–F3.24 全部通过（2026-09-29），与 M2 一起等用户验收 |
-| M4 命令面板 | [m4-palette/task.md](m4-palette/task.md) | 快速 SQL 接上 M3、DDL 预览 | 清单已定，等 M2 / M3 验收后开工 |
+| M2 编辑 | [m2-edit/task.md](m2-edit/task.md) | 编辑单元格、选项浮层、保存与刷新 | 开发完成，与 M3、M4 一起验收（用户定，2026-09-30）；验收后打 `m2` |
+| M3 console | [m3-console/task.md](m3-console/task.md) | vim 编辑器、执行、底部结果区、格式化、补全、schema 下拉；表格与 console 混放 tab | 改进项 F3.12–F3.24 通过；第二轮改进 F3.25–F3.38 进行中（2026-09-30），通过后直接开工 M4，不停下验收 |
+| M4 命令面板 | [m4-palette/task.md](m4-palette/task.md) | 快速 SQL 接上 M3、DDL 预览、面板里 tab 的层级 | todo，F3.38 通过后开工；完成后 M2、M3、M4 一起验收 |
 | M5 工作现场 | [m5-workspace/task.md](m5-workspace/task.md) | 多 session / window、只读与事务模式、MySQL | draft |
 | M6 配置 | [m6-config/task.md](m6-config/task.md) | 键位配置收尾、主题、持久化、界面中英文切换、布局文件（保存与恢复工作现场） | draft |
 
@@ -22,7 +22,7 @@
 - **开发**：worker 按顺序实现的清单。
 - **验收**：tester 的测试项，每项都要能用命令、golden 或 e2e 脚本验证。写着「e2e」的验收项里，属于布局、颜色、位置的，可以由渲染 golden 验证（AGENTS.md「tester 的规则」）。
 
-**审查节点**：worker 按 feature 提交，reviewer 不逐个审，只在节点上整批审，通过后整批提测。节点由决策者按工作量定：小的里程碑只在最后一个 feature 之后设一个；大的里程碑在中间合适的位置多设几个，让一批的改动量保持在一次能审完的范围内。
+**审查节点**：worker 按 feature 提交，reviewer 不逐个审，只在节点上整批审，通过后整批提测。节点由决策者按工作量定：小的里程碑只在最后一个 feature 之后设一个；大的里程碑在中间合适的位置多设几个，让一批的改动量保持在一次能审完的范围内。2026-09-30 用户要求拉长节点、减少来回：一轮改进项或一个中等大小的里程碑只设一个节点。
 
 ## 状态
 
@@ -51,7 +51,7 @@
 5. **里程碑完成的流程。** 用户按里程碑验收，不逐个验收 feature。
    1. 最后一个审查节点通过，全部 feature 为 `passed`。
    2. tester 在最后一个 commit 上跑一遍完整的 e2e 回归。
-   3. **暂停，由用户深度体验并验收。**
+   3. **暂停，由用户深度体验并验收。**用户可以决定跳过这一步、攒到后面的里程碑一起验收（2026-09-30：M2、M3、M4 一起验收），这时直接开工下一个里程碑。
       - worker 停止写代码，只可以起草下一个里程碑的开发清单。
       - 决策者整理出体验路径：怎么运行、依次试哪些操作、应该看到什么。用户照着完整体验一遍，提出问题和改进意见。
    4. 决策者把用户的反馈整理成任务。
