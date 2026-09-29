@@ -22,7 +22,7 @@
 - **审查节点**：
   1. F3.3 之后：F3.1–F3.3，编辑器（除块选择），纯逻辑，有 nvim 差分兜底（已通过）；
   2. F3.5 之后：F3.4–F3.5，块选择与 sqlkit（已通过）；
-  3. F3.8 之后：F3.6–F3.8，console tab、混放与引导页、执行与结果区；
+  3. F3.8 之后：F3.6–F3.8，console tab、混放与引导页、执行与结果区（已通过）；
   4. F3.11 之后：F3.9–F3.11，格式化、补全、schema 下拉。
 - **M1 / M2 的 e2e**：默认布局加入 console 后，⟨1⟩ 的宽度从占满变成 5/9，M1 / M2 脚本里依赖 data pane 宽度、`C-l` 焦点的地方可能失效。tester 在 `lib.sh` 里加一个开头先关掉 ⟨2⟩ 的辅助函数，不逐条改断言。
 
@@ -114,30 +114,30 @@
   - 语句已有 LIMIT 或 FETCH 时，不再追加 LIMIT；末尾带 `--` 注释时追加的 LIMIT 仍然生效。
 - [x] e2e：WHERE 输入 `1=1; drop table t_log` 后执行，pane 第一行显示「WHERE 里不能有 ;」，没有发出查询。
 
-## F3.6 console tab · 状态：todo
+## F3.6 console tab · 状态：passed（ae9c41d；e2e 8b1ae1b）
 
 - **依赖**：F3.3、F3.5
 - **涉及**：`internal/ui`（console.go）、`internal/app`（consoleTab）、`internal/config`
 
 **开发**
-- [ ] 默认布局（§5）：⟨1⟩ 是空 pane（F3.7 起显示引导页），⟨2⟩ 是 console_1，宽度 5:4，初始焦点在 ⟨1⟩。
-- [ ] 文件、自动保存、`:w` / `C-s` / `:q` / `:wq`（§11「文件」）。自动保存的去抖用 `tea.Tick` 加序号；写入失败 toast「保存失败：<err>」。配置加 `tab_width`。
-- [ ] 连接名用作目录名，config 里校验连接名：不允许 `/`、`\\`、以 `.` 开头（§14）。
-- [ ] 横向滚动照 nvim 默认的 `sidescroll=1`、`sidescrolloff=0`；编辑器加 `SetWidth(n)`、`Left()`；差分结果在 leftcol 不为 0 时加一行 `left: N`，补几条长行的用例。
-- [ ] 绘制（`ui/console.go`）：每行 `▶`（1 列，`focus` 色；上次执行出错的语句为 `error` 色，缓冲区一有改动就清掉）+ 行号（宽 max(3, 位数)，右对齐，`dim` 色，光标行用 `fg`）+ 1 个空格 + 文本。NORMAL 下光标所在语句的范围用 `row` 底，VISUAL 选区用 `select` 底。
-- [ ] 高亮：关键字 `keyword`，数字 `number`，字符串 `sql_string`，注释 `comment`，标识符后面紧跟 `(` 的用 `func`，其余 `fg`（§7.3）。
-- [ ] 光标用终端光标：NORMAL / VISUAL 为块，INSERT 为竖线，REPLACE 为下划线。
-- [ ] 状态栏：模式块显示 `NORMAL`、`INSERT`、`VISUAL`、`V-LINE`、`V-BLOCK`、`REPLACE`、`COMMAND`（V-LINE、V-BLOCK 用 VISUAL 的颜色，REPLACE 用 INSERT 的颜色）；VISUAL 的附加信息为 `4 行 · ↵ run` 或 `12 字符 · ↵ run`，V-BLOCK 为 `3 行 × 4 列 · ↵ run`，键位文字从 keymap 读；待输入序列这一块也显示引擎正在等的键（`2d`、`f`），相当于 showcmd；console 聚焦时不显示 `行,列`。
-- [ ] `/`、`?`、`:` 的输入行在内容区最后一行（§11「命令行」）。`:`、`;` 从 `[keys.normal]` 挪到 `[keys.grid]`、`[keys.tree]`（`[keys.landing]` 在 F3.7），console 里交给编辑器（§6.8）。
-- [ ] 编辑器在等后续按键时跳过 keymap（§6.4）。
-- [ ] 鼠标：单击定位光标（INSERT 下仍是 INSERT，VISUAL 下回到 NORMAL）；在文本区拖动从按下处进入字符 VISUAL；滚轮每格 3 行，最多滚到最后一行在顶部，光标夹回视图内；单击 ▶ 执行那一条语句（`console.run <行>`，F3.8 接上）。
-- [ ] 粘贴照 nvim 的 `vim.paste`：NORMAL 下贴在光标后面（同 `p`），贴完光标停在最后一个贴进去的字符上；INSERT 下插在光标处；VISUAL 下用粘贴内容替换选区；模式不变；整段算一个撤销步；CRLF 换成 LF；粘贴不弹补全。
-- [ ] 「在 $EDITOR 中编辑」：Action `console.external`，默认不绑键；依次取 `$VISUAL`、`$EDITOR`、`vi`，用 `sh -c` 执行；先写盘，再用 `tea.ExecProcess` 打开，回来后重新载入，算一个撤销步。
-- [ ] 支持 `[map.console.normal]`、`[map.console.visual]`。
-- [ ] 代码里写死的 `doraemon.public ▾` 去掉，F3.11 再画真实的按钮。
+- [x] 默认布局（§5）：⟨1⟩ 是空 pane（F3.7 起显示引导页），⟨2⟩ 是 console_1，宽度 5:4，初始焦点在 ⟨1⟩。
+- [x] 文件、自动保存、`:w` / `C-s` / `:q` / `:wq`（§11「文件」）。自动保存的去抖用 `tea.Tick` 加序号；写入失败 toast「保存失败：<err>」。配置加 `tab_width`。
+- [x] 连接名用作目录名，config 里校验连接名：不允许 `/`、`\\`、以 `.` 开头（§14）。
+- [x] 横向滚动照 nvim 默认的 `sidescroll=1`、`sidescrolloff=0`；编辑器加 `SetWidth(n)`、`Left()`；差分结果在 leftcol 不为 0 时加一行 `left: N`，补几条长行的用例。
+- [x] 绘制（`ui/console.go`）：每行 `▶`（1 列，`focus` 色；上次执行出错的语句为 `error` 色，缓冲区一有改动就清掉）+ 行号（宽 max(3, 位数)，右对齐，`dim` 色，光标行用 `fg`）+ 1 个空格 + 文本。NORMAL 下光标所在语句的范围用 `row` 底，VISUAL 选区用 `select` 底。
+- [x] 高亮：关键字 `keyword`，数字 `number`，字符串 `sql_string`，注释 `comment`，标识符后面紧跟 `(` 的用 `func`，其余 `fg`（§7.3）。
+- [x] 光标用终端光标：NORMAL / VISUAL 为块，INSERT 为竖线，REPLACE 为下划线。
+- [x] 状态栏：模式块显示 `NORMAL`、`INSERT`、`VISUAL`、`V-LINE`、`V-BLOCK`、`REPLACE`、`COMMAND`（V-LINE、V-BLOCK 用 VISUAL 的颜色，REPLACE 用 INSERT 的颜色）；VISUAL 的附加信息为 `4 行 · ↵ run` 或 `12 字符 · ↵ run`，V-BLOCK 为 `3 行 × 4 列 · ↵ run`，键位文字从 keymap 读；待输入序列这一块也显示引擎正在等的键（`2d`、`f`），相当于 showcmd；console 聚焦时不显示 `行,列`。
+- [x] `/`、`?`、`:` 的输入行在内容区最后一行（§11「命令行」）。`:`、`;` 从 `[keys.normal]` 挪到 `[keys.grid]`、`[keys.tree]`（`[keys.landing]` 在 F3.7），console 里交给编辑器（§6.8）。
+- [x] 编辑器在等后续按键时跳过 keymap（§6.4）。
+- [x] 鼠标：单击定位光标（INSERT 下仍是 INSERT，VISUAL 下回到 NORMAL）；在文本区拖动从按下处进入字符 VISUAL；滚轮每格 3 行，最多滚到最后一行在顶部，光标夹回视图内；单击 ▶ 执行那一条语句（`console.run <行>`，F3.8 接上）。
+- [x] 粘贴照 nvim 的 `vim.paste`：NORMAL 下贴在光标后面（同 `p`），贴完光标停在最后一个贴进去的字符上；INSERT 下插在光标处；VISUAL 下用粘贴内容替换选区；模式不变；整段算一个撤销步；CRLF 换成 LF；粘贴不弹补全。
+- [x] 「在 $EDITOR 中编辑」：Action `console.external`，默认不绑键；依次取 `$VISUAL`、`$EDITOR`、`vi`，用 `sh -c` 执行；先写盘，再用 `tea.ExecProcess` 打开，回来后重新载入，算一个撤销步。
+- [x] 支持 `[map.console.normal]`、`[map.console.visual]`。
+- [x] 代码里写死的 `doraemon.public ▾` 去掉，F3.11 再画真实的按钮。
 
 **验收**
-- [ ] e2e：
+- [x] e2e：
   - 输入 SQL 后，高亮颜色正确；每条语句的第一行显示 ▶；光标所在语句的范围被高亮；
   - 拖动能选中文本；`f<Space>x` 删掉的是空格本身（`f<Space>` 跳到空格上），不会关掉 pane；
   - console 里 `;` 重复 f/t，`:` 打开编辑器的命令行，`:3` 跳到第 3 行；
@@ -145,65 +145,65 @@
   - 在 NORMAL 下粘贴，内容作为文本贴在光标后面，不会被当作命令执行；
   - 状态栏的模式、VISUAL 附加信息、showcmd 正确；
   - 连接名里带 `/` 时启动报错。
-- [ ] golden：console 的高亮、gutter、语句范围、VISUAL 选区、命令行。
-- [ ] 补回 M0 里因 F1.1 去掉假 console 而删掉的 e2e（tester 在 F1.1 结论里列出），和 schema 下拉框无关的部分：
+- [x] golden：console 的高亮、gutter、语句范围、VISUAL 选区、命令行。
+- [x] 补回 M0 里因 F1.1 去掉假 console 而删掉的 e2e（tester 在 F1.1 结论里列出），和 schema 下拉框无关的部分：
   - f0.2：data:console = 5:4；console 未聚焦的边框 / 标题色；`▶ run ↵` 的样式与各宽度下的退让；no_wasted_room；
   - f0.3：改绑 `console.run` 为 `R` 后标题显示 `▶ run R`；
   - f0.8：点击 `▶ run` 先让 console 获得焦点；悬停 `▶ run` 为 warn 底、移开恢复；指针在 console 上滚动只滚 console、焦点不变；
   - f0.12：nerd 下 console 图标 U+F489，ascii 下为 `>`。
 
-## F3.7 pane 混放 tab 与引导页 · 状态：todo
+## F3.7 pane 混放 tab 与引导页 · 状态：passed（ae9c41d；e2e 8b1ae1b）
 
 - **依赖**：F3.6
 - **涉及**：`internal/app`（Pane、Tab、openTarget、作用域）、`internal/ui`（tab 栏、引导页）
 
 **开发**
-- [ ] 去掉 PaneKind（§5「表格和 console 可以放在同一个 pane」）：侧栏就是 `win.Tree`，结果区用 `win.Result`（F3.8 加上），其余都是普通 pane；`Tab` 加 `Console *consoleTab`，`Data` 和 `Console` 都是 nil 的是引导 tab；按 PaneKind 下标的并行表删掉。
-- [ ] 作用域按当前 tab 的类型（§6.4）。
-- [ ] 图标：去掉 `data`，表 tab 一律用 `table`，console tab 用 `console`，引导 tab 不画图标（§7.7）。tab 栏每项写成 ` 1:<图标> t_order* `，引导 tab 写成 ` 2:新 tab `。
-- [ ] 引导页：内容区中间两行按钮 ` <table 图标> 打开表 ` 和 ` <console 图标> 新建 console `，后面跟 `dim` 色的键位，悬停 `select` 底。`[keys.landing]`：`t` → `tab.table`「打开表」，`c` → `console.new`「新建 console」，另加 `:`、`;`（§6.8）。
-- [ ] `+` 新开一个引导 tab 并切过去；M1 的 `newTabIn` 标记删掉。
-- [ ] 「打开表」：打开面板的表范围，选中的表总是开在这个引导 tab 里，替换它，不去找已经打开的同一张表。从树或面板正常打开表时，目标 pane 的当前 tab 是引导 tab，也替换它。
-- [ ] 「新建 console」：目标 pane 的当前 tab 是引导 tab 时就地换成 console（`c`、点击、面板都一样）；否则在焦点所在的普通 pane 新开 console tab，焦点在树上时用 openTarget 选出的 pane。打开表同理：当前 tab 是引导 tab 时，`↵`、`t`、`C-t` 都替换它（§5）。
-- [ ] 查询条第二行放不下时的让位顺序（§7.8「查询条」）：统计最先让位，保存结果和错误优先于 chip 和按钮。
-- [ ] openTarget 的「data pane」改成「普通 pane」（不含结果区）；焦点不在普通 pane 上时优先取最近聚焦过、当前 tab 不是 console 的 pane；当前 tab 是 console 时新开 tab（§5）。
-- [ ] 引导 tab 名为「新 tab」，不画图标，ascii 下也不写类型词；没有 tab 的 pane 标题只有 `⟨n⟩`；引导页和空 pane 的 tab 栏不显示键位提示。`x` / `:q` 关引导 tab 不确认。
-- [ ] `:wq` 在表 tab 上先保存、成功后才关闭（§11「文件」）。
+- [x] 去掉 PaneKind（§5「表格和 console 可以放在同一个 pane」）：侧栏就是 `win.Tree`，结果区用 `win.Result`（F3.8 加上），其余都是普通 pane；`Tab` 加 `Console *consoleTab`，`Data` 和 `Console` 都是 nil 的是引导 tab；按 PaneKind 下标的并行表删掉。
+- [x] 作用域按当前 tab 的类型（§6.4）。
+- [x] 图标：去掉 `data`，表 tab 一律用 `table`，console tab 用 `console`，引导 tab 不画图标（§7.7）。tab 栏每项写成 ` 1:<图标> t_order* `，引导 tab 写成 ` 2:新 tab `。
+- [x] 引导页：内容区中间两行按钮 ` <table 图标> 打开表 ` 和 ` <console 图标> 新建 console `，后面跟 `dim` 色的键位，悬停 `select` 底。`[keys.landing]`：`t` → `tab.table`「打开表」，`c` → `console.new`「新建 console」，另加 `:`、`;`（§6.8）。
+- [x] `+` 新开一个引导 tab 并切过去；M1 的 `newTabIn` 标记删掉。
+- [x] 「打开表」：打开面板的表范围，选中的表总是开在这个引导 tab 里，替换它，不去找已经打开的同一张表。从树或面板正常打开表时，目标 pane 的当前 tab 是引导 tab，也替换它。
+- [x] 「新建 console」：目标 pane 的当前 tab 是引导 tab 时就地换成 console（`c`、点击、面板都一样）；否则在焦点所在的普通 pane 新开 console tab，焦点在树上时用 openTarget 选出的 pane。打开表同理：当前 tab 是引导 tab 时，`↵`、`t`、`C-t` 都替换它（§5）。
+- [x] 查询条第二行放不下时的让位顺序（§7.8「查询条」）：统计最先让位，保存结果和错误优先于 chip 和按钮。
+- [x] openTarget 的「data pane」改成「普通 pane」（不含结果区）；焦点不在普通 pane 上时优先取最近聚焦过、当前 tab 不是 console 的 pane；当前 tab 是 console 时新开 tab（§5）。
+- [x] 引导 tab 名为「新 tab」，不画图标，ascii 下也不写类型词；没有 tab 的 pane 标题只有 `⟨n⟩`；引导页和空 pane 的 tab 栏不显示键位提示。`x` / `:q` 关引导 tab 不确认。
+- [x] `:wq` 在表 tab 上先保存、成功后才关闭（§11「文件」）。
 
 **验收**
-- [ ] e2e：
+- [x] e2e：
   - 同一个 pane 里开一个表 tab 和一个 console tab，来回切换时标题图标、`▶ run`、按键作用域跟着变；
   - 当前 tab 是 console 时从树按 `↵` 打开表，console 还在，表在新 tab 里；
   - 点 `+` 出现引导页，点「打开表」选一张表后开在这个 tab 里，按 `c` 开出 console；
   - 分割出的新 pane、没有 tab 的 pane 都显示引导页。
-- [ ] golden：引导页；混放后的 tab 栏。
-- [ ] tester 改写 f1.6 里依赖「`+` 聚焦树的过滤框」的用例，f0.12 里检查 `data` 图标的断言跟着改。
+- [x] golden：引导页；混放后的 tab 栏。
+- [x] tester 改写 f1.6 里依赖「`+` 聚焦树的过滤框」的用例，f0.12 里检查 `data` 图标的断言跟着改。
 
-## F3.8 执行与结果区 · 状态：todo
+## F3.8 执行与结果区 · 状态：passed（ae9c41d；e2e 8b1ae1b）
 
 - **依赖**：F3.7
 - **涉及**：`internal/app`（结果区、日志）、`internal/ui`（结果 tab、工具行）、`internal/db`、`internal/config`
 
 **开发**
-- [ ] 执行的单位：光标所在的语句，或选区里的文字（字符、行选区）；块选区执行它覆盖到的那几整行，同 V-LINE。用 sqlkit 分句；逐条执行、遇错就停（§11「执行」）。
-- [ ] 行数上限与截断显示（§11）；配置加 `result_height`、`[console] max_rows`。
-- [ ] 执行中：同一个 console 再按 `↵` 忽略；别的 console 在 Worker 的锁上排队，占位照样显示；状态栏 busy，`C-c` 取消 `Main`。
-- [ ] 结果区的出现与关闭：第一次执行时把根节点包进纵向节点，比例取 window 记住的值（初始 `1 − result_height`）；关闭时记下比例，日志保留在 window 上，结果 tab 全部丢掉（包括固定的）。
-- [ ] 标题 `⟨3⟩ <result 图标> console_1 #42`，右侧 `3 行 · 8ms` 和 5 个按钮（重跑 `result.rerun`、转置、固定 `result.pin`、导出 `result.export`、关闭 `result.close`），放不下时的舍弃顺序见 §11「工具行」；新图标 `result`、`pin`、`export`、`close`（§7.7）。
-- [ ] tab：第一个是「日志」；结果 tab 名 `console_1 #42`，多个结果为 `#42`、`#42·2`……；序号 `Session.RunSeq` 每次执行加 1；固定的画 `pin` 图标。
-- [ ] 替换规则：同一个 console 的未固定结果 tab 整组替换，新的一组放在原来那组第一个的位置；没有结果集时保留上一次的，切到日志（§11）。
-- [ ] 占位：内容区第一行 `dim` 色 `执行中 · 3s · C-c 取消`，每秒刷新。
-- [ ] 日志：每条一行 `14:05:12  console_1  <语句第一行>  3 行 · 8ms`，非查询写 `UPDATE 3 · 2ms`；出错为 `error` 色的 `ERROR: <Message>`，DETAIL / HINT 另起行；取消记「已取消」；新的在下，自动滚到底；日志 tab 上 grid 的 `j` / `k` / `gg` / `G` 和滚轮滚动日志。
-- [ ] 出错：切到日志，出错语句的 ▶ 变红，前面成功的照常出 tab。取消：切到日志，▶ 不变红，toast「查询已取消」。
-- [ ] 焦点：执行后留在 console，结果区切到这次的第一个结果 tab。
-- [ ] 结果表格只读：`hjkl gg G 0 $ T`、滚轮、点击可用，`↵` / `i` 不做事，`x` 等同 `q`；`[keys.result]` 加 `R` → `result.rerun`。
-- [ ] 重跑：用这组结果当时的 SQL，作为来源 console 的一次新执行。
-- [ ] 导出 CSV 写到当前目录的 `console_1-42.csv`，toast 显示路径（§11）。
-- [ ] DDL 成功后重新加载 catalog（§11）。
+- [x] 执行的单位：光标所在的语句，或选区里的文字（字符、行选区）；块选区执行它覆盖到的那几整行，同 V-LINE。用 sqlkit 分句；逐条执行、遇错就停（§11「执行」）。
+- [x] 行数上限与截断显示（§11）；配置加 `result_height`、`[console] max_rows`。
+- [x] 执行中：同一个 console 再按 `↵` 忽略；别的 console 在 Worker 的锁上排队，占位照样显示；状态栏 busy，`C-c` 取消 `Main`。
+- [x] 结果区的出现与关闭：第一次执行时把根节点包进纵向节点，比例取 window 记住的值（初始 `1 − result_height`）；关闭时记下比例，日志保留在 window 上，结果 tab 全部丢掉（包括固定的）。
+- [x] 标题 `⟨3⟩ <result 图标> console_1 #42`，右侧 `3 行 · 8ms` 和 5 个按钮（重跑 `result.rerun`、转置、固定 `result.pin`、导出 `result.export`、关闭 `result.close`），放不下时的舍弃顺序见 §11「工具行」；新图标 `result`、`pin`、`export`、`close`（§7.7）。
+- [x] tab：第一个是「日志」；结果 tab 名 `console_1 #42`，多个结果为 `#42`、`#42·2`……；序号 `Session.RunSeq` 每次执行加 1；固定的画 `pin` 图标。
+- [x] 替换规则：同一个 console 的未固定结果 tab 整组替换，新的一组放在原来那组第一个的位置；没有结果集时保留上一次的，切到日志（§11）。
+- [x] 占位：内容区第一行 `dim` 色 `执行中 · 3s · C-c 取消`，每秒刷新。
+- [x] 日志：每条一行 `14:05:12  console_1  <语句第一行>  3 行 · 8ms`，非查询写 `UPDATE 3 · 2ms`；出错为 `error` 色的 `ERROR: <Message>`，DETAIL / HINT 另起行；取消记「已取消」；新的在下，自动滚到底；日志 tab 上 grid 的 `j` / `k` / `gg` / `G` 和滚轮滚动日志。
+- [x] 出错：切到日志，出错语句的 ▶ 变红，前面成功的照常出 tab。取消：切到日志，▶ 不变红，toast「查询已取消」。
+- [x] 焦点：执行后留在 console，结果区切到这次的第一个结果 tab。
+- [x] 结果表格只读：`hjkl gg G 0 $ T`、滚轮、点击可用，`↵` / `i` 不做事，`x` 等同 `q`；`[keys.result]` 加 `R` → `result.rerun`。
+- [x] 重跑：用这组结果当时的 SQL，作为来源 console 的一次新执行。
+- [x] 导出 CSV 写到当前目录的 `console_1-42.csv`，toast 显示路径（§11）。
+- [x] DDL 成功后重新加载 catalog（§11）。
 
 **验收**
-- [ ] 集成测试：多条语句中第二条出错时，第一条已经提交、第三条没执行；取消后 `Main` 还能继续用。
-- [ ] e2e：
+- [x] 集成测试：多条语句中第二条出错时，第一条已经提交、第三条没执行；取消后 `Main` 还能继续用。
+- [x] e2e：
   - 第一次执行时，在底部出现结果区；
   - 再次执行时替换原有的结果 tab，序号加 1；按 `P` 后再执行，会新开一个 tab；
   - 选中多条语句执行时，产生多个结果 tab；执行 DDL / DML 只写进日志；
@@ -211,7 +211,7 @@
   - 返回 1001 行的查询显示 `1000+ 行`；
   - `create table` 之后树里出现这张表；
   - 导出的 CSV 文件在当前目录。
-- [ ] golden：结果区标题与按钮在几种宽度下的舍弃；日志 tab。
+- [x] golden：结果区标题与按钮在几种宽度下的舍弃；日志 tab。
 
 ## F3.9 格式化 · 状态：todo
 
