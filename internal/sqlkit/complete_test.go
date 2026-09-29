@@ -30,6 +30,13 @@ func TestCompletionContext(t *testing.T) {
 		{"select * from t1 where id in (select id from t2 where x|)", true, CompAny, "x", "", 1, []TableRef{{Name: "t1"}, {Name: "t2", Depth: 1}}, nil},
 		{"select 1 from a;\nselect * from b where |", true, CompAny, "", "", 0, []TableRef{{Name: "b"}}, nil},
 		{`select "Odd".| from "Odd"`, true, CompColumns, "", "Odd", 0, []TableRef{{Name: "Odd"}}, nil},
+		{"select * from t_o|ur", true, CompTables, "t_o", "", 0, []TableRef{{Name: "t_our"}}, nil}, // the word's start to the cursor, as lazysql's
+		{"select o.o_st|us from t o", true, CompColumns, "o_st", "o", 0, []TableRef{{Name: "t", Alias: "o"}}, nil},
+		{"create table x (a timestamp with time zone, b |", true, CompAny, "", "", 1, nil, nil}, // no CTE named time
+		{"with a as not materialized (select 1) select * from |", true, CompTables, "", "", 0, nil, []string{"a"}},
+		{"select 'ab'|", true, CompAny, "", "", 0, nil, nil},
+		{"select * from t where note = 'ab|", false, 0, "", "", 0, nil, nil}, // the string the text ends in is open
+		{`select "ab|`, false, 0, "", "", 0, nil, nil},
 		{"select 'ab|c'", false, 0, "", "", 0, nil, nil},
 		{"select 1 -- ab|", false, 0, "", "", 0, nil, nil},
 		{"select /* a| */ 1", false, 0, "", "", 0, nil, nil},

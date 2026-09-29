@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 
 	"sqlmux/internal/config"
+	"sqlmux/internal/db"
 	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
@@ -343,6 +344,35 @@ func TestConsoleCompletion(t *testing.T) {
 	feed(t, a, "t_o;")
 	if c.comp != nil {
 		t.Error("; closes it")
+	}
+}
+
+// X. lists an alias's or a table's columns, the one nearest the cursor's
+// depth; a schema's tables after a schema; nothing for a subquery's alias
+// out of it (§9.7, lazysql's resolveAliases).
+func TestSQLCompleteQualifier(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	table, cols, _ := ordersTable(0)
+	a.sess.cols[idOf(table)] = cols
+	a.sess.cols[tableID{"public", "t_user"}] = db.Columns{Cols: []db.Column{{Name: "email", Type: "text"}}}
+	a.sess.cols[tableID{"agentable", "planner"}] = db.Columns{Cols: []db.Column{{Name: "goal", Type: "text"}}}
+	for _, c := range []struct{ sql, first string }{
+		{"select * from agentable.|", "planner"},
+		{"select * from t_order join agentable.| on", "planner"},
+		{"select planner.| from agentable.planner", "goal"},
+		{"select * from t_order o where exists (select 1 from t_user o where o.|", "email"},
+		{"select * from t_order o where o.| in (select 1 from t_user o)", "id"},
+		{"select a.| from (select * from t_user a) sub", ""},
+	} {
+		pos := strings.Index(c.sql, "|")
+		got, _ := a.sqlComplete(strings.Replace(c.sql, "|", "", 1), pos, "public", map[tableID]bool{}, true)
+		first := ""
+		if got != nil {
+			first = got.items[0].label
+		}
+		if first != c.first {
+			t.Errorf("%s: %q, want %q", c.sql, first, c.first)
+		}
 	}
 }
 

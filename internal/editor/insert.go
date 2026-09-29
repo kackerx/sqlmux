@@ -100,7 +100,9 @@ func (e *Editor) editKey(k string) {
 
 // Complete puts text in place of the cursor's line from col start to the
 // cursor, in INSERT, as typing it would: the cursor after it, part of the
-// INSERT's undo step (a completion taken, §9.7).
+// INSERT's undo step, kept with the keys as a BS a character taken back
+// and text put in, for a count to do again (a completion taken, §9.7;
+// nvim keeps it in the redo buffer so).
 func (e *Editor) Complete(start int, text string) Effect {
 	e.eff = Effect{}
 	if e.mode != Insert || start > e.cur.Col {
@@ -108,6 +110,10 @@ func (e *Editor) Complete(start int, text string) Effect {
 	}
 	e.arrived()
 	l := e.line()
+	for i := start; i < e.cur.Col; i = next(l, i) {
+		e.ins.keys = append(e.ins.keys, "<BS>")
+	}
+	e.ins.keys = append(e.ins.keys, pasteKey+text)
 	e.setLine(e.cur.Line, l[:start]+text+l[e.cur.Col:])
 	e.cur.Col, e.want = start+len(text), wantUnset
 	e.ins.ai = false

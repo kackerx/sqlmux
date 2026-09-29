@@ -153,6 +153,12 @@ func TestComplete(t *testing.T) {
 	if eff := e.Complete(0, "y"); eff.Changed {
 		t.Error("in NORMAL")
 	}
+	e = New("")
+	feedAll(t, e, "2it_o")
+	e.Complete(0, "t_order")
+	if feedAll(t, e, "<Esc>"); e.Lines()[0] != "t_ordert_order" { // nvim's 2it_o<C-n><Esc>
+		t.Errorf("a count types what was taken: %q", e.Lines())
+	}
 }
 
 // gq is an operator: it asks the console to lay out what its motion

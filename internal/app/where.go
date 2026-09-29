@@ -163,17 +163,24 @@ func (a *App) sqlComplete(sql string, pos int, schema string, asked map[tableID]
 	switch c.Kind {
 	case sqlkit.CompColumns: // an alias or a table named, a CTE (no columns), a table, a schema
 		q := c.Qualifier
-		i := slices.IndexFunc(c.Tables, func(r sqlkit.TableRef) bool { return strings.EqualFold(r.Alias, q) })
-		if i < 0 {
-			i = slices.IndexFunc(c.Tables, func(r sqlkit.TableRef) bool { return r.Schema == "" && strings.EqualFold(r.Name, q) })
-		}
-		switch {
-		case i >= 0 && c.Tables[i].Schema == "" && isCTE[strings.ToLower(c.Tables[i].Name)], isCTE[strings.ToLower(q)]:
-		case i >= 0:
-			if t, ok := table(c.Tables[i].Schema, c.Tables[i].Name); ok {
-				groups, resolved = [][]candidate{columns(t)}, true
+		named := func(is func(sqlkit.TableRef) bool) (sqlkit.TableRef, bool) {
+			for i := len(c.Tables) - 1; i >= 0; i-- { // at the cursor's depth or out of it, the later first (lazysql's resolveAliases)
+				if r := c.Tables[i]; r.Depth <= c.Depth && is(r) {
+					return r, true
+				}
 			}
-		default:
+			return sqlkit.TableRef{}, false
+		}
+		r, ok := named(func(r sqlkit.TableRef) bool { return strings.EqualFold(r.Alias, q) })
+		if !ok {
+			r, ok = named(func(r sqlkit.TableRef) bool { return strings.EqualFold(r.Name, q) })
+		}
+		t, found := table(r.Schema, r.Name)
+		switch {
+		case ok && r.Schema == "" && isCTE[strings.ToLower(r.Name)], !ok && isCTE[strings.ToLower(q)]:
+		case ok && found:
+			groups, resolved = [][]candidate{columns(t)}, true
+		default: // what the statement names is not a table, or it names none: a table, else a schema (from agentable.)
 			if t, ok := table("", q); ok {
 				groups, resolved = [][]candidate{columns(t)}, true
 			} else if j := slices.IndexFunc(a.sess.Schemas, func(s string) bool { return strings.EqualFold(s, q) }); j >= 0 {
