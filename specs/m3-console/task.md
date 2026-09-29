@@ -85,6 +85,10 @@
 - [ ] `I`、`A`、`$A`、`c`：先在第一行输入，按 esc 后复制到其余各行；
 - [ ] `d`、`x`、`y`；`y` 复制时，寄存器类型为块；`p`、`P` 按块粘贴；
 - [ ] `r`、`~`、`u`、`U`、`>`、`<`、`gc`；`o`、`O` 切换选区的对角。
+- [ ] 模式 VisualBlock，状态栏显示 V-BLOCK；`<C-q>` 也当作 `<C-v>`（nvim 的 `nv_visual` 就是这样处理的），所以 §11 说的 Windows 改绑 `C-q` 不用额外配置；v、V、C-v 互相切换同 nvim。
+- [ ] 给绘制的接口：`Selection()` 语义不变，另加 `Block()` 返回上下行和左右显示列，`$` 延伸时右边为 `math.MaxInt`。
+- [ ] 寄存器的块类型记为 `"\x16{宽度}"`（`getregtype` 的写法），内容是各行用 `\n` 连起来的文字，同 `getreg`。
+- [ ] 块下按 `:` 照其他 VISUAL 预填 `'<,'>`，按行执行。清单外的块操作不做：`D C S R X Y s J`、块里的文本对象、块下的 `p`。
 
 **验收**
 - [ ] 差分用例覆盖上面列出的全部操作，结果与 nvim 一致，包括短行上的 `I` / `A` / `c`、块边界落在 Tab 上或宽字符中间的情况。
@@ -121,7 +125,7 @@
 - [ ] 绘制（`ui/console.go`）：每行 `▶`（1 列，`focus` 色；上次执行出错的语句为 `error` 色，缓冲区一有改动就清掉）+ 行号（宽 max(3, 位数)，右对齐，`dim` 色，光标行用 `fg`）+ 1 个空格 + 文本。NORMAL 下光标所在语句的范围用 `row` 底，VISUAL 选区用 `select` 底。
 - [ ] 高亮：关键字 `keyword`，数字 `number`，字符串 `sql_string`，注释 `comment`，标识符后面紧跟 `(` 的用 `func`，其余 `fg`（§7.3）。
 - [ ] 光标用终端光标：NORMAL / VISUAL 为块，INSERT 为竖线，REPLACE 为下划线。
-- [ ] 状态栏：模式块显示 `NORMAL`、`INSERT`、`VISUAL`、`V-LINE`、`V-BLOCK`、`REPLACE`、`COMMAND`（V-LINE、V-BLOCK 用 VISUAL 的颜色，REPLACE 用 INSERT 的颜色）；VISUAL 的附加信息为 `4 行 · ↵ run` 或 `12 字符 · ↵ run`，键位文字从 keymap 读；待输入序列这一块也显示引擎正在等的键（`2d`、`f`），相当于 showcmd；console 聚焦时不显示 `行,列`。
+- [ ] 状态栏：模式块显示 `NORMAL`、`INSERT`、`VISUAL`、`V-LINE`、`V-BLOCK`、`REPLACE`、`COMMAND`（V-LINE、V-BLOCK 用 VISUAL 的颜色，REPLACE 用 INSERT 的颜色）；VISUAL 的附加信息为 `4 行 · ↵ run` 或 `12 字符 · ↵ run`，V-BLOCK 为 `3 行 × 4 列 · ↵ run`，键位文字从 keymap 读；待输入序列这一块也显示引擎正在等的键（`2d`、`f`），相当于 showcmd；console 聚焦时不显示 `行,列`。
 - [ ] `/`、`?`、`:` 的输入行在内容区最后一行（§11「命令行」）。`:`、`;` 从 `[keys.normal]` 挪到 `[keys.grid]`、`[keys.tree]`（`[keys.landing]` 在 F3.7），console 里交给编辑器（§6.8）。
 - [ ] 编辑器在等后续按键时跳过 keymap（§6.4）。
 - [ ] 鼠标：单击定位光标（INSERT 下仍是 INSERT，VISUAL 下回到 NORMAL）；在文本区拖动从按下处进入字符 VISUAL；滚轮每格 3 行，最多滚到最后一行在顶部，光标夹回视图内；单击 ▶ 执行那一条语句（`console.run <行>`，F3.8 接上）。
@@ -175,7 +179,7 @@
 - **涉及**：`internal/app`（结果区、日志）、`internal/ui`（结果 tab、工具行）、`internal/db`、`internal/config`
 
 **开发**
-- [ ] 执行的单位：光标所在的语句，或选区里的文字（字符、行、块三种选区都一样），用 sqlkit 分句；逐条执行、遇错就停（§11「执行」）。
+- [ ] 执行的单位：光标所在的语句，或选区里的文字（字符、行选区）；块选区执行它覆盖到的那几整行，同 V-LINE。用 sqlkit 分句；逐条执行、遇错就停（§11「执行」）。
 - [ ] 行数上限与截断显示（§11）；配置加 `result_height`、`[console] max_rows`。
 - [ ] 执行中：同一个 console 再按 `↵` 忽略；别的 console 在 Worker 的锁上排队，占位照样显示；状态栏 busy，`C-c` 取消 `Main`。
 - [ ] 结果区的出现与关闭：第一次执行时把根节点包进纵向节点，比例取 window 记住的值（初始 `1 − result_height`）；关闭时记下比例，日志保留在 window 上，结果 tab 全部丢掉（包括固定的）。
