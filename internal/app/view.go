@@ -245,6 +245,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		if cur := view.Draw(f, body); cur.X >= 0 && b.Focused && a.focusedConsole() == c {
 			f.Cursor = &cur
 		}
+		drawBar(f, c.bar, p, r)
 		return
 	}
 	t := dataOf(p)
@@ -254,14 +255,20 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	if c := a.queryBar(p, t).Draw(f, bodyRect(r)); c.X >= 0 {
 		f.Cursor = &c
 	}
-	body := gridRect(r)
-	switch {
-	case t.err != "": // what the database said, in place of the table (§7.6)
-		f.Text(body.Min.X+1, body.Min.Y, body.Max.X-1, t.err, uv.Style{Fg: th.Error, Bg: th.PaneBg})
-	case t.page.Cols != nil:
-		if c := a.grid(p, t).Draw(f, body); c.X >= 0 {
+	if t.page.Cols != nil {
+		if c := a.grid(p, t).Draw(f, gridRect(r, t)); c.X >= 0 {
 			f.Cursor = &c
 		}
+	}
+	drawBar(f, t.bar, p, r)
+}
+
+// drawBar draws a tab's error bar at the bottom of pane p's content.
+func drawBar(f *ui.Frame, b *errorBar, p *Pane, r uv.Rectangle) {
+	if b != nil {
+		bar := b.ErrorBar
+		bar.Pane = p.ID
+		bar.Draw(f, bodyRect(r))
 	}
 }
 

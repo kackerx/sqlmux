@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -305,32 +306,37 @@ func TestSave(t *testing.T) {
 }
 
 // A row that changed or went since it was loaded fails the save: all rolled
-// back, the changes kept, the row named and its number in error until the
-// next change or fetch (§10.3). A cancel says so.
+// back, the changes kept, the row named on the error bar, which stays till
+// a save goes, its number in error until the next change or fetch (§10.3,
+// §7.8「错误栏」). A cancel says so on the query bar.
 func TestSaveFails(t *testing.T) {
 	a, tab, _ := withMain(t, "UPDATE 0")
 	feed(t, a, "lix<Esc>")
 	_, cmd := a.Update(teaKey("<C-s>"))
 	a.Update(cmd())
-	if n := a.queryBar(a.focused(), tab).Note; n != (ui.Note{Head: "id = 1 的行数据已变化或行不存在", Tail: "，已回滚", Fg: a.theme.Error}) || len(tab.edits) != 1 {
-		t.Fatalf("note %+v, edits %q", n, editsOf(tab))
+	if tab.bar == nil || tab.bar.First != (ui.Note{Head: "id = 1 的", Mid: "行数据已变化或行不存在", Tail: "，已回滚"}) || tab.note != (ui.Note{}) || len(tab.edits) != 1 {
+		t.Fatalf("bar %+v note %+v, edits %q", tab.bar, tab.note, editsOf(tab))
 	}
 	if g := a.grid(a.focused(), tab); !g.Failed[0] {
 		t.Error("row 1's number is not marked")
 	}
 	feed(t, a, "jiy<Esc>")
-	if tab.note != (ui.Note{}) || tab.failed != "" {
-		t.Errorf("a change starts over: %+v", tab.note)
+	if tab.failed != "" || tab.bar == nil {
+		t.Errorf("a change unmarks the row, the bar stays: %+v", tab.bar)
 	}
 	a.Update(saveMsg{tab: tab, failed: -1, err: context.Canceled})
 	if tab.note.Head != "已取消，已回滚" || len(tab.edits) != 2 {
 		t.Errorf("cancelled: %+v", tab.note)
 	}
 	// the server's error: its message alone, cut to fit between the row and 已回滚
-	bad := &pgconn.PgError{Severity: "ERROR", Code: "22P02", Message: `invalid input syntax for type numeric: "abc"`}
+	bad := &pgconn.PgError{Severity: "ERROR", Code: "22P02", Message: `invalid input syntax for type numeric: "abc"`, Hint: "a number"}
 	a.Update(saveMsg{tab: tab, rows: []postgres.Row{{Key: []string{"12"}}}, failed: 0, err: bad})
-	if n := tab.note; n.Head != "id = 12：" || n.Mid != bad.Message || n.Tail != "，已回滚" {
-		t.Errorf("a server's error: %+v", n)
+	if b := tab.bar; b.First != (ui.Note{Head: "[22P02] id = 12：", Mid: bad.Message, Tail: "，已回滚"}) || !slices.Equal(b.More, []string{"HINT: a number"}) {
+		t.Errorf("a server's error: %+v", b)
+	}
+	a.Update(saveMsg{tab: tab, failed: -1})
+	if tab.bar != nil {
+		t.Error("a save that goes takes it away")
 	}
 }
 

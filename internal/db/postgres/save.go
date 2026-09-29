@@ -31,31 +31,36 @@ type Change struct {
 // ErrStale is a row that no longer holds what was loaded, or is gone.
 var ErrStale = errors.New("行数据已变化或行不存在")
 
-// ErrorText is err as a line says it: a server's error its Message alone,
-// without pgconn's "ERROR:" and "(SQLSTATE …)" (§10.3).
-func ErrorText(err error) string {
+// ServerError is err as the result area's log and an error bar show it
+// (§11, §7.8「错误栏」): a server's Severity, SQLSTATE and Message without
+// pgconn's dressing, its DETAIL and HINT a line each (DETAIL's own lines
+// apart), and Position, the statement's character it points at from 1, 0
+// for none. An error no server sent is ERROR and its text alone.
+type ServerError struct {
+	Severity, Code, Message string
+	More                    []string
+	Position                int
+}
+
+func ServerErrorOf(err error) ServerError {
 	var pe *pgconn.PgError
-	if errors.As(err, &pe) {
-		return pe.Message
+	if !errors.As(err, &pe) {
+		return ServerError{Severity: "ERROR", Message: err.Error()}
 	}
-	return err.Error()
+	e := ServerError{Severity: pe.Severity, Code: pe.Code, Message: pe.Message, Position: int(pe.Position)}
+	for _, l := range [][2]string{{"DETAIL", pe.Detail}, {"HINT", pe.Hint}} {
+		if l[1] != "" {
+			e.More = append(e.More, strings.Split(l[0]+": "+l[1], "\n")...)
+		}
+	}
+	return e
 }
 
 // ErrorLines is err as the result area's log shows it (§11): "ERROR:
-// <Message>", then the server's DETAIL and HINT a line each, when it has
-// them.
+// <Message>", then the DETAIL and HINT lines.
 func ErrorLines(err error) []string {
-	var pe *pgconn.PgError
-	if !errors.As(err, &pe) {
-		return []string{"ERROR: " + err.Error()}
-	}
-	out := []string{pe.Severity + ": " + pe.Message}
-	for _, l := range [][2]string{{"DETAIL", pe.Detail}, {"HINT", pe.Hint}} {
-		if l[1] != "" {
-			out = append(out, l[0]+": "+l[1])
-		}
-	}
-	return out
+	e := ServerErrorOf(err)
+	return append([]string{e.Severity + ": " + e.Message}, e.More...)
 }
 
 // endTimeout bounds COMMIT and ROLLBACK, which a cancel must not reach: a

@@ -47,7 +47,7 @@ type dataTab struct {
 	cols  db.Columns // the catalog's, as fetched: PK and types for the grid
 	next  bool       // a page follows (§8.5)
 	seq   int        // the last request's; older answers are dropped (§8.3)
-	err   string     // the last request's error, drawn instead of the table
+	bar   *errorBar  // the last fetch's or save's error, under the table (§7.8「错误栏」)
 
 	// The query bar's. request is what the last request asked for, shown
 	// what the rows on screen came from: row numbers and chips are shown's,
@@ -143,8 +143,7 @@ func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
 	t.seq++
 	// a ; would end the statement and start another: 1=1; drop table t (§9.6)
 	if sqlkit.HasSemicolon(t.applied, sqlkit.PG) {
-		t.countSeq++
-		t.err, t.shown, t.counted = "WHERE 里不能有 ;", t.request, countLost
+		t.bar = &errorBar{ui.ErrorBar{First: ui.Note{Head: "WHERE 里不能有 ;"}}, "fetch"}
 		return nil
 	}
 	t.recount = t.recount || recount
@@ -186,11 +185,14 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 			t.where = ui.Input{Text: t.applied, Pos: len(t.applied)}
 		}
 		return a.showToast("查询已取消", toastTTL)
-	case m.err != nil: // on screen now: the error, for the request to be fixed; the count stays owed
-		t.err, t.shown = m.err.Error(), t.request
+	case m.err != nil: // under the rows shown, which stay; the request is there to be fixed, the count owed
+		// ponytail: no 位置 line, the SQL being ours, not the WHERE typed;
+		// map Position into the WHERE if it is ever wanted
+		t.bar = newErrorBar("fetch", postgres.ServerErrorOf(m.err), "", "")
 		return nil
 	}
-	t.err, t.cols, t.page, t.next, t.shown = "", m.cols, m.page, m.next, t.request
+	clearBar(&t.bar, "fetch")
+	t.cols, t.page, t.next, t.shown = m.cols, m.page, m.next, t.request
 	t.row = max(min(t.row, len(t.page.Rows)-1), 0)
 	t.applyWantCol()
 	t.col = max(min(t.col, len(t.shownCols())-1), 0)
@@ -308,10 +310,12 @@ func bodyRect(r uv.Rectangle) uv.Rectangle {
 	return uv.Rect(r.Min.X+1, r.Min.Y+1, max(r.Dx()-2, 0), max(r.Dy()-3, 0))
 }
 
-// gridRect is where a pane at r draws its table: under the query bar.
-func gridRect(r uv.Rectangle) uv.Rectangle {
+// gridRect is where a pane at r draws t's table: under the query bar,
+// over its error bar.
+func gridRect(r uv.Rectangle, t *dataTab) uv.Rectangle {
 	b := bodyRect(r)
 	b.Min.Y = min(b.Min.Y+ui.QueryBarRows, b.Max.Y)
+	b.Max.Y = max(b.Max.Y-t.bar.rows(), b.Min.Y)
 	return b
 }
 
@@ -425,12 +429,12 @@ func (a *App) chipRect(p *Pane, t *dataTab, action string) uv.Rectangle {
 	return a.queryBar(p, t).ChipRect(bodyRect(a.layout()[p.ID]), action)
 }
 
-// focusedGrid is the focused pane's table, if it shows one: loaded, not
-// an error in its place, with columns to show.
+// focusedGrid is the focused pane's table, if it shows one: loaded, with
+// columns to show.
 func (a *App) focusedGrid() (*Pane, *dataTab, bool) {
 	p := a.focused()
 	t := dataOf(p)
-	return p, t, t != nil && t.err == "" && len(t.shownCols()) > 0
+	return p, t, t != nil && len(t.shownCols()) > 0
 }
 
 // typingTab is the focused table whose query bar input has the keys.
@@ -442,12 +446,12 @@ func (a *App) typingTab() *dataTab {
 }
 
 // gridOf is the grid pane p's current tab shows, as drawn in area; ok is
-// false when it shows none: no rows loaded, an error in their place.
+// false when it shows none: no rows loaded.
 func (a *App) gridOf(p *Pane) (s *gridState, g ui.Grid, area uv.Rectangle, ok bool) {
 	switch t := p.tab(); {
 	case t == nil:
-	case t.Data != nil && t.Data.err == "" && len(t.Data.shownCols()) > 0:
-		return &t.Data.gridState, a.grid(p, t.Data), gridRect(a.layout()[p.ID]), true
+	case t.Data != nil && len(t.Data.shownCols()) > 0:
+		return &t.Data.gridState, a.grid(p, t.Data), gridRect(a.layout()[p.ID], t.Data), true
 	case t.Result != nil && t.Result.page.Cols != nil:
 		return &t.Result.gridState, a.resultGrid(p, t.Result), bodyRect(a.layout()[p.ID]), true
 	}

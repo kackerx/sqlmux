@@ -79,8 +79,8 @@ func TestWhere(t *testing.T) {
 	}
 }
 
-// A WHERE with a ; outside strings goes nowhere: the pane says so where the
-// table was, and the history does not keep it (§9.6).
+// A WHERE with a ; outside strings goes nowhere: the error bar says so
+// under the table, and the history does not keep it (§9.6).
 func TestWhereSemicolon(t *testing.T) {
 	a, tab, rec := withRecorder(t, 160, 45)
 	sent := len(rec.sqls)
@@ -88,8 +88,8 @@ func TestWhereSemicolon(t *testing.T) {
 	if _, cmd := a.Update(teaKey("<CR>")); cmd != nil {
 		cmd()
 	}
-	if len(rec.sqls) != sent || tab.err != "WHERE 里不能有 ;" || len(a.tableState(tab).History) != 0 {
-		t.Fatalf("sent %q, err %q, history %+v", rec.sqls[sent:], tab.err, a.tableState(tab).History)
+	if len(rec.sqls) != sent || tab.bar == nil || tab.bar.First.Head != "WHERE 里不能有 ;" || len(a.tableState(tab).History) != 0 {
+		t.Fatalf("sent %q, bar %+v, history %+v", rec.sqls[sent:], tab.bar, a.tableState(tab).History)
 	}
 	if !strings.Contains(a.render().String(), "WHERE 里不能有 ;") {
 		t.Error("not drawn")
@@ -115,8 +115,8 @@ func TestWhereSemicolonLatePage(t *testing.T) {
 			}
 		}
 	}
-	if _, cmd := a.Update(page); cmd != nil || tab.err != "WHERE 里不能有 ;" {
-		t.Fatalf("the late page: err %q, a cmd after it %v", tab.err, cmd != nil)
+	if _, cmd := a.Update(page); cmd != nil || tab.bar == nil {
+		t.Fatalf("the late page: bar %+v, a cmd after it %v", tab.bar, cmd != nil)
 	}
 	for _, s := range rec.sqls {
 		if strings.Contains(s, "drop table") {

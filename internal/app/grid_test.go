@@ -138,8 +138,8 @@ func TestGridFetch(t *testing.T) {
 	}
 }
 
-// A cancel keeps the old rows and says so; an error takes the table's
-// place (§7.6, §8.3).
+// A cancel keeps the old rows and says so; so does an error, on the error
+// bar under them, which the next page in takes away (§7.6, §7.8, §8.3).
 func TestGridCancelAndError(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	tab := loadOrders(t, a, 3)
@@ -149,17 +149,21 @@ func TestGridCancelAndError(t *testing.T) {
 		t.Fatal("C-c while a query runs cancels it, not the first of two to quit")
 	}
 	a.Update(pageMsg{tab: tab, seq: tab.seq, err: context.Canceled})
-	if a.toast != "查询已取消" || len(tab.page.Rows) != 3 || tab.err != "" {
-		t.Fatalf("cancelled: toast %q rows %d err %q", a.toast, len(tab.page.Rows), tab.err)
+	if a.toast != "查询已取消" || len(tab.page.Rows) != 3 || tab.bar != nil {
+		t.Fatalf("cancelled: toast %q rows %d bar %+v", a.toast, len(tab.page.Rows), tab.bar)
 	}
 	a.fetch(tab, false)
 	a.Update(pageMsg{tab: tab, seq: tab.seq, err: fmt.Errorf("permission denied for table t_order")})
 	f := a.render()
-	if st := styleOf(t, f, "permission denied"); st.Fg != a.theme.Error || strings.Contains(f.String(), "note 1") {
-		t.Errorf("error line: %+v", st)
+	if st := styleOf(t, f, "permission denied"); st.Fg != a.theme.Error || st.Bg != a.theme.ErrorBg || !strings.Contains(f.String(), "note 1") {
+		t.Errorf("error bar: %+v", st)
 	}
-	if strings.Contains(statusRow(a), " 1,1 ") {
-		t.Error("no row,col with no table on screen")
+	if !strings.Contains(statusRow(a), " 1,1 ") {
+		t.Error("the table stays, and its row,col")
+	}
+	answer(a, tab)
+	if tab.bar != nil {
+		t.Error("a page in takes the fetch's error away")
 	}
 }
 
@@ -186,7 +190,7 @@ func TestGridMoves(t *testing.T) {
 		t.Errorf("G: top %d", tab.top)
 	}
 	feed(t, a, "$")
-	body := gridRect(a.layout()[a.win().Focus])
+	body := gridRect(a.layout()[a.win().Focus], tab)
 	lines := strings.Split(a.render().String(), "\n")
 	if tab.left == 0 || !strings.Contains(lines[body.Min.Y], "created_at") {
 		t.Errorf("$: left %d, header %q", tab.left, lines[body.Min.Y])

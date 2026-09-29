@@ -158,12 +158,8 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 		x += Width(b.Icon.Text) + 2 + len(tail)
 	}
 	right, st := q.Right, dim
-	if n := q.Note; n != (Note{}) { // its middle cut to fit, the ends whole (§10.3)
-		room := r.Max.X - 2 - x - Width(n.Head+n.Tail)
-		if Width(n.Mid) > room {
-			n.Mid = Truncate(n.Mid, max(room, 1))
-		}
-		if right = n.Head + n.Mid + n.Tail; n.Fg != nil {
+	if n := q.Note; n != (Note{}) {
+		if right = n.Fit(r.Max.X - 2 - x); n.Fg != nil {
 			st.Fg = n.Fg
 		}
 	}
@@ -210,4 +206,12 @@ func (q QueryBar) end(r uv.Rectangle, chips, buttons int) int {
 type Note struct {
 	Head, Mid, Tail string
 	Fg              color.Color // dim when nil
+}
+
+// Fit is n in w columns: its middle cut to fit, the ends whole.
+func (n Note) Fit(w int) string {
+	if room := w - Width(n.Head+n.Tail); Width(n.Mid) > room {
+		n.Mid = Truncate(n.Mid, max(room, 1))
+	}
+	return n.Head + n.Mid + n.Tail
 }

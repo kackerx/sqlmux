@@ -151,7 +151,7 @@ func (a *App) runSQL(t *consoleTab, name, sql string, base, ver int) tea.Cmd {
 	}
 	a.sess.RunSeq++
 	r := &run{from: t, name: name, sql: sql, base: base, ver: ver, seq: a.sess.RunSeq, start: time.Now(), win: a.win(), stmts: stmts}
-	t.running, t.failed = r, -1
+	t.running, t.failed, t.bar = r, -1, nil
 	p := a.resultPane(r.win)
 	at, old := a.placeRun(r, []Tab{{Name: r.label(1), Result: &resultTab{run: r}}})
 	r.prev = old
@@ -284,8 +284,16 @@ func (a *App) gotRun(m runDone) tea.Cmd {
 			for _, l := range lines[1:] {
 				r.win.log = append(r.win.log, ui.LogLine{Tail: "    " + l, Err: true})
 			}
+			e, text := postgres.ServerErrorOf(m.err), strings.Join(r.from.ed.Lines(), "\n")
+			var at []string
 			if r.from.ver == r.ver && m.set == "" { // the text is still what ran
-				r.from.failed = strings.Count(strings.Join(r.from.ed.Lines(), "\n")[:r.base+s.Start], "\n")
+				r.from.failed = strings.Count(text[:r.base+s.Start], "\n")
+				if e.Position > 0 {
+					at = append(at, errorAt(text, r.base+s.Start, stmt, e.Position))
+				}
+			}
+			if slices.Contains(a.sess.consoles(), r.from) { // closed, the log has it alone
+				r.from.bar = newErrorBar("run", e, "", "", at...)
 			}
 		}
 	}

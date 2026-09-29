@@ -29,6 +29,7 @@ leader = "<Space>"
 "<Leader>q" = "pane.number"
 "<Leader>b" = "tree.toggle"
 "<Leader>?" = "keyhelp.open" # anywhere, a console too: its ? is vim's (§6.5)
+"<Esc>" = "pane.error.close" # a console's VISUAL esc stays vim's: no normal scope there (§7.8)
 "gt" = "tab.next"
 "gT" = "tab.prev"
 

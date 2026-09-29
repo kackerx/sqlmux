@@ -181,6 +181,20 @@ func init() {
 		"cols.none":   {Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(false); return nil })},
 		"cols.filter": {Run: when(inCols, func(a *App) tea.Cmd { a.cols.typing = true; return nil })},
 		"cols.close":  {Run: when(inCols, func(a *App) tea.Cmd { a.colsEsc(); return nil })},
+		"pane.error.close": {Title: "关闭错误栏", Run: func(a *App, args Args) tea.Cmd { // "pane.error.close <id>" is its ×
+			p := a.focused()
+			if id, err := strconv.Atoi(args.Arg); err == nil {
+				p = a.win().pane(id)
+			}
+			switch {
+			case p == nil:
+			case dataOf(p) != nil:
+				dataOf(p).bar = nil
+			case consoleOf(p) != nil:
+				consoleOf(p).bar = nil
+			}
+			return nil
+		}},
 		// The ? help (§6.5).
 		"keyhelp.open":  {Title: "键位帮助", Run: do(func(a *App, _ Args) { a.keyHelp = &keyHelp{ctx: a.context()} })},
 		"keyhelp.close": {Run: do(func(a *App, _ Args) { a.keyHelp = nil })},

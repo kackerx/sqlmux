@@ -214,7 +214,7 @@ func (t *dataTab) moveSeg(d int) {
 // over it (§10.2): a time's parts and options in a row, or a list.
 func (a *App) drawCellMenu(f *ui.Frame, p *Pane, t *dataTab) {
 	os := t.options()
-	at := a.grid(p, t).EditRect(gridRect(a.layout()[p.ID])).Min
+	at := a.grid(p, t).EditRect(gridRect(a.layout()[p.ID], t)).Min
 	if k := t.cellKind(); k != ui.NotTime {
 		v := ui.TimePick{Kind: k, Text: t.cell.in.Text, Seg: t.cell.seg, Sel: t.cell.sel}
 		for _, o := range os {
@@ -307,8 +307,9 @@ func (a *App) save() tea.Cmd {
 	}
 }
 
-// gotSave shows how the save went on the query bar's right (Q-06). Saved,
-// the changes sent go, those made since stay, and the page loads again;
+// gotSave shows how the save went: saved or cancelled on the query bar's
+// right (Q-06), failed on the error bar (§7.8「错误栏」). Saved, the
+// changes sent go, those made since stay, and the page loads again;
 // failed, all is rolled back and the changes stay, the row at fault named
 // by its row identity (it may be on another page) and marked (§10.3).
 func (a *App) gotSave(m saveMsg) tea.Cmd {
@@ -321,20 +322,22 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 	case errors.Is(m.err, context.Canceled):
 		t.note = ui.Note{Head: "已取消，已回滚", Fg: a.theme.Warn}
 	case m.err != nil:
-		t.note = ui.Note{Mid: postgres.ErrorText(m.err), Tail: "，已回滚", Fg: a.theme.Error}
+		head := ""
 		if m.failed >= 0 {
 			key := m.rows[m.failed].Key
 			var named []string
 			for i, c := range t.cols.Key() {
 				named = append(named, c+" = "+key[i])
 			}
-			t.note.Head = strings.Join(named, ", ") + "："
+			head = strings.Join(named, ", ") + "："
 			if errors.Is(m.err, postgres.ErrStale) {
-				t.note.Head, t.note.Mid = strings.Join(named, ", ")+" 的"+m.err.Error(), ""
+				head = strings.Join(named, ", ") + " 的"
 			}
 			t.failed = strings.Join(key, "\x00")
 		}
+		t.bar = newErrorBar("save", postgres.ServerErrorOf(m.err), head, "，已回滚")
 	default:
+		clearBar(&t.bar, "save")
 		for k, e := range m.sent {
 			switch now, ok := t.edits[k]; {
 			case now == e:

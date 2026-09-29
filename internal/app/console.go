@@ -22,9 +22,10 @@ import (
 type consoleTab struct {
 	ed         *editor.Editor
 	path       string
-	ver, saved int  // changes made, and the one the file has
-	failed     int  // the first line of the statement whose last run failed, its ▶ red; -1 for none
-	running    *run // the run going on, if one is: another ↵ waits for it (§11)
+	ver, saved int       // changes made, and the one the file has
+	failed     int       // the first line of the statement whose last run failed, its ▶ red; -1 for none
+	running    *run      // the run going on, if one is: another ↵ waits for it (§11)
+	bar        *errorBar // the last run's error, under the text (§7.8「错误栏」)
 	// schema is the one it runs in, first on search_path (§8.6): the
 	// tree's as it opens, "" until the catalog is in.
 	schema string
@@ -75,6 +76,7 @@ func (a *App) focusedConsole() *consoleTab {
 func (a *App) consoleView(p *Pane, t *consoleTab) (ui.Console, uv.Rectangle) {
 	ed := t.ed
 	body := bodyRect(a.layout()[p.ID])
+	body.Max.Y = max(body.Max.Y-t.bar.rows(), body.Min.Y)
 	text := ui.Console{Lines: ed.Lines()}.TextArea(body)
 	ed.TabWidth, ed.AutoPairs = a.tabWidth, a.autoPairs
 	ed.SetHeight(text.Dy())

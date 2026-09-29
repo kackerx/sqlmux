@@ -21,7 +21,7 @@ type Theme struct {
 	Visual                   color.Color // a console's VISUAL, an input all selected
 	EditedBg                 color.Color
 	Keyword, Info            color.Color
-	Error                    color.Color
+	Error, ErrorBg           color.Color // ErrorBg: the error bar's (§7.8「错误栏」)
 	Number, PK, Func         color.Color
 	String, Time, Bool, JSON color.Color // grid values by column type (§7.6)
 	SQLString, Comment       color.Color // the console's SQL (§7.3)
@@ -39,7 +39,7 @@ var TokyonightStorm = &Theme{
 	Visual:   c("#2d3f76"),
 	EditedBg: c("#2d2a24"),
 	Keyword:  c("#bb9af7"), Info: c("#7dcfff"),
-	Error:  c("#f7768e"),
+	Error: c("#f7768e"), ErrorBg: c("#3b2230"),
 	Number: c("#ff9e64"), PK: c("#73daca"), Func: c("#7aa2f7"),
 	String: c("#c0caf5"), Time: c("#c0caf5"), Bool: c("#c0caf5"), JSON: c("#c0caf5"), // same as Fg: uncolored by default
 	SQLString: c("#9ece6a"), Comment: c("#565f89"),
@@ -128,7 +128,7 @@ func (th *Theme) tokens() map[string]*color.Color {
 		"visual":    &th.Visual,
 		"edited_bg": &th.EditedBg,
 		"keyword":   &th.Keyword, "info": &th.Info,
-		"error":  &th.Error,
+		"error": &th.Error, "error_bg": &th.ErrorBg,
 		"number": &th.Number, "pk": &th.PK, "func": &th.Func,
 		"string": &th.String, "time": &th.Time, "bool": &th.Bool, "json": &th.JSON,
 		"sql_string": &th.SQLString, "comment": &th.Comment,

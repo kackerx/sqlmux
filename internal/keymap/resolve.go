@@ -201,6 +201,10 @@ func (r *Resolver) feed(c Context, k Key, root *node, out *[]Result) {
 			r.count += string(k) // a lone 0 is a key (grid.first), not a count
 			return
 		}
+		if k == Esc && r.count != "" { // it takes the count back, as in vim, before a binding of its own
+			r.Reset()
+			return
+		}
 		r.node = root
 	}
 	next := r.node.next[k]
