@@ -277,7 +277,7 @@ func (a *App) treeNodes() (ns []node, matches int) {
 					fg = th.Func
 				}
 				tn := node{id: fmt.Sprintf("%s/tab:%d", pid, i), kind: nodeTab, win: wi, pane: p, tab: i, TreeNode: ui.TreeNode{
-					Depth: 3, Icon: icon, IconFg: fg, Text: tb.Name,
+					Depth: 4, Icon: icon, IconFg: fg, Text: tb.Name, // a level under its pane's: that has no icon (F3.30)
 					Current: wi == s.Active && p == target && i == p.Cur,
 				}}
 				if tb.Data != nil {

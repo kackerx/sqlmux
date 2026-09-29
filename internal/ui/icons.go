@@ -40,7 +40,7 @@ type Icons struct {
 	AutoRefresh, Stop        Icon // and its query group
 	SortAsc, SortDesc        Icon
 	View, Column             Icon // the tree's (F1.12)
-	Result, Pin, Export      Icon // the result area's (§11)
+	Result, Pin, Export, Log Icon // the result area's (§11)
 	Close                    Icon
 	// Labeled sets (ascii) say nothing by themselves, so the words beside
 	// the icons stay: pane types in titles, C-p, the filter's / (§7.7).
@@ -75,6 +75,7 @@ var NerdIcons = &Icons{
 	Pin:         Icon{Text: "\uf435"}, // nf-oct-pin
 	Export:      Icon{Text: "\uf019"}, // nf-fa-download
 	Close:       Icon{Text: "\uf00d"}, // nf-fa-times
+	Log:         Icon{Text: "\uf0f6"}, // nf-fa-file_text_o
 }
 
 var ASCIIIcons = &Icons{
@@ -102,6 +103,7 @@ var ASCIIIcons = &Icons{
 	Pin:         Icon{Text: "*"},
 	Export:      Icon{Text: ">"},
 	Close:       Icon{Text: "x"},
+	Log:         Icon{Text: "L"},
 	Labeled:     true,
 }
 
@@ -135,5 +137,6 @@ func (ic *Icons) byName() map[string]*Icon {
 		"row_add": &ic.RowAdd, "row_delete": &ic.RowDelete, "auto_refresh": &ic.AutoRefresh, "stop": &ic.Stop,
 		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column,
 		"result": &ic.Result, "pin": &ic.Pin, "export": &ic.Export, "close": &ic.Close,
+		"log": &ic.Log,
 	}
 }

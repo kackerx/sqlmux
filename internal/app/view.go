@@ -335,8 +335,8 @@ func (a *App) label(s string) string {
 }
 
 // tabIcon is the icon of tab t's type and the word ascii icons need beside
-// it (§7.7): none for a landing tab, or no tab, nor for the log; pin for a
-// pinned result.
+// it (§7.7): none for a landing tab, or no tab; pin for a pinned result,
+// log for the log (F3.30).
 func (a *App) tabIcon(t *Tab) (ui.Icon, string) {
 	switch {
 	case t == nil:
@@ -348,6 +348,8 @@ func (a *App) tabIcon(t *Tab) (ui.Icon, string) {
 		return a.icons.Pin, "result"
 	case t.Result != nil && t.Result.run != nil:
 		return a.icons.Result, "result"
+	case t.Result != nil:
+		return a.icons.Log, "result"
 	}
 	return ui.Icon{}, ""
 }
