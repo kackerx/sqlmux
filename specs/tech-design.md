@@ -822,18 +822,21 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 ### 9.2 分句、可执行标记与执行前高亮（C-01、C-02）
 
 - **分句**：在括号深度为 0 的 `;` 处切分，得到每条语句的范围。
-- **光标所在语句**：取范围包含光标的那条；光标停在两条语句之间的空行上时，取前一条。
+- **光标所在语句**（按行算，M3 审查时定）：
+  - 光标所在的行上有某条语句的起点时，取这一条，不管光标是不是在行首的缩进里；
+  - 紧贴在语句上方、中间没有空行的注释行，算作下面那条语句的一部分，因为这种注释通常是在说明下一条；
+  - 否则取范围包含光标的那条；光标停在两条语句之间的空行上时，取前一条。
 - **显示**：
   - 每条语句的起始行，在 gutter 显示 ▶ 标记，可以点击执行（C-02）。
   - console 处于 NORMAL 时，光标所在语句的范围用 `row` 底色标出；处于 VISUAL 时显示选区。这就是按 ↵ 会执行的内容。
 
 ### 9.3 读写判定
 
-1. 第一个有效关键字是 SELECT、SHOW、EXPLAIN、TABLE、VALUES、DESC 之一时，判为读。
+1. 第一个有效关键字是 SELECT、SHOW、EXPLAIN、TABLE、VALUES、DESC、DESCRIBE 之一时，判为读。
 2. 以 WITH 开头的，继续往后扫描，见第 6 条。
 3. `EXPLAIN ANALYZE` 后面跟写语句时判为写，因为它会真正执行；`EXPLAIN (ANALYZE, BUFFERS) …` 这种括号写法里的 ANALYZE 也算。
 4. PG 的 `SELECT … INTO 新表` 会建表，判为写。
-5. 带行锁子句的 SELECT（`FOR UPDATE` / `FOR SHARE` / `FOR NO KEY UPDATE` / `FOR KEY SHARE`）判为写，不论在不在 WITH 里：它会加锁，PG 的只读事务也拒绝它。
+5. 带行锁子句的 SELECT（`FOR UPDATE` / `FOR SHARE` / `FOR NO KEY UPDATE` / `FOR KEY SHARE`，以及 MySQL 旧写法的 `LOCK IN SHARE MODE`）判为写，不论在不在 WITH 里：它会加锁，PG 的只读事务也拒绝它。
 6. WITH 之后在任何括号深度出现 INSERT、UPDATE、DELETE、MERGE 都判为写：CTE 里的写语句在括号里，只看顶层会漏掉。EXPLAIN 括号写法里的 `ANALYZE false` / `off` / `0` 不算 ANALYZE。
 7. 其余一律判为写。
 
