@@ -1341,9 +1341,9 @@ read_only    = false
 - **编辑器与 nvim 的差分测试**：
   - `internal/editor/testdata/cases.txt` 中每条用例包含：初始文本、光标位置、按键序列。
   - `go generate` 调用 `nvim --headless --clean`，逐条用 `silent! call feedkeys(keys, 'xt')` 喂按键，记录结果的文本、光标位置、无名寄存器和 topline，作为 golden 文件提交。不用 `normal!`：一次 `:normal` 的全部按键只算一个撤销步，`xxu` 会把两个 `x` 一起撤掉，和手按不一致（M3 核对时在 nvim 0.12.4 上实测）；`t` 让按键按真实输入处理。
-  - 生成器的选项：`--clean --noplugin` 加 `expandtab tabstop=2 shiftwidth=2 nowrap ignorecase smartcase commentstring=--\ %s formatoptions-=j`，窗口固定 24×80，Go 那边用同一个高度；golden 文件头记下 nvim 版本。
+  - 生成器的选项：`--clean --cmd 'set noloadplugins'` 加 `expandtab tabstop=2 shiftwidth=2 nowrap ignorecase smartcase commentstring=--\ %s formatoptions-=j`，窗口固定 24×80，Go 那边用同一个高度；golden 文件头记下 nvim 版本。
   - 正则：RE2 和 vim 的语法不同，搜索和 `:s` 的差分用例只用两边含义相同的写法（字面量、`.`、`^`、`$`、`\d`、`[…]`、`*`），其余另写单测。POSIX 字符类（`[[:upper:]]` 等）不算通用写法：ignorecase 下 RE2 的 `(?i)` 会让它也忽略大小写，nvim 不会，不进差分用例。
-  - 基准是不加载插件的 nvim 本体（M3 审查时定）：`--noplugin` 关掉 matchit 这类自带插件，否则 `%` 在 operator-pending 下是 matchit 的行为；nvim 本体的默认映射照做（如 INSERT 下 `C-w` / `C-u` 先断开撤销步）；`formatoptions` 去掉 `j`，因为 `J` 去掉注释前导符只对 nvim 默认 comments 里的 `#`、`//` 等生效，`--` 本来就不在里面，对 SQL 收益小，写进已知上限。
+  - 基准是不加载插件的 nvim 本体（M3 审查时定）：`--cmd 'set noloadplugins'` 关掉 matchit 这类自带插件（nvim 0.12.4 上 `--clean` 会把 `loadplugins` 设回 1，`--noplugin` 不起作用，worker 实测），否则 `%` 在 operator-pending 下是 matchit 的行为；nvim 本体的默认映射照做（如 INSERT 下 `C-w` / `C-u` 先断开撤销步）；`formatoptions` 去掉 `j`，因为 `J` 去掉注释前导符只对 nvim 默认 comments 里的 `#`、`//` 等生效，`--` 本来就不在里面，对 SQL 收益小，写进已知上限。
   - `go test` 把自研编辑器的结果和 golden 文件逐条比对。CI 上不需要安装 nvim；只有新增用例或升级 nvim 版本时，才需要重新生成。
   - 已验证可行：在 nvim 0.12.4 上跑了 `ciw`、`daw`、`di(`、`gUiw`、`D`、`J`、`caw`、`dd`、`C`、`gcc`，以及块选择的 `I`、`$A`、`d`、`c`、`y` + `p` 等用例，都能拿到结果文本、光标位置和寄存器类型。
   - 生成期望结果时，用 `silent!` 执行按键，避免 nvim 的提示消息混进输出。
