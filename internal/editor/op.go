@@ -21,7 +21,7 @@ func (s span) lines() int { return s.end.Line - s.start.Line + 1 }
 // empty is a charwise span with nothing in it.
 func (s span) empty() bool { return !s.linewise && !s.inclusive && s.start == s.end }
 
-var operators = map[string]bool{"d": true, "c": true, "y": true, ">": true, "<": true, "gu": true, "gU": true, "g~": true, "gc": true}
+var operators = map[string]bool{"d": true, "c": true, "y": true, ">": true, "<": true, "gu": true, "gU": true, "g~": true, "gc": true, "gq": true}
 
 // shorthands are the commands that are an operator and a motion.
 var shorthands = map[string][2]string{
@@ -91,6 +91,10 @@ func (e *Editor) operate(c cmd) {
 			s.end.Col, s.inclusive = last(l), true
 		}
 	}
+	if c.op == "gq" && c.name == "_" { // gqq, gqgq: the statement, not the line
+		e.eff.Format = &FormatSpan{From: e.cur, To: e.cur, Current: true}
+		return
+	}
 	e.apply(c.op, s, 1, oldWant)
 }
 
@@ -113,6 +117,12 @@ func (e *Editor) apply(op string, s span, amount, want int) {
 		e.setCase(s, op)
 	case "gc":
 		e.comment(s.start.Line, s.end.Line)
+	case "gq":
+		f := &FormatSpan{From: s.start, To: Pos{s.end.Line, e.endCol(s)}, Selected: s.visual}
+		if s.linewise {
+			f.From.Col, f.To.Col = 0, len(e.lines[s.end.Line])
+		}
+		e.eff.Format = f
 	case "J":
 		if n := max(s.lines(), 2); s.start.Line+n-1 < len(e.lines) {
 			e.join(n)

@@ -117,7 +117,6 @@ func init() {
 		"console.new": {Title: "新建 console", Run: func(a *App, _ Args) tea.Cmd { return a.newConsole() }},
 		// "console.run <line>" is a click on a ▶ (§11「执行」).
 		"console.run":    {Title: "执行", Run: func(a *App, args Args) tea.Cmd { return a.consoleRun(args.Arg) }},
-		"console.format": {Title: "格式化", Run: func(a *App, _ Args) tea.Cmd { return a.consoleFormat() }},
 		"console.schema": {Title: "切换 schema", Run: do(func(a *App, _ Args) { a.openSchemaDrop() })},
 		// The result area's (§11).
 		"result.rerun":  {Title: "重跑", Run: func(a *App, _ Args) tea.Cmd { return a.rerun() }},

@@ -87,7 +87,6 @@ leader = "<Space>"
 
 [keys.console] # NORMAL / VISUAL; everything else goes to the vim engine
 "<CR>" = "console.run"
-"gq" = "console.format"
 "gs" = "console.schema"
 
 [keys.palette] # quick SQL lives in the palette's SQL mode

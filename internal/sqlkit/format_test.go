@@ -37,8 +37,8 @@ func TestGoldenFormat(t *testing.T) {
 		}
 		b.WriteString("-- " + map[Dialect]string{PG: "pg", MySQL: "mysql"}[c.d] + ": " + c.sql + "\n" + out + "\n\n")
 	}
-	up, _ := Format("select a from t", PG, Options{KeywordCase: "upper", TabWidth: 4})
-	b.WriteString("-- upper, tab_width 4\n" + up + "\n")
+	up, _ := Format("select a, now() from t; create table t (a int)", PG, Options{KeywordCase: "upper", TabWidth: 4})
+	b.WriteString("-- upper, types too, not functions; tab_width 4\n" + up + "\n")
 	golden.RequireEqual(t, b.String())
 }
 
@@ -48,26 +48,43 @@ func TestFormatError(t *testing.T) {
 	}
 }
 
-// The first format, the VM made then, takes less than 300ms (F3.9): once
-// in five tries, so a busy machine (go test ./... runs packages at once,
-// e2e runs beside it) does not fail it; an idle one passes the first.
-func TestFormatFirstFast(t *testing.T) {
-	if raceOn {
-		t.Skip("-race")
+// The VM is made once, by the first format, and kept (F3.9).
+func TestFormatVMOnce(t *testing.T) {
+	o := Options{KeywordCase: "lower", TabWidth: 2}
+	Format("select 1", PG, o)
+	vm := formatter.vm
+	if _, err := Format("select 2", PG, o); err != nil || vm == nil || formatter.vm != vm {
+		t.Errorf("a second VM, or none: %v", err)
 	}
-	best := time.Hour
-	for i := 0; i < 5 && best > 300*time.Millisecond; i++ {
-		start := time.Now()
+}
+
+// The first format, the VM made then, takes less than 300ms (F3.9): a
+// benchmark, as go test ./... on a busy machine takes longer.
+func BenchmarkFirstFormat(b *testing.B) {
+	for b.Loop() {
 		vm, format, err := load()
 		if err != nil {
-			t.Fatal(err)
+			b.Fatal(err)
 		}
 		if _, err := format(nil, vm.ToValue("select a, b from t where c = 1")); err != nil {
-			t.Fatal(err)
+			b.Fatal(err)
 		}
-		best = min(best, time.Since(start))
 	}
-	if best > 300*time.Millisecond {
-		t.Errorf("first format took %v", best)
+	if per := b.Elapsed() / time.Duration(b.N); per > 300*time.Millisecond {
+		b.Errorf("first format took %v", per)
+	}
+}
+
+// A format past FormatTimeout is interrupted, the VM usable after (§9.5).
+func TestFormatTimeout(t *testing.T) {
+	Format("select 1", PG, Options{KeywordCase: "preserve", TabWidth: 2}) // the VM made, not timed
+	defer func(d time.Duration) { FormatTimeout = d }(FormatTimeout)
+	FormatTimeout = time.Millisecond
+	if _, err := Format("insert into t (a) values "+strings.Repeat("(1), ", 300)+"(1)", PG, Options{KeywordCase: "preserve", TabWidth: 2}); err != ErrTimeout {
+		t.Fatalf("err %v", err)
+	}
+	FormatTimeout = 5 * time.Second
+	if out, err := Format("select a from t", PG, Options{KeywordCase: "preserve", TabWidth: 2}); err != nil || out != "select\n  a\nfrom\n  t" {
+		t.Errorf("after: %q %v", out, err)
 	}
 }

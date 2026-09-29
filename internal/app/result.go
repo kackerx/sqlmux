@@ -99,22 +99,16 @@ func (a *App) consoleRun(arg string) tea.Cmd {
 	return a.runSQL(t, p.Object(), text[from:to], from, t.ver)
 }
 
-// consoleSpan is what ↵ and gq take of console t (§9.5, §11): the
-// statement under the cursor, the one a ▶ on line arg starts, or what
-// VISUAL selects, a block by its whole lines as V-LINE; VISUAL then ends,
-// the cursor where it is. from and to are offsets into text, the lines
-// joined; from is -1 for nothing.
+// consoleSpan is what ↵ takes of console t (§11): the statement under the
+// cursor, the one a ▶ on line arg starts, or what VISUAL selects, a block
+// by its whole lines as V-LINE; VISUAL then ends, the cursor where it is.
+// from and to are offsets into text, the lines joined; from is -1 for
+// nothing.
 func consoleSpan(t *consoleTab, arg string) (text string, from, to int) {
 	ed := t.ed
 	lines := ed.Lines()
 	text = strings.Join(lines, "\n")
-	at := func(pos editor.Pos) int { // pos's offset in text
-		off := pos.Col
-		for _, l := range lines[:pos.Line] {
-			off += len(l) + 1
-		}
-		return off
-	}
+	at := func(pos editor.Pos) int { return offsetOf(lines, pos) }
 	stmts := sqlkit.Statements(text, sqlkit.PG)
 	from, to = -1, -1
 	switch s, e, visual := ed.Selection(); {
