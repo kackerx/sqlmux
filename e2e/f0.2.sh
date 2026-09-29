@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # F0.2 Frame、Block、主题与静态布局（specs/m0-skeleton/task.md F0.2；tech-design §7.2 §7.3 §7.8）
 # icons = "ascii" 要到 F0.3 才接入配置文件，这里只检查 golden；黑盒部分见 f0.3.sh。
-# F1.1 起默认只有侧栏和一个 data pane：console 的标题、退让与 data:console 比例的用例到 M3 补回。
+# 前面的用例用 SOLO（① 独占右侧）；最后一节是 M3 F3.6 的默认布局 ⓪ | ① | ② console_1（schema 下拉框到 F3.11）。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 FOCUS=#9ece6a BORDER=#3b4261 DIM=#565f89 BG=#1f2335 PANE_BG=#24283b SEP=#2f3549
-NF_DATA=$(printf '\xef\x87\x80') NF_FILTER=$(printf '\xef\x82\xb0') NF_TABLE=$(printf '\xef\x83\x8e')  # U+F1C0 U+F0B0 U+F0CE（bash 3.2 没有 \u）
+NF_FILTER=$(printf '\xef\x82\xb0') NF_TABLE=$(printf '\xef\x83\x8e') NF_CONSOLE=$(printf '\xef\x92\x89')  # U+F0B0 U+F0CE U+F489（bash 3.2 没有 \u）
 
 cols_are() { local got; got=$(e2e_find "$1" "$2"); [[ $got == "$3" ]] || { echo "  row $2 '$1' at [$got], want [$3]"; false; }; }
 widths_are() { local got; got=$(e2e_widths | sed '/^0$/d' | sort -u | tr '\n' ' '); [[ $got == "$1 " ]] || { echo "  row widths: $got"; false; }; }
 # 最后一行是状态栏（F0.5 起有内容）：没有 pane 的边框，底色 #292e42
 status_row() { ! e2e_text 1 "$1" "$2" | python3 -c 'import sys; sys.exit(0 if set(sys.stdin.read()) & set("│┌┐└┘─") else 1)' && style_has $(($1 / 2)) "$2" bg=#292e42; }
-at() { local c; c=$(e2e_find "$1" "$2"); style_has "$((${c%% *} + ${4:-0}))" "$2" "$3"; }  # TEXT Y STYLE [DX]
+at() { local c; c=$(e2e_find "$1" "$2"); [[ -n $c ]] || { echo "  '$1' not on row $2"; return 1; }; style_has "$((${c%% *} + ${4:-0}))" "$2" "$3"; }  # TEXT Y STYLE [DX]
 
 # ---- 160x45 nerd：布局（§7.8；F1.1 起只有侧栏和一个 data pane）
 start
@@ -34,9 +35,9 @@ check "标题从左上角右 1 列起、前留 1 空格（F0.16：nerd 下编号
 check "侧栏提示 SPC b，离右上角 1 列" text_ends 1 32 1 " SPC b ─┐"
 
 # ---- tab 栏（§7.8）
-check "tab 栏在内容区最后一行（第 43 行）" eval 'text_has 34 160 43 "1:t_user- │ 2:t_order*"'
-check "当前 tab：pane_bg 底、focus 字" eval 'at "2:t_order*" 43 bg=$PANE_BG && at "2:t_order*" 43 fg=$FOCUS'
-check "其他 tab：dim 字、bg 底；分隔符 #2f3549" eval 'at "1:t_user-" 43 fg=$DIM && at "1:t_user-" 43 bg=$BG && at "│ 2:t_order" 43 fg=$SEP'
+check "tab 栏在内容区最后一行（第 43 行），F3.7 起编号后面是类型图标" eval '[[ $(e2e_text 34 160 43 | noicon) == *"│ 1:t_user- │ 2:t_order* │"* ]]'
+check "当前 tab：pane_bg 底、focus 字" eval 'at "2:" 43 bg=$PANE_BG && at "2:" 43 fg=$FOCUS'
+check "其他 tab：dim 字、bg 底；分隔符 #2f3549" eval 'at "1:" 43 fg=$DIM && at "1:" 43 bg=$BG && at "│ 2:" 43 fg=$SEP'
 check "tab 后有 +，右端 dim 键位提示" eval 'text_has 34 160 43 "│ +" && text_ends 34 160 43 "gt/gT │" && at "gt/gT │" 43 fg=$DIM'
 
 # ---- 侧栏内部（§7.8）
@@ -67,5 +68,51 @@ done
 start
 for s in "60 15" "5 5" "160 45"; do e2e_resize $s; sleep 0.3; done
 check "resize 60x15 → 5x5 → 160x45 后画面完整" eval 'running && widths_are 160 && cols_are ┐ 1 "32 160"'
+
+# ---- M3 默认布局 ⓪ | ① | ② console_1（§5、§7.8；F3.6 补回 F1.1 删掉的 console 用例）
+SOLO= start
+check "上边框角：侧栏 [1,32]、① [34,103]、② [105,160]；①:② = 70:56 = 5:4" eval 'cols_are ┌ 1 "1 34 105" && cols_are ┐ 1 "32 103 160"'
+check "② console 未聚焦：边框 border、标题 dim" eval 'style_has 105 1 fg=$BORDER && style_has 160 44 fg=$BORDER && at "②" 1 fg=$DIM && at "console_1" 1 fg=$DIM'
+check "160 宽 ② 标题：② <图标> console_1，右边 ▶ run ↵" eval '[[ $(e2e_text 105 160 1) =~ ^┌─\ ②\ $NF_CONSOLE\ console_1\ ─+\ \ ▶\ run\ \ ↵\ ─┐$ ]] || { echo "  $(e2e_text 105 160 1)"; false; }'
+check "▶ run：focus 底、bg 字、粗体；↵ dim" eval 'at "▶ run" 1 "fg=$BG" && at "▶ run" 1 "bg=$FOCUS" && at "▶ run" 1 bold && at "▶ run" 1 bold 3 && at "↵ ─┐" 1 fg=$DIM'
+# 标题栏退让（§7.8 pane 标题）：先截对象名（截完就不显示），再按 ▶ run > ↵ 从低往高丢，最后只留 ⟨n⟩
+console_title() { local c; c=$(e2e_find ┌ 1); c=${c##* }; e2e_text "$c" "$(e2e_flag pane_width)" 1; }
+title_ends() { local got; got=$(console_title); [[ $got == *"$1" ]] || { echo "  console title '$got', want suffix '$1'"; false; }; }
+# §7.8 第 2 步：提示放不下才跳过——被跳过的提示，宽度一定大于「对象名 + 填充的 ─」所占的列数；
+# 键位文字 ↵ 依附于 ▶ run，只在 run 显示时才要求（也才允许）出现。提示宽度含前导空格："  ▶ run " 8，" ↵" 2。
+no_wasted_room() {
+  T=$(console_title) python3 - <<'PY'
+import os, re, sys
+t = os.environ["T"]
+m = re.match(r"^┌─ ② \S((?: \S+)?) (─*)(.*)─┐$", t)   # ② <icon> [object]
+if not m:
+    sys.exit(0 if re.match(r"^┌─ ② ─*┐$", t) else f"  unparsed console title: {t!r}")
+free = len(m[1]) + len(m[2])
+run = "▶ run" in m[3]
+if "↵" in m[3] and not run:
+    sys.exit(f"  {t!r}: ↵ shown without ▶ run")
+want = {"▶ run": 8, **({"↵": 2} if run else {})}
+extra = 0 if m[3].strip() else 1   # with no hint at all the title ends "─┐"; the first hint also brings the space in " ─┐"
+skipped = [h for h, w in want.items() if h not in m[3] and free >= w + extra]
+if skipped:
+    sys.exit(f"  {t!r}: skipped {skipped} with {free} free columns")
+PY
+}
+SOLO= start -x 200
+check "200 宽：对象名完整，①:② 仍约为 5:4" eval 't=$(console_title); [[ $t == "┌─ ② $NF_CONSOLE console_1 ─"*"─  ▶ run  ↵ ─┐" ]] && set -- $(e2e_find ┌ 1) $(e2e_find ┐ 1) && dw=$(($5 - $2 + 1)) cw=$(($6 - $3 + 1)) && ((dw * 4 - cw * 5 <= 9 && cw * 5 - dw * 4 <= 9)) || { echo "  $t"; false; }'
+SOLO= start -x 100; check "100 宽：对象名截短，▶ run ↵ 在" title_ends "② $NF_CONSOLE console…   ▶ run  ↵ ─┐"
+SOLO= start -x 70;  check "70 宽：对象名放不下就不显示，▶ run ↵ 仍在" title_ends "② $NF_CONSOLE   ▶ run  ↵ ─┐"
+SOLO= start -x 60;  check "60 宽：提示都放不下，只剩 ② <图标> 和截短的对象名" title_ends "─ ② $NF_CONSOLE cons… ─┐"
+ok=1; for w in 65 70 75 80 85; do
+  SOLO= start -x $w -y 12; t=$(console_title); [[ $t == *"↵"* && $t != *"▶ run"* ]] && { echo "  $w: '$t'"; ok=0; }
+done
+check "65–85 宽：没有脱离 ▶ run 单独出现的 ↵" test $ok = 1
+ok=1; for w in 220 200 180 170 165 160 150 140 135 130 125 120 115 110 105 100 95 90 85 80 75 70 65 60; do
+  SOLO= start -x $w -y 12; no_wasted_room || ok=0
+done
+check "220…60 宽：没有「放得下却没显示」的按钮" test $ok = 1
+SOLO= start -x 80 -y 24
+check "80 宽：侧栏 24、① 30、② 24" eval 'cols_are ┌ 1 "1 26 57" && cols_are ┐ 1 "24 55 80" && cols_are ┘ 23 "24 55 80"'
+check "80 宽 ② 标题：② <图标> co… 加 ▶ run ↵" text_ends 57 80 1 "② $NF_CONSOLE co…   ▶ run  ↵ ─┐"
 
 e2e_done

@@ -3,6 +3,7 @@
 # 行内输入框的位置、宽度由 golden 覆盖；这里测真实终端里的进入 / 提交方式、粘贴（bracketed paste）、
 # 修改样式里的点状下划线（SGR 4:4 由 tmux 原样转发）和保存按钮上的计数。在自建库里做，F2.1 不写库。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")

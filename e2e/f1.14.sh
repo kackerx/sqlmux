@@ -2,6 +2,7 @@
 # F1.14 补全：默认选中、循环切换、智能回车（specs/m1-browse/task.md F1.14；tech-design §9.7「交互」）
 # 在真实终端里按键，看选中了哪一项、↵ 是接受还是执行。选中项只能从底色读出（select 底）。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 . "$(dirname "$0")/palette.sh"
 SELECT=#364a82

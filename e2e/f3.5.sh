@@ -3,6 +3,7 @@
 # 词法、分句、读写判定、自动 LIMIT 由 sqlkit 的单测覆盖；这里只测接进 WHERE 之后：不发查询、pane 第一行报错、不进历史。
 # 自建库。有没有发出查询：看 pg_stat_activity 里本次运行的连接最近一条语句（PG 解析失败的也会记在这里）。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); ST=$D/state; SJ=$ST/sqlmux/state.json

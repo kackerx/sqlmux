@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # F0.5 状态栏（specs/m0-skeleton/task.md F0.5；tech-design §7.8「状态栏」「命令行」）
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")

@@ -3,6 +3,7 @@
 # catalog 的主键、唯一索引、枚举、可空、默认值由 go test -tags integration 覆盖；这里测树和面板。
 # F1.12 起树是层级树，schema 下拉框去掉了；展开、列节点、跨 schema 过滤、工作区在 f1.12.sh。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
@@ -27,7 +28,7 @@ cursor_on() {   # NAME — 光标行（select 底或 row 底）是 NAME，且只
 lit() { local y c; y=$(item_y "$1"); c=$(e2e_find "$NF_TABLE" "$y"); style_has "${c%% *}" $y fg=$FOCUS && style_has $(e2e_find "$1" "$y" | cut -d' ' -f1) $y fg=$FOCUS; }   # NAME 是「当前打开的表」
 none_lit() { local y; for ((y = 4; y <= $(last_y); y++)); do [[ $(e2e_style 14 $y) != *fg=$FOCUS* ]] || { echo "  row $y lit: $(e2e_text 2 31 $y)"; return 1; }; done; }
 data_title() { e2e_text 34 160 1; }
-data_tabs() { e2e_text 34 159 43 | sed 's/  .*//'; }   # 到第一处连续空格为止（右边是键位提示）
+data_tabs() { e2e_text 34 159 43 | noicon | sed 's/  .*//'; }   # 到第一处连续空格为止（右边是键位提示）
 mclick() { _sgr 1 "$1" "$2" M; _sgr 1 "$1" "$2" m; }   # 中键
 psql_n() { psql "$SQLMUX_TEST_PG" -At -c "$1"; }
 # want KINDS SCHEMA：期望的一组节点，按 §7.8 的规则由 reltuples 算出行数量级；分区子表不列；按名字排；普通视图（v）没有行数

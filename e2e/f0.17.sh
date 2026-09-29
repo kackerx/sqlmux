@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # F0.17 Command palette layout (specs/m0-skeleton/task.md F0.17; tech-design §12 layout / column alignment)
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
@@ -39,6 +40,6 @@ e2e_keys Escape; sleep 0.2
 # ---- ascii: ~ in the input row, the icon column is 2 wide for []
 printf 'icons = "ascii"\n' > "$D/config.toml"; start -C "$D"; pal
 check "ascii: the input row starts with ~" eval '[[ $(e2e_text $(($(left) + 2)) $(($(left) + 2)) $(input_y)) == "~" ]]'
-check "ascii: window rows show [] and names still line up" eval '[[ $(e2e_text $(($(left) + 2)) $(($(left) + 3)) $(row_y 1)) == "[]" ]] && c=$(e2e_rows $(($(left) + 2)) $(( $(right) - 1 )) $(row_y 1) $(row_y 6) $(($(left) + 2)) | python3 -c "import re,sys; print(len({re.search(r\"\\S+ +(\\S)\", r).start(1) for r in sys.stdin}))"); [[ $c == 1 ]] || { echo "  name columns differ: $c"; false; }'
+check "ascii: window rows show [] and names still line up (an empty pane's row has no icon, F3.7)" eval '[[ $(e2e_text $(($(left) + 2)) $(($(left) + 3)) $(row_y 1)) == "[]" ]] && c=$(e2e_rows $(($(left) + 2)) $(( $(right) - 1 )) $(row_y 1) $(row_y 6) $(($(left) + 2)) | python3 -c "import re,sys; print(len({re.search(r\"\\S\", r[3:]).start() for r in sys.stdin}))"); [[ $c == 1 ]] || { echo "  name columns differ: $c"; false; }'
 
 e2e_done
