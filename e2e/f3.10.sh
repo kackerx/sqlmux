@@ -63,4 +63,13 @@ for i in $(seq 15); do e2e_keys Left; done; sleep 0.2; e2e_type o.; sleep 1
 check "快速 SQL 里 select o. from t_order o：o. 之后列出 t_order 的列" eval 'has status && has amount && items | grep -q "^amount .*· t_order$"'
 key Escape; key Escape
 
+# ---- F3.12 词首匹配：输入的第一个字符落在候选的词首（开头、_ . - $ 之后、小写到大写处），其余照 fzf
+key C-p; sleep 0.3; e2e_type ";select * from evt"; sleep 1
+check "快速 SQL 输入 select * from evt：候选里有 t_event（e 在 _ 之后）" has t_event
+key Escape; key Escape
+start; key C-l; key i; e2e_type "select * from tord"; sleep 0.8
+check "console 里 tord：t_order 排第一" eval '[[ $(names) == "t_order "* ]] || { echo "  $(names)"; false; }'
+key Escape; key Escape; key d; key d; key i; e2e_type "select * from t_order where ma"; sleep 0.8
+check "t_order 上输入 ma：词首是 m 的 meta、max 在，m 在词中间的 amount 不在" eval 'has meta && has max && ! has amount'
+
 e2e_done

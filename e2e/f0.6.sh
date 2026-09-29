@@ -14,21 +14,26 @@ top_row() { e2e_plain | python3 -c 'import sys; print(next((i + 1 for i, l in en
 shown()  { [[ -n $(top_row "$1 ") ]]; }
 hidden() { ! shown "$1" || { echo "  which-key '$1' is showing"; false; }; }
 pending_is() { local c; c=$(pending_col); text_is $c $((c - 1 + $(strwidth "$1"))) "$(H)" "$1"; }
-# 浮层里的键，按列读（先竖后横）：每一格是「键 → 标题」
+# 浮层里的键：F3.17 起按来源的配置表分组（组标题如 [keys.normal] 占一行），组内按列读（先竖后横），组按从上到下的顺序
 items() {
   local t b; t=$(top_row "$1 "); b=$(($(H) - 2))
   e2e_plain | sed -n "$((t + 1)),${b}p" | python3 -c '
 import re, sys
-rows = [re.findall(r"(?:^|\s)(\S) → ", l[1:]) for l in sys.stdin]   # 每行从左到右的键
-cells = [[r[k] for r in rows if len(r) > k] for k in range(max(map(len, rows), default=0))]
-print(" ".join(k for col in cells for k in col))'
+groups = [[]]
+for l in sys.stdin:
+    if l[1:].lstrip().startswith("["): groups.append([]); continue
+    groups[-1].append(re.findall(r"(?:^|\s)(\S) → ", l[1:]))    # 每行从左到右的键
+keys = []
+for rows in groups:
+    keys += [r[k] for k in range(max(map(len, rows), default=0)) for r in rows if len(r) > k]
+print(" ".join(keys))'
 }
 titles_cjk() { e2e_plain | sed -n "$(($(top_row "$1 ") + 1)),$(($(H) - 2))p" | python3 -c '
 import re, sys
 ts = [t.strip() for l in sys.stdin for t in re.findall(r"→ (.+?)(?=\s{2,}\S →|\s*│$)", l)]
 sys.exit(0 if ts and all(re.search(r"[一-鿿]|ORDER|LIMIT|PAGE|COLS", t) for t in ts) else 1)'; }
 
-SPC_KEYS='s c n p l % " z x q b'   # §6.8 里以 SPC 开头的默认键（F0.11 精简后），按 default.toml 的顺序
+SPC_KEYS='s c n p l % " z x q b ?'   # §6.8 里以 SPC 开头的默认键（F0.11 精简后，F3.17 加了 ?），按 default.toml 的顺序
 
 # ---- 出现：停在纯前缀节点 400ms 后
 start
