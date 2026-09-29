@@ -48,20 +48,26 @@ func TestFormatError(t *testing.T) {
 	}
 }
 
-// The first format, the VM made then, takes less than 300ms (F3.9).
+// The first format, the VM made then, takes less than 300ms (F3.9): the
+// best of three, so a busy machine (go test ./... runs packages at once)
+// does not fail it.
 func TestFormatFirstFast(t *testing.T) {
 	if raceOn {
 		t.Skip("-race")
 	}
-	start := time.Now()
-	vm, format, err := load()
-	if err != nil {
-		t.Fatal(err)
+	best := time.Hour
+	for range 3 {
+		start := time.Now()
+		vm, format, err := load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := format(nil, vm.ToValue("select a, b from t where c = 1")); err != nil {
+			t.Fatal(err)
+		}
+		best = min(best, time.Since(start))
 	}
-	if _, err := format(nil, vm.ToValue("select a, b from t where c = 1")); err != nil {
-		t.Fatal(err)
-	}
-	if took := time.Since(start); took > 300*time.Millisecond {
-		t.Errorf("first format took %v", took)
+	if best > 300*time.Millisecond {
+		t.Errorf("first format took %v", best)
 	}
 }
