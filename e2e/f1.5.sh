@@ -2,6 +2,7 @@
 # F1.5 WHERE 补全与历史 / 收藏（specs/m1-browse/task.md F1.5；tech-design §9.7「WHERE 补全的细节」「C-r 历史 / 收藏下拉」、§14 state.json、§7.8）
 # 只读，用共用库的 t_order；state.json 放在脚本自己的临时目录（-S），重启时沿用。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); ST=$D/state

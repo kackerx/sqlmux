@@ -2,6 +2,7 @@
 # F1.4 查询条（specs/m1-browse/task.md F1.4；tech-design §7.8「查询条」「COMMAND 模式」、§9.6、§8.5、§8.3、§7.6）
 # 全部在自建库里做：发出的 SQL 靠锁住 t_order、在 pg_stat_activity 里看等锁的那条语句；golden 由 go test 覆盖。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
@@ -200,7 +201,7 @@ key R
 check "R 取数中：busy，表格仍是原来的数据" eval '[[ $(bar) == *busy* && $(nums id 1) == 1 ]]'
 key C-c
 check "取消后数据还在" eval 'toast_is "查询已取消" && [[ $(nums id 1) == 1 && $(bar) != *busy* ]]'
-check "取消的 R 不会让计数一直停在 …" eval 'sleep 1; [[ $(cnt) != … ]] || { echo "  $(qb)"; false; }'
+check "取消的 R 不会让计数一直停在 …" eval 'sleep 1; [[ -n $(cnt) && $(cnt) != … ]] || { echo "  $(qb)"; false; }'
 key ']'
 check "] 取数中：表格仍是第 1 页的数据，行号和 PAGE 也还是第 1 页（行号 1 对应 id 1）" eval '[[ $(bar) == *busy* && $(rowno $(row_y 1)) == 1 && $(nums id 1) == 1 ]] && qb_has "PAGE 1/" || { echo "  $(qb) | $(pos) | 行号 $(rowno $(row_y 1)) id $(nums id 1)"; false; }'
 key C-c

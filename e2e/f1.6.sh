@@ -3,6 +3,7 @@
 # 布局交给 golden（TestGoldenTabs160x45、TestGoldenTabPick160x45、80x24）；这里测按键、点击和真实 PG 上的打开 / 切换。
 # 在自建库里做：「切过去，不重新取数」要锁住表，看有没有等锁的取数语句。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
@@ -14,14 +15,6 @@ mkdir -p "$D/own"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres
 header() { e2e_text 35 159 "$(hy)"; }
 where() { key /; clear_in; e2e_type "$1"; sleep 0.2; key Enter; wait_for 8 settled; sleep 0.2; }
 transposed() { [[ $(header) =~ │\ 1\ +│\ 2\  ]]; }                      # 转置后表头是记录序号
-geom() { e2e_panes | awk -v n="$1" '$1 == n { print $2, $3, $4, $5 }'; }  # pane N 的 X Y W H
-tab_y() { local g; g=($(geom "$1")); echo $((g[1] + g[3] - 2)); }        # pane N 的 tab 栏（内容区最后一行）
-tabbar() { local g; g=($(geom "$1")); e2e_text $((g[0] + 1)) $((g[0] + g[2] - 2)) $((g[1] + g[3] - 2)) | sed 's/ │ +.*//; s/^ //'; }
-tabs_are() { [[ $(tabbar "$1") == "$2" ]] || { echo "  ⟨$1⟩ tabs: '$(tabbar "$1")', want '$2'"; false; }; }
-tab_x() { local g; g=($(geom "$1")); e2e_find "$2" $((g[1] + g[3] - 2)) | tr ' ' '\n' | awk -v l=${g[0]} -v r=$((g[0] + g[2])) '$1 > l && $1 < r { print; exit }'; }
-click_tab() { e2e_click "$(tab_x "$1" "$2")" "$(tab_y "$1")"; sleep 0.4; }   # N TEXT：点 pane N 的 tab 栏上的 TEXT（tab 名或 +）
-focus_is() { [[ $(focused) == "$1" ]] || { echo "  focused: '$(focused)', want $1"; false; }; }
-tree_in() { e2e_text 2 30 2 | sed 's/^ *//; s/ *$//'; }                   # 树的过滤行
 pal_open() { e2e_keys C-p; sleep 0.3; e2e_type "@$1"; sleep 0.3; key "$2"; wait_for 8 settled; sleep 0.2; }   # NAME KEY：从面板用 ↵ / C-t 打开表
 
 start -C "$D/own"; open_table t_order; wait_for 8 settled
@@ -100,23 +93,11 @@ check "点击 ① 的 tab 2：切过去，并聚焦 ①" eval 'focus_is 1 && [[ 
 pal_open t_sku Enter
 check "焦点在 ① 时 ↵ t_sku：切到 ② 的 tab，焦点跟过去，① 不变" eval 'focus_is 2 && tabs_are 2 "1:t_sku*" && [[ $(tabbar 1) == *"2:t_user*"* ]]'
 
-# ---- 点击 +：先聚焦 + 所在的 pane，再进树的过滤框；接下来打开的表进这个 pane 的新 tab
+# ---- 点击 +（F3.7 起）：在那个 pane 新开一个引导 tab 并切过去，「打开表」选的表开在这个 tab 里；引导页的其余用例在 f3.7
 click_tab 1 +
-check "点击 ① 的 +：焦点到树、进入过滤框（INSERT）" eval 'focus_is 0 && mode_is INSERT'
-e2e_type t_log; sleep 0.3; key Enter; key Enter; wait_for 8 settled
-check "过滤出 t_log、↵ 打开：进 ① 的新 tab，焦点到 ①" eval 'tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_order │ 4:t_log*" && focus_is 1 && tabs_are 2 "1:t_sku*"'
-key C-h; key /
-check "树里自己按 /：仍保留上次的过滤 t_log" eval 'mode_is INSERT && [[ $(tree_in) == *"t_log "*"1/11" ]] || { echo "  filter row: $(tree_in)"; false; }'
-key Enter
-click_tab 2 +
-check "再点 ② 的 +：先清空上次留下的过滤（t_log），过滤框是空的（§7.8）" eval 'focus_is 0 && mode_is INSERT && [[ $(tree_in) != *t_log* ]] || { echo "  filter row: $(tree_in)"; false; }'
-e2e_type zz; sleep 0.3; key Escape
-check "点击 ② 的 +、在过滤框按 esc：只清空过滤，焦点还在树上" eval 'focus_is 0 && mode_is NORMAL && [[ $(tree_in) != *zz* ]]'
-pal_open t_event Enter
-check "esc 之后从面板 ↵ 打开 t_event：仍进 ② 的新 tab" eval 'tabs_are 2 "1:t_sku- │ 2:t_event*" && focus_is 2'
-click_tab 2 +; key Escape; key C-l; key C-h                               # 焦点离开树：标记作废
-pal_open t_order_item Enter
-check "焦点离开过树之后再打开：不进 ② 的新 tab（按 §12 打开到焦点所在的 ① 的当前 tab）" eval 'tabs_are 2 "1:t_sku- │ 2:t_event*" && tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_order │ 4:t_order_item*"'
+check "点击 ① 的 +：① 新开引导 tab 并切过去，焦点到 ①" eval 'focus_is 1 && tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_order │ 4:新 tab*"'
+key t; e2e_type t_log; sleep 0.3; key Enter; wait_for 8 settled
+check "引导页按 t、选 t_log：开在这个 tab 里，② 不变" eval 'tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_order │ 4:t_log*" && focus_is 1 && tabs_are 2 "1:t_sku*"'
 
 # 窄侧栏里放不下的名字以 … 结尾（§7.8）：F1.12 起由 80x24 的 golden 覆盖（schema_migrati…）
 

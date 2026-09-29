@@ -3,6 +3,7 @@
 # 解析、循环、按天数夹取由单测覆盖（timepick_test）；这里在真实终端里按键、点 ▴、滚滚轮，看输入框的文字怎么变，
 # 以及「◷ 现在」写进库里的值。在自建库里做。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
@@ -29,7 +30,7 @@ check "timestamptz 列进入编辑：出现分段（年 月 日 时 分 秒，�
 key Tab
 check "Tab：当前段到月" eval '[[ $(cur_seg) == 09 ]]'
 key Up
-check "在月份上 ↑：月 09 → 10，文字同步（时区后缀 +00 不变）" eval '[[ $(segs) == "2026 - 10 - 01 00 : 01 : 00" && $(input) == "2026-10-01 00:01:00+00" ]] || echo "  $(input)"'
+check "在月份上 ↑：月 09 → 10，文字同步（时区后缀 +00 不变）" eval '[[ $(segs) == "2026 - 10 - 01 00 : 01 : 00" && $(input) == "2026-10-01 00:01:00+00" ]] || { echo "  $(segs) / $(input)"; false; }'
 key Up; key Up; key Up
 check "12 月再 ↑：绕回 01，年不进位" eval '[[ $(input) == "2026-01-01 00:01:00+00" ]] || { echo "  $(input)"; false; }'
 key BTab
@@ -73,8 +74,10 @@ key Escape
 start -y 11 -C "$D/own"; open_table t_order; wait_for 8 settled                 # 上下都放不下 6 行高的浮层
 cx=$(col_x created_at); goto created_at 1; key Enter
 check "11 行高、编辑第 1 行的 created_at：上下都放不下，时间浮层不画" eval 'mode_is INSERT && [[ -z $(tbox) ]]'
+v0=$(e2e_text $cx $((cx + 24)) $(row_y 1) | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9:]{8}\+00')   # 前面的用例保存过这一格，原值不一定是 09 月
+want=$(python3 -c 'import sys; v = sys.argv[1]; print(v[:5] + "%02d" % (int(v[5:7]) % 12 + 1) + v[7:])' "$v0")
 key Tab; key Up
-check "键盘照样加减：Tab 到月、↑，文字变成 10 月" eval 'e2e_text $cx $((cx + 24)) $(row_y 1) | grep -q "2026-10-01 00:01:00+00" || e2e_text $cx $((cx + 24)) $(row_y 1)'
+check "键盘照样加减：Tab 到月、↑，月份加 1" eval '[[ -n $v0 ]] && e2e_text $cx $((cx + 24)) $(row_y 1) | grep -qF "$want" || { echo "  $v0 → $(e2e_text $cx $((cx + 24)) $(row_y 1)), want $want"; false; }'
 key Escape
 
 e2e_done

@@ -2,6 +2,7 @@
 # F2.3 选项浮层：NULL、DEFAULT、原值、布尔、枚举（specs/m2-edit/task.md F2.3；tech-design §10.2）
 # 浮层的样子由 golden 覆盖；这里在自建库里按键、点击，看出现哪些选项、应用之后格子和库里是什么。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")

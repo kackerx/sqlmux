@@ -2,6 +2,7 @@
 # F0.13 Command palette: frame and command scope (specs/m0-skeleton/task.md F0.13; tech-design §12, §9.7, §7.5)
 # match.go ranking / highlight / extended syntax are unit-tested (TestFilterRanks, TestFilterPositions, TestTextMatch).
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 W() { e2e_flag pane_width; }

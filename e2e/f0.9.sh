@@ -2,6 +2,7 @@
 # F0.9 表格网格样式（specs/m0-skeleton/task.md F0.9；tech-design §7.6「网格样式」「列宽」，颜色见 §7.3）
 # F1.3 起表格是真实数据：打开 seed 的 t_order（按 id 排序）。表头下面一行是横线，再往下是数据行；最后一行内容是 tab 栏。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
@@ -46,7 +47,7 @@ check "表头下画横线，与竖线交叉处为 ┼（行号列之后第一处
 check "竖线、┼、表头的列位置逐行一致" aligned
 check "每个单元格左右各留 1 列空白" padded
 check "竖线和横线为 sep 色" sep_color
-heads_func() { local n c; for n in id user_id status created_at; do c=$(e2e_find "$n" $HY | tr ' ' '\n' | awk '$1 > 34 { print; exit }'); style_has $c $HY fg=$FUNC || return 1; done; }   # ① only: the sidebar has names too
+heads_func() { local n c; for n in id user_id status created_at; do c=$(e2e_find "$n" $HY | tr ' ' '\n' | awk '$1 > 34 { print; exit }'); [[ -n $c ]] || { echo "  $n not in the header"; return 1; }; style_has $c $HY fg=$FUNC || return 1; done; }   # ① only: the sidebar has names too
 check "表头为 func 色：id / user_id / status / created_at" eval 'heads_func && text_is 40 47 $HY "│ $NF_KEY id │"'
 check "主键列 id 的表头带钥匙图标 U+F084" text_is 42 42 $HY "$NF_KEY"
 check "斑马纹：偶数行 row_alt、奇数行 pane_bg，当前行（第 1 行）row" zebra 60

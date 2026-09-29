@@ -2,6 +2,7 @@
 # F0.6 which-key（specs/m0-skeleton/task.md F0.6；tech-design §6.5、§6.8）
 # 点击浮层里的项属于 F0.8。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
@@ -64,8 +65,8 @@ check "浮层里 C-c：关闭浮层、清空待输入、不弹退出提示" eval
 e2e_keys C-c; sleep 0.3
 check "随后的 C-c 算第一次：不退出" eval 'running && screen_has "再按一次 C-c 退出"'
 
-# ---- grid 里的 g：先 grid 的键，再 normal 的键
-start
+# ---- grid 里的 g：先 grid 的键，再 normal 的键（F3.7 起空 pane 是引导页，没有 grid 的键，要先开表）
+start; open_table t_order
 e2e_type g; sleep 0.6
 check "grid 里按 g：浮层列出 g o l p c t T" eval '[[ $(items g) == "g o l p c t T" ]] || { echo "  got: $(items g)"; false; }'
 e2e_keys Escape; sleep 0.2

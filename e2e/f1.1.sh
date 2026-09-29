@@ -58,10 +58,9 @@ conns 600 "$(conn first "$SQLMUX_TEST_PG")" "$(conn second "$SQLMUX_TEST_PG")"
 ui "$E2E_BIN"; check "不指定连接名：用第一个（first）" eval '[[ $(bar) == *" first ▾ "* ]]'
 ui "$E2E_BIN second"; check "sqlmux second：用 second" eval '[[ $(bar) == *" second ▾ "* ]]'
 
-# ---- 默认界面（§5、§7.8 状态栏）：一个 window data，侧栏 + 占满其余宽度的空 data pane
+# ---- 默认界面（§5、§7.8 状态栏）：一个 window data，侧栏、空 pane ①、console_1 ②（M3 F3.6 起；宽度等由 f3.6 测）
 start
-check "只有 ⓪ 侧栏和 ① data 两块，焦点在 ①" eval '[[ $(e2e_panes | awk "{ print \$1 }" | tr "\n" " ") == "0 1 " && $(focused) == 1 ]] && [[ $(e2e_find ┐ 1) == "32 160" ]]'
-check "① 是空 pane：tab 栏只有 +" eval '[[ $(e2e_text 34 160 43 | tr -s " ") == "│ + │" ]]'
+check "⓪ 侧栏、① 空 pane、② console 三块，焦点在 ①" eval '[[ $(e2e_panes | awk "{ print \$1 }" | tr "\n" " ") == "0 1 2 " && $(focused) == 1 ]]'
 check "状态栏：连接名 doraemon、只有 0: data*、地址 <用户>@<host>:<port>" eval 'b=$(bar); [[ $b == *" doraemon ▾  0: data* "* && $b != *"1: "* && $b == *" $PGU@$PGH:$PGP  NORMAL " ]] || { echo "  $b"; false; }'
 
 # ---- Main、Meta 两条连接，application_name 默认 sqlmux，退出时都关掉（§8.1、§8.2）

@@ -2,14 +2,15 @@
 # F0.16 Drop text next to icons, circled pane numbers, fewer palette candidates
 # (specs/m0-skeleton/task.md F0.16; tech-design §7.7, §7.8, §12)
 # ⑳ → ⟨21⟩ is unit-tested (icons_test.go); the goldens: 80×24 unchanged, 160×45 differs in 3 lines (checked by diff).
-# F1.1 has no console: two_tabs / two_panes give ① t_order | ② empty; the console title checks come back in M3.
+# SOLO + two_tabs / two_panes give ① t_order | ② empty (M3's console title and icon: f0.2, f0.12).
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
 . "$(dirname "$0")/palette.sh"
-NF_CONN=$(printf '\xef\x87\xa6') NF_DATA=$(printf '\xef\x87\x80') NF_FILTER=$(printf '\xef\x82\xb0')
+NF_CONN=$(printf '\xef\x87\xa6') NF_FILTER=$(printf '\xef\x82\xb0')
 widths_are() { local got; got=$(e2e_widths | sed '/^0$/d' | sort -u | tr '\n' ' '); [[ $got == "$1 " ]] || { echo "  row widths: $got"; false; }; }
 
 # ---- nerd: circled numbers, no type words, icon-only palette entry, no / in the filter row
@@ -19,11 +20,11 @@ check "filter row: icon then the table count, no /" text_is 2 14 2 " $NF_FILTER 
 check "status bar: the palette entry is only the search icon" eval '[[ $(e2e_text 1 160 45) != *C-p* ]] && text_is $(( $(search_col) - 1 )) $(( $(search_col) + 1 )) 45 " $SEARCH_ICON "'
 e2e_click $(search_col) 45; sleep 0.3
 check "clicking the search icon opens the palette" is_open
-check "palette pane rows keep the type: ① data · t_order" eval 'clear_input; e2e_type "%"; sleep 0.3; row_has "① data · t_order" && row_has "② data"'
+check "palette pane rows keep the type of the current tab (F3.7): ① table · t_order, the empty ② none" eval 'clear_input; e2e_type "%"; sleep 0.3; row_has "① table · t_order" && list | grep -qE "^ *② +0: data"'
 e2e_keys Escape; sleep 0.2
 e2e_keys Space; e2e_type '"'; sleep 0.3
-check "a new pane is ② and the right one becomes ③" eval 'text_has 34 96 23 "┌─ ② $NF_DATA ─" && text_has 98 160 1 "┌─ ③ $NF_DATA ─"'
-check "an empty pane's title is only ② <icon>" eval '[[ $(e2e_text 34 96 23) == "┌─ ② $NF_DATA ─"*"─┐" ]]'
+check "a new pane is ② and the right one becomes ③" eval 'text_has 34 96 23 "┌─ ② ─" && text_has 98 160 1 "┌─ ③ ─"'
+check "an empty pane's title is only ② (F3.7: no tab, no icon)" eval '[[ $(e2e_text 34 96 23) == "┌─ ② ───"*"─┐" ]]'
 e2e_keys Space; e2e_type q; sleep 0.4
 mid() { e2e_panes | awk -v n="$1" '$1 == n { print int($2 + ($4 - 1) / 2), int($3 + $5 / 2) }'; }   # a pane's centre cell
 digit_at() { local x y; read x y <<<"$(mid "$1")"; [[ $(e2e_text $x $x $y) == "$1" ]] || { echo "  pane $1 centre ($x,$y): '$(e2e_text $((x - 1)) $((x + 1)) $y)'"; false; }; }
@@ -53,7 +54,7 @@ check "sidebar 16–22 wide: ⓪ <icon> stays, SPC b gives way first, the sessio
 
 # ---- ascii: the screen is as before F0.16
 printf 'icons = "ascii"\n' > "$D/config.toml"; start -C "$D"; two_tabs
-check "ascii: titles keep ⟨n⟩ and the type words" eval 'text_has 1 32 1 "⟨0⟩ @ doraemon" && text_has 34 160 1 "⟨1⟩ = data · t_order"'
+check "ascii: titles keep ⟨n⟩ and the type words (F3.7: a table is + table)" eval 'text_has 1 32 1 "⟨0⟩ @ doraemon" && text_has 34 160 1 "⟨1⟩ + table · t_order"'
 check "ascii: the palette entry still reads ~ C-p, the filter row keeps /" eval 'text_has 1 160 45 " ~ C-p " && text_has 1 32 2 "? / 11 tables"'
 
 # ---- the palette: commands only useful while editing a cell are not candidates

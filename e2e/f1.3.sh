@@ -3,6 +3,7 @@
 # 网格样式见 f0.9.sh，按类型着色见 f0.12.sh，表格滚轮见 f0.8.sh；golden 由 go test 覆盖。
 # 锁表、删表、空表在自建库 sqlmux_e2e_<pid> 里做（AGENTS.md「集成测试环境」）。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
@@ -137,7 +138,7 @@ check "服务端确实在等锁" eval '[[ $(waiting) == 1 ]]'
 key C-c
 check "C-c：取消，toast「查询已取消」，busy 消失，不弹退出提示" eval 'toast_is "查询已取消" && [[ $(bar) != *busy* ]] && ! screen_has "再按一次"'
 check "服务端的查询也被取消了（不再等锁）" eval 'wait_for 3 eval "[[ \$(waiting) == 0 ]]"'
-check "第一次打开时取消：tab 还是 t_user，是空表" eval '[[ -z $(grid_y) && $(e2e_text 34 160 43) == *"1:t_user*"* ]]'
+check "第一次打开时取消：tab 还是 t_user，是空表" eval '[[ -z $(grid_y) && $(e2e_text 34 160 43 | noicon) == *"1:t_user*"* ]]'
 key C-c
 check "空闲时 C-c 照旧：「再按一次 C-c 退出」" toast_is "再按一次 C-c 退出"
 sleep 2.2

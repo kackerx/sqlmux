@@ -3,12 +3,13 @@
 # F1.1 starts with one empty data pane: two_tabs / two_panes build what M0's default layout had;
 # the second window (%report) comes back in M5.
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX")
 trap 'e2e_stop; rm -rf "$D"' EXIT
 . "$(dirname "$0")/palette.sh"
-data_tabs() { e2e_text 34 160 43; }
+data_tabs() { e2e_text 34 160 43 | noicon; }
 kinds() { list | cut -d'|' -f1 | awk '{ print $NF }' | sort -u | tr '\n' ' '; }   # type labels in the list
 # which scope tab is highlighted (focus background) on the tab row
 current_scope() {
@@ -37,14 +38,14 @@ e2e_keys Escape; sleep 0.2
 # ---- prefixes restrict the search
 pal "@ord"; check "@ord searches tables only" eval '[[ $(kinds) == "表 " ]] && row_has t_order && row_has t_order_item'
 e2e_keys Escape; sleep 0.2
-pal "%t_ord"; check "%t_ord searches windows and panes only (finds ① on t_order)" eval '[[ $(kinds) == "Pane " ]] && row_has "data · t_order"'
+pal "%t_ord"; check "%t_ord searches windows and panes only (finds ① on t_order)" eval '[[ $(kinds) == "Pane " ]] && row_has "table · t_order"'
 e2e_keys Escape; sleep 0.2
 
 # ---- rows: icon, name, dim location, key / ON-OFF, type label
 pal
 wrow() { list | grep -n "^0: data  doraemon .*窗口|" | cut -d: -f1; }   # the window row's number (the recent tables come first)
 check "window row: 0: data, located in doraemon, labelled 窗口, window icon" eval 'n=$(wrow); [[ -n $n && $(icon_of $n) == "$NF_WINDOW" ]]'
-check "pane row: ⟨1⟩ data · t_order, located in 0: data, labelled Pane" eval 'row_has "data · t_order  0: data" && list | grep -q "data · t_order  0: data .*Pane|"'
+check "pane row: ⟨1⟩ table · t_order (F3.7: the type of its tab), located in 0: data, labelled Pane" eval 'row_has "table · t_order  0: data" && list | grep -q "table · t_order  0: data .*Pane|"'
 check "table row: located in doraemon.public, labelled 表" eval 'list | grep -q "^mv_order_by_status  doraemon.public .*表|"'
 check "the location is dim; the type label is dim and right-aligned (ends one column before │)" eval 'y=$(row_y $(wrow)); c=$(e2e_find doraemon $y); style_has $c $y fg=#565f89 && text_is $(( $(right) - 5 )) $(right) $y "窗口 │" && style_has $(( $(right) - 5 )) $y fg=#565f89'
 check "所有, empty input: recent first (t_order, t_user), then window → pane → table → command" eval 'clear_input; o=$(list | cut -d"|" -f1 | awk "{print \$NF}" | uniq | tr "\n" " "); [[ $o == "表 窗口 Pane 表 "* && $(list | head -2 | cut -d" " -f1 | tr "\n" " ") == "t_order t_user " ]] || { echo "  order: $o"; false; }'
@@ -70,7 +71,7 @@ check "focus on the sidebar → the table opens in the first data pane, focus mo
 # ---- panes
 start; two_panes; e2e_keys C-l; sleep 0.2; pal "@goal"; e2e_keys Enter; sleep 0.3; e2e_keys C-h; sleep 0.2   # ① empty, ② goal
 pal "%goal"; e2e_keys Enter; sleep 0.3
-check "pane scope: ↵ on ② (data · goal) focuses it" eval 'closed && [[ $(focused) == 2 ]]'
+check "pane scope: ↵ on ② (table · goal) focuses it" eval 'closed && [[ $(focused) == 2 ]]'
 
 # ---- zoom (§5): a jump to another pane ends the zoom; the zoomed pane itself keeps it
 start; two_tabs; two_panes
@@ -86,7 +87,7 @@ e2e_keys Space; e2e_type z; sleep 0.3
 start
 e2e_keys Space; e2e_type '"'; sleep 0.3   # the new empty data pane is ⟨2⟩
 pal "@goal"; e2e_keys Enter; sleep 0.3
-check "opening into an empty data pane: one tab, no - mark" eval 'g=($(e2e_panes | awk "\$6 == 1")); [[ $(e2e_text $((g[1] + 1)) $((g[1] + g[3] - 2)) $((g[2] + g[4] - 2))) == " 1:goal* │ +"* ]]'
+check "opening into an empty data pane: one tab, no - mark" eval 'g=($(e2e_panes | awk "\$6 == 1")); [[ $(e2e_text $((g[1] + 1)) $((g[1] + g[3] - 2)) $((g[2] + g[4] - 2)) | noicon) == " 1:goal* │ +"* ]]'
 
 # ---- icons: ascii and [icon] overrides
 printf 'icons = "ascii"\n' > "$D/config.toml"; start -C "$D"; pal

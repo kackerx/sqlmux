@@ -3,6 +3,7 @@
 # F1.14 把弱 / 强高亮换成了「弹出即选中、到头绕回、智能回车」，那部分在 f1.14.sh；这里留下没变的：
 # esc 两步，快速 SQL 里 Tab 移动候选还是切换范围，select 42 as x 的 ↵ 是执行。match 色由单测覆盖。
 . "$(dirname "$0")/lib.sh"
+SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
 . "$(dirname "$0")/palette.sh"
 SELECT=#364a82
