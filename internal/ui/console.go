@@ -144,7 +144,7 @@ func (c Console) drawLine(f *Frame, ta uv.Rectangle, row, n int, fg []color.Colo
 		}
 		st := uv.Style{Fg: fg[i], Bg: bg}
 		if c.selected(n, i, v, w) {
-			st.Bg = th.Select
+			st.Bg = th.Visual
 		}
 		switch {
 		case l[i] == '\t' || v < c.Left && v+w > c.Left: // a tab, or a character cut by the left edge: blanks
@@ -152,7 +152,7 @@ func (c Console) drawLine(f *Frame, ta uv.Rectangle, row, n int, fg []color.Colo
 				if c.Sel.Mode == SelBlock { // a block colors only the columns it covers
 					st.Bg = bg
 					if c.selected(n, i, k, 1) {
-						st.Bg = th.Select
+						st.Bg = th.Visual
 					}
 				}
 				put(k, " ", st)
@@ -163,7 +163,7 @@ func (c Console) drawLine(f *Frame, ta uv.Rectangle, row, n int, fg []color.Colo
 		v, i = v+w, i+len(gr)
 	}
 	if c.Sel.Mode != SelBlock && c.selected(n, len(l), v, 1) { // the line break is in the selection
-		put(v, " ", uv.Style{Fg: th.Fg, Bg: th.Select})
+		put(v, " ", uv.Style{Fg: th.Fg, Bg: th.Visual})
 	}
 }
 

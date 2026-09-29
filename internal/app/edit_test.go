@@ -191,7 +191,7 @@ func TestEditLooks(t *testing.T) {
 	feed(t, a, "li")
 	f := a.render()
 	c := find(t, a, ui.Target{Kind: ui.KindCell, Pane: a.focused().ID, Action: "grid.goto 0 1"})
-	if st := f.Buf.CellAt(c.Min.X+1, c.Min.Y).Style; st.Bg != a.theme.Select {
+	if st := f.Buf.CellAt(c.Min.X+1, c.Min.Y).Style; st.Bg != a.theme.Visual {
 		t.Errorf("selected: %v", st.Bg)
 	}
 	if f.Cursor == nil || f.Cursor.Y != c.Min.Y {

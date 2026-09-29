@@ -18,6 +18,7 @@ type Theme struct {
 	Border, Focus, Warn      color.Color
 	Cursor, CursorBlur       color.Color
 	Select, Row, RowAlt      color.Color // RowAlt: the grid's zebra rows (§7.6)
+	Visual                   color.Color // a console's VISUAL, an input all selected
 	EditedBg                 color.Color
 	Keyword, Info            color.Color
 	Error                    color.Color
@@ -35,6 +36,7 @@ var TokyonightStorm = &Theme{
 	Border: c("#3b4261"), Focus: c("#9ece6a"), Warn: c("#e0af68"),
 	Cursor: c("#3d59a1"), CursorBlur: c("#2f3549"),
 	Select: c("#364a82"), Row: c("#292e42"), RowAlt: c("#1f2335"),
+	Visual:   c("#2d3f76"),
 	EditedBg: c("#2d2a24"),
 	Keyword:  c("#bb9af7"), Info: c("#7dcfff"),
 	Error:  c("#f7768e"),
@@ -123,6 +125,7 @@ func (th *Theme) tokens() map[string]*color.Color {
 		"border": &th.Border, "focus": &th.Focus, "warn": &th.Warn,
 		"cursor": &th.Cursor, "cursor_blur": &th.CursorBlur,
 		"select": &th.Select, "row": &th.Row, "row_alt": &th.RowAlt,
+		"visual":    &th.Visual,
 		"edited_bg": &th.EditedBg,
 		"keyword":   &th.Keyword, "info": &th.Info,
 		"error":  &th.Error,

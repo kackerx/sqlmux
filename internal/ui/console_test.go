@@ -15,7 +15,7 @@ import (
 // share one in tokyonight-storm).
 var consoleTheme = func() *Theme {
 	th := *TokyonightStorm
-	for i, p := range []*color.Color{&th.Fg, &th.Keyword, &th.Number, &th.SQLString, &th.Comment, &th.Func, &th.Dim, &th.Focus, &th.Error, &th.PaneBg, &th.Row, &th.Select} {
+	for i, p := range []*color.Color{&th.Fg, &th.Keyword, &th.Number, &th.SQLString, &th.Comment, &th.Func, &th.Dim, &th.Focus, &th.Error, &th.PaneBg, &th.Row, &th.Visual} {
 		*p = color.RGBA{uint8(i + 1), 0, 0, 0xff}
 	}
 	return &th
@@ -24,13 +24,13 @@ var consoleTheme = func() *Theme {
 // consoleShot draws c on a w × h frame and shows each row three times: as
 // text, its foreground by token (k keyword, n number, s string, c comment,
 // f func, . fg, d dim, > focus, e error) and its background (r row, v
-// select); @ marks the cursor.
+// visual); @ marks the cursor.
 func consoleShot(c Console, w, h int) string {
 	th := consoleTheme
 	f := NewFrame(w, h, th)
 	cur := c.Draw(f, uv.Rect(0, 0, w, h))
 	fgs := map[color.Color]string{th.Fg: ".", th.Keyword: "k", th.Number: "n", th.SQLString: "s", th.Comment: "c", th.Func: "f", th.Dim: "d", th.Focus: ">", th.Error: "e"}
-	bgs := map[color.Color]string{th.PaneBg: " ", th.Row: "r", th.Select: "v"}
+	bgs := map[color.Color]string{th.PaneBg: " ", th.Row: "r", th.Visual: "v"}
 	var b strings.Builder
 	for y := range h {
 		var text, fg, bg strings.Builder

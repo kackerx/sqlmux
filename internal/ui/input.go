@@ -61,7 +61,7 @@ func (in *Input) Right() {
 }
 
 // Draw paints the text on r's first row as a grid cell reads (a newline
-// a dim ↵, §7.6), selected on the select color, scrolled so the cursor
+// a dim ↵, §7.6), selected on the visual color, scrolled so the cursor
 // stays in view, and returns where the cursor goes.
 func (in Input) Draw(f *Frame, r uv.Rectangle, st uv.Style) uv.Position {
 	start := 0
@@ -70,7 +70,7 @@ func (in Input) Draw(f *Frame, r uv.Rectangle, st uv.Style) uv.Position {
 		start += len(gr)
 	}
 	if in.All {
-		st.Bg = f.Theme.Select
+		st.Bg = f.Theme.Visual
 	}
 	mark := st
 	mark.Fg = f.Theme.Dim
