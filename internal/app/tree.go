@@ -474,15 +474,19 @@ func editInput(in *ui.Input, k keymap.Key) bool {
 }
 
 // openTarget is the pane a table opens in (§5, §12): the focused one;
-// with the tree focused, the one focused most recently whose current tab
-// is no console, else the most recent of all (the first, if none ever
-// was).
+// with the tree or the result area focused, the one focused most recently
+// whose current tab is no console, else the most recent of all (the
+// first, if none ever was). Never the result area.
 func (a *App) openTarget() *Pane {
-	if p := a.focused(); p != a.win().Tree {
+	win := a.win()
+	if p := a.focused(); p != win.Tree && p != win.Result {
 		return p
 	}
 	var best, recent *Pane
-	for _, p := range a.win().Root.Leaves() {
+	for _, p := range win.Root.Leaves() {
+		if p == win.Result {
+			continue
+		}
 		if recent == nil || a.recent(p.ID, recent.ID) {
 			recent = p
 		}

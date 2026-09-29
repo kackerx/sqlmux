@@ -58,9 +58,11 @@ leader = "<Space>"
 ":" = "palette.command"
 ";" = "palette.sql"
 
-[keys.result] # stacked above grid
+[keys.result] # stacked above grid, which the rest goes to (§6.4)
 "P" = "result.pin"
 "q" = "result.close"
+"x" = "result.close"
+"R" = "result.rerun"
 
 [keys.tree]
 "j" = "tree.down"

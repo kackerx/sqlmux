@@ -163,3 +163,33 @@ func TestReadOnlyRefusesWrites(t *testing.T) {
 		t.Fatalf("nextval on a read-only connection: %v", err)
 	}
 }
+
+// A console's run (§11「执行」): each statement commits on its own, and the
+// first to fail stops the rest; a cancelled run leaves Main usable.
+func TestExecEach(t *testing.T) {
+	c, err := Connect(context.Background(), ownDB(t), "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	w := db.NewWorker(c)
+	ctx := context.Background()
+	if _, err := w.Exec(ctx, "create table t_run (n int)", 0); err != nil {
+		t.Fatal(err)
+	}
+	rs, err := w.ExecEach(ctx, []string{"insert into t_run values (1)", "insert into t_run values ('two')", "insert into t_run values (3)"}, 0)
+	if sqlState(err) != "22P02" || len(rs) != 1 || rs[0].Tag != "INSERT 0 1" {
+		t.Fatalf("second fails: %v %+v", err, rs)
+	}
+	if r, err := w.Query(ctx, "select string_agg(n::text, ',') from t_run"); err != nil || r.Rows[0][0].S != "1" {
+		t.Fatalf("the first committed, the third never ran: %v %v", r.Rows, err)
+	}
+	time.AfterFunc(200*time.Millisecond, w.Cancel)
+	rs, err = w.ExecEach(ctx, []string{"select 1", "select pg_sleep(10)", "insert into t_run values (4)"}, 0)
+	if !errors.Is(err, context.Canceled) || len(rs) != 1 {
+		t.Fatalf("cancelled: %v %+v", err, rs)
+	}
+	if r, err := w.Query(ctx, "select count(*) from t_run"); err != nil || r.Rows[0][0].S != "1" {
+		t.Fatalf("after the cancel: %v %v", r.Rows, err)
+	}
+}

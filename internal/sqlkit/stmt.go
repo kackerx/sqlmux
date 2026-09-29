@@ -109,6 +109,13 @@ func lower(s string, ts []Token, i int) string {
 	return strings.ToLower(s[ts[i].Start:ts[i].End])
 }
 
+// FirstWord is statement s's first word past opening parentheses, lower
+// case: what it does, select or create; "" when it has none.
+func FirstWord(s string, d Dialect) string {
+	ts, _ := words(s, d)
+	return lower(s, ts, first(s, ts))
+}
+
 // first is the index of the first token past opening parentheses.
 func first(s string, ts []Token) int {
 	i := 0

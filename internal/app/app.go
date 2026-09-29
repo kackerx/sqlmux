@@ -25,7 +25,9 @@ type App struct {
 	res   *keymap.Resolver
 	sess  *Session
 
-	tabWidth int // the consoles' (§14)
+	tabWidth     int     // the consoles' (§14)
+	maxRows      int     // a console run keeps of each result (§11)
+	resultHeight float64 // the share the result area first takes
 
 	palette  *palette    // non-nil while the command palette is open (COMMAND mode)
 	drop     *dropdown   // non-nil while a one-pick dropdown is open (§8.6, §7.8)
@@ -73,7 +75,7 @@ var whichKeyDelay = 400 * time.Millisecond
 // not "", shows as a toast on start.
 func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, warning string) *App {
 	return &App{
-		theme: cfg.Theme, icons: cfg.Icons, tabWidth: cfg.TabWidth,
+		theme: cfg.Theme, icons: cfg.Icons, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, resultHeight: cfg.ResultHeight,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess,
 		mouse: uv.Pos(-1, -1), warning: warning, state: st,
 	}
@@ -122,6 +124,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case externalDone:
 		return a, a.gotExternal(msg)
+	case runDone:
+		return a, a.gotRun(msg)
+	case runTick:
+		if !msg.r.done {
+			return a, a.runTick(msg.r)
+		}
 	case stateErr:
 		return a, a.showToast(msg.err.Error(), toastTTL)
 	case toastExpired:
@@ -435,6 +443,9 @@ func (a *App) context() keymap.Context {
 	case a.win().tree.filtering, typing != nil:
 		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Insert}
 	}
+	if s := a.paneScope(); s == "result" { // over grid's keys, which its tables move by (§6.4)
+		return keymap.Context{Focus: []string{"result", "grid"}, Pane: "grid", Mode: a.mode()}
+	}
 	return keymap.Context{Focus: []string{a.paneScope()}, Pane: a.paneScope(), Mode: a.mode()}
 }
 
@@ -443,6 +454,8 @@ func (a *App) paneScope() string {
 	switch p := a.focused(); {
 	case p == a.win().Tree:
 		return "tree"
+	case p == a.win().Result:
+		return "result"
 	case dataOf(p) != nil:
 		return "grid"
 	case consoleOf(p) != nil:

@@ -19,7 +19,11 @@ type Config struct {
 	Icons      *ui.Icons // `icons = "nerd" | "ascii"`, with the theme file's [icon] on top (§7.7)
 	Timeoutlen int       // ms to wait on an ambiguous key sequence
 	TabWidth   int       // the console's indent, and the formatter's (§14)
-	theme      string    // the name Parse read; Load finds the theme, as it touches the disk
+	// ResultHeight is the share of the window the result area first takes;
+	// MaxRows the rows a console's run keeps of each result (§11).
+	ResultHeight float64
+	MaxRows      int
+	theme        string // the name Parse read; Load finds the theme, as it touches the disk
 
 	// Leader and Bindings are the raw [keys] and [map.*] entries; the keymap
 	// package gives them meaning.
@@ -35,7 +39,7 @@ type Binding struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, Timeoutlen: 1000, TabWidth: 2}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 1000}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -76,12 +80,16 @@ func Load() (*Config, error) {
 func Parse(data string) (*Config, error) {
 	c := Default()
 	raw := struct {
-		Theme      *string        `toml:"theme"`
-		Icons      *string        `toml:"icons"`
-		Timeoutlen *int           `toml:"timeoutlen"`
-		TabWidth   *int           `toml:"tab_width"`
-		Keys       map[string]any `toml:"keys"`
-		Map        map[string]any `toml:"map"`
+		Theme      *string  `toml:"theme"`
+		Icons      *string  `toml:"icons"`
+		Timeoutlen *int     `toml:"timeoutlen"`
+		TabWidth   *int     `toml:"tab_width"`
+		Height     *float64 `toml:"result_height"`
+		Console    struct {
+			MaxRows *int `toml:"max_rows"`
+		} `toml:"console"`
+		Keys map[string]any `toml:"keys"`
+		Map  map[string]any `toml:"map"`
 	}{}
 	md, err := toml.Decode(data, &raw)
 	if err != nil {
@@ -107,6 +115,18 @@ func Parse(data string) (*Config, error) {
 			return nil, fmt.Errorf("tab_width = %d：必须大于 0", *raw.TabWidth)
 		}
 		c.TabWidth = *raw.TabWidth
+	}
+	if h := raw.Height; h != nil {
+		if *h <= 0 || *h >= 1 {
+			return nil, fmt.Errorf("result_height = %v：要在 0 和 1 之间", *h)
+		}
+		c.ResultHeight = *h
+	}
+	if n := raw.Console.MaxRows; n != nil {
+		if *n <= 0 {
+			return nil, fmt.Errorf("[console] max_rows = %d：必须大于 0", *n)
+		}
+		c.MaxRows = *n
 	}
 	tables := map[string]map[string]any{"keys": raw.Keys, "map": raw.Map}
 	for _, k := range md.Keys() {

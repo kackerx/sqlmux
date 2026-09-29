@@ -34,6 +34,28 @@ func (w *Worker) Run(ctx context.Context, f func(context.Context, Conn) error) e
 	return w.do(ctx, func(ctx context.Context) error { return f(ctx, w.conn) })
 }
 
+// ExecEach runs stmts one after the other as one request, each an Exec of
+// its own and so, autocommit, a transaction of its own; it stops at the
+// first that fails (§11「执行」). rs has one result for each statement
+// that ran, the one that failed not among them.
+func (w *Worker) ExecEach(ctx context.Context, stmts []string, maxRows int) (rs []Result, err error) {
+	err = w.Run(ctx, func(ctx context.Context, c Conn) error {
+		for _, s := range stmts {
+			r, err := c.Exec(ctx, s, maxRows)
+			if err != nil {
+				return err
+			}
+			one := Result{} // one statement, one result
+			if len(r) > 0 {
+				one = r[0]
+			}
+			rs = append(rs, one)
+		}
+		return nil
+	})
+	return rs, err
+}
+
 // Cancel cancels the request running now, if any; queued ones still run.
 func (w *Worker) Cancel() {
 	w.mu.Lock()

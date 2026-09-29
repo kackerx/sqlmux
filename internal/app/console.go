@@ -21,8 +21,9 @@ import (
 type consoleTab struct {
 	ed         *editor.Editor
 	path       string
-	ver, saved int // changes made, and the one the file has
-	failed     int // the first line of the statement whose last run failed, its ▶ red; -1 for none
+	ver, saved int  // changes made, and the one the file has
+	failed     int  // the first line of the statement whose last run failed, its ▶ red; -1 for none
+	running    *run // the run going on, if one is: another ↵ waits for it (§11)
 }
 
 // openConsole is connection conn's console n, with what its file keeps (§11).

@@ -133,3 +133,16 @@ func TestHasSemicolon(t *testing.T) {
 		t.Error("MySQL strings and # comments")
 	}
 }
+
+func TestFirstWord(t *testing.T) {
+	for s, want := range map[string]string{
+		"-- make it\nCREATE table t (a int)": "create",
+		"(select 1)":                         "select",
+		"/* x */ drop table t":               "drop",
+		"  ":                                 "",
+	} {
+		if got := FirstWord(s, PG); got != want {
+			t.Errorf("%q: %q, want %q", s, got, want)
+		}
+	}
+}

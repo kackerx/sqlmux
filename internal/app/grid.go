@@ -20,25 +20,34 @@ import (
 )
 
 // Tab is one tab of a pane (§5): a table's carries it, a console's the
-// console; one with neither is a landing tab.
+// console, the result area's its result (§11); one with none is a landing
+// tab.
 type Tab struct {
 	Name    string
 	Data    *dataTab
 	Console *consoleTab
+	Result  *resultTab
 }
 
-// dataTab is a table open in a tab (§5, §7.6, §7.8「查询条」).
-// Positions are the data's, transposed or not, among the columns COLS shows.
-type dataTab struct {
-	table     db.Table
-	cols      db.Columns // the catalog's, as fetched: PK and types for the grid
-	page      db.Result  // the rows on screen
-	next      bool       // a page follows (§8.5)
-	row, col  int        // the cursor
-	top, left int        // the first record and field shown
+// gridState is a grid's rows and where it is (§7.6): a table tab's, a
+// result tab's. Positions are the data's, transposed or not, among the
+// columns it shows.
+type gridState struct {
+	page      db.Result // the rows on screen
+	row, col  int       // the cursor
+	top, left int       // the first record and field shown
 	transpose bool
-	seq       int    // the last request's; older answers are dropped (§8.3)
-	err       string // the last request's error, drawn instead of the table
+}
+
+// dataTab is a table open in a tab (§5, §7.6, §7.8「查询条」); its grid
+// shows the columns COLS leaves.
+type dataTab struct {
+	gridState
+	table db.Table
+	cols  db.Columns // the catalog's, as fetched: PK and types for the grid
+	next  bool       // a page follows (§8.5)
+	seq   int        // the last request's; older answers are dropped (§8.3)
+	err   string     // the last request's error, drawn instead of the table
 
 	// The query bar's. request is what the last request asked for, shown
 	// what the rows on screen came from: row numbers and chips are shown's,
@@ -432,26 +441,64 @@ func (a *App) typingTab() *dataTab {
 	return nil
 }
 
+// gridOf is the grid pane p's current tab shows, as drawn in area; ok is
+// false when it shows none: no rows loaded, an error in their place.
+func (a *App) gridOf(p *Pane) (s *gridState, g ui.Grid, area uv.Rectangle, ok bool) {
+	switch t := p.tab(); {
+	case t == nil:
+	case t.Data != nil && t.Data.err == "" && len(t.Data.shownCols()) > 0:
+		return &t.Data.gridState, a.grid(p, t.Data), gridRect(a.layout()[p.ID]), true
+	case t.Result != nil && t.Result.page.Cols != nil:
+		return &t.Result.gridState, a.resultGrid(p, t.Result), bodyRect(a.layout()[p.ID]), true
+	}
+	return nil, ui.Grid{}, uv.Rectangle{}, false
+}
+
+// resultGrid is result tab t as pane p draws it: every column, read only (§11).
+func (a *App) resultGrid(p *Pane, t *resultTab) ui.Grid {
+	g := ui.Grid{
+		Rows: t.page.Rows, Row: t.row, Col: t.col, Top: t.top, Left: t.left, Transpose: t.transpose,
+		Focused: a.win().Focus == p.ID, Key: a.icons.Key, Pane: p.ID,
+	}
+	for _, c := range t.page.Cols {
+		g.Cols = append(g.Cols, ui.GridCol{Name: c.Name, Type: colType(c.Type)})
+	}
+	return g
+}
+
+// logMove is a grid move on the log: j, k, gg and G, the wheel scroll it (§11).
+func (a *App) logMove(p *Pane, to func(r, c, rows, cols int) (int, int)) {
+	lt, n := resultOf(p), len(a.win().log)
+	h := bodyRect(a.layout()[p.ID]).Dy()
+	top, _ := to(ui.LogTop(lt.top, n, h), 0, n, 1)
+	lt.top = ui.LogTop(top, n, h)
+}
+
 // gridMove moves the focused grid's cursor to where to puts it, in screen
 // terms (§7.6: j is always down, whichever way the data is turned), and
 // scrolls it into view.
 func (a *App) gridMove(to func(r, c, rows, cols int) (int, int)) {
-	p, t, ok := a.focusedGrid()
+	if rt := resultOf(a.focused()); rt != nil && rt.run == nil {
+		a.logMove(a.focused(), to)
+		return
+	}
+	s, g, area, ok := a.gridOf(a.focused())
 	if !ok {
 		return
 	}
-	rows, cols := len(t.page.Rows), len(t.shownCols())
-	r, c := t.row, t.col
-	if t.transpose {
+	rows, cols := len(g.Rows), len(g.Cols)
+	r, c := s.row, s.col
+	if s.transpose {
 		rows, cols, r, c = cols, rows, c, r
 	}
 	r, c = to(r, c, rows, cols)
 	r, c = max(min(r, rows-1), 0), max(min(c, cols-1), 0)
-	if t.transpose {
+	if s.transpose {
 		r, c = c, r
 	}
-	t.row, t.col = r, c
-	t.top, t.left = a.grid(p, t).View(gridRect(a.layout()[p.ID]))
+	s.row, s.col = r, c
+	g.Row, g.Col = r, c
+	s.top, s.left = g.View(area)
 }
 
 // gridGoto is a click on a cell or a row number: "rec field".
@@ -459,15 +506,15 @@ func (a *App) gridGoto(arg string) {
 	r, c, _ := strings.Cut(arg, " ")
 	rec, err1 := strconv.Atoi(r)
 	field, err2 := strconv.Atoi(c)
-	if _, t, ok := a.focusedGrid(); ok && err1 == nil && err2 == nil {
-		t.row, t.col = rec, field
+	if s, _, _, ok := a.gridOf(a.focused()); ok && err1 == nil && err2 == nil {
+		s.row, s.col = rec, field
 		a.gridMove(func(r, c, _, _ int) (int, int) { return r, c })
 	}
 }
 
 func (a *App) gridTranspose() {
-	if _, t, ok := a.focusedGrid(); ok {
-		t.transpose = !t.transpose
+	if s, _, _, ok := a.gridOf(a.focused()); ok {
+		s.transpose = !s.transpose
 		a.gridMove(func(r, c, _, _ int) (int, int) { return r, c })
 	}
 }
@@ -475,8 +522,8 @@ func (a *App) gridTranspose() {
 // scrollGrid is the wheel over pane p: dr rows and dc columns of the view,
 // the cursor pulled along (§7.6).
 func (a *App) scrollGrid(p *Pane, dr, dc int) {
-	if t := dataOf(p); t != nil && len(t.shownCols()) > 0 {
-		t.top, t.left, t.row, t.col = a.grid(p, t).Scroll(gridRect(a.layout()[p.ID]), dr, dc)
+	if s, g, area, ok := a.gridOf(p); ok {
+		s.top, s.left, s.row, s.col = g.Scroll(area, dr, dc)
 	}
 }
 

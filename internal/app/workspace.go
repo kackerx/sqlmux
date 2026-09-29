@@ -12,6 +12,7 @@ import (
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
 	"sqlmux/internal/keymap"
+	"sqlmux/internal/ui"
 )
 
 // Pane is the sidebar or one of the split tree's: tables and consoles,
@@ -43,7 +44,7 @@ func (p *Pane) tab() *Tab {
 func landing() Tab { return Tab{Name: "新 tab"} }
 
 // landing reports whether t shows the landing page: a new tab, or no tab.
-func (t *Tab) landing() bool { return t == nil || t.Data == nil && t.Console == nil }
+func (t *Tab) landing() bool { return t == nil || t.Data == nil && t.Console == nil && t.Result == nil }
 
 // putTab puts tab in pane p: over the current tab, or after the last one,
 // which it becomes, the current one the previous.
@@ -65,11 +66,17 @@ type Window struct {
 	TreeOpen bool  // the ⟨0⟩ sidebar is open, not folded to its thin bar
 	TreeW    int   // the sidebar's width once dragged (§7.8); 0 is the default
 	Tree     *Pane // ⟨0⟩ sidebar, not part of the split tree (D-04)
-	tree     treeState
-	Root     *Node
-	Focus    int // pane ID
-	Zoom     int // zoomed pane ID; 0 = none (P-03)
-	lastID   int // highest pane ID handed out
+	// Result is the result area, at the bottom from the first run until it
+	// is closed; resultRatio is the share of the rest above it, kept then
+	// (0: 1 − result_height), and log the runs', kept too (§11).
+	Result      *Pane
+	resultRatio float64
+	log         []ui.LogLine
+	tree        treeState
+	Root        *Node
+	Focus       int // pane ID
+	Zoom        int // zoomed pane ID; 0 = none (P-03)
+	lastID      int // highest pane ID handed out
 
 	focusTick int
 	focusedAt map[int]int // pane ID → focusTick when it last got focus
@@ -120,6 +127,7 @@ type Session struct {
 	cols       map[tableID]db.Columns
 	Windows    []*Window
 	Active     int
+	RunSeq     int // the last run's number, #42 on its result tabs (§11)
 }
 
 func (a *App) win() *Window { return a.sess.Windows[a.sess.Active] }
@@ -270,10 +278,10 @@ func (a *App) newTab() {
 	putTab(p, landing(), false)
 }
 
-// normalPane is the focused pane, or openTarget's while the tree has the
-// focus.
+// normalPane is the focused pane, or openTarget's while the tree or the
+// result area has the focus.
 func (a *App) normalPane() *Pane {
-	if p := a.focused(); p != a.win().Tree {
+	if p := a.focused(); p != a.win().Tree && p != a.win().Result {
 		return p
 	}
 	return a.openTarget()
@@ -348,9 +356,17 @@ func (a *App) closeTab(p *Pane) {
 }
 
 // removePane takes pane id out of the tree: its sibling gets the space and
-// the focus, and any zoom ends. The window's only pane stays.
+// the focus, and any zoom ends. The window's last pane besides the result
+// area stays. The result area goes with its tabs, pinned or not, its
+// height kept for the next time (§11).
 func (a *App) removePane(id int) {
 	win := a.win()
+	if res := win.Result; res != nil && id != res.ID && len(win.Root.Leaves()) == 2 {
+		return
+	}
+	if res := win.Result; res != nil && id == res.ID {
+		win.resultRatio, win.Result = win.Root.Ratio, nil // it is the root's lower half
+	}
 	if root, heir := win.Root.remove(id); root != nil {
 		win.Root, win.Zoom = root, 0
 		win.focus(heir.ID)
@@ -392,7 +408,7 @@ func (a *App) recent(x, y int) bool {
 func (a *App) splitPane(d Dir) {
 	win := a.win()
 	p := a.focused()
-	if p == win.Tree {
+	if p == win.Tree || p == win.Result { // one result area a window, at the bottom (§11)
 		return
 	}
 	win.lastID++ // never reused, so pane IDs stay stable (§5)
@@ -478,6 +494,8 @@ func (a *App) scrollPane(id, down, right int) {
 	switch p := a.win().pane(id); {
 	case p == a.win().Tree:
 		a.scrollTree(down)
+	case p != nil && resultOf(p) != nil && resultOf(p).run == nil: // the log
+		a.logMove(p, func(r, c, _, _ int) (int, int) { return r + down*wheelStep, c })
 	case p != nil && consoleOf(p) != nil: // not sideways: nowrap scrolls with the cursor (§11)
 		a.consoleView(p, consoleOf(p))
 		consoleOf(p).ed.Scroll(down * wheelStep)

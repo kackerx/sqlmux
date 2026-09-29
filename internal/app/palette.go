@@ -118,8 +118,11 @@ func (a *App) paletteItems() []paletteItem {
 	for n, p := range a.panesByNumber() {
 		// by the current tab's type, words and all: they are what is searched (§7.7)
 		icon, word := a.tabIcon(p.tab())
-		if p == a.win().Tree {
+		switch p {
+		case a.win().Tree:
 			icon, word = a.icons.Schema, "schema"
+		case a.win().Result:
+			icon, word = a.icons.Result, "result"
 		}
 		name := strings.TrimSpace(a.icons.Number(n) + " " + word)
 		if obj := p.Object(); obj != "" && word != "" {

@@ -41,6 +41,23 @@ func ErrorText(err error) string {
 	return err.Error()
 }
 
+// ErrorLines is err as the result area's log shows it (§11): "ERROR:
+// <Message>", then the server's DETAIL and HINT a line each, when it has
+// them.
+func ErrorLines(err error) []string {
+	var pe *pgconn.PgError
+	if !errors.As(err, &pe) {
+		return []string{"ERROR: " + err.Error()}
+	}
+	out := []string{pe.Severity + ": " + pe.Message}
+	for _, l := range [][2]string{{"DETAIL", pe.Detail}, {"HINT", pe.Hint}} {
+		if l[1] != "" {
+			out = append(out, l[0]+": "+l[1])
+		}
+	}
+	return out
+}
+
 // endTimeout bounds COMMIT and ROLLBACK, which a cancel must not reach: a
 // COMMIT the server has done would come back as an error (§10.3).
 const endTimeout = 10 * time.Second

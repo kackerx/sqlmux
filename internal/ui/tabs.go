@@ -16,6 +16,7 @@ type Tabs struct {
 	Cur, Prev int
 	Hints     []Hint // right-aligned "Key Label" items
 	Pane      int
+	NoNew     bool // no + to open a tab: the result area's (§11)
 }
 
 func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
@@ -46,11 +47,13 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 	if len(t.Names) > 0 {
 		x = f.Text(x, y, r.Max.X, "│", uv.Style{Fg: th.Sep, Bg: th.Bg})
 	}
-	plus := base
-	if f.Region(uv.Rect(x, y, min(3, r.Max.X-x), 1), Target{Kind: KindHint, Pane: t.Pane, Action: "tab.new"}) {
-		plus.Bg = th.Select
+	if !t.NoNew {
+		plus := base
+		if f.Region(uv.Rect(x, y, min(3, r.Max.X-x), 1), Target{Kind: KindHint, Pane: t.Pane, Action: "tab.new"}) {
+			plus.Bg = th.Select
+		}
+		x = f.Text(x, y, r.Max.X, " + ", plus)
 	}
-	x = f.Text(x, y, r.Max.X, " + ", plus)
 
 	if w := hintRowWidth(t.Hints); w > 0 && x+1+w+1 <= r.Max.X {
 		hintRow(f, r.Max.X-1-w, y, r.Max.X, t.Hints, base, Target{Kind: KindHint, Pane: t.Pane})

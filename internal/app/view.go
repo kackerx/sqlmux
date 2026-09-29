@@ -1,9 +1,11 @@
 package app
 
 import (
+	"cmp"
 	"fmt"
 	"image/color"
 	"strings"
+	"time"
 
 	uv "github.com/charmbracelet/ultraviolet"
 
@@ -168,6 +170,9 @@ func (a *App) render() *ui.Frame {
 func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	th := f.Theme
 	icon, word := a.tabIcon(p.tab())
+	if p == a.win().Result {
+		icon, word = a.icons.Result, "result"
+	}
 	b := ui.Block{
 		Num:     a.icons.Number(n),
 		Icon:    icon,
@@ -177,7 +182,16 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		Pane:    p.ID,
 	}
 	var tabHints []ui.Hint
-	switch {
+	switch rt := resultOf(p); {
+	case rt != nil:
+		if rt.run != nil && rt.run.done {
+			b.Hints = a.resultHints(rt)
+		}
+		tabHints = bound(
+			ui.Hint{Key: a.hints("grid", "", "grid.left", "grid.down", "grid.up", "grid.right")},
+			ui.Hint{Key: a.keys.Hint("grid.transpose", "grid"), Label: "转置", Action: "grid.transpose"},
+			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},
+		)
 	case consoleOf(p) != nil:
 		// Drawn left to right; Prio says what goes first when space runs out
 		// (§7.8). The schema dropdown comes before ▶ run in F3.11.
@@ -201,7 +215,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	if in.Empty() {
 		return
 	}
-	tabs := ui.Tabs{Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}
+	tabs := ui.Tabs{Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID, NoNew: p == a.win().Result}
 	for i := range p.Tabs {
 		ic, _ := a.tabIcon(&p.Tabs[i])
 		tabs.Names, tabs.Icons = append(tabs.Names, p.Tabs[i].Name), append(tabs.Icons, ic)
@@ -212,6 +226,10 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 			{Icon: a.icons.Table, Label: "打开表", Key: a.keys.Hint("tab.table", "landing"), Action: "tab.table"},
 			{Icon: a.icons.Console, Label: "新建 console", Key: a.keys.Hint("console.new", "landing"), Action: "console.new"},
 		}}.Draw(f, bodyRect(r))
+		return
+	}
+	if rt := resultOf(p); rt != nil {
+		a.drawResult(f, p, rt, bodyRect(r))
 		return
 	}
 	if c := consoleOf(p); c != nil {
@@ -302,15 +320,59 @@ func (a *App) label(s string) string {
 }
 
 // tabIcon is the icon of tab t's type and the word ascii icons need beside
-// it (§7.7): none for a landing tab, or no tab.
+// it (§7.7): none for a landing tab, or no tab, nor for the log; pin for a
+// pinned result.
 func (a *App) tabIcon(t *Tab) (ui.Icon, string) {
 	switch {
-	case t != nil && t.Data != nil:
+	case t == nil:
+	case t.Data != nil:
 		return a.icons.Table, "table"
-	case t != nil && t.Console != nil:
+	case t.Console != nil:
 		return a.icons.Console, "console"
+	case t.Result != nil && t.Result.pinned:
+		return a.icons.Pin, "result"
+	case t.Result != nil && t.Result.run != nil:
+		return a.icons.Result, "result"
 	}
 	return ui.Icon{}, ""
+}
+
+// resultHints are the result area's title (§11「工具行」): what the result
+// is, then its buttons, which make room in the order close, rerun, pin,
+// transpose, export, and the words last.
+func (a *App) resultHints(rt *resultTab) []ui.Hint {
+	ic := a.icons
+	button := func(i ui.Icon, action string, prio int) ui.Hint {
+		return ui.Hint{Label: " " + i.Text + " ", Action: action, Color: cmp.Or(i.Fg, a.theme.Info), Prio: prio}
+	}
+	return []ui.Hint{
+		{Label: resultText(rt.page), Prio: 5},
+		button(ic.Refresh, "result.rerun", 1),
+		button(ic.Transpose, "grid.transpose", 3),
+		button(ic.Pin, "result.pin", 2),
+		button(ic.Export, "result.export", 4),
+		button(ic.Close, "result.close", 0),
+	}
+}
+
+// drawResult is a result tab's body in r: the log, a run's placeholder, or
+// its table (§11).
+func (a *App) drawResult(f *ui.Frame, p *Pane, rt *resultTab, r uv.Rectangle) {
+	th := f.Theme
+	switch {
+	case rt.run == nil:
+		ui.Log{Lines: a.win().log, Top: rt.top}.Draw(f, r)
+	case !rt.run.done:
+		s := fmt.Sprintf("执行中 · %ds", int(time.Since(rt.run.start).Seconds()))
+		if k := a.keys.Hint("cancel", "global"); k != "" {
+			s += " · " + k + " 取消"
+		}
+		f.Text(r.Min.X+1, r.Min.Y, r.Max.X-1, s, uv.Style{Fg: th.Dim, Bg: th.PaneBg})
+	default:
+		if c := a.resultGrid(p, rt).Draw(f, r); c.X >= 0 {
+			f.Cursor = &c
+		}
+	}
 }
 
 // iconRuns is " <icon>" and then tail as status bar runs, the icon in its own
@@ -372,9 +434,9 @@ func (a *App) statusLine() ui.StatusLine {
 	case c != nil:
 		s.Info = a.selectionInfo(c.ed)
 	}
-	// the cursor's row,col, with a table loaded in the focused pane (§7.8)
-	if _, t, ok := a.focusedGrid(); ok && len(t.page.Rows) > 0 {
-		at := fmt.Sprintf(" %d,%d ", t.shown.pageNo*t.shown.limit+t.row+1, t.col+1)
+	// the cursor's row,col, with a table loaded in the focused pane, a result's too (§7.8)
+	if gs, g, _, ok := a.gridOf(a.focused()); ok && len(g.Rows) > 0 {
+		at := fmt.Sprintf(" %d,%d ", g.First+gs.row+1, gs.col+1)
 		s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: at, Style: bar(th.FgMuted)}}, Drop: dropCursor})
 	}
 	s.Right = append(s.Right, ui.Segment{Runs: iconRuns(ic.Conn, conn, " "+a.sess.Addr+" "), Drop: dropConn})

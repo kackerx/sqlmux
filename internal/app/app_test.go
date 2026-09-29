@@ -24,7 +24,7 @@ import (
 
 func TestMain(m *testing.M) {
 	// feed runs the Cmds keys return, the ticks too: they must not hold it up
-	whichKeyDelay, quitWindow, toastTTL, autosaveDelay = time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond
+	whichKeyDelay, quitWindow, toastTTL, autosaveDelay, runTickEvery = time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond
 	dir, _ := os.MkdirTemp("", "sqlmux-app-test")
 	os.Setenv("XDG_STATE_HOME", dir) // saves the state from the Cmds tests run go here, not the user's
 	os.Setenv("XDG_DATA_HOME", dir)  // and the consoles

@@ -115,6 +115,21 @@ func init() {
 			}
 		})},
 		"console.new": {Title: "新建 console", Run: func(a *App, _ Args) tea.Cmd { return a.newConsole() }},
+		// "console.run <line>" is a click on a ▶ (§11「执行」).
+		"console.run": {Title: "执行", Run: func(a *App, args Args) tea.Cmd { return a.consoleRun(args.Arg) }},
+		// The result area's (§11).
+		"result.rerun":  {Title: "重跑", Run: func(a *App, _ Args) tea.Cmd { return a.rerun() }},
+		"result.export": {Title: "导出 CSV", Run: func(a *App, _ Args) tea.Cmd { return a.exportResult() }},
+		"result.pin": {Title: "固定结果", Run: do(func(a *App, _ Args) {
+			if rt := resultOf(a.focused()); rt != nil && rt.run != nil && rt.run.done {
+				rt.pinned = !rt.pinned
+			}
+		})},
+		"result.close": {Title: "关闭结果", Run: do(func(a *App, _ Args) {
+			if p := a.focused(); p == a.win().Result && resultOf(p).run != nil { // the log stays
+				a.closeTab(p)
+			}
+		})},
 
 		"pane.split.right": {Title: "左右分割", Run: do(func(a *App, _ Args) { a.splitPane(Horiz) })},
 		"pane.split.below": {Title: "上下分割", Run: do(func(a *App, _ Args) { a.splitPane(Vert) })},
@@ -270,8 +285,7 @@ func init() {
 		"window.new": "新建 window", "window.rename": "重命名 window", "window.close": "关闭 window",
 		"window.next": "下一个 window", "window.prev": "上一个 window", "window.last": "上次用的 window",
 		"grid.yank": "复制单元格", "grid.yank.insert": "复制为 INSERT",
-		"result.pin": "固定结果", "result.close": "关闭结果",
-		"console.run": "执行", "console.format": "格式化", "console.schema": "切换 schema",
+		"console.format": "格式化", "console.schema": "切换 schema",
 	} {
 		actions[id] = Action{Title: title}
 	}

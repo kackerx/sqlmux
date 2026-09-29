@@ -38,6 +38,8 @@ type Icons struct {
 	Save, Refresh, Transpose Icon
 	SortAsc, SortDesc        Icon
 	View, Column             Icon // the tree's (F1.12)
+	Result, Pin, Export      Icon // the result area's (§11)
+	Close                    Icon
 	// Labeled sets (ascii) say nothing by themselves, so the words beside
 	// the icons stay: pane types in titles, C-p, the filter's / (§7.7).
 	Labeled bool
@@ -63,6 +65,10 @@ var NerdIcons = &Icons{
 	SortDesc:  Icon{Text: "\uf161"}, // nf-fa-sort_amount_desc
 	View:      Icon{Text: "\uf06e"}, // nf-fa-eye
 	Column:    Icon{Text: "\ueb5f"}, // nf-cod-symbol_field
+	Result:    Icon{Text: "\uf022"}, // nf-fa-list_alt
+	Pin:       Icon{Text: "\uf435"}, // nf-oct-pin
+	Export:    Icon{Text: "\uf019"}, // nf-fa-download
+	Close:     Icon{Text: "\uf00d"}, // nf-fa-times
 }
 
 var ASCIIIcons = &Icons{
@@ -82,6 +88,10 @@ var ASCIIIcons = &Icons{
 	SortDesc:  Icon{Text: "↓"},
 	View:      Icon{Text: "v"},
 	Column:    Icon{Text: "-"},
+	Result:    Icon{Text: "="},
+	Pin:       Icon{Text: "*"},
+	Export:    Icon{Text: ">"},
+	Close:     Icon{Text: "x"},
 	Labeled:   true,
 }
 
@@ -113,5 +123,6 @@ func (ic *Icons) byName() map[string]*Icon {
 		"key": &ic.Key, "postgres": &ic.Postgres, "command": &ic.Command, "window": &ic.Window,
 		"save": &ic.Save, "refresh": &ic.Refresh, "transpose": &ic.Transpose,
 		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column,
+		"result": &ic.Result, "pin": &ic.Pin, "export": &ic.Export, "close": &ic.Close,
 	}
 }
