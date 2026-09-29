@@ -574,9 +574,10 @@ func TestGoldenCellOptions160x45(t *testing.T) {
 	golden.RequireEqual(t, a.render().String())
 }
 
-// A time cell steps its parts: Tab / S-Tab pick one, ↑ / ↓ step it, the
-// text following; ◷ 现在 fills the text and the edit goes on; a text that
-// doesn't parse steps nothing (§10.2).
+// A time cell steps its parts: Tab / S-Tab pick one, and then the
+// options, around the ends; ↑ / ↓ step a part, the text following, and do
+// nothing on an option; ◷ 现在 fills the text and the edit goes on; a text
+// that doesn't parse steps nothing (§10.2, F3.34).
 func TestTimeCell(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	tab := loadOrders(t, a, 3)
@@ -591,8 +592,12 @@ func TestTimeCell(t *testing.T) {
 	if in := tab.cell.in; in.Text != "2026-10-01 00:01:00+00" || in.All || tab.cell.seg != 1 {
 		t.Fatalf("month up: %+v", in)
 	}
-	feed(t, a, "<Down><S-Tab><S-Tab><Up>")
-	if tab.cell.in.Text != "2026-09-01 00:01:01+00" || tab.cell.seg != 5 {
+	feed(t, a, "<Down><S-Tab><S-Tab><Up>") // past the first part the options, from the last: ↑ steps nothing there
+	if tab.cell.in.Text != "2026-09-01 00:01:00+00" || tab.cell.sel != 1 {
+		t.Fatalf("S-Tab on to ∅ NULL: %+v", tab.cell)
+	}
+	feed(t, a, "<S-Tab><S-Tab><Up>")
+	if tab.cell.in.Text != "2026-09-01 00:01:01+00" || tab.cell.seg != 5 || tab.cell.sel != -1 {
 		t.Fatalf("round to the seconds, up: %q", tab.cell.in.Text)
 	}
 	feed(t, a, "<C-n><CR>")

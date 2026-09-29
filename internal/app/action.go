@@ -270,8 +270,8 @@ func init() {
 		// the options under a cell being edited (§10.2)
 		"cell.option.next":  {Title: "下一个选项", Local: true, Run: onCell(func(t *dataTab) { t.moveOption(1) })},
 		"cell.option.prev":  {Title: "上一个选项", Local: true, Run: onCell(func(t *dataTab) { t.moveOption(-1) })},
-		"cell.up":           {Title: "当前段加一", Local: true, Run: onCell(func(t *dataTab) { t.stepSeg(t.cell.seg, 1) })},
-		"cell.down":         {Title: "当前段减一", Local: true, Run: onCell(func(t *dataTab) { t.stepSeg(t.cell.seg, -1) })},
+		"cell.up":           {Title: "当前段加一", Local: true, Run: onCell(func(t *dataTab) { t.stepCurrent(1) })},
+		"cell.down":         {Title: "当前段减一", Local: true, Run: onCell(func(t *dataTab) { t.stepCurrent(-1) })},
 		"cell.segment.next": {Title: "下一段", Local: true, Run: onCell(func(t *dataTab) { t.moveSeg(1) })},
 		"cell.segment.prev": {Title: "上一段", Local: true, Run: onCell(func(t *dataTab) { t.moveSeg(-1) })},
 		// a time's parts clicked: "cell.seg 3" picks one, "cell.inc 3" / "cell.dec 3" step it

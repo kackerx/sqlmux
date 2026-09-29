@@ -314,23 +314,45 @@ func (a *App) setSpecial(def bool) {
 func (t *dataTab) cellKind() ui.TimeKind { return timeKind(t.typeOf(t.cell.key.col)) }
 
 // stepSeg steps a time's part i by d (0: just makes it the current part),
-// rewriting that part of the text alone (§10.2). Text that doesn't parse
-// steps nothing.
+// rewriting that part of the text alone (§10.2); the option picked goes.
+// Text that doesn't parse steps nothing.
 func (t *dataTab) stepSeg(i, d int) {
 	c, k := t.cell, t.cellKind()
 	if segs := ui.TimeSegs(k, c.in.Text); i < 0 || i >= len(segs) {
 		return
 	}
-	c.seg = i
+	c.seg, c.sel = i, -1
 	if s := ui.StepTime(k, c.in.Text, i, d); d != 0 {
-		c.in, c.sel = ui.Input{Text: s, Pos: len(s)}, -1
+		c.in = ui.Input{Text: s, Pos: len(s)}
 	}
 }
 
-// moveSeg moves a time's current part by d, around the ends.
+// stepCurrent is ↑ and ↓ over a time's box: its current part stepped;
+// on an option, nothing (§10.2).
+func (t *dataTab) stepCurrent(d int) {
+	if t.cell.sel < 0 {
+		t.stepSeg(t.cell.seg, d)
+	}
+}
+
+// moveSeg is Tab and S-Tab over a time's box (§10.2, F3.34): d through its
+// parts, then the options' row, around the ends. On an option no part is
+// current; ↵ takes it.
 func (t *dataTab) moveSeg(d int) {
-	if n := len(ui.TimeSegs(t.cellKind(), t.cell.in.Text)); n > 0 {
-		t.cell.seg = ((t.cell.seg+d)%n + n) % n
+	c := t.cell
+	n := len(ui.TimeSegs(t.cellKind(), c.in.Text))
+	all := n + len(t.options())
+	if all == 0 {
+		return
+	}
+	at := c.seg
+	if c.sel >= 0 {
+		at = n + c.sel
+	}
+	if at = ((at+d)%all + all) % all; at < n {
+		c.seg, c.sel = at, -1
+	} else {
+		c.sel = at - n
 	}
 }
 
@@ -364,6 +386,9 @@ func (a *App) drawCellMenu(f *ui.Frame, p *Pane, t *dataTab) {
 	case t.cell.folded:
 	case k != ui.NotTime:
 		v := ui.TimePick{Kind: k, Text: t.cell.in.Text, Seg: t.cell.seg, Sel: t.cell.sel}
+		if t.cell.sel >= 0 { // on an option, no part is current (F3.34)
+			v.Seg = -1
+		}
 		for _, o := range os {
 			v.Options = append(v.Options, o.label)
 		}
