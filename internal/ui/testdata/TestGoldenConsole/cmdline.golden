@@ -1,0 +1,22 @@
+ |   1 -- the users                       |
+ |.....cccccccccccc.......................|
+ |                                        |
+ |▶  2 select id, count(*) from t_user    |
+ |>ddd.kkkkkk.....fffff....kkkk...........|
+ |                                        |
+ |   3 where name = 'a' and n > 42        |
+ |.ddd.kkkkk........sss.kkk.....nn........|
+ |                                        |
+ |   4 group by id;                       |
+ |.ddd.kkkkk.kk...........................|
+ |                                        |
+ |   5                                    |
+ |.ddd....................................|
+ |                                        |
+ |▶  6 select now();                      |
+ |>ddd.kkkkkk.fff.........................|
+ |                                        |
+@|:%s/a/b                                 |
+ |........................................|
+ |                                        |
+cursor 7,6

@@ -18,6 +18,7 @@ type Config struct {
 	Theme      *ui.Theme // `theme = "<name>"` (§7.3), resolved by Load
 	Icons      *ui.Icons // `icons = "nerd" | "ascii"`, with the theme file's [icon] on top (§7.7)
 	Timeoutlen int       // ms to wait on an ambiguous key sequence
+	TabWidth   int       // the console's indent, and the formatter's (§14)
 	theme      string    // the name Parse read; Load finds the theme, as it touches the disk
 
 	// Leader and Bindings are the raw [keys] and [map.*] entries; the keymap
@@ -34,7 +35,7 @@ type Binding struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, Timeoutlen: 1000}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, Timeoutlen: 1000, TabWidth: 2}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -78,6 +79,7 @@ func Parse(data string) (*Config, error) {
 		Theme      *string        `toml:"theme"`
 		Icons      *string        `toml:"icons"`
 		Timeoutlen *int           `toml:"timeoutlen"`
+		TabWidth   *int           `toml:"tab_width"`
 		Keys       map[string]any `toml:"keys"`
 		Map        map[string]any `toml:"map"`
 	}{}
@@ -99,6 +101,12 @@ func Parse(data string) (*Config, error) {
 			return nil, fmt.Errorf("timeoutlen = %d：必须大于 0", *raw.Timeoutlen)
 		}
 		c.Timeoutlen = *raw.Timeoutlen
+	}
+	if raw.TabWidth != nil {
+		if *raw.TabWidth <= 0 {
+			return nil, fmt.Errorf("tab_width = %d：必须大于 0", *raw.TabWidth)
+		}
+		c.TabWidth = *raw.TabWidth
 	}
 	tables := map[string]map[string]any{"keys": raw.Keys, "map": raw.Map}
 	for _, k := range md.Keys() {

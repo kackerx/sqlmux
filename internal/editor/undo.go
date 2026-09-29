@@ -1,6 +1,9 @@
 package editor
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 // step is one undoable change: a NORMAL command, or an INSERT up to its
 // esc or its first arrow key (§11). The text is kept whole on both sides;
@@ -209,4 +212,30 @@ func (e *Editor) undoLine() {
 	}
 	e.cur = Pos{n, col}
 	e.endChange() // a step of its own, which u undoes; the U line stays
+}
+
+// Load puts text in place of the whole text, as reading the file again
+// after another editor changed it: one undo step, in NORMAL, the cursor
+// where it was as far as the new text allows.
+func (e *Editor) Load(text string) Effect {
+	e.eff = Effect{}
+	switch {
+	case e.cl != nil:
+		e.closeCmdline()
+	case e.ins != nil:
+		e.escape()
+	}
+	if e.visual() {
+		e.endVisual()
+	}
+	e.keys = nil
+	if ls := strings.Split(strings.TrimSuffix(text, "\n"), "\n"); !slices.Equal(ls, e.lines) {
+		e.beginChange()
+		e.eff.Changed = true
+		e.lines, e.uLine = ls, -1
+		e.clampCursor()
+		e.endChange()
+	}
+	e.scrollToCursor()
+	return e.eff
 }

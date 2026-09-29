@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"sqlmux/internal/config"
+	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -23,6 +24,8 @@ type App struct {
 	keys  *keymap.Map
 	res   *keymap.Resolver
 	sess  *Session
+
+	tabWidth int // the consoles' (§14)
 
 	palette  *palette    // non-nil while the command palette is open (COMMAND mode)
 	drop     *dropdown   // non-nil while a one-pick dropdown is open (§8.6, §7.8)
@@ -46,12 +49,13 @@ type App struct {
 	mouse       uv.Position // pointer, for hover styles
 	drag        *handle     // the split border being dragged
 	dragTree    bool        // the sidebar's edge is being dragged
+	dragText    int         // the pane whose console text is being selected by dragging; 0 for none
 	lastClick   ui.Target   // with lastClickAt, to spot a double click
 	lastClickAt time.Time
 }
 
 // toastTTL is how long a toast stays up (§7.8).
-const toastTTL = 3 * time.Second
+var toastTTL = 3 * time.Second
 
 // doubleClick is how soon a second click on the same target makes a double (§7.4).
 const doubleClick = 400 * time.Millisecond
@@ -69,7 +73,7 @@ var whichKeyDelay = 400 * time.Millisecond
 // not "", shows as a toast on start.
 func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, warning string) *App {
 	return &App{
-		theme: cfg.Theme, icons: cfg.Icons,
+		theme: cfg.Theme, icons: cfg.Icons, tabWidth: cfg.TabWidth,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess,
 		mouse: uv.Pos(-1, -1), warning: warning, state: st,
 	}
@@ -110,6 +114,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotCols(msg)
 	case saveMsg:
 		return a, a.gotSave(msg)
+	case autosave:
+		if msg.ver == msg.t.ver {
+			if err := msg.t.flush(); err != nil {
+				return a, a.saveFailed(err)
+			}
+		}
+	case externalDone:
+		return a, a.gotExternal(msg)
 	case stateErr:
 		return a, a.showToast(msg.err.Error(), toastTTL)
 	case toastExpired:
@@ -129,6 +141,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.dragTree {
 			a.win().TreeW = treeWidth(a.mouse.X, a.w)
 		}
+		if a.dragText != 0 {
+			if t, n, v := a.consoleAt(a.dragText, a.mouse); t != nil {
+				t.ed.Drag(n, v)
+			}
+		}
 		if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow { // hover selects (K-03, §9.7)
 			switch c := a.completing(); {
 			case c != nil:
@@ -138,7 +155,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.MouseReleaseMsg:
-		a.drag, a.dragTree = nil, false
+		a.drag, a.dragTree, a.dragText = nil, false, 0
 	case tea.MouseClickMsg:
 		switch m := msg.Mouse(); m.Button {
 		case tea.MouseLeft:
@@ -168,6 +185,14 @@ func (a *App) press(k keymap.Key) tea.Cmd {
 	if a.paneNumbers {
 		a.jumpToPane(k)
 		return nil
+	}
+	// An editor waiting for the rest of a command takes the keys itself,
+	// user maps and all, C-c as esc (§6.4): f<Space>x is no leader key.
+	if t := a.focusedConsole(); t != nil && t.ed.Pending() != "" {
+		if k == "<C-c>" {
+			k = keymap.Esc
+		}
+		return a.consoleKey(a.focused(), t, k)
 	}
 	out, wait := a.res.Feed(a.context(), k)
 	cmd := a.dispatch(out)
@@ -256,6 +281,12 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		return focus()
 	case ui.KindPane:
 		return focus()
+	case ui.KindText: // the cursor goes there; dragging from there selects (§11)
+		a.focusPane(t.Pane)
+		if c, n, v := a.consoleAt(t.Pane, p); c != nil {
+			c.ed.Click(n, v)
+			a.dragText = t.Pane
+		}
 	case ui.KindTab:
 		a.focusPane(t.Pane)
 		if p := a.win().pane(t.Pane); p != nil {
@@ -316,8 +347,13 @@ func (a *App) wheel(m tea.Mouse) {
 
 // paste types s into the input that has the keys, each its own way, a
 // newline as a space: they are single-line (§10.1). On a grid in NORMAL it
-// starts editing the current cell with s.
+// starts editing the current cell with s; a console takes it whole, as
+// text in any mode (§11).
 func (a *App) paste(s string) tea.Cmd {
+	if t := a.focusedConsole(); t != nil {
+		a.consoleView(a.focused(), t)
+		return a.consoleDid(t, t.ed.Paste(s))
+	}
 	s = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ").Replace(s)
 	if a.mode() == keymap.Normal {
 		return a.editCell(&s)
@@ -348,6 +384,8 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 				a.filterKey(k)
 			case t != nil:
 				cmds = append(cmds, a.typeKey(t, k))
+			case a.focusedConsole() != nil: // what the console's keymap leaves goes to its vim (§6.4)
+				cmds = append(cmds, a.consoleKey(a.focused(), a.focusedConsole(), k))
 			}
 		}
 	}
@@ -355,13 +393,18 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 }
 
 // mode is derived from state, never stored (§3 principle 3).
-// ponytail: no VISUAL until the console editor (M3).
 func (a *App) mode() keymap.Mode {
-	switch t := a.typingTab(); {
+	switch t, c := a.typingTab(), a.focusedConsole(); {
 	case a.palette != nil, a.drop != nil, a.cols != nil, a.confirm != nil, t != nil && t.hist != nil: // an overlay has the keys (§7.8)
 		return keymap.Command
 	case a.win().tree.filtering, t != nil:
 		return keymap.Insert
+	case c != nil: // the console's vim
+		return [...]keymap.Mode{
+			editor.Normal: keymap.Normal, editor.Insert: keymap.Insert, editor.Replace: keymap.Insert,
+			editor.Visual: keymap.Visual, editor.VisualLine: keymap.Visual, editor.VisualBlock: keymap.Visual,
+			editor.Command: keymap.Command,
+		}[c.ed.Mode()]
 	}
 	return keymap.Normal
 }
@@ -392,7 +435,7 @@ func (a *App) context() keymap.Context {
 	case a.win().tree.filtering, typing != nil:
 		return keymap.Context{Focus: []string{"input"}, Mode: keymap.Insert}
 	}
-	return keymap.Context{Focus: []string{a.paneScope()}, Pane: a.paneScope()}
+	return keymap.Context{Focus: []string{a.paneScope()}, Pane: a.paneScope(), Mode: a.mode()}
 }
 
 // paneScope is the keymap scope of the focused pane.
@@ -421,6 +464,12 @@ func (a *App) View() tea.View {
 	if c := f.Cursor; c != nil { // the terminal's own cursor, which input methods follow (§12)
 		v.Cursor = tea.NewCursor(c.X, c.Y)
 		v.Cursor.Shape = tea.CursorBar
+		if t := a.focusedConsole(); t != nil && t.ed.Mode() != editor.Insert { // vim's: a block, a bar in INSERT, a line under in REPLACE (§11)
+			v.Cursor.Shape = tea.CursorBlock
+			if t.ed.Mode() == editor.Replace {
+				v.Cursor.Shape = tea.CursorUnderline
+			}
+		}
 	}
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion

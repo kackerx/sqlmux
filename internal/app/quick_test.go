@@ -287,14 +287,14 @@ func TestQuickSQLScroll(t *testing.T) {
 // With nothing after the ;, the history's rows take the whole width: the
 // list has no locations to line up (§12「列对齐」).
 func TestGoldenQuickSQLHistory160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	a.state.SQL = map[string][]string{"doraemon": {"select id, note, created_at from t_order where id < 3 order by id", "select 1"}}
 	feed(t, a, "<C-p>;")
 	golden.RequireEqual(t, a.render().String())
 }
 
 func TestGoldenQuickSQL160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	feed(t, a, "<C-p>;select * from t<Esc>")
 	r := quickResult(100)
 	r.Truncated = true

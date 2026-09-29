@@ -14,6 +14,7 @@ func TestParseBindingsInFileOrder(t *testing.T) {
 	c, err := Parse(`
 icons = "ascii"
 timeoutlen = 300
+tab_width = 4
 [keys]
 leader = "<C-a>"
 [keys.normal]
@@ -33,7 +34,7 @@ L = "5l"
 		{"map.normal", "J", "5j"},
 		{"map.console.normal", "L", "5l"},
 	}
-	if c.Icons != ui.ASCIIIcons || c.Timeoutlen != 300 || c.Leader != "<C-a>" || !reflect.DeepEqual(c.Bindings, want) {
+	if c.Icons != ui.ASCIIIcons || c.Timeoutlen != 300 || c.TabWidth != 4 || c.Leader != "<C-a>" || !reflect.DeepEqual(c.Bindings, want) {
 		t.Fatalf("got %+v", c)
 	}
 }
@@ -42,6 +43,7 @@ func TestParseErrors(t *testing.T) {
 	for _, s := range []string{
 		`icons = "emoji"`,
 		`timeoutlen = 0`,
+		`tab_width = 0`,
 		"[keys.normal]\nx = 1",
 		"[keys]\nx = \"a\"",
 		"[keys.normal\n",

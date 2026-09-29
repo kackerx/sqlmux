@@ -74,6 +74,10 @@ func (c Connection) problem() string {
 			return "缺少 " + f[0]
 		}
 	}
+	// the name is the directory of its console files (§11)
+	if strings.ContainsAny(c.Name, `/\`) || strings.HasPrefix(c.Name, ".") {
+		return fmt.Sprintf(`name = %q：不能含 / 或 \，也不能以 . 开头`, c.Name)
+	}
 	if c.Engine != "postgres" {
 		return fmt.Sprintf("engine = %q，目前只支持 postgres", c.Engine)
 	}

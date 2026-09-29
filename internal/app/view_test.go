@@ -82,28 +82,31 @@ func TestSmallSizes(t *testing.T) {
 	}
 }
 
-// §7.8: at 160×45 the console title keeps both the schema dropdown and
-// "▶ run ↵", cutting the object name instead.
+// §7.8: at 160×45 the console title has its name and "▶ run ↵"; the
+// schema dropdown comes in F3.11.
 func TestConsoleTitleAt160(t *testing.T) {
 	top := strings.Split(twoPanes(160, 45, "nerd").render().String(), "\n")[0]
 	// no "console" beside its icon (§7.7), so the tab name fits whole
-	for _, want := range []string{"② " + ui.NerdIcons.Console.Text + " console_1 ─", "doraemon.public ▾", " ▶ run  ↵ ─┐"} {
+	for _, want := range []string{"② " + ui.NerdIcons.Console.Text + " console_1 ─", " ▶ run  ↵ ─┐"} {
 		if !strings.Contains(top, want) {
 			t.Errorf("top row lacks %q: %q", want, top)
 		}
 	}
 }
 
-// §7.8: sidebar 32 cols (24 below 100), then a 1-col gap; the data pane
-// takes the rest (§5).
+// §7.8: sidebar 32 cols (24 below 100), then a 1-col gap; data and the
+// console share the rest at 5 : 4, a 1-col gap between them (§5).
 func TestLayoutSizes(t *testing.T) {
 	for _, c := range []struct{ w, side int }{{160, 32}, {100, 32}, {99, 24}, {80, 24}} {
 		r := sized(c.w, 45, "nerd").layout()
-		side, data := r[0], r[1]
-		if len(r) != 2 || side.Min.X != 0 || side.Dx() != c.side || data.Min.X != side.Max.X+1 || data.Max.X != c.w {
-			t.Errorf("w=%d: %v; want the sidebar %d wide, then data to the edge", c.w, r, c.side)
+		side, data, cons := r[0], r[1], r[2]
+		if len(r) != 3 || side.Min.X != 0 || side.Dx() != c.side || data.Min.X != side.Max.X+1 || cons.Min.X != data.Max.X+1 || cons.Max.X != c.w {
+			t.Errorf("w=%d: %v; want the sidebar %d wide, then data and the console to the edge", c.w, r, c.side)
 		}
-		if side.Dy() != 44 || data.Dy() != 44 {
+		if d := data.Dx()*4 - cons.Dx()*5; d < -5 || d > 5 {
+			t.Errorf("w=%d: data %d, console %d wide, not 5 : 4", c.w, data.Dx(), cons.Dx())
+		}
+		if side.Dy() != 44 || data.Dy() != 44 || cons.Dy() != 44 {
 			t.Errorf("w=%d: panes must fill every row above the status bar", c.w)
 		}
 	}

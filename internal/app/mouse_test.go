@@ -137,7 +137,7 @@ func TestHover(t *testing.T) {
 // The wheel scrolls the pane under the pointer, whatever has focus; the
 // tree's view moves and pulls the cursor along, as in nvim (§7.8).
 func TestWheelScrollsPaneUnderPointer(t *testing.T) {
-	a := sized(160, 18, "nerd") // 22 nodes, 11 rows shown
+	a := sized(160, 18, "nerd") // 24 nodes, 11 rows shown
 	tree := &a.win().tree
 	wheel := func(id int, b tea.MouseButton) {
 		r := a.layout()[id]
@@ -159,11 +159,11 @@ func TestWheelScrollsPaneUnderPointer(t *testing.T) {
 	for range 4 {
 		wheel(0, tea.MouseWheelDown)
 	}
-	if tree.top != 22-11 {
+	if tree.top != 24-11 {
 		t.Fatalf("the last node stops at the bottom: top %d", tree.top)
 	}
-	a.treeGo(21)
-	for range 4 {
+	a.treeGo(23)
+	for range 5 {
 		wheel(0, tea.MouseWheelUp)
 	}
 	if tree.top != 0 || tree.cursor != 10 {
@@ -190,7 +190,7 @@ func TestClickUnderPaneNumbers(t *testing.T) {
 		if a.paneNumbers || a.win().Focus != c.focus {
 			t.Errorf("%s: numbers %v, focus %d, want %d", c.name, a.paneNumbers, a.win().Focus, c.focus)
 		}
-		if feed(t, a, ":"); a.palette == nil {
+		if feed(t, a, "<C-p>"); a.palette == nil {
 			t.Errorf("%s: the key after the click was swallowed", c.name)
 		}
 	}

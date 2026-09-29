@@ -19,10 +19,12 @@ import (
 	"sqlmux/internal/ui"
 )
 
-// Tab is one tab of a pane (§5); a data pane's carries its table.
+// Tab is one tab of a pane (§5): a data pane's carries its table, a
+// console pane's its console.
 type Tab struct {
-	Name string
-	Data *dataTab
+	Name    string
+	Data    *dataTab
+	Console *consoleTab
 }
 
 // dataTab is a table open in a data pane (§5, §7.6, §7.8「查询条」).

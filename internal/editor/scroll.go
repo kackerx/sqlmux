@@ -12,9 +12,11 @@ func (e *Editor) rows() int {
 	return len(e.lines)
 }
 
-// scrollToCursor brings the cursor on screen after a command (update_topline):
-// a line or so away scrolls just enough, further away puts it in the middle.
+// scrollToCursor brings the cursor on screen after a command, sideways
+// too (update_topline): a line or so away scrolls just enough, further
+// away puts it in the middle.
 func (e *Editor) scrollToCursor() {
+	e.scrollSideways()
 	h, n := e.height, len(e.lines)
 	if h <= 0 {
 		return
@@ -255,4 +257,33 @@ func (e *Editor) overlap(dir int) int {
 		return minH + 1
 	}
 	return minH
+}
+
+// scrollSideways keeps the cursor's character on screen as nvim does with
+// 'sidescroll' 1 and 'sidescrolloff' 0 (move.c curs_columns): a few
+// columns off scrolls just enough, half the width or more puts the cursor
+// in the middle.
+func (e *Editor) scrollSideways() {
+	w := e.width
+	if w <= 0 {
+		return
+	}
+	start, end := e.charCols(e.cur)
+	offLeft, offRight := start-e.left, end-e.left-w+1
+	if offLeft >= 0 && offRight <= 0 {
+		return
+	}
+	diff := offRight
+	if offLeft < 0 {
+		diff = -offLeft
+	}
+	switch {
+	case diff >= w/2 || offRight >= offLeft: // far off, or wider than the screen
+		e.left = e.cursorVcol() - w/2
+	case offLeft < 0:
+		e.left -= diff
+	default:
+		e.left += diff
+	}
+	e.left = max(e.left, 0)
 }

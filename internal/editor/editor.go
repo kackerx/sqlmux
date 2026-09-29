@@ -60,6 +60,8 @@ type Editor struct {
 	mode   Mode
 	height int // lines on screen; 0 before the first draw
 	top    int // the first line on screen
+	width  int // columns on screen for the text; 0 before the first draw
+	left   int // the first display column on screen (leftcol)
 	scroll int // how far C-d and C-u go, 0 for half the screen ('scroll')
 
 	keys []string   // the NORMAL or VISUAL command typed so far
@@ -99,6 +101,7 @@ func (e *Editor) Lines() []string { return e.lines }
 func (e *Editor) Cursor() Pos     { return e.cur }
 func (e *Editor) Mode() Mode      { return e.mode }
 func (e *Editor) Top() int        { return e.top }
+func (e *Editor) Left() int       { return e.left }
 
 // Pending is the command typed so far, as nvim's showcmd shows it.
 func (e *Editor) Pending() string { return strings.Join(e.keys, "") }
@@ -107,6 +110,13 @@ func (e *Editor) Pending() string { return strings.Join(e.keys, "") }
 // scrolling that keeps the cursor on screen depend on it.
 func (e *Editor) SetHeight(n int) {
 	e.height = n
+	e.scrollToCursor()
+}
+
+// SetWidth tells how many columns the text has on screen: the view
+// scrolls sideways to keep the cursor in it.
+func (e *Editor) SetWidth(n int) {
+	e.width = n
 	e.scrollToCursor()
 }
 
@@ -385,6 +395,10 @@ func (e *Editor) clampCursor() {
 	}
 	e.cur.Col = head(l, min(max(e.cur.Col, 0), end))
 }
+
+// CursorCol is the display column the cursor is drawn at, from the start
+// of its line: the end of a tab in NORMAL, as in vim.
+func (e *Editor) CursorCol() int { return e.cursorVcol() }
 
 // cursorVcol is the display column of the cursor as curswant takes it: the
 // end of a tab in NORMAL, where vim draws the cursor on it.

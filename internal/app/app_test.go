@@ -23,9 +23,11 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	whichKeyDelay, quitWindow = time.Millisecond, time.Millisecond
+	// feed runs the Cmds keys return, the ticks too: they must not hold it up
+	whichKeyDelay, quitWindow, toastTTL, autosaveDelay = time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond
 	dir, _ := os.MkdirTemp("", "sqlmux-app-test")
 	os.Setenv("XDG_STATE_HOME", dir) // saves the state from the Cmds tests run go here, not the user's
+	os.Setenv("XDG_DATA_HOME", dir)  // and the consoles
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)
@@ -42,7 +44,10 @@ func (noDB) Close() error                                                { retur
 // testSession is the default workspace over a catalog of 14 tables in
 // public and one in agentable, with no database behind it.
 func testSession() *Session {
-	s := newSession("doraemon", "pg@localhost:5432", db.NewWorker(noDB{}), db.NewWorker(noDB{}))
+	s, err := newSession("doraemon", "pg@localhost:5432", db.NewWorker(noDB{}), db.NewWorker(noDB{}))
+	if err != nil {
+		panic(err)
+	}
 	s.Schema, s.Schemas, s.home = "public", []string{"agentable", "public"}, "public"
 	s.Tables = []db.Table{{Schema: "agentable", Name: "planner", Rows: 3}}
 	for _, t := range []struct {
@@ -60,16 +65,12 @@ func testSession() *Session {
 	return s
 }
 
-// m0Layout puts M0's layout into a, for the tests of panes, tabs and windows
-// that need more than the default one empty data pane: ⟨1⟩ data with the
-// tabs t_order and t_user, ⟨2⟩ a console beside it at 5 : 4 (§7.8), and a
-// second window.
+// m0Layout puts M0's layout into a, for the tests of panes, tabs and windows:
+// ⟨1⟩ data with the tabs t_order and t_user beside the default console_1
+// (§5), and a second window.
 func m0Layout(a *App) *App {
-	win := a.win()
-	data := win.Root.Pane
+	data := a.win().Root.A.Pane
 	data.Tabs, data.Cur, data.Prev = []Tab{{Name: "t_order"}, {Name: "t_user"}}, 0, 1
-	cons := &Pane{ID: 2, Kind: KindConsole, Tabs: []Tab{{Name: "console_1"}}, Prev: -1}
-	win.Root, win.lastID = &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(cons)}, 2
 	a.sess.Windows = append(a.sess.Windows, &Window{Name: "report"})
 	return a
 }
@@ -85,6 +86,14 @@ func tabNames(p *Pane) string {
 
 // twoPanes is sized with m0Layout.
 func twoPanes(w, h int, icons string) *App { return m0Layout(sized(w, h, icons)) }
+
+// wide is sized with no console: M1's layout, the data pane to the edge,
+// which the tests of the grid were written at.
+func wide(w, h int) *App {
+	a := sized(w, h, "nerd")
+	a.removePane(2)
+	return a
+}
 
 func sized(w, h int, icons string) *App {
 	c := config.Default()
@@ -268,11 +277,11 @@ func TestPaletteShadowsPaneKeys(t *testing.T) {
 	if ctx := a.context(); ctx.Mode != keymap.Normal || ctx.Focus[0] != "console" {
 		t.Fatalf("console context %+v", ctx)
 	}
-	feed(t, a, ":")
+	feed(t, a, "<C-p>")
 	if ctx := a.context(); ctx.Overlay != "palette" || ctx.Focus != nil || ctx.Mode != keymap.Command {
 		t.Fatalf("palette context %+v", ctx)
 	}
-	if !feed(t, a, "qa<CR>") {
+	if !feed(t, a, ">qa<CR>") {
 		t.Fatal(":qa typed over the console did not quit")
 	}
 }

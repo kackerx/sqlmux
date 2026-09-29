@@ -109,17 +109,24 @@ type Session struct {
 func (a *App) win() *Window { return a.sess.Windows[a.sess.Active] }
 
 // newSession is a session's default workspace (§5): one window, data, with
-// the sidebar and an empty data pane.
-func newSession(name, addr string, main, meta *db.Worker) *Session {
+// the sidebar, an empty data pane and console_1 beside it at 5 : 4 (§7.8),
+// which has what its file kept (§11).
+func newSession(name, addr string, main, meta *db.Worker) (*Session, error) {
+	cons, err := openConsole(name, 1)
+	if err != nil {
+		return nil, err
+	}
+	data := &Pane{ID: 1, Kind: KindData, Prev: -1}
+	console := &Pane{ID: 2, Kind: KindConsole, Tabs: []Tab{{Name: "console_1", Console: cons}}, Prev: -1}
 	w := &Window{
 		Name:     "data",
 		TreeOpen: true,
 		Tree:     &Pane{ID: 0, Kind: KindSchema},
-		Root:     leaf(&Pane{ID: 1, Kind: KindData, Prev: -1}),
-		lastID:   1,
+		Root:     &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(console)},
+		lastID:   2,
 	}
 	w.focus(1)
-	return &Session{Name: name, Addr: addr, Main: main, Meta: meta, cols: map[tableID]db.Columns{}, Windows: []*Window{w}}
+	return &Session{Name: name, Addr: addr, Main: main, Meta: meta, cols: map[tableID]db.Columns{}, Windows: []*Window{w}}, nil
 }
 
 // Open connects a session's Main and then its Meta (§8.2).
@@ -137,7 +144,12 @@ func Open(ctx context.Context, c config.Connection) (*Session, error) {
 		main.Close()
 		return nil, err
 	}
-	return newSession(c.Name, main.Addr, db.NewWorker(main), db.NewWorker(meta)), nil
+	s, err := newSession(c.Name, main.Addr, db.NewWorker(main), db.NewWorker(meta))
+	if err != nil {
+		main.Close()
+		meta.Close()
+	}
+	return s, err
 }
 
 func (s *Session) Close() {
@@ -404,6 +416,9 @@ func (a *App) scrollPane(id, down, right int) {
 	switch p := a.win().pane(id); {
 	case p == a.win().Tree:
 		a.scrollTree(down)
+	case p != nil && consoleOf(p) != nil: // not sideways: nowrap scrolls with the cursor (§11)
+		a.consoleView(p, consoleOf(p))
+		consoleOf(p).ed.Scroll(down * wheelStep)
 	case p != nil:
 		a.scrollGrid(p, down*wheelStep, right)
 	}

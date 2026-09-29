@@ -19405,3 +19405,344 @@ abcd
 reg: "" ""
 top: 1
 mode: n
+
+## sidescroll: 100l
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+short
+reg: "" ""
+top: 1
+left: 21
+mode: n
+
+## sidescroll: 100l 20l
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+short
+reg: "" ""
+top: 1
+left: 41
+mode: n
+
+## sidescroll: j onto a short line
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+shor█t
+reg: "" ""
+top: 1
+left: 4
+mode: n
+
+## sidescroll: $ far off
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "" ""
+top: 1
+left: 159
+mode: n
+
+## sidescroll: $ then 0
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+mode: n
+
+## sidescroll: $ then 50h
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 149
+mode: n
+
+## sidescroll: A and type past the edge
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaxy█z
+reg: "" ""
+top: 1
+left: 4
+mode: n
+
+## sidescroll: tab at the edge
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	█b
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## sidescroll: tab at the edge then back
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█	b
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## sidescroll: wide char at the edge
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█中
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## sidescroll: search far right
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█zzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 110
+mode: n
+
+## sidescroll: v$
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█
+reg: "" ""
+top: 1
+left: 21
+mode: v
+
+## sidescroll: x at the right edge
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "v" "a"
+top: 1
+left: 5
+mode: n
+
+## sidescroll: j k keep the view
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█aaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+reg: "" ""
+top: 1
+left: 6
+mode: n
+
+## sidescroll: i at the start after $
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+mode: n
+
+## paste: normal one line
+abX█Ycd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: normal two lines
+abXY
+█Zcd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: normal trailing newline
+abXY
+█cd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: normal empty text
+X█Y
+reg: "" ""
+top: 1
+mode: n
+
+## paste: normal crlf
+abx
+█ycd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: normal lone cr
+abx
+█ycd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: normal on the last char
+abcX█Y
+reg: "" ""
+top: 1
+mode: n
+
+## paste: normal then undo
+a█bcd
+next
+reg: "" ""
+top: 1
+mode: n
+
+## paste: normal tab kept
+ab	█xcd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: insert
+abX█Ycd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: insert two lines
+abXY
+█Zcd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: insert then undo
+a█bcd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: insert typed after then undo twice
+a█bcd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: insert at the end
+abcdXY
+█
+reg: "" ""
+top: 1
+mode: n
+
+## paste: replace
+█aXYd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: replace two lines
+█aX
+Yd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: visual
+aX█Yd
+reg: "v" "bc"
+top: 1
+mode: n
+
+## paste: visual to the end
+aX█Ynext
+reg: "v" "bcd\n"
+top: 1
+mode: n
+
+## paste: visual last chars
+abX█Y
+reg: "v" "cd"
+top: 1
+mode: n
+
+## paste: visual over lines
+aX█Ygh
+last
+reg: "v" "bcd\nef"
+top: 1
+mode: n
+
+## paste: visual two lines pasted
+aX
+█Yd
+reg: "v" "bc"
+top: 1
+mode: n
+
+## paste: v-line
+one
+tXY
+█hree
+reg: "V" "two\n"
+top: 1
+mode: n
+
+## paste: v-line no newline
+one
+tX█Yhree
+reg: "V" "two\n"
+top: 1
+mode: n
+
+## paste: v-line at the end
+one
+XY
+█
+reg: "V" "two\n"
+top: 1
+mode: n
+
+## paste: v-line two lines
+one
+fXY
+█our
+reg: "V" "two\nthree\n"
+top: 1
+mode: n
+
+## paste: v-line whole text
+XY
+█
+reg: "V" "one\ntwo\n"
+top: 1
+mode: n
+
+## paste: v-block
+aX█Yd
+eh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## paste: long line scrolls
+abxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx█x
+reg: "" ""
+top: 1
+left: 13
+mode: n
+
+## paste: visual then undo
+a█bcd
+reg: "v" "bc"
+top: 1
+mode: n
+
+## paste: v-line then undo
+one
+█two
+three
+reg: "V" "two\n"
+top: 1
+mode: n
+
+## paste: v-block then undo
+a█bcd
+efgh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## paste: replace then undo
+a█bcd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: insert keeps no indent
+  abx
+█y
+reg: "" ""
+top: 1
+mode: n
+
+## paste: insert then backspace
+ab█Xcd
+reg: "" ""
+top: 1
+mode: n
+
+## paste: normal then redo
+a█bXYcd
+reg: "" ""
+top: 1
+mode: n

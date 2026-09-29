@@ -30,8 +30,6 @@ leader = "<Space>"
 "<Leader>b" = "tree.toggle"
 "gt" = "tab.next"
 "gT" = "tab.prev"
-":" = "palette.command"
-";" = "palette.sql"
 
 [keys.grid]
 "h" = "grid.left"
@@ -56,6 +54,9 @@ leader = "<Space>"
 "[" = "grid.page.prev"
 "yy" = "grid.yank"
 "yi" = "grid.yank.insert"
+# not in normal: a console's : and ; are its vim's (§6.8)
+":" = "palette.command"
+";" = "palette.sql"
 
 [keys.result] # stacked above grid
 "P" = "result.pin"
@@ -72,6 +73,8 @@ leader = "<Space>"
 "t" = "tree.open.tab"
 "/" = "tree.filter"
 "R" = "tree.refresh"
+":" = "palette.command"
+";" = "palette.sql"
 
 [keys.console] # NORMAL / VISUAL; everything else goes to the vim engine
 "<CR>" = "console.run"

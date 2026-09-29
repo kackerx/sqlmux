@@ -8289,3 +8289,224 @@ l<C-v>jj<
 █abcd
       
 abcd
+
+## sidescroll: 100l
+100l
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+short
+
+## sidescroll: 100l 20l
+100l20l
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+short
+
+## sidescroll: j onto a short line
+100l20lj
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+short
+
+## sidescroll: $ far off
+$
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## sidescroll: $ then 0
+$0
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## sidescroll: $ then 50h
+$50h
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## sidescroll: A and type past the edge
+Axyz<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## sidescroll: tab at the edge
+$
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	b
+
+## sidescroll: tab at the edge then back
+$h
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	b
+
+## sidescroll: wide char at the edge
+$
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa中
+
+## sidescroll: search far right
+/zzz<CR>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaazzzaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## sidescroll: v$
+v$
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## sidescroll: x at the right edge
+$xxx
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## sidescroll: j k keep the view
+85ljk
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+
+## sidescroll: i at the start after $
+$I<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## paste: normal one line
+<Paste>"XY"
+a█bcd
+
+## paste: normal two lines
+<Paste>"XY\nZ"
+a█bcd
+
+## paste: normal trailing newline
+<Paste>"XY\n"
+a█bcd
+
+## paste: normal empty text
+<Paste>"XY"
+█
+
+## paste: normal crlf
+<Paste>"x\r\ny"
+a█bcd
+
+## paste: normal lone cr
+<Paste>"x\ry"
+a█bcd
+
+## paste: normal on the last char
+<Paste>"XY"
+ab█c
+
+## paste: normal then undo
+<Paste>"XY\nZ"u
+a█bcd
+next
+
+## paste: normal tab kept
+<Paste>"\tx"
+a█bcd
+
+## paste: insert
+a<Paste>"XY"<Esc>
+a█bcd
+
+## paste: insert two lines
+a<Paste>"XY\nZ"<Esc>
+a█bcd
+
+## paste: insert then undo
+ip<Paste>"XY"q<Esc>u
+a█bcd
+
+## paste: insert typed after then undo twice
+ip<Paste>"XY"q<Esc>uu
+a█bcd
+
+## paste: insert at the end
+A<Paste>"XY\n"<Esc>
+a█bcd
+
+## paste: replace
+R<Paste>"XY"<Esc>
+a█bcd
+
+## paste: replace two lines
+R<Paste>"X\nY"<Esc>
+a█bcd
+
+## paste: visual
+vl<Paste>"XY"
+a█bcd
+
+## paste: visual to the end
+v$<Paste>"XY"
+a█bcd
+next
+
+## paste: visual last chars
+vl<Paste>"XY"
+ab█cd
+
+## paste: visual over lines
+vj<Paste>"XY"
+a█bcd
+efgh
+last
+
+## paste: visual two lines pasted
+vl<Paste>"X\nY"
+a█bcd
+
+## paste: v-line
+V<Paste>"XY\n"
+one
+t█wo
+three
+
+## paste: v-line no newline
+V<Paste>"XY"
+one
+t█wo
+three
+
+## paste: v-line at the end
+V<Paste>"XY\n"
+one
+t█wo
+
+## paste: v-line two lines
+Vj<Paste>"XY\n"
+one
+t█wo
+three
+four
+
+## paste: v-line whole text
+Vj<Paste>"XY\n"
+o█ne
+two
+
+## paste: v-block
+<C-v>jl<Paste>"XY"
+a█bcd
+efgh
+
+## paste: long line scrolls
+A<Paste>"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"<Esc>
+█ab
+
+## paste: visual then undo
+vl<Paste>"XY"u
+a█bcd
+
+## paste: v-line then undo
+V<Paste>"XY\n"u
+one
+t█wo
+three
+
+## paste: v-block then undo
+<C-v>jl<Paste>"XY"u
+a█bcd
+efgh
+
+## paste: replace then undo
+R<Paste>"XY"<Esc>u
+a█bcd
+
+## paste: insert keeps no indent
+A<Paste>"x\ny"<Esc>
+  a█b
+
+## paste: insert then backspace
+a<Paste>"XY"<BS><Esc>
+a█bcd
+
+## paste: normal then redo
+<Paste>"XY"u<C-r>
+a█bcd

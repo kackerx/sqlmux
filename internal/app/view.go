@@ -7,6 +7,7 @@ import (
 
 	uv "github.com/charmbracelet/ultraviolet"
 
+	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -178,9 +179,9 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		// An empty pane: ▶ run and the schema dropdown act on the current tab,
 		// and there is none (§7.8).
 	case p.Kind == KindConsole:
-		// Drawn left to right; Prio says what goes first when space runs out (§7.8).
+		// Drawn left to right; Prio says what goes first when space runs out
+		// (§7.8). The schema dropdown comes before ▶ run in F3.11.
 		b.Hints = append([]ui.Hint{
-			{Label: "doraemon.public ▾", Action: "console.schema", Color: th.PK, Prio: 1},
 			{Label: "▶ run", Action: "console.run", Button: true},
 		}, bound(ui.Hint{Key: a.keys.Hint("console.run", "console"), Action: "console.run", Prio: 2, Attached: true})...)
 		tabHints = bound(
@@ -210,7 +211,13 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	}
 	ui.Tabs{Names: names, Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}.
 		Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
-	// ponytail: a console's body stays empty until its editor (M3)
+	if c := consoleOf(p); c != nil {
+		view, body := a.consoleView(p, c)
+		if cur := view.Draw(f, body); cur.X >= 0 && b.Focused && a.focusedConsole() == c {
+			f.Cursor = &cur
+		}
+		return
+	}
 	t := dataOf(p)
 	if t == nil {
 		return
@@ -332,8 +339,12 @@ func (a *App) statusLine() ui.StatusLine {
 	}
 
 	pending := ui.Run{Text: "·", Style: bar(th.Dim)}
-	if ks := a.res.Pending(); len(ks) > 0 {
-		pending = ui.Run{Text: keymap.Display(ks), Style: uv.Style{Fg: th.Warn, Bg: th.Bar, Attrs: uv.AttrBold}}
+	ks := keymap.Display(a.res.Pending())
+	if c := a.focusedConsole(); ks == "" && c != nil { // what the editor waits on: nvim's showcmd
+		ks = c.ed.Pending()
+	}
+	if ks != "" {
+		pending = ui.Run{Text: ks, Style: uv.Style{Fg: th.Warn, Bg: th.Bar, Attrs: uv.AttrBold}}
 	}
 	// At least 3 columns, left-aligned: SPC, g or a count don't shift the bar (§7.8).
 	pending.Text += strings.Repeat(" ", max(3-ui.Width(pending.Text), 0))
@@ -343,11 +354,13 @@ func (a *App) statusLine() ui.StatusLine {
 		{Runs: iconRuns(ic.Search, bar(th.Info), strings.TrimRight(" "+a.label(a.keys.Hint("palette.open", "global")), " ")+" "), Action: "palette.open"},
 		{Runs: append(iconRuns(ic.Keys, bar(th.FgMuted), " "), pending, ui.Run{Text: " ", Style: bar(th.FgMuted)})},
 	}
-	switch t := a.typingTab(); {
+	switch t, c := a.typingTab(), a.focusedConsole(); {
 	case t != nil && t.typing == "where":
 		s.Info = "-- editing WHERE --" // §7.8
 	case t != nil && t.cell != nil:
 		s.Info = "-- editing " + t.cell.key.col + " --"
+	case c != nil:
+		s.Info = a.selectionInfo(c.ed)
 	}
 	// the cursor's row,col, with a table loaded in the focused pane (§7.8)
 	if _, t, ok := a.focusedGrid(); ok && len(t.page.Rows) > 0 {
@@ -362,7 +375,32 @@ func (a *App) statusLine() ui.StatusLine {
 		}
 		s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: busy, Style: bar(th.Warn)}}, Action: "cancel"})
 	}
-	s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: " " + strings.ToUpper(mode.String()) + " ", Style: uv.Style{Fg: th.Bg, Bg: modeColor, Attrs: uv.AttrBold}}}})
+	name := strings.ToUpper(mode.String())
+	if c := a.focusedConsole(); c != nil { // V-LINE, V-BLOCK and REPLACE in the colors of VISUAL and INSERT
+		name = c.ed.Mode().String()
+	}
+	s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: " " + name + " ", Style: uv.Style{Fg: th.Bg, Bg: modeColor, Attrs: uv.AttrBold}}}})
+	return s
+}
+
+// selectionInfo is the status bar's word on a console's VISUAL (§7.8):
+// "4 行 · ↵ run", "12 字符 · ↵ run", "3 行 × 4 列 · ↵ run".
+func (a *App) selectionInfo(ed *editor.Editor) string {
+	lines, n := ed.Size()
+	var s string
+	switch {
+	case lines == 0:
+		return ""
+	case ed.Mode() == editor.VisualBlock:
+		s = fmt.Sprintf("%d 行 × %d 列", lines, n)
+	case n > 0:
+		s = fmt.Sprintf("%d 字符", n)
+	default:
+		s = fmt.Sprintf("%d 行", lines)
+	}
+	if k := a.keys.Hint("console.run", "console"); k != "" {
+		s += " · " + k + " run"
+	}
 	return s
 }
 

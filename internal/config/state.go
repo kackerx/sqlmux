@@ -94,18 +94,30 @@ func Snapshot(s *State) func() error {
 	}
 }
 
-// save writes the file whole and renames it into place, readable by the
-// user only (§13: history holds literals).
+// save writes the file, readable by the user only (§13: history holds
+// literals).
 func save(data []byte, t int) error {
 	saveMu.Lock()
 	defer saveMu.Unlock()
 	if t <= savedTick {
 		return nil
 	}
-	if err := os.MkdirAll(StateDir(), 0o700); err != nil {
+	if err := writeFile(statePath(), data); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(StateDir(), "state-*.json")
+	savedTick = t
+	return nil
+}
+
+// writeFile writes path whole through a file renamed into place, so a
+// crash leaves the old one; the directories it makes and the file are the
+// user's only.
+func writeFile(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, filepath.Base(path)+"-*") // 0600
 	if err != nil {
 		return err
 	}
@@ -117,9 +129,5 @@ func save(data []byte, t int) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp.Name(), statePath()); err != nil {
-		return err
-	}
-	savedTick = t
-	return nil
+	return os.Rename(tmp.Name(), path)
 }

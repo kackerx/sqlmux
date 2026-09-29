@@ -62,13 +62,13 @@ func loadOrders(t *testing.T, a *App, n int) *dataTab {
 }
 
 func TestGoldenTable160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	loadOrders(t, a, 60)
 	golden.RequireEqual(t, a.render().String())
 }
 
 func TestGoldenTableTransposed160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	loadOrders(t, a, 60)
 	feed(t, a, "jlT")
 	golden.RequireEqual(t, a.render().String())
@@ -77,7 +77,7 @@ func TestGoldenTableTransposed160x45(t *testing.T) {
 // Two tabs, back on the first: the tab bar marks the current one * and the
 // previous one - (T-01).
 func TestGoldenTabs160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	loadOrders(t, a, 60)
 	feed(t, a, "<C-p>@t_user<C-t>gT")
 	golden.RequireEqual(t, a.render().String())
@@ -86,7 +86,7 @@ func TestGoldenTabs160x45(t *testing.T) {
 // A table open in two tabs, one of them filtered: the palette lists them
 // to pick one (§7.8「打开已有的表」).
 func TestGoldenTabPick160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	loadOrders(t, a, 60).shown.applied = "status = 'done'"
 	feed(t, a, "<C-p>@t_order<C-t><C-p>@t_order<CR>")
 	golden.RequireEqual(t, a.render().String())
@@ -236,7 +236,7 @@ func TestGridClickCell(t *testing.T) {
 }
 
 func TestGridCells(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	loadOrders(t, a, 60)
 	f := a.render()
 	th := a.theme

@@ -27,8 +27,8 @@ var update = flag.Bool("update", false, "run testdata/cases.txt in nvim and rewr
 const cursorMark = "█"
 
 // nvimRows is the window nvim's 24-line screen leaves: less the status
-// line and the command line.
-const nvimRows = 22
+// line and the command line; nvimCols is as wide as the screen.
+const nvimRows, nvimCols = 22, 80
 
 type nvimCase struct {
 	title, keys string
@@ -77,9 +77,9 @@ func readCases(t *testing.T) []nvimCase {
 }
 
 // result is how a case ends, the same for nvim and the editor: the text
-// with the cursor marked, the unnamed register, the first line on screen
-// and the mode.
-func result(lines []string, cur Pos, regType, reg string, top int, mode string) string {
+// with the cursor marked, the unnamed register, the first line and, when
+// scrolled sideways, the first column on screen, and the mode.
+func result(lines []string, cur Pos, regType, reg string, top, left int, mode string) string {
 	var b strings.Builder
 	for i, l := range lines {
 		if i == cur.Line {
@@ -87,8 +87,27 @@ func result(lines []string, cur Pos, regType, reg string, top int, mode string) 
 		}
 		b.WriteString(l + "\n")
 	}
-	fmt.Fprintf(&b, "reg: %q %q\ntop: %d\nmode: %s", regType, reg, top+1, mode)
+	fmt.Fprintf(&b, "reg: %q %q\ntop: %d\n", regType, reg, top+1)
+	if left > 0 {
+		fmt.Fprintf(&b, "left: %d\n", left)
+	}
+	fmt.Fprintf(&b, "mode: %s", mode)
 	return b.String()
+}
+
+// splitPaste cuts keys at <Paste>, which a Go-quoted string follows: what
+// the terminal pastes there. ok is false when keys paste nothing.
+func splitPaste(t *testing.T, keys string) (before, paste, after string, ok bool) {
+	before, rest, ok := strings.Cut(keys, "<Paste>")
+	if !ok {
+		return keys, "", "", false
+	}
+	q, err := strconv.QuotedPrefix(rest)
+	if err != nil {
+		t.Fatalf("%s: <Paste> wants a quoted string after it: %v", keys, err)
+	}
+	paste, _ = strconv.Unquote(q)
+	return before, paste, rest[len(q):], true
 }
 
 func TestNvim(t *testing.T) {
@@ -127,8 +146,16 @@ func run(t *testing.T, c nvimCase) string {
 	e.lines, e.cur = append([]string(nil), c.text...), c.cur
 	e.clampCursor() // as nvim's cursor() does
 	e.SetHeight(nvimRows)
-	for _, k := range keys(t, c.keys) {
+	e.SetWidth(nvimCols)
+	before, paste, after, ok := splitPaste(t, c.keys)
+	for _, k := range keys(t, before) {
 		e.Feed(k)
+	}
+	if ok {
+		e.Paste(paste)
+		for _, k := range keys(t, after) {
+			e.Feed(k)
+		}
 	}
 	kind := ""
 	switch e.reg.kind {
@@ -138,7 +165,7 @@ func run(t *testing.T, c nvimCase) string {
 	default:
 		kind = string(e.reg.kind)
 	}
-	return result(e.lines, e.cur, kind, e.reg.text, e.top, map[Mode]string{Normal: "n", Insert: "i", Replace: "R", Visual: "v", VisualLine: "V", VisualBlock: "\x16", Command: "c"}[e.mode])
+	return result(e.lines, e.cur, kind, e.reg.text, e.top, e.left, map[Mode]string{Normal: "n", Insert: "i", Replace: "R", Visual: "v", VisualLine: "V", VisualBlock: "\x16", Command: "c"}[e.mode])
 }
 
 func readGolden(t *testing.T) map[string]string {
@@ -183,24 +210,36 @@ func writeGolden(t *testing.T, cases []nvimCase) {
 }
 
 // nvim runs case c with the options of tech-design §15 and feedkeys(…,
-// 'xt'), so each command undoes on its own as when typed.
+// 'xt'), so each command undoes on its own as when typed. A paste is
+// nvim_paste() as the terminal's, run from a <Cmd> mapping so the mode
+// stays what the keys before it left. wincol() scrolls sideways as a
+// redraw would, which nothing after the last command did.
 func nvim(t *testing.T, path string, c nvimCase) string {
 	var text []string
 	for _, l := range c.text {
 		text = append(text, "'"+strings.ReplaceAll(l, "'", "''")+"'")
 	}
+	keys := vimKeys(c.keys)
+	before, paste, after, ok := splitPaste(t, c.keys)
+	if ok {
+		keys = vimKeys(before) + `\<F12>` + vimKeys(after)
+	}
 	script := fmt.Sprintf(`set expandtab tabstop=2 shiftwidth=2 nowrap ignorecase smartcase
 set commentstring=--\ %%s formatoptions-=j
-set lines=24 columns=80
+set lines=24 columns=%d
 set undolevels=-1
 call setline(1, [%s])
 set undolevels=1000
 call cursor(%d, %d)
+let g:paste = %s
+noremap <F12> <Cmd>call nvim_paste(g:paste, v:true, -1)<CR>
+noremap! <F12> <Cmd>call nvim_paste(g:paste, v:true, -1)<CR>
 silent! call feedkeys("%s", 'xt')
 let p = getpos('.')
-call writefile([p[1], p[2], getregtype('"'), line('w0'), mode(), line('$')] + getline(1, '$') + split(getreg('"'), "\n", 1), %q)
+let _ = wincol()
+call writefile([p[1], p[2], getregtype('"'), line('w0'), winsaveview().leftcol, mode(), line('$')] + getline(1, '$') + split(getreg('"'), "\n", 1), %q)
 qa!
-`, strings.Join(text, ", "), c.cur.Line+1, c.cur.Col+1, vimKeys(c.keys), path+".out")
+`, nvimCols, strings.Join(text, ", "), c.cur.Line+1, c.cur.Col+1, strconv.Quote(paste), keys, path+".out")
 	if err := os.WriteFile(path+".vim", []byte(script), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -213,8 +252,8 @@ qa!
 	}
 	ls := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
 	f := func(i int) int { n, _ := strconv.Atoi(ls[i]); return n }
-	n := 6 + f(5)
-	return result(ls[6:n], Pos{f(0) - 1, f(1) - 1}, ls[2], strings.Join(ls[n:], "\n"), f(3)-1, ls[4])
+	n := 7 + f(6)
+	return result(ls[7:n], Pos{f(0) - 1, f(1) - 1}, ls[2], strings.Join(ls[n:], "\n"), f(3)-1, f(4), ls[5])
 }
 
 // vimKeys is keys as the inside of a vim "string": <Esc> becomes \<Esc>.

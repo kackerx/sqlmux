@@ -282,6 +282,12 @@ type saveMsg struct {
 // UPDATE a row in row identity order, in one transaction.
 func (a *App) save() tea.Cmd {
 	p := a.focused()
+	if c := consoleOf(p); c != nil { // its file (§11)
+		if err := c.flush(); err != nil {
+			return a.saveFailed(err)
+		}
+		return nil
+	}
 	t := dataOf(p)
 	if p.Kind != KindData || t == nil || len(t.edits) == 0 || t.saving {
 		return nil
@@ -390,5 +396,10 @@ func (a *App) quit() tea.Cmd {
 			ps = append(ps, w.Root.Leaves()...)
 		}
 	}
-	return a.unlessUnsaved(unsaved(ps...), "", "退出", func() tea.Cmd { return tea.Quit })
+	return a.unlessUnsaved(unsaved(ps...), "", "退出", func() tea.Cmd {
+		if cmd, ok := a.flushAll(ps...); !ok { // the consoles' text is not lost (§11)
+			return cmd
+		}
+		return tea.Quit
+	})
 }

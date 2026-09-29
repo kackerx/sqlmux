@@ -263,7 +263,7 @@ func (e *Editor) del() {
 // arrow moves the cursor in INSERT. That ends the change so far: undo
 // takes back what was typed after it separately, and no count repeats.
 func (e *Editor) arrow(k string) {
-	in, l := e.ins, e.line()
+	l := e.line()
 	switch k {
 	case "<Left>":
 		if e.cur.Col == 0 {
@@ -289,6 +289,14 @@ func (e *Editor) arrow(k string) {
 		e.dropIndent()
 		e.cur = Pos{n, e.coladvance(n, e.want)}
 	}
+	e.jumped()
+}
+
+// jumped ends the INSERT's change so far after the cursor moved by itself
+// (edit.c start_arrow): undo takes back what is typed after it separately,
+// and no count repeats.
+func (e *Editor) jumped() {
+	in := e.ins
 	in.arrowed, in.fresh, in.ai, in.keys, in.count = true, true, false, nil, 1
 	e.endChange()
 }

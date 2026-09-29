@@ -80,6 +80,13 @@ func init() {
 		}},
 		"quit": {Title: "退出", Run: func(a *App, _ Args) tea.Cmd { return a.quit() }},
 		"tab.close": {Title: "关闭 tab", Run: func(a *App, _ Args) tea.Cmd {
+			if t := consoleOf(a.focused()); t != nil { // written, not asked about (§11)
+				if err := t.flush(); err != nil {
+					return a.saveFailed(err)
+				}
+				a.closeTab()
+				return nil
+			}
 			n, name := 0, ""
 			if t := dataOf(a.focused()); t != nil {
 				n, name = len(t.edits), t.table.Name+" "
@@ -93,6 +100,9 @@ func init() {
 		"pane.split.right": {Title: "左右分割", Run: do(func(a *App, _ Args) { a.splitPane(Horiz) })},
 		"pane.split.below": {Title: "上下分割", Run: do(func(a *App, _ Args) { a.splitPane(Vert) })},
 		"pane.close": {Title: "关闭 pane", Run: func(a *App, _ Args) tea.Cmd {
+			if cmd, ok := a.flushAll(a.focused()); !ok {
+				return cmd
+			}
 			return a.unlessUnsaved(unsaved(a.focused()), "这个 pane 里", "关闭", func() tea.Cmd { a.closePane(); return nil })
 		}},
 		"pane.zoom": {Title: "缩放 / 还原", Run: do(func(a *App, _ Args) { a.toggleZoom() }),
@@ -178,13 +188,14 @@ func init() {
 		"cell.segment.next": {Run: onCell(func(t *dataTab) { t.moveSeg(1) })},
 		"cell.segment.prev": {Run: onCell(func(t *dataTab) { t.moveSeg(-1) })},
 		// a time's parts clicked: "cell.seg 3" picks one, "cell.inc 3" / "cell.dec 3" step it
-		"cell.seg":     {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, 0) })},
-		"cell.inc":     {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, 1) })},
-		"cell.dec":     {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, -1) })},
-		"cell.options": {Run: onCell(func(t *dataTab) { t.cell.folded = !t.cell.folded })},
-		"cell.null":    {Title: "设为 NULL", Run: do(func(a *App, _ Args) { a.setSpecial(false) })},
-		"cell.default": {Title: "设为 DEFAULT", Run: do(func(a *App, _ Args) { a.setSpecial(true) })},
-		"save":         {Title: "保存", Run: func(a *App, _ Args) tea.Cmd { return a.save() }},
+		"cell.seg":         {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, 0) })},
+		"cell.inc":         {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, 1) })},
+		"cell.dec":         {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, -1) })},
+		"cell.options":     {Run: onCell(func(t *dataTab) { t.cell.folded = !t.cell.folded })},
+		"cell.null":        {Title: "设为 NULL", Run: do(func(a *App, _ Args) { a.setSpecial(false) })},
+		"cell.default":     {Title: "设为 DEFAULT", Run: do(func(a *App, _ Args) { a.setSpecial(true) })},
+		"save":             {Title: "保存", Run: func(a *App, _ Args) tea.Cmd { return a.save() }},
+		"console.external": {Title: "在 $EDITOR 中编辑", Run: func(a *App, _ Args) tea.Cmd { return a.external() }},
 		"confirm.yes": {Run: when(inConfirm, func(a *App) tea.Cmd {
 			then := a.confirm.then
 			a.confirm = nil

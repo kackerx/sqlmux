@@ -88,8 +88,10 @@ func (it paletteItem) recent() config.Recent {
 const recentRows = 50
 
 // exAliases rank their command first when typed exactly in the command
-// scope, so :q↵ and :qa↵ work as they always have (§12).
-var exAliases = map[string]string{"q": "tab.close", "qa": "quit", "w": "save"}
+// scope, so :q↵ and :qa↵ work as they always have (§12); a console's
+// editor runs its : commands by them (§11). :wq is :q, which writes a
+// console before it closes.
+var exAliases = map[string]string{"q": "tab.close", "qa": "quit", "w": "save", "wq": "tab.close"}
 
 func (a *App) openPalette(text string) {
 	a.palette = &palette{input: ui.Input{Text: text, Pos: len(text)}}

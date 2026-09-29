@@ -215,7 +215,7 @@ func TestEditLooks(t *testing.T) {
 // Editing a cell with more text than it holds: the input runs on over the
 // cells to its right (§10.1).
 func TestGoldenCellEdit160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	loadOrders(t, a, 60)
 	feed(t, a, "jlli"+"a longer amount than the column holds")
 	golden.RequireEqual(t, a.render().String())
@@ -224,7 +224,7 @@ func TestGoldenCellEdit160x45(t *testing.T) {
 // The three kinds of change as the grid shows them: text, NULL, DEFAULT
 // (§7.6, §10.2).
 func TestGoldenEdits160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	tab := loadOrders(t, a, 60)
 	tab.edits = map[editKey]edit{
 		{"1", "status"}: {val: db.Val{S: "done"}},
@@ -250,7 +250,7 @@ func (s *saveDB) Close() error                                           { retur
 
 // withMain is sized with t_order loaded and Main answering tag.
 func withMain(t *testing.T, tag string) (*App, *dataTab, *saveDB) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	tab := loadOrders(t, a, 3)
 	main := &saveDB{tag: tag}
 	a.sess.Main = db.NewWorker(main)
@@ -408,7 +408,7 @@ func TestOpenKeepsChanges(t *testing.T) {
 // The box over the table: at the middle of the screen, the buttons at its
 // right (§10.5).
 func TestGoldenConfirm160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	tab := loadOrders(t, a, 60)
 	tab.edits = map[editKey]edit{{"1", "status"}: {val: db.Val{S: "done"}, orig: db.Val{S: "running"}}}
 	feed(t, a, "x")
@@ -531,7 +531,7 @@ func TestSetNull(t *testing.T) {
 // A cell's options under its edit, none picked, the ▾ at the edit's right
 // (§10.2).
 func TestGoldenCellOptions160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	loadOrders(t, a, 60)
 	feed(t, a, "jli")
 	golden.RequireEqual(t, a.render().String())
@@ -595,7 +595,7 @@ func TestTimeCellMouse(t *testing.T) {
 
 // A time cell's box under its edit: ▴ / parts / ▾ / options (§10.2).
 func TestGoldenTimePick160x45(t *testing.T) {
-	a := sized(160, 45, "nerd")
+	a := wide(160, 45)
 	loadOrders(t, a, 60)
 	feed(t, a, "j$i<Tab>")
 	golden.RequireEqual(t, a.render().String())

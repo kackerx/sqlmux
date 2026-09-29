@@ -364,19 +364,11 @@ func (e *Editor) put(after bool, count int) {
 	if after && l != "" && r.text != "" {
 		col = next(l, col)
 	}
-	text := strings.Repeat(r.text, count)
-	parts := strings.Split(text, "\n")
-	if len(parts) == 1 {
-		e.setLine(e.cur.Line, l[:col]+text+l[col:])
-		if text != "" {
-			e.cur.Col = prev(e.line(), col+len(text))
-		}
-		return
-	}
-	parts[len(parts)-1] += l[col:]
-	e.setLine(e.cur.Line, l[:col]+parts[0])
-	e.insertLines(e.cur.Line+1, parts[1:]...)
+	end := e.insertText(col, strings.Split(strings.Repeat(r.text, count), "\n"))
 	e.cur.Col = col
+	if end.Line == e.cur.Line && r.text != "" {
+		e.cur.Col = prev(e.line(), end.Col)
+	}
 }
 
 // tilde is ~: the case of count characters toggles, the cursor going past

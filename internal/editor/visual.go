@@ -21,6 +21,31 @@ func (e *Editor) Selection() (from, to Pos, ok bool) {
 	return from, to, true
 }
 
+// Size is what nvim's showcmd tells of the selection (normal.c
+// clear_showcmd): its lines, and on one line in VISUAL its characters, the
+// end of the line counting as one; in V-BLOCK its lines and columns.
+func (e *Editor) Size() (lines, chars int) {
+	from, to, ok := e.Selection()
+	if !ok {
+		return 0, 0
+	}
+	lines = to.Line - from.Line + 1
+	switch {
+	case e.mode == VisualBlock:
+		left, right := e.spanCols(e.vstart, e.cur)
+		return lines, right - left + 1
+	case e.mode == VisualLine || lines > 1:
+		return lines, 0
+	}
+	l := e.lines[from.Line]
+	for c := from.Col; c <= to.Col; c = next(l, c) {
+		if chars++; c >= len(l) {
+			break
+		}
+	}
+	return 1, chars
+}
+
 // startVisual starts VISUAL; a count selects that many characters or
 // lines (nv_visual).
 // ponytail: after an operator on a selection vim's count reselects that
