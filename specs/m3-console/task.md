@@ -1,6 +1,6 @@
 # M3 console 与结果区 · 任务清单
 
-- **状态**：todo。开发清单按 worker 的起草确认（2026-09-28）。M2 还没验收，用户决定与 M3 一起验收。
+- **状态**：F3.1–F3.11 全部 passed，完整回归在 fedc81d 上全绿（1104 项 e2e），等用户与 M2 一起验收。
 - **目标**：
   - vim 编辑器写 SQL；
   - 执行语句，结果显示在底部结果区；
@@ -23,7 +23,7 @@
   1. F3.3 之后：F3.1–F3.3，编辑器（除块选择），纯逻辑，有 nvim 差分兜底（已通过）；
   2. F3.5 之后：F3.4–F3.5，块选择与 sqlkit（已通过）；
   3. F3.8 之后：F3.6–F3.8，console tab、混放与引导页、执行与结果区（已通过）；
-  4. F3.11 之后：F3.9–F3.11，格式化、补全、schema 下拉。
+  4. F3.11 之后：F3.9–F3.11，格式化、补全、schema 下拉（已通过）。
 - **M1 / M2 的 e2e**：默认布局加入 console 后，⟨1⟩ 的宽度从占满变成 5/9，M1 / M2 脚本里依赖 data pane 宽度、`C-l` 焦点的地方可能失效。tester 在 `lib.sh` 里加一个开头先关掉 ⟨2⟩ 的辅助函数，不逐条改断言。
 
 任务文件的格式和状态约定见 [`../plan.md`](../plan.md)。
@@ -213,7 +213,7 @@
   - 导出的 CSV 文件在当前目录。
 - [x] golden：结果区标题与按钮在几种宽度下的舍弃；日志 tab。
 
-## F3.9 格式化 · 状态：todo
+## F3.9 格式化 · 状态：passed（fedc81d；e2e 5c11624）
 
 - **依赖**：F3.6
 - **涉及**：`internal/sqlkit`（format，embed sql-formatter）
@@ -222,59 +222,59 @@
 
 §9.5 的全部内容，另加：
 
-- [ ] sql-formatter 用 15.9.0，文件放在 `internal/sqlkit/sql-formatter.min.js`，旁边放它的 MIT LICENSE；spike 的几项检查在 golden 里重跑。
-- [ ] 范围：NORMAL 下是当前语句，不含 `;`，`;` 留在原处；VISUAL 下字符选区就是选中的文字，V-LINE、V-BLOCK 是覆盖到的整行，格式化后退出 VISUAL。整次格式化算一个撤销步，结果和原文相同时不记撤销步。格式化后光标照 vim 的 `gq` 停在格式化文字的最后一行（行首第一个非空白字符）。
-- [ ] `keyword_case` 只接受 `lower` / `upper` / `preserve`，其他值启动报错；`formatprg = ""` 用内置的。失败时 toast「格式化失败：<错误>」。
-- [ ] 在 Cmd 里异步执行，回来时缓冲区已经变过就丢弃结果。
-- [ ] `gq` 做成编辑器的操作符：`gq{移动}`、`gqq` / `gqgq`、VISUAL 下按选区；从 `[keys.console]` 去掉 `gq`（§9.5）。
-- [ ] 内置格式化 5s 超时，`vm.Interrupt` 打断；`keyword_case` 同时设 `dataTypeCase`；输出为空按失败处理（§9.5）。
-- [ ] 选项：`language` 为 postgresql，`keywordCase` 取 `keyword_case`（默认 lower），`tabWidth` 取 `tab_width`；配置加 `keyword_case`、`formatprg`。
-- [ ] Unicode 属性名的替换按名字逐个断言次数（15.9.0 为 Alphabetic 3、Mark 1、Decimal_Number 1，§9.5），升级打包文件后次数一变测试就失败。
-- [ ] `formatprg`：`sh -c`，stdin 输入、stdout 输出，5s 超时；失败时 toast 显示 stderr 的第一行，缓冲区不变。
+- [x] sql-formatter 用 15.9.0，文件放在 `internal/sqlkit/sql-formatter.min.js`，旁边放它的 MIT LICENSE；spike 的几项检查在 golden 里重跑。
+- [x] 范围：NORMAL 下是当前语句，不含 `;`，`;` 留在原处；VISUAL 下字符选区就是选中的文字，V-LINE、V-BLOCK 是覆盖到的整行，格式化后退出 VISUAL。整次格式化算一个撤销步，结果和原文相同时不记撤销步。格式化后光标照 vim 的 `gq` 停在格式化文字的最后一行（行首第一个非空白字符）。
+- [x] `keyword_case` 只接受 `lower` / `upper` / `preserve`，其他值启动报错；`formatprg = ""` 用内置的。失败时 toast「格式化失败：<错误>」。
+- [x] 在 Cmd 里异步执行，回来时缓冲区已经变过就丢弃结果。
+- [x] `gq` 做成编辑器的操作符：`gq{移动}`、`gqq` / `gqgq`、VISUAL 下按选区；从 `[keys.console]` 去掉 `gq`（§9.5）。
+- [x] 内置格式化 5s 超时，`vm.Interrupt` 打断；`keyword_case` 同时设 `dataTypeCase`；输出为空按失败处理（§9.5）。
+- [x] 选项：`language` 为 postgresql，`keywordCase` 取 `keyword_case`（默认 lower），`tabWidth` 取 `tab_width`；配置加 `keyword_case`、`formatprg`。
+- [x] Unicode 属性名的替换按名字逐个断言次数（15.9.0 为 Alphabetic 3、Mark 1、Decimal_Number 1，§9.5），升级打包文件后次数一变测试就失败。
+- [x] `formatprg`：`sh -c`，stdin 输入、stdout 输出，5s 超时；失败时 toast 显示 stderr 的第一行，缓冲区不变。
 
 **验收**
-- [ ] 格式化的 golden 测试通过，PG 和 MySQL 各准备若干条语句。
-- [ ] 单测断言 VM 只建一次（调两次 Format，是同一个 VM）；「首次格式化小于 300ms」挪进 `BenchmarkFirstFormat`，默认的 `go test ./...` 不断言墙钟时间（审查时实测：负载一高就误报）。
-- [ ] `gqap` 格式化光标所在段落的语句，不进入 INSERT；超时时 toast、缓冲区不变。
-- [ ] 配置 `formatprg` 后，改用外部命令格式化；格式化失败时，缓冲区内容不变。
+- [x] 格式化的 golden 测试通过，PG 和 MySQL 各准备若干条语句。
+- [x] 单测断言 VM 只建一次（调两次 Format，是同一个 VM）；「首次格式化小于 300ms」挪进 `BenchmarkFirstFormat`，默认的 `go test ./...` 不断言墙钟时间（审查时实测：负载一高就误报）。
+- [x] `gqap` 格式化光标所在段落的语句，不进入 INSERT；超时时 toast、缓冲区不变。
+- [x] 配置 `formatprg` 后，改用外部命令格式化；格式化失败时，缓冲区内容不变。
 
-## F3.10 console 的补全 · 状态：todo
+## F3.10 console 的补全 · 状态：passed（fedc81d；e2e 5c11624）
 
 - **依赖**：F3.5、F3.6
 - **涉及**：`internal/sqlkit`（补全上下文）、`internal/app`
 
 **开发**
-- [ ] `sqlkit.CompletionContext(text, pos, dialect)` 建在扫描器上，参考 lazysql 的 `sql_context.go`（别名、CTE、子查询层级、`schema.`），用例参考它的测试；`WhereContext` 保留为单独的函数（§9.7）。
-- [ ] 候选按 §9.7 的表分组：表名取这个 console 选的 schema（F3.11 之前取树当前的 schema），输入 `schema.` 后只列那个 schema 的表；CTE 名算作表；列在第一次用到时从 `Meta` 获取，与打开表共用列缓存。
-- [ ] 快速 SQL 的补全也改用 `CompletionContext`。
-- [ ] 按键：`C-n` 手动唤起；`esc` 关掉列表并退出 INSERT（同 nvim-cmp，WHERE 和快速 SQL 仍是两步）；`↵` 接受后文字有变化就接受，没有变化就换行（§9.7）。
-- [ ] 自动弹出：输入标识符字符且前缀不为空时；或者刚输入 `.`、前面的限定名能解析时（别名 / 表名 → 列，schema 名 → 表），前缀为空也弹。输入非标识符字符、方向键、离开 INSERT、没有匹配时关闭；粘贴不弹。接受算作输入，属于这次 INSERT 的撤销步。
-- [ ] 缓存里没有的列从 `Meta` 取（与打开表共用），取回时 console 还在 INSERT、光标还在原处就重新补全；每次补全每张表最多取一次。插入的只是表名，不带 schema、不加引号（需要加引号的表名是已知上限）。
+- [x] `sqlkit.CompletionContext(text, pos, dialect)` 建在扫描器上，参考 lazysql 的 `sql_context.go`（别名、CTE、子查询层级、`schema.`），用例参考它的测试；`WhereContext` 保留为单独的函数（§9.7）。
+- [x] 候选按 §9.7 的表分组：表名取这个 console 选的 schema（F3.11 之前取树当前的 schema），输入 `schema.` 后只列那个 schema 的表；CTE 名算作表；列在第一次用到时从 `Meta` 获取，与打开表共用列缓存。
+- [x] 快速 SQL 的补全也改用 `CompletionContext`。
+- [x] 按键：`C-n` 手动唤起；`esc` 关掉列表并退出 INSERT（同 nvim-cmp，WHERE 和快速 SQL 仍是两步）；`↵` 接受后文字有变化就接受，没有变化就换行（§9.7）。
+- [x] 自动弹出：输入标识符字符且前缀不为空时；或者刚输入 `.`、前面的限定名能解析时（别名 / 表名 → 列，schema 名 → 表），前缀为空也弹。输入非标识符字符、方向键、离开 INSERT、没有匹配时关闭；粘贴不弹。接受算作输入，属于这次 INSERT 的撤销步。
+- [x] 缓存里没有的列从 `Meta` 取（与打开表共用），取回时 console 还在 INSERT、光标还在原处就重新补全；每次补全每张表最多取一次。插入的只是表名，不带 schema、不加引号（需要加引号的表名是已知上限）。
 
 **验收**
-- [ ] 上下文判断有单元测试。
-- [ ] e2e：
+- [x] 上下文判断有单元测试。
+- [x] e2e：
   - 输入 `select * from t_o` 时，候选中出现 `t_order`；
   - 输入别名加 `.` 后，列出这张表的列；
   - CTE 的名字会出现在候选中；
   - 快速 SQL 里 `select o. from t_order o` 的 `o.` 后面列出 t_order 的列。
 
-## F3.11 schema 下拉框（PG） · 状态：todo
+## F3.11 schema 下拉框（PG） · 状态：passed（fedc81d；e2e 5c11624）
 
 - **依赖**：F3.8
 - **涉及**：`internal/app`（consoleTab.Schema、dropdown）、`internal/db`
 
 **开发**
-- [ ] console 标题上的 `<库名>.<schema> ▾`，库名记在 Session 上；`gs` 或点击打开下拉框，复用 `app/dropdown.go`，加一种 dropSchema，位置和样式照 §8.6。
-- [ ] search_path 的比较与重设（§8.6「执行方式」）：SET 放在同一次 `Worker.Run` 里、排在语句前面，不进日志、不占结果 tab；只在不一致时 SET；这次执行里有首词为 set / reset / discard 的语句就把记下的值作废。`Main` 处在出错的事务里（TxStatus 为 `E`）时跳过 SET、清掉记下的值，执行结束时还在事务里就不记这次的 SET（§8.6「只在事务外记住 search_path」）。SET 本身失败（比如连接出了问题）按执行出错处理：日志记这条 SET 的报错、切到日志、不标红 ▶，后面的语句不执行。
-- [ ] 重跑用来源 console 此刻选的 schema，console 已关就用它关闭时的选择。`gs` 绑在 `[keys.console]`，Action `console.schema`「切换 schema」。console 的补全用它选的 schema，快速 SQL 仍用树的。
-- [ ] console 里 INSERT 下 `C-n` 手动唤起补全写在 console 的按键处理里、没进 keymap，用 `ponytail:` 标出，要能改键时再加 console 的 INSERT 作用域。
-- [ ] 新 console 默认用树当前的 schema，之后两者互不影响。
-- [ ] MySQL 的 console 不显示这个下拉框（M5 时生效）。
+- [x] console 标题上的 `<库名>.<schema> ▾`，库名记在 Session 上；`gs` 或点击打开下拉框，复用 `app/dropdown.go`，加一种 dropSchema，位置和样式照 §8.6。
+- [x] search_path 的比较与重设（§8.6「执行方式」）：SET 放在同一次 `Worker.Run` 里、排在语句前面，不进日志、不占结果 tab；只在不一致时 SET；这次执行里有首词为 set / reset / discard 的语句就把记下的值作废。`Main` 处在出错的事务里（TxStatus 为 `E`）时跳过 SET、清掉记下的值，执行结束时还在事务里就不记这次的 SET（§8.6「只在事务外记住 search_path」）。SET 本身失败（比如连接出了问题）按执行出错处理：日志记这条 SET 的报错、切到日志、不标红 ▶，后面的语句不执行。
+- [x] 重跑用来源 console 此刻选的 schema，console 已关就用它关闭时的选择。`gs` 绑在 `[keys.console]`，Action `console.schema`「切换 schema」。console 的补全用它选的 schema，快速 SQL 仍用树的。
+- [x] console 里 INSERT 下 `C-n` 手动唤起补全写在 console 的按键处理里、没进 keymap，用 `ponytail:` 标出，要能改键时再加 console 的 INSERT 作用域。
+- [x] 新 console 默认用树当前的 schema，之后两者互不影响。
+- [x] MySQL 的 console 不显示这个下拉框（M5 时生效）。
 
 **验收**
-- [ ] 集成测试与 e2e：
+- [x] 集成测试与 e2e：
   - console 选择 `agentable` 后，`select * from <agentable 中的表>` 能执行成功；
   - 两个 console 分别选择不同的 schema，交替执行，结果都正确；
   - console 里自己 `set search_path` 后，下一次执行照下拉框的选择重新设置。
-- [ ] 补回 f0.2 里和 schema 下拉框有关的 e2e：160 与 200 宽的 console 标题（对象名 + `<库名>.<schema> ▾` + `▶ run ↵`）；各宽度下下拉框按钮的退让顺序（`▶ run` > 下拉框 > `↵`）。
+- [x] 补回 f0.2 里和 schema 下拉框有关的 e2e：160 与 200 宽的 console 标题（对象名 + `<库名>.<schema> ▾` + `▶ run ↵`）；各宽度下下拉框按钮的退让顺序（`▶ run` > 下拉框 > `↵`）。
