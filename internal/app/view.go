@@ -108,11 +108,11 @@ func (a *App) render() *ui.Frame {
 
 	y := a.h - 1
 	a.statusLine().Draw(f, uv.Rect(0, y, a.w, 1))
-	if a.whichKey {
-		a.whichKeyOverlay().Draw(f, a.overlayArea())
-	}
 	if a.keyHelp != nil {
 		a.keyHelpView().Draw(f, a.overlayArea())
+	}
+	if a.whichKey { // over the help too: a Ctrl leader's keys there (§6.5)
+		a.whichKeyOverlay().Draw(f, a.overlayArea())
 	}
 	if t := a.typingTab(); t != nil { // the WHERE's lists (§9.7), a cell's options (§10.2)
 		switch p := a.focused(); {

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
@@ -20,12 +21,13 @@ type keyHelp struct {
 
 func inKeyHelp(a *App) bool { return a.keyHelp != nil }
 
-// keyHelpView is the help as it draws: the which-key overlay's look.
+// keyHelpView is the help as it draws: the which-key overlay's look, the
+// top level named by the key that opens it there (§6.5).
 func (a *App) keyHelpView() ui.WhichKey {
 	h := a.keyHelp
-	w := ui.WhichKey{Prefix: "?", Items: whichKeyItems(a.keys.Next(h.ctx, h.prefix)), Top: h.top}
-	if len(h.prefix) > 0 {
-		w.Prefix = keymap.Display(h.prefix)
+	w := ui.WhichKey{Prefix: keymap.Display(h.prefix), Items: whichKeyItems(a.keys.Next(h.ctx, h.prefix)), Top: h.top, Help: true}
+	if len(h.prefix) == 0 && len(h.ctx.Focus) > 0 {
+		w.Prefix = cmp.Or(a.keys.Hint("keyhelp.open", h.ctx.Focus[0]), a.keys.Hint("keyhelp.open", "normal"))
 	}
 	return w
 }
@@ -38,6 +40,10 @@ func (a *App) keyHelpKey(k keymap.Key) tea.Cmd {
 	for _, n := range a.keys.Next(h.ctx, h.prefix) {
 		switch {
 		case n.Key != k:
+		// ponytail: a key bound in one table and a prefix in a higher one
+		// (xx in [map.grid.normal], x in [keys.grid]) goes down; its own
+		// binding then fires only if typed. ambiguities() checks one
+		// table, and the defaults have none
 		case n.Action == "" && n.RHS == nil: // a prefix of longer ones
 			h.prefix, h.top = append(slices.Clone(h.prefix), k), 0
 			return nil

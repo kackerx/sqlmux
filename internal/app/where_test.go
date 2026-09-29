@@ -122,6 +122,12 @@ func TestRankedWordStart(t *testing.T) {
 	if c == nil || !slices.Equal(c.items[0].pos, []int{8, 29, 30, 31, 32, 33}) {
 		t.Errorf("from the word start: %+v", c)
 	}
+	// a value with a space: fzf's terms each match anywhere, the first
+	// position may be the second term's
+	c = ranked("in p", 0, []candidate{{label: "prod in"}, {label: "in progress"}, {label: "on hold"}})
+	if c == nil || len(c.items) != 1 || c.items[0].label != "in progress" {
+		t.Errorf("in p: %+v", c)
+	}
 }
 
 // Autopairs in a WHERE, the quick SQL and a console's INSERT, not in a
@@ -153,6 +159,10 @@ func TestAutoPairs(t *testing.T) {
 	}
 	if feed(t, a, "<BS>;select count("); a.palette.input.Text != ";select count()" || a.palette.input.Pos != 14 {
 		t.Fatalf("quick SQL: %q at %d", a.palette.input.Text, a.palette.input.Pos)
+	}
+	a.paste("count(")
+	if a.palette.input.Text != ";select count(count()" || !a.autoPairs {
+		t.Fatalf("a paste goes in as it is: %q", a.palette.input.Text)
 	}
 	a.autoPairs = false
 	if in := (ui.Input{}); a.editPaired(&in, "(") && in.Text != "(" {

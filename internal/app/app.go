@@ -387,6 +387,9 @@ func (a *App) paste(s string) tea.Cmd {
 	if a.mode() == keymap.Normal {
 		return a.editCell(&s)
 	}
+	on := a.autoPairs // what is pasted goes in as it is: no pairs, nothing stepped over (§7.9)
+	a.autoPairs = false
+	defer func() { a.autoPairs = on }()
 	return a.dispatch([]keymap.Result{{Keys: keymap.Typed(s)}})
 }
 

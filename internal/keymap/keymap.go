@@ -230,7 +230,9 @@ var when = map[string]string{
 	"keys.cell":     "编辑单元格时（M2）",
 	"keys.sessions": "session 列表打开时（M5）",
 	"keys.confirm":  "确认框打开时",
-	"keys.options":  "单元格的选项浮层展开、而且有选项时",
+	"keys.options":  "非时间列的单元格，选项浮层展开、而且有选项时",
+	"keys.segments": "时间列的单元格，分段浮层展开时",
+	"keys.keyhelp":  "? 键位帮助打开时",
 }
 
 // TOML renders the effective keymap as a config that, loaded back, gives the

@@ -16,7 +16,8 @@ type WhichKeyItem struct{ Key, Title, Group string }
 type WhichKey struct {
 	Prefix string // the pending keys, shown on the top border
 	Items  []WhichKeyItem
-	Top    int // rows scrolled past, the ? help's
+	Top    int  // rows scrolled past, the ? help's
+	Help   bool // the ? help: a click in its box but off an item does nothing
 }
 
 const whichKeyGap = 3
@@ -26,13 +27,13 @@ type whichKeyRow struct {
 	text string
 }
 
-// layout is the widest key and title, the rows all of it takes, where
-// each item goes (column, row) and the group headings.
-func (w WhichKey) layout(width int) (kw, tw, rows int, at []uv.Position, heads []whichKeyRow) {
+// layout is the widest key and title, a column's width, the rows all of
+// it takes, where each item goes (column, row) and the group headings.
+func (w WhichKey) layout(width int) (kw, tw, colw, rows int, at []uv.Position, heads []whichKeyRow) {
 	for _, it := range w.Items {
 		kw, tw = max(kw, Width(it.Key)), max(tw, Width(it.Title))
 	}
-	colw := kw + Width(" → ") + tw + whichKeyGap
+	colw = kw + Width(" → ") + tw + whichKeyGap
 	cols := max((width-4+whichKeyGap)/colw, 1)
 	for i := 0; i < len(w.Items); {
 		g := w.Items[i].Group
@@ -50,12 +51,12 @@ func (w WhichKey) layout(width int) (kw, tw, rows int, at []uv.Position, heads [
 		}
 		rows, i = rows+n, j
 	}
-	return kw, tw, rows, at, heads
+	return kw, tw, colw, rows, at, heads
 }
 
 // Fit is top kept to what can scroll in area, and the rows area shows.
 func (w WhichKey) Fit(area uv.Rectangle, top int) (int, int) {
-	_, _, rows, _, _ := w.layout(area.Dx())
+	_, _, _, rows, _, _ := w.layout(area.Dx())
 	shown := max(min(rows, area.Dy()-2), 0)
 	return max(min(top, rows-shown), 0), shown
 }
@@ -65,11 +66,13 @@ func (w WhichKey) Draw(f *Frame, area uv.Rectangle) {
 	if len(w.Items) == 0 || area.Dx() < 4 || area.Dy() < 3 {
 		return
 	}
-	kw, tw, _, at, heads := w.layout(area.Dx())
-	colw := kw + Width(" → ") + tw + whichKeyGap
+	kw, tw, colw, _, at, heads := w.layout(area.Dx())
 	top, shown := w.Fit(area, w.Top)
 	r := uv.Rect(area.Min.X, area.Max.Y-shown-2, area.Dx(), shown+2)
 	f.Region(f.Bounds(), Target{Kind: KindBackdrop}) // a click anywhere else closes it
+	if w.Help {
+		f.Region(r, Target{})
+	}
 	f.Fill(r, uv.Style{Bg: th.PaneBg})
 	border := uv.NormalBorder().Style(uv.Style{Fg: th.Border, Bg: th.PaneBg})
 	border.Draw(f.Buf, r)

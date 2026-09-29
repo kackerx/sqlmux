@@ -119,9 +119,47 @@ func TestKeyHelpScrollAndMouse(t *testing.T) {
 		t.Fatalf("a click on j: row %d", tab.row)
 	}
 	feed(t, a, "?")
-	click(a, uv.Pos(0, 0))
+	if click(a, uv.Pos(2, 1)); a.keyHelp == nil { // its first heading
+		t.Fatal("a click in it off an item does nothing")
+	}
+	click(a, uv.Pos(0, a.h-1))
 	if a.keyHelp != nil {
 		t.Error("a click outside closes it")
+	}
+}
+
+// A Ctrl leader works in the help too: <C-a>? goes back to its top, not
+// to a help of the help's own keys; <C-a> alone shows which-key over it.
+func TestKeyHelpCtrlLeader(t *testing.T) {
+	a := configured(t, 160, 45, "[keys]\nleader = \"<C-a>\"")
+	loadOrders(t, a, 3)
+	feed(t, a, "?g<C-a>?")
+	if h := a.keyHelp; h == nil || h.prefix != nil || !slices.Contains(helpItems(a), "j "+title("grid.down")+" [keys.grid]") {
+		t.Fatalf("C-a ?: %v", helpItems(a))
+	}
+	feed(t, a, "<C-a>")
+	due(a)
+	if f := a.render().String(); !a.whichKey || !strings.Contains(f, "C-a") || !strings.Contains(f, title("session.list")) {
+		t.Errorf("which-key over the help:\n%s", f)
+	}
+	feed(t, a, "<Esc><Esc>/<C-a>?") // over a WHERE: its keys have titles too (§6.7「标题」)
+	for _, it := range a.keyHelpView().Items {
+		if strings.Contains(it.Title, ".") {
+			t.Errorf("a raw ID: %+v", it)
+		}
+	}
+}
+
+// The top level is named by the key that opens the help there (§6.5).
+func TestKeyHelpTitle(t *testing.T) {
+	a := configured(t, 160, 45, "[keys.grid]\n\"?\" = \"\"\n\"g?\" = \"keyhelp.open\"")
+	loadOrders(t, a, 3)
+	if feed(t, a, "g?"); a.keyHelp == nil || a.keyHelpView().Prefix != "g?" {
+		t.Fatalf("g?: %+v", a.keyHelp)
+	}
+	a, c := inConsole(t, "")
+	if feed(t, a, "<Space>?"); a.keyHelp == nil || a.keyHelpView().Prefix != "SPC ?" || c == nil {
+		t.Errorf("a console's: %q", a.keyHelpView().Prefix)
 	}
 }
 

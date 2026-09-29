@@ -142,7 +142,7 @@ func (a *App) paletteItems() []paletteItem {
 	}
 	var ids []string
 	for id, act := range actions {
-		if act.Title != "" {
+		if act.Title != "" && !act.Local {
 			ids = append(ids, id)
 		}
 	}

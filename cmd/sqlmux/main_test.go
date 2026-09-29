@@ -64,6 +64,12 @@ func TestKeysTOMLReference(t *testing.T) {
 	if got := keys(); got != md {
 		t.Errorf("loaded back, the keymap changed:\n%s", got)
 	}
+	lines := strings.Split(toml, "\n")
+	for i, l := range lines {
+		if strings.HasPrefix(l, "[keys.") && !strings.HasPrefix(lines[i-1], "# ") {
+			t.Errorf("%s: no note above it on when it applies (§6.7)", l)
+		}
+	}
 	for id, title := range app.Titles() {
 		bound := len(regexp.MustCompile(`(?m)^".*" = "`+regexp.QuoteMeta(id)+`( .*)?"  # `+regexp.QuoteMeta(title)+`$`).FindAllString(toml, -1))
 		commented := strings.Count(toml, `# "" = "`+id+`"  # `+title+"\n")

@@ -615,17 +615,17 @@ func TestWhichKeyKeys(t *testing.T) {
 	}
 }
 
-// Every default binding's action has a title, so which-key and the palette
-// never show a raw ID; except keys that mean something only inside an
-// overlay or while typing (cell, input), which the palette must not list
-// (§12).
+// Every default binding's action has a title, so which-key, the ? help and
+// the palette never show a raw ID (§6.7「标题」); those that mean something
+// only inside an overlay or while typing (cell, input) are Local, which
+// the palette must not list (§12).
 func TestEveryDefaultActionHasATitle(t *testing.T) {
 	keys, _ := keymap.New(config.Default())
 	anywhere := []string{"global", "normal", "grid", "tree", "console", "landing", "result"}
 	for _, id := range keys.Actions() {
 		listed := slices.ContainsFunc(anywhere, func(s string) bool { return keys.Hint(id, s) != "" })
-		if listed != (actions[id].Title != "") {
-			t.Errorf("%s: title %q, bound outside overlays and inputs %v", id, actions[id].Title, listed)
+		if actions[id].Title == "" || listed == actions[id].Local {
+			t.Errorf("%s: title %q, local %v, bound outside overlays and inputs %v", id, actions[id].Title, actions[id].Local, listed)
 		}
 	}
 	for alias, id := range exAliases {

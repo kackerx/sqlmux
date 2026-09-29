@@ -305,7 +305,12 @@ func TestAutoPairs(t *testing.T) {
 			t.Errorf("%q: %q at %d, want %q at %d", c.keys, e.Lines()[0], e.Cursor().Col, c.want, c.col)
 		}
 	}
-	e := New("")
+	e := New("x")
+	e.AutoPairs = true
+	if feedAll(t, e, "3o(<Esc>"); strings.Join(e.Lines(), "|") != "x|()|()|()" {
+		t.Errorf("3o(: a pair a line: %q", e.Lines())
+	}
+	e = New("")
 	if feedAll(t, e, "i("); e.Lines()[0] != "(" {
 		t.Errorf("off: %q", e.Lines())
 	}

@@ -21,9 +21,10 @@ type Args struct {
 // Action is the single path every key, click and palette pick goes through
 // (tech-design §6.1).
 type Action struct {
-	Title string // shown by which-key and the palette
+	Title string // shown by which-key, the ? help and the palette (§6.7)
 	Run   func(*App, Args) tea.Cmd
 	On    func(*App) bool // a toggle's state: the palette shows ON / OFF and stays open (§12)
+	Local bool            // an overlay's or an input's own key, which the palette leaves out (§12)
 }
 
 // quitWindow is how long the "press C-c again" toast stays; a second press
@@ -40,17 +41,17 @@ func init() {
 		"palette.open":    {Title: "命令面板", Run: do(func(a *App, _ Args) { a.openPalette("") })},
 		"palette.command": {Title: "命令面板：命令", Run: do(func(a *App, _ Args) { a.openPalette(">") })}, // : opens it as if > was typed
 		"palette.sql":     {Title: "快速 SQL", Run: do(func(a *App, _ Args) { a.openPalette(";") })},  // ; as if ; was typed (§12)
-		// Keys inside the palette. Like every overlay's own actions they have
-		// no title, so the palette does not list them (§12); bound elsewhere
-		// in config, they do nothing.
-		"palette.up":         {Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
-		"palette.down":       {Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
-		"palette.run":        {Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, false) })},
-		"palette.open.tab":   {Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, true) })},
-		"palette.close":      {Run: when(inPalette, func(a *App) tea.Cmd { a.palette = nil; return nil })},
-		"quicksql.copy":      {Run: when(inPalette, func(a *App) tea.Cmd { return a.copyQuick() })},
-		"palette.scope.next": {Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s + 1); return nil })},
-		"palette.scope.prev": {Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s - 1); return nil })},
+		// Keys inside the palette. Like every overlay's own actions they are
+		// Local, which the palette does not list (§12); bound elsewhere in
+		// config, they do nothing.
+		"palette.up":         {Title: "上移", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
+		"palette.down":       {Title: "下移", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
+		"palette.run":        {Title: "执行", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, false) })},
+		"palette.open.tab":   {Title: "在新 tab 打开", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, true) })},
+		"palette.close":      {Title: "关闭命令面板", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.palette = nil; return nil })},
+		"quicksql.copy":      {Title: "复制结果", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.copyQuick() })},
+		"palette.scope.next": {Title: "下一个范围", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s + 1); return nil })},
+		"palette.scope.prev": {Title: "上一个范围", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s - 1); return nil })},
 		// "palette.scope <i>" is a click on a scope tab.
 		"palette.scope": {Run: func(a *App, args Args) tea.Cmd {
 			if i, err := strconv.Atoi(args.Arg); err == nil && a.palette != nil {
@@ -156,31 +157,31 @@ func init() {
 		"tree.filter":   {Title: "过滤", Run: do(func(a *App, _ Args) { a.treeFilter() })},
 		"tree.refresh":  {Title: "刷新表列表", Run: func(a *App, _ Args) tea.Cmd { clear(a.sess.cols); return a.loadCatalog() }},
 		// Keys inside the dropdowns and the COLS list (§6.8): untitled, like the palette's.
-		"dropdown.up":     {Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(-1); return nil })},
-		"dropdown.down":   {Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(1); return nil })},
-		"dropdown.select": {Run: when(inDrop, func(a *App) tea.Cmd { return a.dropPick(a.drop.sel) })},
-		"dropdown.close":  {Run: when(inDrop, func(a *App) tea.Cmd { a.drop = nil; return nil })},
-		"complete.up":     {Run: when(inComplete, func(a *App) tea.Cmd { a.completing().move(-1); return nil })},
-		"complete.down":   {Run: when(inComplete, func(a *App) tea.Cmd { a.completing().move(1); return nil })},
+		"dropdown.up":     {Title: "上移", Local: true, Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(-1); return nil })},
+		"dropdown.down":   {Title: "下移", Local: true, Run: when(inDrop, func(a *App) tea.Cmd { a.dropMove(1); return nil })},
+		"dropdown.select": {Title: "选中", Local: true, Run: when(inDrop, func(a *App) tea.Cmd { return a.dropPick(a.drop.sel) })},
+		"dropdown.close":  {Title: "关闭下拉框", Local: true, Run: when(inDrop, func(a *App) tea.Cmd { a.drop = nil; return nil })},
+		"complete.up":     {Title: "上一个候选", Local: true, Run: when(inComplete, func(a *App) tea.Cmd { a.completing().move(-1); return nil })},
+		"complete.down":   {Title: "下一个候选", Local: true, Run: when(inComplete, func(a *App) tea.Cmd { a.completing().move(1); return nil })},
 		"complete.accept": {Run: when(inComplete, func(a *App) tea.Cmd { _, cmd := a.acceptCompletion(); return cmd })},
-		"where.up":        {Run: when(inHist, func(a *App) tea.Cmd { a.histMove(a.typingTab(), -1); return nil })},
-		"where.down":      {Run: when(inHist, func(a *App) tea.Cmd { a.histMove(a.typingTab(), 1); return nil })},
-		"where.apply":     {Run: when(inHist, func(a *App) tea.Cmd { t := a.typingTab(); return a.histApply(t, t.hist.sel) })},
-		"where.star":      {Run: when(inHist, func(a *App) tea.Cmd { return a.histStar(a.typingTab()) })},
-		"where.close":     {Run: when(inHist, func(a *App) tea.Cmd { a.typingTab().hist = nil; return nil })},
+		"where.up":        {Title: "上移", Local: true, Run: when(inHist, func(a *App) tea.Cmd { a.histMove(a.typingTab(), -1); return nil })},
+		"where.down":      {Title: "下移", Local: true, Run: when(inHist, func(a *App) tea.Cmd { a.histMove(a.typingTab(), 1); return nil })},
+		"where.apply":     {Title: "执行 WHERE", Local: true, Run: when(inHist, func(a *App) tea.Cmd { t := a.typingTab(); return a.histApply(t, t.hist.sel) })},
+		"where.star":      {Title: "收藏 / 取消收藏", Local: true, Run: when(inHist, func(a *App) tea.Cmd { return a.histStar(a.typingTab()) })},
+		"where.close":     {Title: "关闭下拉", Local: true, Run: when(inHist, func(a *App) tea.Cmd { a.typingTab().hist = nil; return nil })},
 		// C-r in the WHERE input, or a click on its ▾ from the grid (Q-02).
-		"where.history": {Run: do(func(a *App, _ Args) {
+		"where.history": {Title: "历史 / 收藏", Local: true, Run: do(func(a *App, _ Args) {
 			if t := dataOf(a.focused()); t != nil && t.page.Cols != nil && a.drop == nil && a.cols == nil && t.typing != "page" {
 				t.typing, t.comp, t.hist = "where", nil, &histMenu{}
 			}
 		})},
-		"cols.up":     {Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(-1); return nil })},
-		"cols.down":   {Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(1); return nil })},
-		"cols.toggle": {Run: when(inCols, func(a *App) tea.Cmd { a.colsToggle(a.cols.sel); return nil })},
-		"cols.all":    {Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(true); return nil })},
-		"cols.none":   {Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(false); return nil })},
-		"cols.filter": {Run: when(inCols, func(a *App) tea.Cmd { a.cols.typing = true; return nil })},
-		"cols.close":  {Run: when(inCols, func(a *App) tea.Cmd { a.colsEsc(); return nil })},
+		"cols.up":     {Title: "上移", Local: true, Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(-1); return nil })},
+		"cols.down":   {Title: "下移", Local: true, Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(1); return nil })},
+		"cols.toggle": {Title: "显示 / 隐藏这一列", Local: true, Run: when(inCols, func(a *App) tea.Cmd { a.colsToggle(a.cols.sel); return nil })},
+		"cols.all":    {Title: "全部显示", Local: true, Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(true); return nil })},
+		"cols.none":   {Title: "全部隐藏", Local: true, Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(false); return nil })},
+		"cols.filter": {Title: "过滤列", Local: true, Run: when(inCols, func(a *App) tea.Cmd { a.cols.typing = true; return nil })},
+		"cols.close":  {Title: "关闭 COLS", Local: true, Run: when(inCols, func(a *App) tea.Cmd { a.colsEsc(); return nil })},
 		"pane.error.close": {Title: "关闭错误栏", Run: func(a *App, args Args) tea.Cmd { // "pane.error.close <id>" is its ×
 			p := a.focused()
 			if id, err := strconv.Atoi(args.Arg); err == nil {
@@ -196,16 +197,22 @@ func init() {
 			return nil
 		}},
 		// The ? help (§6.5).
-		"keyhelp.open":  {Title: "键位帮助", Run: do(func(a *App, _ Args) { a.keyHelp = &keyHelp{ctx: a.context()} })},
-		"keyhelp.close": {Run: do(func(a *App, _ Args) { a.keyHelp = nil })},
-		"keyhelp.back": {Run: when(inKeyHelp, func(a *App) tea.Cmd {
+		"keyhelp.open": {Title: "键位帮助", Run: do(func(a *App, _ Args) {
+			if h := a.keyHelp; h != nil { // a Ctrl leader's <C-a>? in it: back to its top, of what it opened on
+				h.prefix, h.top = nil, 0
+				return
+			}
+			a.keyHelp = &keyHelp{ctx: a.context()}
+		})},
+		"keyhelp.close": {Title: "关闭键位帮助", Local: true, Run: do(func(a *App, _ Args) { a.keyHelp = nil })},
+		"keyhelp.back": {Title: "上一层", Local: true, Run: when(inKeyHelp, func(a *App) tea.Cmd {
 			if h := a.keyHelp; len(h.prefix) > 0 {
 				h.prefix, h.top = h.prefix[:len(h.prefix)-1], 0
 			}
 			return nil
 		})},
-		"keyhelp.scroll.down": {Run: when(inKeyHelp, func(a *App) tea.Cmd { a.scrollKeyHelp(1, true); return nil })},
-		"keyhelp.scroll.up":   {Run: when(inKeyHelp, func(a *App) tea.Cmd { a.scrollKeyHelp(-1, true); return nil })},
+		"keyhelp.scroll.down": {Title: "向下滚动", Local: true, Run: when(inKeyHelp, func(a *App) tea.Cmd { a.scrollKeyHelp(1, true); return nil })},
+		"keyhelp.scroll.up":   {Title: "向上滚动", Local: true, Run: when(inKeyHelp, func(a *App) tea.Cmd { a.scrollKeyHelp(-1, true); return nil })},
 
 		// "pane.focus <id>" is what a click runs; untitled, it stays out of the palette.
 		"pane.focus": {Run: do(func(a *App, args Args) {
@@ -238,15 +245,15 @@ func init() {
 		"grid.transpose": {Title: "转置", Run: do(func(a *App, _ Args) { a.gridTranspose() })},
 		"grid.edit":      {Title: "编辑单元格", Run: func(a *App, _ Args) tea.Cmd { return a.editCell(nil) }},
 		// ↵ and esc end a cell's edit alike, keeping it (G-02)
-		"cell.accept": {Run: onCell(func(t *dataTab) { t.acceptCell() })},
-		"cell.done":   {Run: do(func(a *App, _ Args) { a.endEdit() })},
+		"cell.accept": {Title: "确定这一格", Local: true, Run: onCell(func(t *dataTab) { t.acceptCell() })},
+		"cell.done":   {Title: "结束编辑", Local: true, Run: do(func(a *App, _ Args) { a.endEdit() })},
 		// the options under a cell being edited (§10.2)
-		"cell.option.next":  {Run: onCell(func(t *dataTab) { t.moveOption(1) })},
-		"cell.option.prev":  {Run: onCell(func(t *dataTab) { t.moveOption(-1) })},
-		"cell.up":           {Run: onCell(func(t *dataTab) { t.stepSeg(t.cell.seg, 1) })},
-		"cell.down":         {Run: onCell(func(t *dataTab) { t.stepSeg(t.cell.seg, -1) })},
-		"cell.segment.next": {Run: onCell(func(t *dataTab) { t.moveSeg(1) })},
-		"cell.segment.prev": {Run: onCell(func(t *dataTab) { t.moveSeg(-1) })},
+		"cell.option.next":  {Title: "下一个选项", Local: true, Run: onCell(func(t *dataTab) { t.moveOption(1) })},
+		"cell.option.prev":  {Title: "上一个选项", Local: true, Run: onCell(func(t *dataTab) { t.moveOption(-1) })},
+		"cell.up":           {Title: "当前段加一", Local: true, Run: onCell(func(t *dataTab) { t.stepSeg(t.cell.seg, 1) })},
+		"cell.down":         {Title: "当前段减一", Local: true, Run: onCell(func(t *dataTab) { t.stepSeg(t.cell.seg, -1) })},
+		"cell.segment.next": {Title: "下一段", Local: true, Run: onCell(func(t *dataTab) { t.moveSeg(1) })},
+		"cell.segment.prev": {Title: "上一段", Local: true, Run: onCell(func(t *dataTab) { t.moveSeg(-1) })},
 		// a time's parts clicked: "cell.seg 3" picks one, "cell.inc 3" / "cell.dec 3" step it
 		"cell.seg":         {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, 0) })},
 		"cell.inc":         {Run: onSeg(func(t *dataTab, i int) { t.stepSeg(i, 1) })},
@@ -256,12 +263,12 @@ func init() {
 		"cell.default":     {Title: "设为 DEFAULT", Run: do(func(a *App, _ Args) { a.setSpecial(true) })},
 		"save":             {Title: "保存", Run: func(a *App, _ Args) tea.Cmd { return a.save() }},
 		"console.external": {Title: "在 $EDITOR 中编辑", Run: func(a *App, _ Args) tea.Cmd { return a.external() }},
-		"confirm.yes": {Run: when(inConfirm, func(a *App) tea.Cmd {
+		"confirm.yes": {Title: "确定", Local: true, Run: when(inConfirm, func(a *App) tea.Cmd {
 			then := a.confirm.then
 			a.confirm = nil
 			return then()
 		})},
-		"confirm.no": {Run: when(inConfirm, func(a *App) tea.Cmd { a.confirm = nil; return nil })},
+		"confirm.no": {Title: "取消", Local: true, Run: when(inConfirm, func(a *App) tea.Cmd { a.confirm = nil; return nil })},
 		// The query bar (§7.8「查询条」).
 		"grid.where": {Title: "WHERE 条件", Run: do(func(a *App, _ Args) {
 			if t := dataOf(a.focused()); t != nil {
@@ -314,6 +321,7 @@ func init() {
 	} {
 		actions[id] = Action{Title: title}
 	}
+	actions["quicksql.edit"] = Action{Title: "在 console 里编辑", Local: true} // the palette's C-e: M4
 }
 
 // Titles maps each titled action ID to its title: the keymap export notes

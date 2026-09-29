@@ -73,7 +73,13 @@ type node struct {
 
 // trie merges the scopes of c into one trie, cached per context. The first
 // scope to bind an exact sequence wins; a longer sequence from a lower scope
-// still hangs under it, which is what makes a node ambiguous.
+// still hangs under it, which is what makes a node ambiguous. A node's
+// table is the scope that made it, so a table makes all its nodes before
+// the next one does: children come grouped by table in scope order, which
+// Next relies on (§6.5).
+// ponytail: a node one table binds and a higher one makes a prefix of
+// (xx in [map.grid.normal], x in [keys.grid]) is listed in the higher
+// table's group; keeping the binding's table instead needs Next to sort.
 func (m *Map) trie(c Context, maps bool) *node {
 	id := fmt.Sprint(c, maps)
 	if t, ok := m.tries[id]; ok {

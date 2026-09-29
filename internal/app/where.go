@@ -110,10 +110,12 @@ func ranked(pattern string, start int, groups ...[]candidate) *completion {
 // atWordStart is where pattern matches s with its first character at a
 // word start (§9.7), given fzf's best match at pos; nil when it can't.
 // fzf's match starts elsewhere when a run of consecutive characters
-// outscores the word start: the rest is matched again from each one.
+// outscores the word start, and pos[0] may be a later term's when a space
+// splits the pattern (a value typed, 'in p'): the rest is matched again
+// from each word start.
 func atWordStart(pattern, s string, pos []int) []int {
 	rs := []rune(s)
-	if len(pos) == 0 || wordStart(rs, pos[0]) {
+	if len(pos) == 0 || !strings.Contains(pattern, " ") && wordStart(rs, pos[0]) {
 		return pos
 	}
 	first, n := utf8.DecodeRuneInString(pattern)

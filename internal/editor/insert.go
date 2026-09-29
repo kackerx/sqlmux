@@ -436,7 +436,8 @@ func (e *Editor) escape() {
 	if !in.arrowed {
 		keys := in.keys
 		for i := 1; i < in.count; i++ {
-			if in.cmd == "o" || in.cmd == "O" {
+			if in.cmd == "o" || in.cmd == "O" { // a line of its own, past a closing half autopairs left
+				e.cur.Col = len(e.line())
 				e.newline()
 			}
 			for _, k := range keys {
