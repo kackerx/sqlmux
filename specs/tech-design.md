@@ -1240,13 +1240,15 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
   - **执行**：在 `Meta` 上执行，PG 用 `BEGIN READ ONLY`，MySQL 用 `START TRANSACTION READ ONLY`，执行完一律 ROLLBACK。同一事务里先 `SET LOCAL search_path TO <树当前的 schema>, <建连时的原始 search_path>`（§8.6 的写法），这样树停在 `agentable` 时 `;select * from agent` 也能找到表，ROLLBACK 后自动恢复。最多显示 100 行，更多时显示 `100+`。
     - **不让服务端算完整个结果集**（M1 F1.7 定，参考 PG16 psql 的 `FETCH_COUNT`：common.c 的 `is_select_command` 跳过空白、注释和左括号后只认 `select` / `values`；PG17 起 psql 改用 chunked rows mode，删掉了这个函数）：跳过开头的空白、注释和左括号后，第一个词是 `select` / `values` / `table` / `with` 的（`table` 和 `with` 是这里另加的，大表上的 WITH … SELECT 很常见，限行更要紧），用 `DECLARE <游标> NO SCROLL CURSOR FOR <语句>` + `FETCH FORWARD 101`，服务端只算到第 101 行；其余语句（SHOW、EXPLAIN、写语句等）直接执行，写语句由只读事务拒绝，显示数据库原文。两条路径都走扩展协议，所以一次只能执行一条语句。
     - 否掉的做法：lazysql 读到上限后停，但关 rows 时 pgx 会把剩下的读完，服务端照样算完；usql 不限制；扩展协议 Execute 带行数上限（pgjdbc 的做法）最通用，但 pgconn 没有暴露，要绕过 pgconn 自己收发协议消息、自己处理取消，与 §8.1「取消走 ctx」冲突。
-    - 已知上限：`explain analyze` 这类非 SELECT 语句仍会算完；`with … delete` 这类 WITH 后面接写语句的，走 DECLARE 报的是 `syntax error at or near "delete"`，而不是只读事务的错误，M3 由读写判定（§9.3）解决；首词判断是临时的，代码里用 `ponytail:` 标出，M3 有了 sqlkit 之后改用 §9.4 的读写判定与自动 LIMIT。
+    - 已知上限：`explain analyze` 这类非 SELECT 语句仍会算完；`with … delete` 这类 WITH 后面接写语句的，走 DECLARE 报的是 `syntax error at or near "delete"`，而不是只读事务的错误，M3 由读写判定（§9.3）解决；首词判断是临时的，代码里用 `ponytail:` 标出。M4 起改为：先用 §9.3 的读写判定，判为写的不执行（见下面「写语句」）；判为读、且首词是 select / with / table / values 的仍走游标 + `FETCH FORWARD 101`，不改用 §9.4 的自动 LIMIT：游标让服务端只算到第 101 行，而自动 LIMIT 对已经带 LIMIT、或者包在括号里的查询不起作用，碰到这些照样算完（M4 起草时定）。
     - 执行中 `C-c` 取消查询、面板不关，取消后保留上次结果，toast「查询已取消」（§8.3）；空闲时 `C-c` 照旧等同 esc。执行中再按 `↵` 忽略。
   - **面板布局**（SQL 范围）：输入为空时列表区列历史（新的在前，每行只有 SQL 文本，不带类型标签，因为整个列表都是同一种），`C-n` / `C-p` 选，`↵` 把选中的填进输入并执行；输入不为空时列表区为 0 行。结果区执行过才出现，出现后面板向下扩展到状态栏上方、留 1 行空隙；窗口太矮放不下 8 行时，按能放下的显示。关掉面板结果就丢掉，历史里有。
   - **结果区**：标题行 `100+ 行 · 12ms · 只读`，右侧是可点击的 `C-y CSV`（键位从 keymap 读）；执行中行数处显示 `…`，保留上次结果；没有结果集的语句显示命令标签（如 `SET`）。报错显示在结果区第一行（`error` 色），同 data pane。表格只显示、不带光标，滚轮纵向滚动、Shift + 滚轮横向，不加键盘滚动（焦点在输入框）。
   - **历史**：执行过的都记，不论成败；去重后挪到最前，最多 50 条，按连接存在 state.json。「所有」范围不列 SQL 历史，M1 只在 SQL 范围列。已修改的判断按全文比较（去掉 `;` 前缀）。
   - **`C-y`**：CSV 为表头加显示的行（最多 100 行），NULL 写空串（同 lazysql `helpers/csv.go`），用 `tea.SetClipboard`（OSC 52）；没有结果时不做事，复制后不加 toast。
-  - **写语句（F-05）**：判为写的语句不执行，显示黄色提示「`C-e` 在 console 中打开后执行」。在 console 里由用户自己按下执行，这一步就是确认，不再需要 C-S-↵。M1 还没有读写判定（§9.3），写语句由只读事务拒绝，显示数据库返回的错误；M3 起改为上面的做法。
+  - **写语句（F-05）**：判为写的语句不执行，结果区显示 `warn` 色的「写语句不在这里执行 · C-e 在 console 中打开」，键位文字从 keymap 读。在 console 里由用户自己按下执行，这一步就是确认，不再需要 C-S-↵。M1–M3 还没接读写判定，写语句由只读事务拒绝，显示数据库返回的错误；M4 起改为这里的做法。
+  - **`C-t` 送到结果区**（M4）：把结果作为固定的结果 tab 放进结果区，tab 名 `quick #n`（n 取 session 的执行序号），日志记一行 `quick  <首行>  N 行`；在这个 tab 上重跑（`R`），在 `Meta` 的只读事务里重新执行，search_path 用树当前的 schema；导出文件名 `quick-42.csv`；面板不关。
+  - **`C-e` 在 console 中打开**（M4）：在打开表的目标 pane（§12 的规则）里按 `console.new` 的规则新开 console（取最小的 console_n，当前是引导 tab 就原地替换）；文件已有内容时把这条 SQL 追加到末尾、前面空一行，光标落在 SQL 第一行；关掉面板、聚焦这个 console。新 console 的 schema 取树当前的，与快速 SQL 执行时用的一致。
   - **错误**：语法错误显示红色提示。
   - **已修改提示（F-03）**：当前输入与上次执行的语句不同时，提示「已修改，↵ 重新执行」。
   - **后续操作（F-04）**：`C-t` 把结果送到一个新的、已固定的 result pane；`C-y` 用 `encoding/csv` 生成 CSV，再通过 OSC 52 复制；`C-e` 在 console 中打开。结果区标题栏上的按钮都可以点击。M1 先做 `C-y`，另外两个要等 M3 有了 console 和结果区。
