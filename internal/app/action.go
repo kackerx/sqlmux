@@ -218,8 +218,8 @@ func init() {
 		// the options under a cell being edited (§10.2)
 		"cell.option.next":  {Run: onCell(func(t *dataTab) { t.moveOption(1) })},
 		"cell.option.prev":  {Run: onCell(func(t *dataTab) { t.moveOption(-1) })},
-		"cell.up":           {Run: onCell(func(t *dataTab) { t.cellUp(1) })},
-		"cell.down":         {Run: onCell(func(t *dataTab) { t.cellUp(-1) })},
+		"cell.up":           {Run: onCell(func(t *dataTab) { t.stepSeg(t.cell.seg, 1) })},
+		"cell.down":         {Run: onCell(func(t *dataTab) { t.stepSeg(t.cell.seg, -1) })},
 		"cell.segment.next": {Run: onCell(func(t *dataTab) { t.moveSeg(1) })},
 		"cell.segment.prev": {Run: onCell(func(t *dataTab) { t.moveSeg(-1) })},
 		// a time's parts clicked: "cell.seg 3" picks one, "cell.inc 3" / "cell.dec 3" step it

@@ -189,16 +189,6 @@ func (a *App) setSpecial(def bool) {
 // cellKind is the time the cell being edited holds, if any (§10.2).
 func (t *dataTab) cellKind() ui.TimeKind { return timeKind(t.typeOf(t.cell.key.col)) }
 
-// cellUp is ↑ in a cell (d 1) and ↓ (d -1): a time's current part steps,
-// else the pick moves up or down the options (§10.2).
-func (t *dataTab) cellUp(d int) {
-	if t.cellKind() != ui.NotTime {
-		t.stepSeg(t.cell.seg, d)
-		return
-	}
-	t.moveOption(-d)
-}
-
 // stepSeg steps a time's part i by d (0: just makes it the current part),
 // rewriting that part of the text alone (§10.2). Text that doesn't parse
 // steps nothing.

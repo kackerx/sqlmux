@@ -485,6 +485,33 @@ func TestCellOptions(t *testing.T) {
 	}
 }
 
+// Tab and S-Tab pick options as C-n and C-p do, a time's parts in a time
+// cell; folded by ▾, Tab and the arrows do nothing (§10.2).
+func TestCellOptionsTab(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	feed(t, a, "3li")
+	if feed(t, a, "<Tab><Tab>"); optionLabels(tab) != "true [false] ∅ NULL" {
+		t.Fatalf("paid, Tab Tab: %s", optionLabels(tab))
+	}
+	if feed(t, a, "<S-Tab>"); optionLabels(tab) != "[true] false ∅ NULL" {
+		t.Fatalf("S-Tab: %s", optionLabels(tab))
+	}
+	if feed(t, a, "<S-Tab><S-Tab><CR>"); tab.cell != nil || editsOf(tab) != "1/paid=f" {
+		t.Fatalf("around the ends, back to false: %q", editsOf(tab))
+	}
+	feed(t, a, "i")
+	a.run("cell.options", 0) // ▾
+	if feed(t, a, "<Tab><Down>"); tab.cell.sel != -1 || a.context().Overlay != "" {
+		t.Errorf("folded: sel %d", tab.cell.sel)
+	}
+	feed(t, a, "<Esc>$i")
+	a.run("cell.options", 0)
+	if feed(t, a, "<Tab>"); tab.cell.seg != 0 || a.context().Overlay != "" {
+		t.Errorf("a time folded: seg %d, overlay %q", tab.cell.seg, a.context().Overlay)
+	}
+}
+
 // The mouse: a click on an option applies it, hovering only lights it; the
 // ▾ folds them away and back (§10.2).
 func TestCellOptionsMouse(t *testing.T) {

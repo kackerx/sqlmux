@@ -143,14 +143,22 @@ leader = "<Space>"
 "n" = "confirm.no"
 "<Esc>" = "confirm.no"
 
-[keys.options] # §10.2: a cell's options, while they show
+[keys.options] # §10.2: a cell's options, while they show (a time's: segments)
+"<Tab>" = "cell.option.next"
 "<C-n>" = "cell.option.next"
+"<Down>" = "cell.option.next"
+"<S-Tab>" = "cell.option.prev"
 "<C-p>" = "cell.option.prev"
+"<Up>" = "cell.option.prev"
 
-[keys.cell] # §10.2
+[keys.segments] # §10.2: a time's parts and its options' row, while they show
 "<Tab>" = "cell.segment.next"
 "<S-Tab>" = "cell.segment.prev"
 "<Up>" = "cell.up"
 "<Down>" = "cell.down"
+"<C-n>" = "cell.option.next"
+"<C-p>" = "cell.option.prev"
+
+[keys.cell] # §10.2: the rest is the text's
 "<CR>" = "cell.accept"
 "<Esc>" = "cell.done"

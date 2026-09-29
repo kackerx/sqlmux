@@ -453,6 +453,9 @@ func (a *App) context() keymap.Context {
 	case a.focusedConsole() != nil && a.focusedConsole().comp != nil: // ↵ and esc are its vim's, as a WHERE's
 		return keymap.Context{Overlay: "complete", Focus: []string{"console"}, Mode: keymap.Insert}
 	case typing != nil && typing.cell != nil && !typing.cell.folded && len(typing.options()) > 0:
+		if typing.cellKind() != ui.NotTime { // a time's parts, its options in a row (§10.2)
+			return keymap.Context{Overlay: "segments", Focus: []string{"cell"}, Mode: keymap.Insert}
+		}
 		return keymap.Context{Overlay: "options", Focus: []string{"cell"}, Mode: keymap.Insert}
 	case typing != nil && typing.cell != nil:
 		return keymap.Context{Focus: []string{"cell"}, Mode: keymap.Insert}
