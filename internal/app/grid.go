@@ -60,6 +60,8 @@ type dataTab struct {
 	typing   string           // the input that has the keys: "where", "page", "cell" or ""
 	cell     *cellEdit        // the cell being edited, while typing is "cell" (§10.1)
 	edits    map[editKey]edit // changes not saved, of every page (§10.1)
+	added    []*newRow        // rows added, not saved: those at one place in the order they show (§10.6)
+	deleted  map[string]bool  // rows marked for deletion, by row key (§10.6)
 	saving   bool             // a save is on its way (§10.3)
 	closing  bool             // :wq: the tab closes once the save lands, if nothing is left unsaved (§11)
 	note     ui.Note          // how the last save went, until the next fetch or change (Q-06)
@@ -199,7 +201,7 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	}
 	clearBar(&t.bar, "fetch")
 	t.cols, t.page, t.next, t.shown = m.cols, m.page, m.next, t.request
-	t.row = max(min(t.row, len(t.page.Rows)-1), 0)
+	t.row = max(min(t.row, len(t.shownRows())-1), 0)
 	t.applyWantCol()
 	t.col = max(min(t.col, len(t.shownCols())-1), 0)
 	if t.recount {
@@ -339,39 +341,66 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 		name := t.page.Cols[i].Name
 		g.Cols = append(g.Cols, ui.GridCol{Name: name, PK: slices.Contains(t.cols.PK, name), Type: colType(t.typeOf(name))})
 	}
-	keyed := len(t.edits) > 0 && t.cols.Key() != nil
+	keyed := (len(t.edits) > 0 || len(t.deleted) > 0) && t.cols.Key() != nil
 	changed := map[string]bool{} // rows with changes, COLS hiding them or not
 	for k := range t.edits {
 		changed[k.row] = true
 	}
-	for rec, row := range t.page.Rows {
+	mark := func(m *map[int]bool, i int) {
+		if *m == nil {
+			*m = map[int]bool{}
+		}
+		(*m)[i] = true
+	}
+	edited := func(i, j int, e edit) db.Val {
+		if g.Edited == nil {
+			g.Edited = map[[2]int]bool{}
+		}
+		g.Edited[[2]int{i, j}] = true
+		if e.def {
+			return db.Val{S: "<default>"}
+		}
+		return e.val
+	}
+	rows := t.shownRows()
+	if len(t.added) > 0 {
+		g.Nums = make([]int, len(rows))
+	}
+	for i, sr := range rows {
 		vals := make([]db.Val, len(shown))
+		if sr.add != nil { // DEFAULT but for what is set (§10.6)
+			mark(&g.Added, i)
+			for j, c := range shown {
+				vals[j] = db.Val{S: "<default>"}
+				if e, ok := sr.add.cells[t.page.Cols[c].Name]; ok {
+					vals[j] = edited(i, j, e)
+				}
+			}
+			g.Rows = append(g.Rows, vals)
+			continue
+		}
+		if g.Nums != nil {
+			g.Nums[i] = g.First + sr.rec + 1
+		}
 		key := ""
 		if keyed {
-			key = t.rowKey(rec)
+			key = t.rowKey(sr.rec)
 		}
-		for j, i := range shown {
-			vals[j] = row[i]
-			e, ok := t.edits[editKey{key, t.page.Cols[i].Name}]
-			if !keyed || !ok {
-				continue
+		for j, c := range shown {
+			vals[j] = t.page.Rows[sr.rec][c]
+			if e, ok := t.edits[editKey{key, t.page.Cols[c].Name}]; keyed && ok {
+				vals[j] = edited(i, j, e)
 			}
-			if vals[j] = e.val; e.def {
-				vals[j] = db.Val{S: "<default>"}
-			}
-			if g.Edited == nil {
-				g.Edited = map[[2]int]bool{}
-			}
-			g.Edited[[2]int{rec, j}] = true
 		}
 		if key != "" && key == t.failed {
-			g.Failed = map[int]bool{rec: true}
+			mark(&g.Failed, i)
 		}
-		if changed[key] {
-			if g.Changed == nil {
-				g.Changed = map[int]bool{}
-			}
-			g.Changed[rec] = true
+		switch {
+		case key == "":
+		case t.deleted[key]:
+			mark(&g.Deleted, i)
+		case changed[key]:
+			mark(&g.Changed, i)
 		}
 		g.Rows = append(g.Rows, vals)
 	}
@@ -444,7 +473,7 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 func (a *App) toolButtons(t *dataTab) [][]ui.Button {
 	th, ic := a.theme, a.icons
 	save := ui.Button{Icon: ic.Save, Action: "save", Fg: th.Info} // Q-05
-	if n := len(t.edits); n > 0 {
+	if n := t.changes(); n > 0 {
 		save.Tail = strconv.Itoa(n)
 	}
 	auto := ui.Button{Icon: ic.AutoRefresh, Action: "grid.refresh.auto", Fg: th.Info, Plain: true}
@@ -456,7 +485,7 @@ func (a *App) toolButtons(t *dataTab) [][]ui.Button {
 		stop.Fg, stop.Plain, stop.Action = th.Error, false, "grid.stop"
 	}
 	return [][]ui.Button{
-		{{Icon: ic.RowAdd, Fg: th.Focus}, {Icon: ic.RowDelete, Fg: th.Error}, save}, // + and − take clicks with F3.24
+		{{Icon: ic.RowAdd, Action: "grid.row.add", Fg: th.Focus}, {Icon: ic.RowDelete, Action: "grid.row.delete", Fg: th.Error}, save},
 		{{Icon: ic.Refresh, Action: "grid.refresh", Fg: th.Info}, auto, stop},
 		{{Icon: ic.Transpose, Action: "grid.transpose", Fg: th.Info}},
 	}
@@ -495,7 +524,7 @@ func (a *App) gotAuto(m autoMsg) tea.Cmd {
 		return nil
 	}
 	var cmd tea.Cmd
-	if a.paneShowing(t) != nil && len(t.edits) == 0 && t.cell == nil && t.out == 0 {
+	if a.paneShowing(t) != nil && t.changes() == 0 && t.cell == nil && t.out == 0 {
 		note, failed := t.note, t.failed
 		cmd = a.fetch(t, true)
 		t.note, t.failed = note, failed

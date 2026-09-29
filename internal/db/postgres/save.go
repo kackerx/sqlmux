@@ -28,8 +28,21 @@ type Change struct {
 	Old     db.Val // as loaded: the row must still hold it
 }
 
-// ErrStale is a row that no longer holds what was loaded, or is gone.
-var ErrStale = errors.New("行数据已变化或行不存在")
+// ErrStale is a row that no longer holds what was loaded, or is gone; ErrGone
+// one to delete that is gone.
+var (
+	ErrStale = errors.New("行数据已变化或行不存在")
+	ErrGone  = errors.New("行不存在")
+)
+
+// Changes is what a save writes (§10.3, §10.6): the rows to delete, by
+// their row identity's values; the rows to update; the rows to insert,
+// each the columns set in it, Val or Default, the rest their DEFAULT.
+type Changes struct {
+	Deletes [][]string
+	Updates []Row
+	Inserts [][]Change
+}
 
 // ServerError is err as the result area's log and an error bar show it
 // (§11, §7.8「错误栏」): a server's Severity, SQLSTATE and Message without
@@ -67,13 +80,37 @@ func ErrorLines(err error) []string {
 // COMMIT the server has done would come back as an error (§10.3).
 const endTimeout = 10 * time.Second
 
-// Save writes rows to schema.table in one transaction on w (§10.3): an
-// UPDATE a row, found by keyCols with = and each changed column still
-// holding what was loaded, each hitting exactly one row. On any failure it rolls back; failed is the index of the row at
-// fault, -1 for none. Cancelling ctx stops the UPDATEs only.
-// Reference: lazysql drivers/utils.go queriesInTransaction, which checks
-// neither the rows hit nor the loaded values.
-func Save(ctx context.Context, w *db.Worker, schema, table string, keyCols []string, rows []Row) (failed int, err error) {
+// Save writes ch to schema.table in one transaction on w (§10.3, §10.6):
+// first the DELETEs, then the UPDATEs, then the INSERTs, each hitting
+// exactly one row. A row is found by keyCols with =; an UPDATE's also by
+// each changed column still holding what was loaded. On any failure it
+// rolls back; failed is the index of the statement at fault in that
+// order, deletes, updates, inserts, -1 for none. Cancelling ctx stops the
+// statements only.
+// Reference: lazysql drivers/utils.go queriesInTransaction and its
+// ExecutePendingChanges, which run the changes as listed and check
+// neither the rows hit nor the loaded values; its INSERT leaves a DEFAULT
+// column out, where ours writes DEFAULT.
+func Save(ctx context.Context, w *db.Worker, schema, table string, keyCols []string, ch Changes) (failed int, err error) {
+	type stmt struct {
+		sql  string
+		args []db.Val
+		tag  string
+		miss error // when the tag isn't
+	}
+	var stmts []stmt
+	for _, k := range ch.Deletes {
+		sql, args := remove(schema, table, keyCols, k)
+		stmts = append(stmts, stmt{sql, args, "DELETE 1", ErrGone})
+	}
+	for _, r := range ch.Updates {
+		sql, args := update(schema, table, keyCols, r)
+		stmts = append(stmts, stmt{sql, args, "UPDATE 1", ErrStale})
+	}
+	for _, r := range ch.Inserts {
+		sql, args := insert(schema, table, r)
+		stmts = append(stmts, stmt{sql, args, "INSERT 0 1", ErrStale})
+	}
 	failed = -1
 	err = w.Run(ctx, func(ctx context.Context, c db.Conn) error {
 		end := func(sql string) error {
@@ -86,11 +123,10 @@ func Save(ctx context.Context, w *db.Worker, schema, table string, keyCols []str
 			end("rollback") // a cancel may land once the server has begun
 			return err
 		}
-		for i, r := range rows {
-			sql, args := update(schema, table, keyCols, r)
-			res, err := c.Query(ctx, sql, args...)
-			if err == nil && res.Tag != "UPDATE 1" {
-				err = ErrStale
+		for i, s := range stmts {
+			res, err := c.Query(ctx, s.sql, s.args...)
+			if err == nil && res.Tag != s.tag {
+				err = s.miss
 			}
 			if err != nil {
 				failed = i
@@ -103,14 +139,53 @@ func Save(ctx context.Context, w *db.Worker, schema, table string, keyCols []str
 	return failed, err
 }
 
-// update is r's UPDATE and its arguments, all text.
-func update(schema, table string, keyCols []string, r Row) (string, []db.Val) {
-	var sets, where []string
+// keyWhere is what finds a row by its row identity's values, arg taking
+// each value in.
+func keyWhere(keyCols, key []string, arg func(db.Val) string) []string {
+	var where []string
+	for i, k := range keyCols {
+		where = append(where, pgx.Identifier{k}.Sanitize()+" = "+arg(db.Val{S: key[i]}))
+	}
+	return where
+}
+
+// argsOf is a statement's arguments, and what numbers each one in.
+func argsOf() (*[]db.Val, func(db.Val) string) {
 	var args []db.Val
-	arg := func(v db.Val) string {
+	return &args, func(v db.Val) string {
 		args = append(args, v)
 		return fmt.Sprintf("$%d", len(args))
 	}
+}
+
+// remove is the DELETE of the row with key, and its arguments.
+func remove(schema, table string, keyCols, key []string) (string, []db.Val) {
+	args, arg := argsOf()
+	return "delete from " + pgx.Identifier{schema, table}.Sanitize() + " where " + strings.Join(keyWhere(keyCols, key, arg), " and "), *args
+}
+
+// insert is the INSERT of a row with cols set, and its arguments.
+func insert(schema, table string, cols []Change) (string, []db.Val) {
+	into := "insert into " + pgx.Identifier{schema, table}.Sanitize()
+	if len(cols) == 0 {
+		return into + " default values", nil
+	}
+	args, arg := argsOf()
+	var names, vals []string
+	for _, c := range cols {
+		v := "DEFAULT"
+		if !c.Default {
+			v = arg(c.Val)
+		}
+		names, vals = append(names, pgx.Identifier{c.Name}.Sanitize()), append(vals, v)
+	}
+	return into + " (" + strings.Join(names, ", ") + ") values (" + strings.Join(vals, ", ") + ")", *args
+}
+
+// update is r's UPDATE and its arguments, all text.
+func update(schema, table string, keyCols []string, r Row) (string, []db.Val) {
+	var sets []string
+	args, arg := argsOf()
 	for _, c := range r.Cols {
 		v := "DEFAULT"
 		if !c.Default {
@@ -118,9 +193,7 @@ func update(schema, table string, keyCols []string, r Row) (string, []db.Val) {
 		}
 		sets = append(sets, pgx.Identifier{c.Name}.Sanitize()+" = "+v)
 	}
-	for i, k := range keyCols {
-		where = append(where, pgx.Identifier{k}.Sanitize()+" = "+arg(db.Val{S: r.Key[i]}))
-	}
+	where := keyWhere(keyCols, r.Key, arg)
 	// What was loaded is the type's output function's text, and so is
 	// format's; json and point have no =, and ::text isn't always the output
 	// (false for f, inet with its mask, char(n) trimmed).
@@ -133,5 +206,5 @@ func update(schema, table string, keyCols []string, r Row) (string, []db.Val) {
 		}
 	}
 	return "update " + pgx.Identifier{schema, table}.Sanitize() + " set " + strings.Join(sets, ", ") +
-		" where " + strings.Join(where, " and "), args
+		" where " + strings.Join(where, " and "), *args
 }

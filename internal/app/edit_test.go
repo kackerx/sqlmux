@@ -762,3 +762,139 @@ func TestRevert(t *testing.T) {
 	}
 	a.run("grid.revert", 0) // no change here: nothing to take back
 }
+
+// tagDB answers each statement with the tag of one row hit, or fails
+// those that fail matches, recording them all.
+type tagDB struct {
+	sqls []string
+	fail string
+	err  error
+}
+
+func (d *tagDB) Query(_ context.Context, sql string, args ...db.Val) (db.Result, error) {
+	d.sqls = append(d.sqls, fmt.Sprintf("%s %v", sql, args))
+	if d.fail != "" && strings.HasPrefix(sql, d.fail) {
+		return db.Result{}, d.err
+	}
+	word, _, _ := strings.Cut(sql, " ")
+	return db.Result{Tag: map[string]string{"delete": "DELETE 1", "update": "UPDATE 1", "insert": "INSERT 0 1"}[word]}, nil
+}
+func (d *tagDB) Exec(context.Context, string, int) ([]db.Result, error) { return nil, nil }
+func (d *tagDB) Close() error                                           { return nil }
+
+// o adds a row under the cursor's, the cursor to its first column: + in
+// warn, <default> in its cells till set; o on a page row again puts the
+// new one right under it. dd marks a row, again unmarks; r does too. On a
+// row added dd and r take it out (§10.6).
+func TestRowAddDelete(t *testing.T) {
+	a := wide(160, 45)
+	tab := loadOrders(t, a, 3)
+	feed(t, a, "llo")
+	g := a.grid(a.focused(), tab)
+	if len(tab.added) != 1 || tab.row != 1 || tab.col != 0 || !g.Added[1] || g.Rows[1][0].S != "<default>" || g.Nums[2] != 2 {
+		t.Fatalf("o: added %d, cursor %d,%d, grid %v %v", len(tab.added), tab.row, tab.col, g.Added, g.Nums)
+	}
+	feed(t, a, "lidone<Esc>")
+	if e := tab.added[0].cells["status"]; e.val.S != "done" || tab.changes() != 1 || len(tab.edits) != 0 {
+		t.Fatalf("a cell of it: %+v, changes %d", tab.added[0].cells, tab.changes())
+	}
+	feed(t, a, "ko") // on row 1 again: right under it, over the first
+	if tab.row != 1 || tab.shownRows()[2].add != tab.added[1] {
+		t.Fatalf("again: cursor %d, added %+v", tab.row, tab.added)
+	}
+	if feed(t, a, "dd"); len(tab.added) != 1 {
+		t.Fatal("dd on a row added takes it out")
+	}
+	if feed(t, a, "r"); len(tab.added) != 0 { // the first one, with done in it, under the cursor now
+		t.Fatal("r on a row added takes it out")
+	}
+	feed(t, a, "gg")
+	if feed(t, a, "dd"); !tab.deleted["1"] || !a.grid(a.focused(), tab).Deleted[0] || tab.changes() != 1 {
+		t.Fatalf("dd: %v", tab.deleted)
+	}
+	if feed(t, a, "dd"); len(tab.deleted) != 0 {
+		t.Fatal("dd again unmarks")
+	}
+	if feed(t, a, "ddr"); len(tab.deleted) != 0 {
+		t.Fatal("r unmarks")
+	}
+	tab.cols.PK = nil
+	if feed(t, a, "o"); len(tab.added) != 0 || a.toast == "" {
+		t.Error("no row identity: read only")
+	}
+}
+
+// A row added stays on its page, under its row; one past the last page or
+// past its page's rows goes at the last page's end (§10.6).
+func TestRowAddedPlace(t *testing.T) {
+	tab := &dataTab{}
+	tab.page.Rows = make([][]db.Val, 3)
+	on := &newRow{page: 0, after: 1}
+	past := &newRow{page: 4, after: 0}
+	tab.added = []*newRow{on, past}
+	tab.next = true // a page follows: past waits there
+	if rows := tab.shownRows(); len(rows) != 4 || rows[2].add != on {
+		t.Fatalf("page 1 of more: %+v", rows)
+	}
+	tab.next = false
+	if rows := tab.shownRows(); len(rows) != 5 || rows[4].add != past {
+		t.Fatalf("the last page: %+v", rows)
+	}
+	tab.shown.pageNo = 1
+	if rows := tab.shownRows(); len(rows) != 4 || rows[3].add != past {
+		t.Errorf("page 2, the last: %+v", rows)
+	}
+}
+
+// C-s writes the deletes, then the updates, then the inserts, a row
+// marked losing its changes; saved, all go. A failure names the row, a
+// row added by its place among them (§10.6).
+func TestSaveRows(t *testing.T) {
+	a := wide(160, 45)
+	tab := loadOrders(t, a, 3)
+	d := &tagDB{}
+	a.sess.Main = db.NewWorker(d)
+	feed(t, a, "lix<Esc>jlix<Esc>ddo") // row 1's status, row 2's amount and delete it, a row after it
+	feed(t, a, "lli5<Esc>")            // its amount
+	if tab.changes() != 3 {
+		t.Fatalf("changes %d: %q", tab.changes(), editsOf(tab))
+	}
+	_, cmd := a.Update(teaKey("<C-s>"))
+	a.Update(cmd())
+	want := []string{
+		"begin []",
+		`delete from "public"."t_order" where "id" = $1 [{2 false}]`,
+		`update "public"."t_order" set "status" = $1 where "id" = $2 and format('%s', "status") = $3 [{x false} {1 false} {running false}]`,
+		`insert into "public"."t_order" ("amount") values ($1) [{5 false}]`,
+		"commit []",
+	}
+	if !slices.Equal(d.sqls, want) {
+		t.Fatalf("sent:\n%s", strings.Join(d.sqls, "\n"))
+	}
+	if tab.changes() != 0 || tab.note.Head == "" || !strings.HasPrefix(tab.note.Head, "已保存 3 行") {
+		t.Fatalf("saved: %d left, note %+v", tab.changes(), tab.note)
+	}
+	d.fail, d.err = "insert", &pgconn.PgError{Code: "23502", Message: `null value in column "user_id"`}
+	feed(t, a, "o")
+	_, cmd = a.Update(teaKey("<C-s>"))
+	if a.Update(cmd()); tab.bar == nil || tab.bar.First.Head != "[23502] 新增的第 1 行：" || tab.changes() != 1 {
+		t.Fatalf("an insert fails: %+v", tab.bar)
+	}
+	d.fail, d.err = "delete", nil
+	feed(t, a, "ggdd")
+	_, cmd = a.Update(teaKey("<C-s>"))
+	a.Update(cmd())
+	if b := tab.bar; b == nil || b.First.Head != "id = 1 的" || b.First.Mid != "行不存在" || tab.failed != "1" {
+		t.Errorf("a delete gone: %+v", b)
+	}
+}
+
+// A row added, + in its number, <default> dim but a cell set; a row
+// marked for deletion, − and struck through; the numbers of the rest go
+// on past them (§10.6).
+func TestGoldenRowsAddedDeleted160x45(t *testing.T) {
+	a := wide(160, 45)
+	loadOrders(t, a, 5)
+	feed(t, a, "jolidone<Esc>jjdd")
+	golden.RequireEqual(t, a.render().String())
+}

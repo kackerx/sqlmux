@@ -90,14 +90,14 @@ func init() {
 			}
 			n, name := 0, ""
 			if t := dataOf(a.focused()); t != nil {
-				n, name = len(t.edits), t.table.Name+" "
+				n, name = t.changes(), t.table.Name+" "
 			}
 			return a.unlessUnsaved(n, name, "关闭", func() tea.Cmd { a.closeTab(a.focused()); return nil })
 		}},
 		// :wq (§11): a table's changes are saved first, and it closes once
 		// they are; a console is written by closing it anyway.
 		"tab.save.close": {Title: "保存并关闭 tab", Run: func(a *App, _ Args) tea.Cmd {
-			if t := dataOf(a.focused()); t != nil && len(t.edits) > 0 {
+			if t := dataOf(a.focused()); t != nil && t.changes() > 0 {
 				cmd := a.save()
 				t.closing = t.saving
 				return cmd
@@ -245,6 +245,8 @@ func init() {
 		"grid.transpose":    {Title: "转置", Run: do(func(a *App, _ Args) { a.gridTranspose() })},
 		"grid.edit":         {Title: "编辑单元格", Run: func(a *App, _ Args) tea.Cmd { return a.editCell(nil) }},
 		"grid.revert":       {Title: "撤回这一格的修改", Run: do(func(a *App, _ Args) { a.revertCell() })},
+		"grid.row.add":      {Title: "新增一行", Run: func(a *App, _ Args) tea.Cmd { return a.addRow() }},
+		"grid.row.delete":   {Title: "标记 / 取消删除这一行", Run: func(a *App, _ Args) tea.Cmd { return a.deleteRow() }},
 		"grid.refresh.auto": {Title: "自动刷新", Run: do(func(a *App, _ Args) { a.openDrop(dropAuto) })},
 		"grid.stop": {Title: "停止", Run: do(func(a *App, _ Args) { // the query bar's stop: what C-c cancels (§8.3)
 			a.sess.Meta.Cancel()
@@ -307,8 +309,8 @@ func init() {
 			if t == nil {
 				return nil
 			}
-			return a.unlessUnsaved(len(t.edits), "", "刷新", func() tea.Cmd { // R drops the changes (§10.4)
-				t.edits = nil
+			return a.unlessUnsaved(t.changes(), "", "刷新", func() tea.Cmd { // R drops the changes (§10.4)
+				t.edits, t.added, t.deleted = nil, nil, nil
 				return a.fetch(t, true)
 			})
 		}},

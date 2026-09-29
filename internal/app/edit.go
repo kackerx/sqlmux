@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -34,9 +35,10 @@ type editKey struct{ row, col string }
 
 // cellEdit is the cell being typed into (§10.1).
 type cellEdit struct {
-	key    editKey
-	orig   db.Val // as loaded
-	start  string // the text the edit started with: left so, nothing changes
+	key    editKey // of a row added, the column alone
+	add    *newRow // the row added it is in, if it is (§10.6)
+	orig   db.Val  // as loaded
+	start  string  // the text the edit started with: left so, nothing changes
 	in     ui.Input
 	sel    int  // the option picked; -1 for none, as they open (§10.2)
 	folded bool // its ▾ hid the options
@@ -62,21 +64,125 @@ func (t *dataTab) rowKey(rec int) string {
 	return strings.Join(vals, "\x00")
 }
 
+// newRow is a row added in the grid, not saved yet (§10.6): on page page,
+// under that page's row after (-1: above the first), with the cells set
+// in it; the rest go DEFAULT.
+type newRow struct {
+	page, after int
+	cells       map[string]edit
+}
+
+// cellsOf is r's cells set, none for no row.
+func (r *newRow) cellsOf() map[string]edit {
+	if r == nil {
+		return nil
+	}
+	return r.cells
+}
+
+// shownRow is a row the grid shows: the page's row rec, or one added.
+type shownRow struct {
+	rec int // -1 for one added
+	add *newRow
+}
+
+// shownRows is the grid's rows: the page's, each followed by the rows
+// added under it. One whose page is past the last or whose row is past
+// its page's goes at the last page's end, so none is out of sight
+// (§10.6).
+func (t *dataTab) shownRows() []shownRow {
+	n, p := len(t.page.Rows), t.shown.pageNo
+	under := func(after int) (out []shownRow) {
+		for _, r := range t.added {
+			switch {
+			case r.page == p && r.after < n && r.after == after:
+			case after == n-1 && !t.next && (r.page > p || r.page == p && r.after >= n): // the last page's end
+			default:
+				continue
+			}
+			out = append(out, shownRow{-1, r})
+		}
+		return out
+	}
+	out := under(-1)
+	if n == 0 { // what under(-1) took as the end, too
+		return out
+	}
+	for i := range n {
+		out = append(append(out, shownRow{rec: i}), under(i)...)
+	}
+	return out
+}
+
+// changes is how many changes t holds, as its save button and a confirm
+// box count them (§10.6): rows added and marked for deletion, and changed
+// cells but those of rows marked.
+func (t *dataTab) changes() int {
+	n := len(t.added) + len(t.deleted)
+	for k := range t.edits {
+		if !t.deleted[k.row] {
+			n++
+		}
+	}
+	return n
+}
+
+// cursor is the grid's current row, and the row key of a page's one.
+func (t *dataTab) cursor() (shownRow, string, bool) {
+	rows := t.shownRows()
+	if t.row >= len(rows) || len(t.shownCols()) == 0 {
+		return shownRow{}, "", false
+	}
+	if sr := rows[t.row]; sr.add == nil {
+		return sr, t.rowKey(sr.rec), true
+	}
+	return rows[t.row], "", true
+}
+
+// put makes e the change of column col of row sr, a row added's or a
+// page row's by its key (§10.1, §10.6).
+func (t *dataTab) put(add *newRow, k editKey, e edit) {
+	if add == nil {
+		t.setEdit(k, e)
+		return
+	}
+	t.note, t.failed = ui.Note{}, ""
+	if add.cells == nil {
+		add.cells = map[string]edit{}
+	}
+	add.cells[k.col] = e
+}
+
+// readOnly is the toast for a table with no row identity: it can't be
+// saved to, so it isn't changed (§10.1).
+func (a *App) readOnly(t *dataTab) tea.Cmd {
+	return a.showToast(t.table.Name+" 没有主键，也没有全部列都非空的唯一索引，只读", toastTTL)
+}
+
 // editCell starts editing the focused grid's current cell (§10.1), its
 // text all selected, or with text pasted in its place. A table without a
 // row identity can't be saved to, so it isn't edited.
 func (a *App) editCell(pasted *string) tea.Cmd {
 	_, t, ok := a.focusedGrid()
-	if !ok || len(t.page.Rows) == 0 {
+	if !ok {
+		return nil
+	}
+	sr, key, ok := t.cursor()
+	if !ok {
 		return nil
 	}
 	if t.cols.Key() == nil {
-		return a.showToast(t.table.Name+" 没有主键，也没有全部列都非空的唯一索引，只读", toastTTL)
+		return a.readOnly(t)
 	}
 	field := t.fieldAt(t.col)
-	c := &cellEdit{key: editKey{t.rowKey(t.row), t.page.Cols[field].Name}, orig: t.page.Rows[t.row][field]}
+	c := &cellEdit{key: editKey{key, t.page.Cols[field].Name}, add: sr.add, orig: db.Val{Null: true}} // a row added's: DEFAULT, till set
+	if sr.add == nil {
+		c.orig = t.page.Rows[sr.rec][field]
+	}
 	cur := c.orig
-	if e, ok := t.edits[c.key]; ok {
+	if e, ok := t.edits[c.key]; ok && sr.add == nil {
+		cur = e.val
+	} else if e, ok := sr.add.cellsOf()[c.key.col]; ok {
 		cur = e.val
 	}
 	if !cur.Null { // a NULL or DEFAULT starts empty
@@ -96,7 +202,7 @@ func (t *dataTab) commitCell() {
 	c := t.cell
 	t.typing, t.cell = "", nil
 	if c.in.Text != c.start {
-		t.setEdit(c.key, edit{val: db.Val{S: c.in.Text}, orig: c.orig})
+		t.put(c.add, c.key, edit{val: db.Val{S: c.in.Text}, orig: c.orig})
 	}
 }
 
@@ -127,7 +233,7 @@ func (t *dataTab) options() []option {
 	if col.Default != "" {
 		out = append(out, option{label: "DEFAULT", set: edit{val: db.Val{Null: true}, def: true, orig: c.orig}})
 	}
-	if _, ok := t.edits[c.key]; ok {
+	if _, ok := t.edits[c.key]; ok && c.add == nil { // a row added's r takes the whole row back
 		out = append(out, option{label: "↺ 原值", set: edit{val: c.orig, orig: c.orig}})
 	}
 	return out
@@ -169,9 +275,9 @@ func (t *dataTab) applyOption(o option) {
 		c.in, c.sel = ui.Input{Text: s, Pos: len(s)}, -1
 		return
 	}
-	k := t.cell.key
+	c := t.cell
 	t.typing, t.cell = "", nil
-	t.setEdit(k, o.set)
+	t.put(c.add, c.key, o.set)
 }
 
 // setSpecial makes the grid's current cell NULL, or DEFAULT (cell.null,
@@ -179,18 +285,23 @@ func (t *dataTab) applyOption(o option) {
 // that can't hold it, nor a table with no row identity.
 func (a *App) setSpecial(def bool) {
 	_, t, ok := a.focusedGrid()
-	if !ok || len(t.page.Rows) == 0 || t.cols.Key() == nil {
+	if !ok || t.cols.Key() == nil {
 		return
 	}
+	sr, key, ok := t.cursor()
 	field := t.fieldAt(t.col)
 	name := t.page.Cols[field].Name
-	if col := t.column(name); def && col.Default == "" || !def && col.NotNull {
+	if col := t.column(name); !ok || def && col.Default == "" || !def && col.NotNull {
 		return
 	}
 	if t.cell != nil {
 		t.typing, t.cell = "", nil
 	}
-	t.setEdit(editKey{t.rowKey(t.row), name}, edit{val: db.Val{Null: true}, def: def, orig: t.page.Rows[t.row][field]})
+	e := edit{val: db.Val{Null: true}, def: def}
+	if sr.add == nil {
+		e.orig = t.page.Rows[sr.rec][field]
+	}
+	t.put(sr.add, editKey{key, name}, e)
 }
 
 // cellKind is the time the cell being edited holds, if any (§10.2).
@@ -284,16 +395,86 @@ func (t *dataTab) setEdit(k editKey, e edit) {
 }
 
 // revertCell is r (§10.1): the grid's current cell back to what was
-// loaded, as its options' ↺ 原值.
+// loaded, as its options' ↺ 原值; a row added goes, a row marked for
+// deletion isn't any more (§10.6).
 func (a *App) revertCell() {
 	_, t, ok := a.focusedGrid()
-	if !ok || len(t.page.Rows) == 0 || t.cols.Key() == nil {
+	if !ok {
 		return
 	}
-	k := editKey{t.rowKey(t.row), t.page.Cols[t.fieldAt(t.col)].Name}
-	if e, ok := t.edits[k]; ok {
-		t.setEdit(k, edit{val: e.orig, orig: e.orig})
+	sr, key, ok := t.cursor()
+	switch k := (editKey{key, t.page.Cols[t.fieldAt(t.col)].Name}); {
+	case !ok:
+	case sr.add != nil:
+		t.dropAdded(sr.add)
+	case t.deleted[key]:
+		delete(t.deleted, key)
+	default:
+		if e, ok := t.edits[k]; ok {
+			t.setEdit(k, edit{val: e.orig, orig: e.orig})
+		}
 	}
+}
+
+// dropAdded takes row r added out of the grid, the cursor staying in it.
+func (t *dataTab) dropAdded(r *newRow) {
+	t.added = slices.DeleteFunc(t.added, func(o *newRow) bool { return o == r })
+	t.row = max(min(t.row, len(t.shownRows())-1), 0)
+}
+
+// addRow is o and the query bar's + (§10.6): a row under the cursor's, on
+// its page, the cursor to its first column.
+func (a *App) addRow() tea.Cmd {
+	_, t, ok := a.focusedGrid()
+	if !ok {
+		return nil
+	}
+	if t.cols.Key() == nil {
+		return a.readOnly(t)
+	}
+	r := &newRow{page: t.shown.pageNo, after: -1}
+	at := len(t.added)
+	if sr, _, ok := t.cursor(); ok && sr.add != nil { // right after it
+		r.page, r.after = sr.add.page, sr.add.after
+		at = slices.Index(t.added, sr.add) + 1
+	} else if ok { // before those added under it before
+		r.after = sr.rec
+		if i := slices.IndexFunc(t.added, func(o *newRow) bool { return o.page == r.page && o.after == r.after }); i >= 0 {
+			at = i
+		}
+	}
+	t.added = slices.Insert(t.added, at, r)
+	t.note, t.failed = ui.Note{}, ""
+	t.row = slices.IndexFunc(t.shownRows(), func(sr shownRow) bool { return sr.add == r })
+	t.col = 0
+	a.gridMove(func(r, c, _, _ int) (int, int) { return r, c }) // into view
+	return nil
+}
+
+// deleteRow is dd and the query bar's − (§10.6): the cursor's row marked
+// for deletion, or not any more; a row added goes.
+func (a *App) deleteRow() tea.Cmd {
+	_, t, ok := a.focusedGrid()
+	if !ok {
+		return nil
+	}
+	if t.cols.Key() == nil {
+		return a.readOnly(t)
+	}
+	switch sr, key, ok := t.cursor(); {
+	case !ok:
+	case sr.add != nil:
+		t.dropAdded(sr.add)
+	case t.deleted[key]:
+		delete(t.deleted, key)
+	default:
+		if t.deleted == nil {
+			t.deleted = map[string]bool{}
+		}
+		t.deleted[key] = true
+		t.note, t.failed = ui.Note{}, ""
+	}
+	return nil
 }
 
 // endEdit commits the focused cell's edit before anything else happens:
@@ -316,14 +497,18 @@ func (a *App) endEdit() bool {
 type saveMsg struct {
 	tab    *dataTab
 	sent   map[editKey]edit
-	rows   []postgres.Row
-	failed int // into rows; -1 for none
+	dels   []string       // the rows deleted, by row key
+	rows   []postgres.Row // updated
+	adds   []*newRow      // inserted, in the order they show
+	failed int            // into dels, rows, adds in turn; -1 for none
 	err    error
 	took   time.Duration
 }
 
-// save writes the focused tab's changes to its table (§10.3): on Main, an
-// UPDATE a row in row identity order, in one transaction.
+// save writes the focused tab's changes to its table in one transaction
+// on Main (§10.3, §10.6): the rows marked deleted, an UPDATE a row with
+// changes in row identity order, those rows' changes dropped, and the
+// rows added, in the order they show.
 func (a *App) save() tea.Cmd {
 	p := a.focused()
 	if c := consoleOf(p); c != nil { // its file (§11)
@@ -333,23 +518,40 @@ func (a *App) save() tea.Cmd {
 		return nil
 	}
 	t := dataOf(p)
-	if t == nil || len(t.edits) == 0 || t.saving {
+	if t == nil || t.changes() == 0 || t.saving {
 		return nil
 	}
-	sent := maps.Clone(t.edits)
+	m := saveMsg{tab: t, sent: maps.Clone(t.edits), dels: slices.Sorted(maps.Keys(t.deleted)), adds: slices.Clone(t.added)}
 	byRow := map[string]bool{}
-	for k := range sent {
-		byRow[k.row] = true
+	for k := range m.sent {
+		byRow[k.row] = !t.deleted[k.row]
 	}
-	var rows []postgres.Row
+	var ch postgres.Changes
+	for _, key := range m.dels {
+		ch.Deletes = append(ch.Deletes, strings.Split(key, "\x00"))
+	}
 	for _, key := range slices.Sorted(maps.Keys(byRow)) {
+		if !byRow[key] {
+			continue
+		}
 		r := postgres.Row{Key: strings.Split(key, "\x00")}
 		for _, c := range t.cols.Cols { // in table order
-			if e, ok := sent[editKey{key, c.Name}]; ok {
+			if e, ok := m.sent[editKey{key, c.Name}]; ok {
 				r.Cols = append(r.Cols, postgres.Change{Name: c.Name, Val: e.val, Default: e.def, Old: e.orig})
 			}
 		}
-		rows = append(rows, r)
+		m.rows = append(m.rows, r)
+	}
+	ch.Updates = m.rows
+	slices.SortStableFunc(m.adds, func(x, y *newRow) int { return cmp.Or(cmp.Compare(x.page, y.page), cmp.Compare(x.after, y.after)) })
+	for _, r := range m.adds {
+		var cols []postgres.Change
+		for _, c := range t.cols.Cols {
+			if e, ok := r.cells[c.Name]; ok {
+				cols = append(cols, postgres.Change{Name: c.Name, Val: e.val, Default: e.def})
+			}
+		}
+		ch.Inserts = append(ch.Inserts, cols)
 	}
 	t.saving = true
 	a.busy++
@@ -357,8 +559,9 @@ func (a *App) save() tea.Cmd {
 	main, table, key := a.sess.Main, t.table, t.cols.Key()
 	return func() tea.Msg {
 		start := time.Now()
-		failed, err := postgres.Save(context.Background(), main, table.Schema, table.Name, key, rows)
-		return saveMsg{t, sent, rows, failed, err, time.Since(start)}
+		m.failed, m.err = postgres.Save(context.Background(), main, table.Schema, table.Name, key, ch)
+		m.took = time.Since(start)
+		return m
 	}
 }
 
@@ -366,7 +569,8 @@ func (a *App) save() tea.Cmd {
 // right (Q-06), failed on the error bar (§7.8「错误栏」). Saved, the
 // changes sent go, those made since stay, and the page loads again;
 // failed, all is rolled back and the changes stay, the row at fault named
-// by its row identity (it may be on another page) and marked (§10.3).
+// by its row identity (it may be on another page) and marked, a row added
+// by its place among them (§10.3, §10.6).
 func (a *App) gotSave(m saveMsg) tea.Cmd {
 	a.busy--
 	t := m.tab
@@ -379,17 +583,24 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 		t.note = ui.Note{Head: "已取消，已回滚", Fg: a.theme.Warn}
 	case m.err != nil:
 		head := ""
-		if m.failed >= 0 {
-			key := m.rows[m.failed].Key
+		named := func(key string) string {
 			var named []string
-			for i, c := range t.cols.Key() {
-				named = append(named, c+" = "+key[i])
+			for i, v := range strings.Split(key, "\x00") {
+				named = append(named, t.cols.Key()[i]+" = "+v)
 			}
-			head = strings.Join(named, ", ") + "："
-			if errors.Is(m.err, postgres.ErrStale) {
-				head = strings.Join(named, ", ") + " 的"
+			if t.failed = key; errors.Is(m.err, postgres.ErrStale) || errors.Is(m.err, postgres.ErrGone) {
+				return strings.Join(named, ", ") + " 的"
 			}
-			t.failed = strings.Join(key, "\x00")
+			return strings.Join(named, ", ") + "："
+		}
+		switch i := m.failed; {
+		case i < 0:
+		case i < len(m.dels):
+			head = named(m.dels[i])
+		case i < len(m.dels)+len(m.rows):
+			head = named(strings.Join(m.rows[i-len(m.dels)].Key, "\x00"))
+		default:
+			head = fmt.Sprintf("新增的第 %d 行：", i-len(m.dels)-len(m.rows)+1)
 		}
 		t.bar = newErrorBar("save", postgres.ServerErrorOf(m.err), head, "，已回滚")
 	default:
@@ -403,12 +614,16 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 				t.edits[k] = now
 			}
 		}
-		if p := a.paneShowing(t); closing && len(t.edits) == 0 && p != nil { // :wq, and nothing changed since
+		for _, k := range m.dels {
+			delete(t.deleted, k)
+		}
+		t.added = slices.DeleteFunc(t.added, func(r *newRow) bool { return slices.Contains(m.adds, r) })
+		if p := a.paneShowing(t); closing && t.changes() == 0 && p != nil { // :wq, and nothing changed since
 			a.closeTab(p)
 			return nil
 		}
 		cmd := a.fetch(t, true) // the rows may leave the WHERE now
-		t.note = ui.Note{Head: fmt.Sprintf("已保存 %d 行 · %s", len(m.rows), m.took.Round(time.Millisecond))}
+		t.note = ui.Note{Head: fmt.Sprintf("已保存 %d 行 · %s", len(m.dels)+len(m.rows)+len(m.adds), m.took.Round(time.Millisecond))}
 		return cmd
 	}
 	return nil
@@ -420,13 +635,13 @@ type confirmBox struct {
 	then      func() tea.Cmd
 }
 
-// unsaved is how many changed cells the tabs of panes hold.
+// unsaved is how many changes the tabs of panes hold (§10.6).
 func unsaved(panes ...*Pane) int {
 	n := 0
 	for _, p := range panes {
 		for _, tab := range p.Tabs {
 			if tab.Data != nil {
-				n += len(tab.Data.edits)
+				n += tab.Data.changes()
 			}
 		}
 	}

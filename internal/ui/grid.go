@@ -53,6 +53,12 @@ type Grid struct {
 	Edit      *Input          // the current cell's edit, drawn over it (§10.1)
 	EditMenu  bool            // the edit has options: a ▾ at its right shows or hides them (§10.2)
 	EditBad   bool            // the edit is no value of its column: an error wavy line under it (§10.7)
+
+	// Rows added and marked for deletion (§10.6): numbered + in warn and
+	// − in error; an added one's cells not set dim, a deleted one dim and
+	// struck through. Nums numbers the rest when added ones sit among them.
+	Added, Deleted map[int]bool
+	Nums           []int
 }
 
 // maxColWidth caps a column's wish (§7.6).
@@ -137,7 +143,17 @@ func (v view) label(r int) string {
 	return v.g.number(r)
 }
 
-func (g Grid) number(rec int) string { return strconv.Itoa(g.First + rec + 1) }
+func (g Grid) number(rec int) string {
+	switch {
+	case g.Added[rec]:
+		return "+"
+	case g.Deleted[rec]:
+		return "−"
+	case g.Nums != nil:
+		return strconv.Itoa(g.Nums[rec])
+	}
+	return strconv.Itoa(g.First + rec + 1)
+}
 
 func (g Grid) header(col GridCol) string {
 	if col.PK && g.Key.Text != "" {
@@ -353,9 +369,14 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 				x += ws[c] - Width(s)
 			}
 			cell := uv.Rect(cellX(i)-1, y, ws[c]+2, 1).Intersect(area)
-			if g.Edited[[2]int{rec, field}] {
+			switch edited := g.Edited[[2]int{rec, field}]; {
+			case g.Deleted[rec]:
+				st.Fg, st.Attrs = th.Dim, uv.AttrStrikethrough
+			case edited:
 				st = uv.Style{Fg: th.Warn, Bg: th.EditedBg, Underline: uv.UnderlineDotted}
 				f.Fill(cell, uv.Style{Bg: st.Bg})
+			case g.Added[rec]: // <default>, not set yet
+				st.Fg = th.Dim
 			}
 			if r == cr && c == cc {
 				st.Bg = th.CursorBlur
@@ -435,12 +456,13 @@ func drawCell(f *Frame, x, y, right int, s string, st, mark uv.Style) {
 }
 
 // recColor is record rec's number's color: error where a save failed on
-// it, warn where it has changes, else fg (§10.1, §10.3).
+// it or it is marked for deletion, warn where it has changes or is added,
+// else fg (§10.1, §10.3, §10.6).
 func (g Grid) recColor(th *Theme, rec int, fg color.Color) color.Color {
 	switch {
-	case g.Failed[rec]:
+	case g.Failed[rec], g.Deleted[rec]:
 		return th.Error
-	case g.Changed[rec]:
+	case g.Changed[rec], g.Added[rec]:
 		return th.Warn
 	}
 	return fg

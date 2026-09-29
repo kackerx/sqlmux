@@ -78,7 +78,7 @@ func TestSave(t *testing.T) {
 	}
 	want := []string{`renamed|<null>|t`, `9`, `SKU one`, `{"n": 40}`}
 	for i, c := range rows {
-		if failed, err := Save(ctx, w, "public", c.table, c.key, []Row{c.row}); err != nil {
+		if failed, err := Save(ctx, w, "public", c.table, c.key, Changes{Updates: []Row{c.row}}); err != nil {
 			t.Fatalf("%s: row %d: %v", c.table, failed, err)
 		}
 		if got := q(c.after); got != want[i] {
@@ -95,15 +95,15 @@ func TestSaveRollsBack(t *testing.T) {
 	ok := Row{Key: []string{"1"}, Cols: []Change{{Name: "note", Val: text("saved"), Old: db.Val{Null: true}}}}
 	stale := Row{Key: []string{"2"}, Cols: []Change{{Name: "note", Val: text("mine"), Old: db.Val{Null: true}}}}
 	q("update t_order set note = 'theirs' where id = 2 returning 1")
-	if failed, err := Save(ctx, w, "public", "t_order", []string{"id"}, []Row{ok, stale}); !errors.Is(err, ErrStale) || failed != 1 {
+	if failed, err := Save(ctx, w, "public", "t_order", []string{"id"}, Changes{Updates: []Row{ok, stale}}); !errors.Is(err, ErrStale) || failed != 1 {
 		t.Fatalf("changed behind: row %d, %v", failed, err)
 	}
 	gone := Row{Key: []string{"999999"}, Cols: ok.Cols}
-	if failed, err := Save(ctx, w, "public", "t_order", []string{"id"}, []Row{ok, gone}); !errors.Is(err, ErrStale) || failed != 1 {
+	if failed, err := Save(ctx, w, "public", "t_order", []string{"id"}, Changes{Updates: []Row{ok, gone}}); !errors.Is(err, ErrStale) || failed != 1 {
 		t.Fatalf("gone: row %d, %v", failed, err)
 	}
 	bad := Row{Key: []string{"3"}, Cols: []Change{{Name: "amount", Val: text("abc"), Old: text("3.99")}}}
-	if failed, err := Save(ctx, w, "public", "t_order", []string{"id"}, []Row{ok, bad}); sqlState(err) != "22P02" || failed != 1 {
+	if failed, err := Save(ctx, w, "public", "t_order", []string{"id"}, Changes{Updates: []Row{ok, bad}}); sqlState(err) != "22P02" || failed != 1 {
 		t.Fatalf("bad input: row %d, %v", failed, err)
 	}
 	if got := q("select coalesce(note, '<null>') from t_order where id = 1"); got != "<null>" {
@@ -127,7 +127,7 @@ func TestSaveCancel(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		row := Row{Key: []string{"5"}, Cols: []Change{{Name: "note", Val: text("x"), Old: db.Val{Null: true}}}}
-		_, err := Save(ctx, w, "public", "t_order", []string{"id"}, []Row{row})
+		_, err := Save(ctx, w, "public", "t_order", []string{"id"}, Changes{Updates: []Row{row}})
 		done <- err
 	}()
 	for q("select count(*) from pg_stat_activity where wait_event_type = 'Lock' and datname = current_database()") != "1" {
@@ -168,8 +168,68 @@ func TestSaveChecksEveryType(t *testing.T) {
 		if !old.Null {
 			row.Cols[0].Val = old // written back as it was: only the check is under test
 		}
-		if _, err := Save(ctx, w, "public", "types", []string{"id"}, []Row{row}); err != nil {
+		if _, err := Save(ctx, w, "public", "types", []string{"id"}, Changes{Updates: []Row{row}}); err != nil {
 			t.Errorf("%s loaded as %+v: %v", c.Name, old, err)
 		}
+	}
+}
+
+// Deletes, updates and inserts in one save, in that order (§10.6): an
+// INSERT writes the columns set, DEFAULT for the rest, DEFAULT VALUES with
+// none; a composite key finds the row a DELETE takes.
+func TestSaveInsertsAndDeletes(t *testing.T) {
+	ctx := context.Background()
+	w, q, _ := saver(t)
+	if _, err := w.Exec(ctx, "create table all_default (id bigserial primary key, n int default 7)", 0); err != nil {
+		t.Fatal(err)
+	}
+	ch := Changes{
+		Deletes: [][]string{{"3", "1"}},
+		Updates: []Row{{Key: []string{"3", "2"}, Cols: []Change{{Name: "qty", Val: text("9"), Old: text("1")}}}},
+		Inserts: [][]Change{{{Name: "order_id", Val: text("3")}, {Name: "line_no", Val: text("99")}, {Name: "sku_code", Val: text("sku_1")}, {Name: "qty", Default: true}}},
+	}
+	if failed, err := Save(ctx, w, "public", "t_order_item", []string{"order_id", "line_no"}, ch); err != nil {
+		t.Fatalf("statement %d: %v", failed, err)
+	}
+	if got := q("select (select count(*) from t_order_item where order_id = 3 and line_no = 1), (select qty from t_order_item where order_id = 3 and line_no = 2), (select qty from t_order_item where order_id = 3 and line_no = 99)"); got != "0|9|1" {
+		t.Errorf("deleted, updated, inserted with qty's default: %s", got)
+	}
+	if _, err := Save(ctx, w, "public", "t_user", []string{"id"}, Changes{Inserts: [][]Change{{{Name: "name", Val: text("new one")}}}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := q("select active, created_at is not null from t_user where name = 'new one'"); got != "t|t" {
+		t.Errorf("the other columns' defaults: %s", got)
+	}
+	if _, err := Save(ctx, w, "public", "all_default", []string{"id"}, Changes{Inserts: [][]Change{nil}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := q("select n from all_default"); got != "7" {
+		t.Errorf("default values: %s", got)
+	}
+}
+
+// One statement failing rolls all back; failed counts deletes, updates,
+// then inserts. A row to delete that is gone is ErrGone (§10.6).
+func TestSaveInsertsAndDeletesRollBack(t *testing.T) {
+	ctx := context.Background()
+	w, q, _ := saver(t)
+	key := []string{"order_id", "line_no"}
+	gone := Changes{Deletes: [][]string{{"3", "1"}, {"999999", "1"}}}
+	if failed, err := Save(ctx, w, "public", "t_order_item", key, gone); !errors.Is(err, ErrGone) || failed != 1 {
+		t.Fatalf("gone: statement %d, %v", failed, err)
+	}
+	bad := Changes{
+		Deletes: [][]string{{"3", "1"}},
+		Updates: []Row{{Key: []string{"3", "2"}, Cols: []Change{{Name: "qty", Val: text("9"), Old: text("1")}}}},
+		Inserts: [][]Change{{{Name: "order_id", Val: text("3")}, {Name: "line_no", Val: text("98")}, {Name: "sku_code", Val: text("sku_1")}}, {{Name: "qty", Val: text("x")}}},
+	}
+	if failed, err := Save(ctx, w, "public", "t_order_item", key, bad); sqlState(err) == "" || failed != 3 {
+		t.Fatalf("the second insert: statement %d, %v", failed, err)
+	}
+	if got := q("select (select count(*) from t_order_item where order_id = 3 and line_no in (1, 98)), (select qty from t_order_item where order_id = 3 and line_no = 2)"); got != "1|1" {
+		t.Errorf("rolled back: %s", got)
+	}
+	if _, err := w.Exec(ctx, "select 1", 0); err != nil {
+		t.Errorf("after: %v", err)
 	}
 }
