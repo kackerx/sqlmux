@@ -263,7 +263,9 @@
 
 **开发**
 - [ ] console 标题上的 `<库名>.<schema> ▾`，库名记在 Session 上；`gs` 或点击打开下拉框，复用 `app/dropdown.go`，加一种 dropSchema，位置和样式照 §8.6。
-- [ ] search_path 的比较与重设（§8.6「执行方式」）。
+- [ ] search_path 的比较与重设（§8.6「执行方式」）：SET 放在同一次 `Worker.Run` 里、排在语句前面，不进日志、不占结果 tab；只在不一致时 SET；这次执行里有首词为 set / reset / discard 的语句就把记下的值作废。SET 本身失败（比如 schema 被删了）按执行出错处理：日志记这条 SET 的报错、切到日志、不标红 ▶，后面的语句不执行。
+- [ ] 重跑用来源 console 此刻选的 schema，console 已关就用它关闭时的选择。`gs` 绑在 `[keys.console]`，Action `console.schema`「切换 schema」。console 的补全用它选的 schema，快速 SQL 仍用树的。
+- [ ] console 里 INSERT 下 `C-n` 手动唤起补全写在 console 的按键处理里、没进 keymap，用 `ponytail:` 标出，要能改键时再加 console 的 INSERT 作用域。
 - [ ] 新 console 默认用树当前的 schema，之后两者互不影响。
 - [ ] MySQL 的 console 不显示这个下拉框（M5 时生效）。
 
