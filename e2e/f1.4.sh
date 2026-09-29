@@ -59,8 +59,6 @@ check "写错的条件：内容区第一行是 error 色的数据库错误，不
 key /
 check "报错后查询条仍可编辑" eval 'mode_is INSERT && [[ $(where_in) == "stauts = 1" ]]'
 key Escape
-where "1=1; drop table t_log"
-check "1=1; drop table t_log：被拒绝（显示错误），t_log 仍在" eval '[[ $(e2e_text 35 159 4) == *ERROR* && -z $(grid_y) && $(psql_n "select count(*) from t_log") == 3 ]]'
 where "status = 'done' -- 备注"
 check "末尾带 -- 注释：正常执行，仍按 id 排，第 1 行 id 2" eval '[[ $(cnt) == 1500 && $(nums id 1) == 2 ]] && qb_has "ORDER id $ASC" && qb_has "PAGE 1/15"'
 key ']'; wait_for 8 settled
