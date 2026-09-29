@@ -136,10 +136,7 @@ func (a *App) consoleComplete(t *consoleTab, manual bool) tea.Cmd {
 		return nil
 	}
 	lines, cur := t.ed.Lines(), t.ed.Cursor()
-	pos := cur.Col // the cursor's offset in the text
-	for _, l := range lines[:cur.Line] {
-		pos += len(l) + 1
-	}
+	pos := offsetOf(lines, cur)
 	if t.asked == nil {
 		t.asked = map[tableID]bool{}
 	}
@@ -192,6 +189,9 @@ func (a *App) consoleDid(t *consoleTab, eff editor.Effect) tea.Cmd {
 	}
 	if eff.Ex != "" {
 		cmds = append(cmds, a.ex(eff.Ex))
+	}
+	if eff.Format != nil {
+		cmds = append(cmds, a.consoleFormat(t, *eff.Format))
 	}
 	return tea.Batch(cmds...)
 }

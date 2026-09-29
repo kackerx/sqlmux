@@ -99,22 +99,16 @@ func (a *App) consoleRun(arg string) tea.Cmd {
 	return a.runSQL(t, p.Object(), text[from:to], from, t.ver)
 }
 
-// consoleSpan is what ↵ and gq take of console t (§9.5, §11): the
-// statement under the cursor, the one a ▶ on line arg starts, or what
-// VISUAL selects, a block by its whole lines as V-LINE; VISUAL then ends,
-// the cursor where it is. from and to are offsets into text, the lines
-// joined; from is -1 for nothing.
+// consoleSpan is what ↵ takes of console t (§11): the statement under the
+// cursor, the one a ▶ on line arg starts, or what VISUAL selects, a block
+// by its whole lines as V-LINE; VISUAL then ends, the cursor where it is.
+// from and to are offsets into text, the lines joined; from is -1 for
+// nothing.
 func consoleSpan(t *consoleTab, arg string) (text string, from, to int) {
 	ed := t.ed
 	lines := ed.Lines()
 	text = strings.Join(lines, "\n")
-	at := func(pos editor.Pos) int { // pos's offset in text
-		off := pos.Col
-		for _, l := range lines[:pos.Line] {
-			off += len(l) + 1
-		}
-		return off
-	}
+	at := func(pos editor.Pos) int { return offsetOf(lines, pos) }
 	stmts := sqlkit.Statements(text, sqlkit.PG)
 	from, to = -1, -1
 	switch s, e, visual := ed.Selection(); {
@@ -164,6 +158,8 @@ func (a *App) runSQL(t *consoleTab, name, sql string, base, ver int) tea.Cmd {
 	selectTab(p, at)
 	a.busy++
 	texts := make([]string, len(stmts))
+	// ponytail: select set_config('search_path', …) goes by unseen (its first
+	// word is select): the next run then trusts mainPath still
 	resets := false // what search_path is past this run is not known (§8.6)
 	for i, s := range stmts {
 		texts[i] = sqlkit.AutoLimit(sql[s.Start:s.End], sqlkit.PG, a.maxRows+1)
@@ -172,32 +168,44 @@ func (a *App) runSQL(t *consoleTab, name, sql string, base, ver int) tea.Cmd {
 			resets = true
 		}
 	}
-	set := ""
-	if t.schema != "" {
-		set = postgres.SetSearchPath(t.schema, a.sess.startedPath)
-	}
-	s, maxRows := a.sess, a.maxRows
+	s, schema, maxRows := a.sess, t.schema, a.maxRows
 	return tea.Batch(func() tea.Msg {
 		m := runDone{r: r}
 		m.err = s.Main.Run(context.Background(), func(ctx context.Context, c db.Conn) error {
 			// mainPath is read and written in Main's requests only, one at
-			// a time: runs of two consoles may queue in either order
-			if set != "" && s.mainPath != set {
-				if _, err := c.Exec(ctx, set, 0); err != nil {
-					s.mainPath, m.set = "", set
+			// a time: runs of two consoles may queue in either order. It is
+			// kept out of transactions only: in a failed one a SET fails too
+			// and the user's rollback would never run; in one going on, a
+			// rollback may take the SET back.
+			switch {
+			case schema == "":
+			case txStatus(c) == 'E':
+				s.mainPath = ""
+			case s.mainPath != schema:
+				if err := postgres.SetSearchPath(ctx, c, schema, s.startedPath); err != nil {
+					s.mainPath, m.set = "", "set search_path to "+schema
 					return err
 				}
-				s.mainPath = set
+				s.mainPath = schema
 			}
 			var err error
 			m.rs, err = db.ExecEach(ctx, c, texts, maxRows)
-			if resets {
+			if resets || txStatus(c) != 'I' {
 				s.mainPath = ""
 			}
 			return err
 		})
 		return m
 	}, a.runTick(r))
+}
+
+// txStatus is where c's transaction is: PG's connection tells ('I' out of
+// one, 'T' in one, 'E' in one that failed); taken as out of one else.
+func txStatus(c db.Conn) byte {
+	if c, ok := c.(interface{ TxStatus() byte }); ok {
+		return c.TxStatus()
+	}
+	return 'I'
 }
 
 // runTickEvery is how often a placeholder's time is redrawn while its run

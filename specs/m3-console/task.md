@@ -226,13 +226,16 @@
 - [ ] 范围：NORMAL 下是当前语句，不含 `;`，`;` 留在原处；VISUAL 下字符选区就是选中的文字，V-LINE、V-BLOCK 是覆盖到的整行，格式化后退出 VISUAL。整次格式化算一个撤销步，结果和原文相同时不记撤销步。格式化后光标照 vim 的 `gq` 停在格式化文字的最后一行（行首第一个非空白字符）。
 - [ ] `keyword_case` 只接受 `lower` / `upper` / `preserve`，其他值启动报错；`formatprg = ""` 用内置的。失败时 toast「格式化失败：<错误>」。
 - [ ] 在 Cmd 里异步执行，回来时缓冲区已经变过就丢弃结果。
+- [ ] `gq` 做成编辑器的操作符：`gq{移动}`、`gqq` / `gqgq`、VISUAL 下按选区；从 `[keys.console]` 去掉 `gq`（§9.5）。
+- [ ] 内置格式化 5s 超时，`vm.Interrupt` 打断；`keyword_case` 同时设 `dataTypeCase`；输出为空按失败处理（§9.5）。
 - [ ] 选项：`language` 为 postgresql，`keywordCase` 取 `keyword_case`（默认 lower），`tabWidth` 取 `tab_width`；配置加 `keyword_case`、`formatprg`。
 - [ ] Unicode 属性名的替换按名字逐个断言次数（15.9.0 为 Alphabetic 3、Mark 1、Decimal_Number 1，§9.5），升级打包文件后次数一变测试就失败。
 - [ ] `formatprg`：`sh -c`，stdin 输入、stdout 输出，5s 超时；失败时 toast 显示 stderr 的第一行，缓冲区不变。
 
 **验收**
 - [ ] 格式化的 golden 测试通过，PG 和 MySQL 各准备若干条语句。
-- [ ] 第一次格式化的耗时小于 300ms（单测，`-race` 下跳过）。
+- [ ] 单测断言 VM 只建一次（调两次 Format，是同一个 VM）；「首次格式化小于 300ms」挪进 `BenchmarkFirstFormat`，默认的 `go test ./...` 不断言墙钟时间（审查时实测：负载一高就误报）。
+- [ ] `gqap` 格式化光标所在段落的语句，不进入 INSERT；超时时 toast、缓冲区不变。
 - [ ] 配置 `formatprg` 后，改用外部命令格式化；格式化失败时，缓冲区内容不变。
 
 ## F3.10 console 的补全 · 状态：todo
@@ -263,7 +266,7 @@
 
 **开发**
 - [ ] console 标题上的 `<库名>.<schema> ▾`，库名记在 Session 上；`gs` 或点击打开下拉框，复用 `app/dropdown.go`，加一种 dropSchema，位置和样式照 §8.6。
-- [ ] search_path 的比较与重设（§8.6「执行方式」）：SET 放在同一次 `Worker.Run` 里、排在语句前面，不进日志、不占结果 tab；只在不一致时 SET；这次执行里有首词为 set / reset / discard 的语句就把记下的值作废。SET 本身失败（比如 schema 被删了）按执行出错处理：日志记这条 SET 的报错、切到日志、不标红 ▶，后面的语句不执行。
+- [ ] search_path 的比较与重设（§8.6「执行方式」）：SET 放在同一次 `Worker.Run` 里、排在语句前面，不进日志、不占结果 tab；只在不一致时 SET；这次执行里有首词为 set / reset / discard 的语句就把记下的值作废。`Main` 处在出错的事务里（TxStatus 为 `E`）时跳过 SET、清掉记下的值，执行结束时还在事务里就不记这次的 SET（§8.6「只在事务外记住 search_path」）。SET 本身失败（比如连接出了问题）按执行出错处理：日志记这条 SET 的报错、切到日志、不标红 ▶，后面的语句不执行。
 - [ ] 重跑用来源 console 此刻选的 schema，console 已关就用它关闭时的选择。`gs` 绑在 `[keys.console]`，Action `console.schema`「切换 schema」。console 的补全用它选的 schema，快速 SQL 仍用树的。
 - [ ] console 里 INSERT 下 `C-n` 手动唤起补全写在 console 的按键处理里、没进 keymap，用 `ponytail:` 标出，要能改键时再加 console 的 INSERT 作用域。
 - [ ] 新 console 默认用树当前的 schema，之后两者互不影响。

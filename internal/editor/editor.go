@@ -38,10 +38,19 @@ func (m Mode) String() string {
 
 // Effect is what a key did that the console acts on.
 type Effect struct {
-	Changed bool   // the text changed: save it, drop the failed ▶ (§11)
-	Yanked  bool   // the register changed: the clipboard gets it (§11)
-	Ex      string // a : command the editor does not run itself (:w, :q)
-	Error   string // what went wrong, for a toast: 找不到：foo
+	Changed bool        // the text changed: save it, drop the failed ▶ (§11)
+	Yanked  bool        // the register changed: the clipboard gets it (§11)
+	Ex      string      // a : command the editor does not run itself (:w, :q)
+	Error   string      // what went wrong, for a toast: 找不到：foo
+	Format  *FormatSpan // gq asked to lay out this text, which the console does (§9.5)
+}
+
+// FormatSpan is the text gq covers: From to To, To not in. Selected is a
+// VISUAL selection, taken as it is; Current (gqq, gqgq) stands for the
+// statement at the cursor; else a motion's, for the statements it touches.
+type FormatSpan struct {
+	From, To          Pos
+	Selected, Current bool
 }
 
 const (

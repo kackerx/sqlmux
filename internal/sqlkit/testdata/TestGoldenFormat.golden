@@ -53,8 +53,11 @@ values
 on duplicate key update
   a = values(a)
 
--- upper, tab_width 4
+-- upper, types too, not functions; tab_width 4
 SELECT
-    a
+    a,
+    now()
 FROM
-    t
+    t;
+
+CREATE TABLE t (a INT)

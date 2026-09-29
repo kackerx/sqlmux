@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 
 	"sqlmux/internal/config"
+	"sqlmux/internal/db"
 	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
@@ -346,6 +347,35 @@ func TestConsoleCompletion(t *testing.T) {
 	}
 }
 
+// X. lists an alias's or a table's columns, the one nearest the cursor's
+// depth; a schema's tables after a schema; nothing for a subquery's alias
+// out of it (§9.7, lazysql's resolveAliases).
+func TestSQLCompleteQualifier(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	table, cols, _ := ordersTable(0)
+	a.sess.cols[idOf(table)] = cols
+	a.sess.cols[tableID{"public", "t_user"}] = db.Columns{Cols: []db.Column{{Name: "email", Type: "text"}}}
+	a.sess.cols[tableID{"agentable", "planner"}] = db.Columns{Cols: []db.Column{{Name: "goal", Type: "text"}}}
+	for _, c := range []struct{ sql, first string }{
+		{"select * from agentable.|", "planner"},
+		{"select * from t_order join agentable.| on", "planner"},
+		{"select planner.| from agentable.planner", "goal"},
+		{"select * from t_order o where exists (select 1 from t_user o where o.|", "email"},
+		{"select * from t_order o where o.| in (select 1 from t_user o)", "id"},
+		{"select a.| from (select * from t_user a) sub", ""},
+	} {
+		pos := strings.Index(c.sql, "|")
+		got, _ := a.sqlComplete(strings.Replace(c.sql, "|", "", 1), pos, "public", map[tableID]bool{}, true)
+		first := ""
+		if got != nil {
+			first = got.items[0].label
+		}
+		if first != c.first {
+			t.Errorf("%s: %q, want %q", c.sql, first, c.first)
+		}
+	}
+}
+
 // A console's schema (§8.6): on its title, gs or a click opens the
 // dropdown there, its own schema marked, ↵ picks; a new console takes the
 // tree's, then each keeps its own; completion lists its schema's tables.
@@ -367,6 +397,21 @@ func TestConsoleSchema(t *testing.T) {
 	if a.drop == nil || a.drop.console != c {
 		t.Fatal("a click opens it")
 	}
+	// under the button as this frame draws it, to the pane's right border;
+	// at that border with the button left out
+	for _, w := range []int{130, 160, 110} {
+		a.Update(tea.WindowSizeMsg{Width: w, Height: 45})
+		f, r := a.render(), a.layout()[a.focused().ID]
+		x, y := r.Max.X-16, r.Min.Y+1 // 16: its least width, more than its items need
+		for _, h := range f.Hits {
+			if h.Target.Action == "console.schema" {
+				x = h.Rect.Min.X
+			}
+		}
+		if f.Buf.CellAt(x, y).Content != "┌" || f.Buf.CellAt(r.Max.X-1, y).Content != "┐" {
+			t.Errorf("%d wide: the box's corners at %d, %d on row %d:\n%s", w, x, r.Max.X-1, y, f.String())
+		}
+	}
 	feed(t, a, "<Esc>")
 	a.run("console.new", 0)
 	if c2 := consoleOf(a.focused()); c2 == c || c2.schema != "public" {
@@ -376,6 +421,23 @@ func TestConsoleSchema(t *testing.T) {
 	feed(t, a, "iselect * from pl")
 	if c.comp == nil || c.comp.items[0].label != "planner" {
 		t.Errorf("agentable's tables: %+v", c.comp)
+	}
+}
+
+// A console with no schema yet, or one gone, takes the tree's when the
+// catalog comes in (§8.6).
+func TestConsoleSchemaFromCatalog(t *testing.T) {
+	a, c := inConsole(t, "")
+	for _, was := range []string{"", "gone"} {
+		c.schema = was
+		a.Update(catalogMsg{schemas: []string{"agentable", "public"}, current: "public", tables: a.sess.Tables})
+		if c.schema != "public" {
+			t.Errorf("%q: %q", was, c.schema)
+		}
+	}
+	c.schema = "agentable"
+	if a.Update(catalogMsg{schemas: []string{"agentable", "public"}, current: "public", tables: a.sess.Tables}); c.schema != "agentable" {
+		t.Errorf("its own: %q", c.schema)
 	}
 }
 

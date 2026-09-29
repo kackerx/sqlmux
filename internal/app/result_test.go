@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"os"
 	"path/filepath"
@@ -19,13 +20,27 @@ import (
 )
 
 // execDB answers console runs: a statement's result by its SQL, the
-// LIMIT a read gets left off; fail says where one fails.
+// LIMIT a read gets left off; fail says where one fails. A search_path
+// set is kept in ran as "search_path <schema> <started>"; tx is the
+// transaction status it reports ('I' when 0).
 type execDB struct {
 	noDB
 	res  map[string]db.Result
 	fail map[string]error
 	ran  []string
+	tx   byte
 }
+
+func (d *execDB) Query(_ context.Context, sql string, args ...db.Val) (db.Result, error) {
+	if !strings.Contains(sql, "search_path") || len(args) != 2 {
+		return db.Result{}, nil
+	}
+	set := "search_path " + args[0].S + " " + args[1].S
+	d.ran = append(d.ran, set)
+	return db.Result{}, d.fail[set]
+}
+
+func (d *execDB) TxStatus() byte { return cmp.Or(d.tx, 'I') }
 
 func (d *execDB) Exec(_ context.Context, sql string, _ int) ([]db.Result, error) {
 	d.ran = append(d.ran, sql)
@@ -249,13 +264,15 @@ func TestResultKeys(t *testing.T) {
 // A console's run sets search_path to its schema first when Main has
 // another, in the same request, out of the log; a set, reset or discard
 // in a run makes the next set it again. Two consoles take turns. A SET
-// that fails stops the run, logged, no ▶ red (§8.6).
+// that fails stops the run, logged, no ▶ red. In a failed transaction no
+// SET goes, the user's rollback must run; in one going on the SET is not
+// counted on, a rollback may take it back (§8.6).
 func TestRunSchema(t *testing.T) {
 	d := &execDB{res: map[string]db.Result{"select 1": rows(1)}}
 	a, c := inRun(t, d, "select 1")
 	a.sess.startedPath = `"$user", public`
 	c.schema = "agentable"
-	setA := `set search_path to "agentable", "$user", public`
+	setA := `search_path "agentable" "$user", public`
 	press(t, a, "<CR><CR>")
 	if strings.Join(d.ran, "; ") != setA+"; select 1\nLIMIT 1001; select 1\nLIMIT 1001" || strings.Contains(logText(a), "search_path") {
 		t.Fatalf("ran %q, log %q", d.ran, logText(a))
@@ -274,13 +291,23 @@ func TestRunSchema(t *testing.T) {
 	selectTab(a.focused(), 0) // console_1, beside it
 	a.consoleDid(c, c.ed.Load("select 1"))
 	press(t, a, "<CR>")
-	if len(d.ran) != 4 || d.ran[0] != `set search_path to "public", "$user", public` || d.ran[2] != setA {
+	if len(d.ran) != 4 || d.ran[0] != `search_path "public" "$user", public` || d.ran[2] != setA {
 		t.Fatalf("console_2 in public, then console_1: %q", d.ran)
 	}
+	d.ran, d.tx = nil, 'E'
+	press(t, a, "<CR>")
+	if d.tx = 'T'; len(d.ran) != 1 || a.sess.mainPath != "" {
+		t.Fatalf("in a failed transaction: %q, path %q", d.ran, a.sess.mainPath)
+	}
+	press(t, a, "<CR><CR>")
+	if len(d.ran) != 5 || d.ran[1] != setA || d.ran[3] != setA {
+		t.Fatalf("in a transaction the SET is not counted on: %q", d.ran)
+	}
+	d.tx = 'I'
 	d.fail = map[string]error{setA: &pgconn.PgError{Severity: "ERROR", Message: `schema "agentable" does not exist`}}
 	a.sess.mainPath = ""
 	press(t, a, "<CR>")
-	if !strings.HasSuffix(logText(a), setA+`  ERROR: schema "agentable" does not exist`) || c.failed != -1 || a.win().Result.Cur != 0 {
+	if !strings.HasSuffix(logText(a), `set search_path to agentable  ERROR: schema "agentable" does not exist`) || c.failed != -1 || a.win().Result.Cur != 0 {
 		t.Errorf("SET fails: log %q, red ▶ %d", logText(a), c.failed)
 	}
 }

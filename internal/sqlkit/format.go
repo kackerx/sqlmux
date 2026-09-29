@@ -5,12 +5,13 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dop251/goja"
 )
 
-// sql-formatter 15.9.0's standalone bundle (MIT, sql-formatter.LICENSE),
-// run in goja (§9.5).
+// sql-formatter 15.9.0's standalone bundle, nearley's runtime in it (MIT,
+// both in sql-formatter.LICENSE), run in goja (§9.5).
 //
 //go:embed sql-formatter.min.js
 var formatterJS string
@@ -34,11 +35,19 @@ var formatter struct {
 
 // Options are what sql-formatter is told besides the language.
 type Options struct {
-	KeywordCase string // lower, upper or preserve
+	KeywordCase string // lower, upper or preserve; data types' too (§9.5)
 	TabWidth    int
 }
 
-// Format is sql as sql-formatter lays it out in d's language (§9.5).
+// FormatTimeout bounds a format, here or by formatprg (§9.5): goja takes
+// seconds over a few KB of SQL. A var for the tests.
+var FormatTimeout = 5 * time.Second
+
+// ErrTimeout is a format that took longer than FormatTimeout.
+var ErrTimeout = errors.New("timeout")
+
+// Format is sql as sql-formatter lays it out in d's language (§9.5). Past
+// FormatTimeout the VM is interrupted, to be used again.
 func Format(sql string, d Dialect, o Options) (string, error) {
 	f := &formatter
 	f.Lock()
@@ -52,8 +61,18 @@ func Format(sql string, d Dialect, o Options) (string, error) {
 	opts := f.vm.NewObject()
 	opts.Set("language", map[Dialect]string{PG: "postgresql", MySQL: "mysql"}[d])
 	opts.Set("keywordCase", o.KeywordCase)
+	opts.Set("dataTypeCase", o.KeywordCase) // PG's type names are keywords (15.x has them apart)
 	opts.Set("tabWidth", o.TabWidth)
-	v, err := f.format(goja.Undefined(), f.vm.ToValue(sql), opts)
+	vm, fired := f.vm, make(chan struct{})
+	timer := time.AfterFunc(FormatTimeout, func() { vm.Interrupt(ErrTimeout); close(fired) })
+	v, err := f.format(goja.Undefined(), vm.ToValue(sql), opts)
+	if !timer.Stop() {
+		<-fired // it may be interrupting still
+	}
+	vm.ClearInterrupt() // an interrupt that came as the format ended waits for the next one
+	if ie := (*goja.InterruptedError)(nil); errors.As(err, &ie) {
+		return "", ErrTimeout
+	}
 	if ex := (*goja.Exception)(nil); errors.As(err, &ex) { // what the formatter said, its first line
 		msg := ex.Value().String()
 		if o, ok := ex.Value().(*goja.Object); ok {

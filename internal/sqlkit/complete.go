@@ -1,7 +1,5 @@
 package sqlkit
 
-import "strings"
-
 // CompKind is what goes where the cursor is (§9.7).
 type CompKind int
 
@@ -38,8 +36,12 @@ type Completion struct {
 func CompletionContext(text string, pos int, d Dialect) Completion {
 	all := Scan(text, d)
 	for _, t := range all {
-		inside := t.Start < pos && (pos < t.End || pos == t.End && t.Kind == Comment && !strings.HasSuffix(text[t.Start:t.End], "*/"))
-		if inside && (t.Kind == String || t.Kind == Comment || t.Kind == Quoted) {
+		if t.Kind != String && t.Kind != Comment && t.Kind != Quoted || t.Start >= pos || pos > t.End {
+			continue
+		}
+		// at its end the cursor is in it when it is open, what is typed
+		// there joining it: a line comment, a string the text ends in
+		if pos < t.End || Scan(text[t.Start:t.End]+" ", d)[0].End > t.End-t.Start {
 			return Completion{}
 		}
 	}
@@ -57,16 +59,15 @@ func CompletionContext(text string, pos int, d Dialect) Completion {
 	}
 	ts, depth = ts[lo:hi], depth[lo:hi]
 	c := Completion{OK: true, Start: pos}
-	before := len(ts) // the tokens before the prefix: ts[:before]
+	before := len(ts) // the tokens before the word at the cursor: ts[:before]
 	for i, t := range ts {
-		if t.End > pos {
-			before = i
+		if t.Start < pos && t.End >= pos && (t.Kind == Ident || t.Kind == Keyword) { // the word the cursor is in, or at the end of
+			c.Prefix, c.Start, before = text[t.Start:pos], t.Start, i
 			break
 		}
-	}
-	if before > 0 {
-		if t := ts[before-1]; t.End == pos && (t.Kind == Ident || t.Kind == Keyword) {
-			c.Prefix, c.Start, before = text[t.Start:pos], t.Start, before-1
+		if t.Start >= pos {
+			before = i
+			break
 		}
 	}
 	for _, t := range ts[:before] {
@@ -77,12 +78,7 @@ func CompletionContext(text string, pos int, d Dialect) Completion {
 			c.Depth = max(c.Depth-1, 0)
 		}
 	}
-	word := func(i int) string {
-		if i < 0 || i >= len(ts) {
-			return ""
-		}
-		return strings.ToLower(text[ts[i].Start:ts[i].End])
-	}
+	word := func(i int) string { return lower(text, ts, i) }
 	switch p := before - 1; {
 	case word(p) == "." && p > 0 && ts[p-1].End == ts[p].Start && ts[p-1].Kind != Punct:
 		c.Kind, c.Qualifier = CompColumns, unquote(text[ts[p-1].Start:ts[p-1].End])
@@ -124,12 +120,7 @@ var fromEnds = map[string]bool{
 // readTables reads the table list from ts[i] on, "schema.name [as] alias"
 // by commas, into c.Tables, and returns where it stopped.
 func (c *Completion) readTables(text string, ts []Token, depth []int, i int) int {
-	w := func(i int) string {
-		if i >= len(ts) {
-			return ""
-		}
-		return strings.ToLower(text[ts[i].Start:ts[i].End])
-	}
+	w := func(i int) string { return lower(text, ts, i) }
 	for i < len(ts) {
 		if w(i) == "only" || w(i) == "lateral" { // FROM ONLY t
 			i++
@@ -161,12 +152,14 @@ func (c *Completion) readTables(text string, ts []Token, depth []int, i int) int
 	return i
 }
 
-// readCTEs reads WITH's "name [(cols)] as (…)" by commas from ts[i] on
-// into c.CTEs.
+// readCTEs reads WITH's "name [(cols)] AS [[NOT] MATERIALIZED] (…)" by
+// commas from ts[i] on into c.CTEs; what is not that ends them, as
+// lazysql's readCTEs: timestamp with time zone names no CTE.
 func (c *Completion) readCTEs(text string, ts []Token, i int) {
+	w := func(i int) string { return lower(text, ts, i) }
 	skip := func(i int) int { // past the parentheses opening at i
 		for n := 0; i < len(ts); i++ {
-			switch text[ts[i].Start:ts[i].End] {
+			switch w(i) {
 			case "(":
 				n++
 			case ")":
@@ -177,20 +170,28 @@ func (c *Completion) readCTEs(text string, ts []Token, i int) {
 		}
 		return i
 	}
-	if i < len(ts) && strings.EqualFold(text[ts[i].Start:ts[i].End], "recursive") {
+	if w(i) == "recursive" {
 		i++
 	}
 	for i < len(ts) && (ts[i].Kind == Ident || ts[i].Kind == Quoted) {
-		c.CTEs = append(c.CTEs, unquote(text[ts[i].Start:ts[i].End]))
-		i++
-		if i < len(ts) && text[ts[i].Start:ts[i].End] == "(" {
+		name := unquote(text[ts[i].Start:ts[i].End])
+		if i++; w(i) == "(" {
 			i = skip(i)
 		}
-		if i < len(ts) && strings.EqualFold(text[ts[i].Start:ts[i].End], "as") {
+		if w(i) != "as" {
+			return
+		}
+		if i++; w(i) == "not" {
 			i++
 		}
-		i = skip(i) // its query
-		if i >= len(ts) || text[ts[i].Start:ts[i].End] != "," {
+		if w(i) == "materialized" {
+			i++
+		}
+		if w(i) != "(" {
+			return
+		}
+		c.CTEs = append(c.CTEs, name)
+		if i = skip(i); w(i) != "," {
 			return
 		}
 		i++

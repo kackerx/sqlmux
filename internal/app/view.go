@@ -134,7 +134,7 @@ func (a *App) render() *ui.Frame {
 	}
 	if a.drop != nil {
 		d := a.dropView()
-		box, rows := a.dropBox(d)
+		box, rows := a.dropBox(d, f.Hits) // this frame's: the panes are drawn
 		if c := d.Draw(f, box, rows); c.X >= 0 {
 			f.Cursor = &c
 		}
@@ -206,10 +206,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		}
 		b.Hints = append(b.Hints, ui.Hint{Label: "▶ run", Action: "console.run", Button: true})
 		b.Hints = append(b.Hints, bound(ui.Hint{Key: a.keys.Hint("console.run", "console"), Action: "console.run", Prio: 2, Attached: true})...)
-		tabHints = bound(
-			ui.Hint{Key: a.keys.Hint("console.format", "console"), Label: "format", Action: "console.format"},
-			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},
-		)
+		tabHints = bound(ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")})
 	case dataOf(p) != nil:
 		tabHints = bound(
 			ui.Hint{Key: a.hints("grid", "", "grid.left", "grid.down", "grid.up", "grid.right")},

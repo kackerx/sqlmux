@@ -250,7 +250,7 @@ type Action struct {                // 注册表是 map[id]Action，id 如 "pane
 | `cell` | 正在编辑单元格（INSERT） |
 | `input` | 任意单行输入框获得焦点（INSERT） |
 | `result` | result pane 获得焦点时生效，优先级在 `grid` 之上（如 `P`、`q`）；其余按键落到 `grid` |
-| `grid` / `tree` / `console` / `landing` | 对应控件获得焦点：按 pane 当前 tab 的类型，表格 → grid，console → console，引导页和没有 tab 的 pane → landing（M3 F3.7）。`console` 只含应用层的键（如 ↵ 执行、gq），其余按键交给 vim 引擎 |
+| `grid` / `tree` / `console` / `landing` | 对应控件获得焦点：按 pane 当前 tab 的类型，表格 → grid，console → console，引导页和没有 tab 的 pane → landing（M3 F3.7）。`console` 只含应用层的键（如 ↵ 执行），其余按键交给 vim 引擎；`gq` 是编辑器的操作符（§9.5） |
 | `normal` | 所有 NORMAL 上下文共用：pane 焦点、leader、gt/gT。`:`、`;` M3 起在 grid / tree / landing 里（§6.8） |
 | `global` | 始终生效，只有少数 Ctrl 组合：C-p、C-s、C-c |
 
@@ -358,7 +358,7 @@ H = "0"
 | schema 树 | `j` `k` `gg` `G` | 移动，支持次数前缀，与表格一致 | j/k |
 | schema 树 | `↵` · `t` · `/` · `R` · `l` · `h` | 打开（表）或展开 / 折叠（其他节点）· 在新 tab 打开 · 过滤 · 刷新 · 展开 · 折叠或到父节点（§7.8） | ↵ / C-↵ / / ；R、l、h 为新增 |
 | console | `↵`（NORMAL / VISUAL） | 执行光标所在语句 · 执行选区 | ⌥↵ |
-| console | `gq` | 格式化当前语句或选区 | 同 |
+| console | `gq{移动}` · `gqq` | 格式化移动碰到的语句 · 当前语句；VISUAL 下格式化选区。`gq` 是编辑器的操作符，不在 `[keys.console]` 里 | 同 |
 | console | `gs` | 打开 schema 下拉框（仅 PG，§8.6） | 新增 |
 | 命令面板 | `C-t` | 表在新 tab 打开；快速 SQL 的结果送到 result pane | C-↵ |
 | 快速 SQL | `C-y` · `C-e` | 复制为 CSV · 在 console 中打开（写语句也走这条路） | C-y / C-e；取消 C-S-↵ |
@@ -800,7 +800,12 @@ catalog 按 session 缓存。console 执行 DDL 后（由 §9.3 的判定得知�
   - 命令面板里也有对应的「Switch schema…」命令。
 - **默认值**：新建的 console，默认使用 schema 树当前所在的 schema；之后两者互不影响。
 - **执行方式**：同一个 session 的所有 console 共用 `Main` 连接，所以每次执行前比较一下（session 记下 `Main` 当前的 search_path，初始为建连时读到的值；一次执行里有 SET / RESET / DISCARD 语句时把记下的值作废，下次一定重新 SET。代价是用户在 console 里自己 `set search_path` 只持续到这次执行结束，以下拉框为准）：如果连接当前的 `search_path` 与这个 console 选择的 schema 不一致，先执行 `SET search_path TO <所选 schema>, <建连时的原始 search_path>`。
-  - 原始路径在建连时用 `SHOW search_path` 读取，接在后面，这样装在 `public` 等 schema 里的扩展函数仍然能找到。
+  - 原始路径在建连时用 `SHOW search_path` 读取，接在后面，这样装在 `public` 等 schema 里的扩展函数仍然能找到。设置时用 `set_config('search_path', $1, false)` 带参数的写法，不把原始值拼进 SQL：服务器上设了 `search_path = ''`，或者 DSN 里写了 `$user,public` 时，拼接会报语法错（快速 SQL 已经这样写）。
+  - **只在事务外记住 search_path**（M3 审查时在真 PG 上复现）：
+    - `Main` 处在出错的事务里时（pgconn 的 TxStatus 为 `E`），跳过 SET 直接执行，并清掉记下的值。否则 SET 本身报 25P02，按「SET 失败时后面的语句不执行」，用户的 `rollback` 永远执行不到，session 卡死到重启。
+    - 一次执行结束时连接还在事务里（TxStatus 不是 `I`），不记这次的 SET，下次一定重新 SET。否则事务里做的 SET 被用户的 `rollback` 撤掉之后，记下的值还当它在，下一次悄悄按别的 schema 查表。
+  - **schema 被删掉之后**：PG 接受不存在的 schema，SET 照样成功，只是找表时跳过它。catalog 重新加载后，选中的 schema 已经不存在的 console 退回树当前的 schema，不弹提示，同树退回 `current_schema()` 的做法。
+  - 已知上限：用 `select set_config('search_path', …)` 改 search_path 不会让记下的值作废（首词是 select），代码里用 `ponytail:` 标出。
 - **影响范围**：console 的补全以它自己选择的 schema 为准。表格查询始终带 schema 前缀，不受影响。
 
 MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session，所以 MySQL 的 console 不显示这个下拉框。
@@ -864,16 +869,18 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 | 初始化（解析打包文件） | 113ms |
 | 单次格式化 | 首次 55ms，之后 13–21ms |
 | 内存 | 进程 RSS 峰值约 30MB |
-| 二进制体积 | 增加约 8MB（spike 9.6MB，空程序 1.6MB） |
+| 二进制体积 | spike 增加约 8MB（空程序 1.6MB → 9.6MB）。M3 实测（F3.9，审查时）：不 strip 13.8MB → 27.4MB，strip 后 9.7MB → 19.4MB。增量比 spike 大，是因为 goja 用反射调方法，链接器因此给整个二进制保留所有导出方法（pgx 的代码段从 718 涨到 5040 个符号），空程序看不出这一点 |
 | 正确性 | PG 的 `$$…$$`、`E'…'`、`::` 转换、`filter (where …)`、`$1` 参数、注释，MySQL 的反引号、`#` 注释、`limit 5, 10` 均输出正确 |
 
 **兼容处理**：goja 的正则引擎不认识长 Unicode 属性名。加载前把 `\p{Alphabetic}`、`\p{Mark}`、`\p{Decimal_Number}` 替换为 `\p{L}`、`\p{M}`、`\p{Nd}`。sql-formatter 15.9.0 里共 5 处：`\p{Alphabetic}` 3 处（15.9.0 的数字正则里多了一个前瞻 `(?![\w\p{Alphabetic}])`，用了两次），`\p{Mark}`、`\p{Decimal_Number}` 各 1 处；测试按名字逐个断言次数，升级后次数一变就失败；对 SQL 标识符而言，二者的差别可以忽略。
 
 **运行方式**：
 
-- 第一次按 `gq` 时才初始化 VM，之后一直复用。goja 不是线程安全的，所以用一把互斥锁保护。
-- 语言按 session 的引擎选择；`keyword_case`、`tab_width` 原样传给 sql-formatter。
-- 格式化失败时给出 toast 提示，缓冲区保持不变。
+- **`gq` 是操作符**（M3 审查时定）：`gq{移动}` 格式化移动碰到的那几条语句（从第一条到最后一条），`gqq` 和 `gqgq` 是当前语句，VISUAL 下按选区。否则 vim 用户习惯的 `gqap`、`gqip` 会把 `a`、`i` 当成进入 INSERT。编辑器识别这个操作符，产生「格式化这个范围」的效果，由 app 执行。
+- 第一次格式化时才初始化 VM，之后一直复用。goja 不是线程安全的，所以用一把互斥锁保护。
+- 语言按 session 的引擎选择；`tab_width` 原样传给 sql-formatter；`keyword_case` 同时设 `keywordCase` 和 `dataTypeCase`（PG 的类型名本身就是关键字，15.x 把它分成了单独的选项，默认 preserve），`functionCase` 保持 preserve。
+- **5s 超时**：goja 跑 sql-formatter 时耗时增长比输入快得多，100 行的 insert（2KB）要 3s，200 行要 6.9s，17KB 要 122s，同样的包在 node 里只要 28–146ms，时间都花在 goja 的 Unicode 正则上（M3 审查时实测）。所以和 `formatprg` 一样 5s 超时，用 `vm.Interrupt` 打断后 `ClearInterrupt`，同一个 VM 还能继续用；toast「格式化超时（5s）」，缓冲区不变。已知上限：一两百行以上的语句用内置格式化会超时，这时配 `formatprg`（如 `pg_format -`）。
+- 格式化失败时给出 toast 提示，缓冲区保持不变。输出为空也按失败处理（toast「格式化失败：没有输出」），不能把用户的 SQL 删成只剩 `;`。
 - 配置了 `formatprg`（例如 `"pg_format -"`）时，改为调用外部命令：从 stdin 输入，读取 stdout 输出，与 vim 的 formatprg 一致。
 
 ### 9.6 WHERE 条件（Q-01）

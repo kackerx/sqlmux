@@ -153,6 +153,41 @@ func TestComplete(t *testing.T) {
 	if eff := e.Complete(0, "y"); eff.Changed {
 		t.Error("in NORMAL")
 	}
+	e = New("")
+	feedAll(t, e, "2it_o")
+	e.Complete(0, "t_order")
+	if feedAll(t, e, "<Esc>"); e.Lines()[0] != "t_ordert_order" { // nvim's 2it_o<C-n><Esc>
+		t.Errorf("a count types what was taken: %q", e.Lines())
+	}
+}
+
+// gq is an operator: it asks the console to lay out what its motion
+// covers, the statement for gqq and gqgq, the selection in VISUAL (a
+// block's lines); the text stays as it is (§9.5).
+func TestFormatOperator(t *testing.T) {
+	for _, c := range []struct {
+		keys string
+		want FormatSpan
+	}{
+		{"gqap", FormatSpan{From: Pos{0, 0}, To: Pos{1, 0}}}, // the paragraph and the blank after it
+		{"jgqj", FormatSpan{From: Pos{1, 0}, To: Pos{2, 8}}},
+		{"gqq", FormatSpan{Current: true}},
+		{"jgqgq", FormatSpan{From: Pos{1, 0}, To: Pos{1, 0}, Current: true}},
+		{"lvlgq", FormatSpan{From: Pos{0, 1}, To: Pos{0, 3}, Selected: true}},
+		{"Vjgq", FormatSpan{From: Pos{0, 0}, To: Pos{1, 0}, Selected: true}},
+		{"l<C-v>jgq", FormatSpan{From: Pos{0, 0}, To: Pos{1, 0}, Selected: true}},
+	} {
+		e := New("select 1;\n\nselect 2")
+		var got *FormatSpan
+		for _, k := range keys(t, c.keys) {
+			if eff := e.Feed(k); eff.Format != nil {
+				got = eff.Format
+			}
+		}
+		if got == nil || *got != c.want || e.Mode() != Normal || strings.Join(e.Lines(), "\n") != "select 1;\n\nselect 2" {
+			t.Errorf("%s: %+v in %v", c.keys, got, e.Mode())
+		}
+	}
 }
 
 // Loading new text is one undo step; the same text changes nothing.

@@ -96,7 +96,7 @@ func TestSequences(t *testing.T) {
 		{grid, "gz", []string{"keys gz"}},
 		{grid, "<C-p>", []string{"palette.open"}},
 		{console, "gg", []string{"keys gg"}}, // whole buffered prefix goes to vim
-		{console, "gq", []string{"console.format"}},
+		{console, "gq", []string{"keys gq"}}, // the editor's operator (§9.5)
 		{console, "<CR>", []string{"console.run"}},
 		{Context{Focus: []string{"result", "grid"}, Pane: "grid"}, "qj", []string{"result.close", "grid.down"}},
 		{Context{Overlay: "palette", Focus: []string{"grid"}}, "<C-t>", []string{"palette.open.tab"}},

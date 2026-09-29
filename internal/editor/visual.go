@@ -126,6 +126,9 @@ func (e *Editor) visualOp(op string, c cmd) {
 	want := e.want
 	s := e.selection(op)
 	e.endVisual()
+	if s.blk != nil && op == "gq" { // a block's lines, whole (§9.5)
+		s = span{start: Pos{s.blk.top, 0}, end: Pos{s.blk.bot, 0}, linewise: true, visual: true}
+	}
 	if s.blk != nil {
 		e.cur, e.want = s.start, wantUnset
 		e.blockOp(op, *s.blk, c)
@@ -174,8 +177,8 @@ func init() {
 		">": op(">"), "<": op("<"),
 		"u": op("gu"), "U": op("gU"), "~": op("g~"),
 		"J":  op("J"),
-		"gc": op("gc"),
-		"I":  op("I"), "A": op("A"), "r": op("r"),
+		"gc": op("gc"), "gq": op("gq"),
+		"I": op("I"), "A": op("A"), "r": op("r"),
 	}
 }
 
@@ -185,7 +188,7 @@ var (
 	inBlock = map[string]bool{
 		"<Esc>": true, "v": true, "V": true, "<C-v>": true, "<C-q>": true, "o": true, "O": true, "gv": true,
 		"d": true, "x": true, "c": true, "y": true, ">": true, "<": true, "u": true, "U": true, "~": true,
-		"gc": true, "I": true, "A": true, "r": true,
+		"gc": true, "gq": true, "I": true, "A": true, "r": true,
 	}
 	blockOnly = map[string]bool{"I": true, "A": true, "r": true}
 )

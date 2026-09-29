@@ -176,7 +176,7 @@ func TestOrderAndLimit(t *testing.T) {
 		t.Fatalf("go: %+v", a.drop)
 	}
 	chip := a.chipRect(a.focused(), tab, "grid.order")
-	if box, _ := a.dropBox(a.dropView()); chip.Empty() || box.Min.X != chip.Min.X || box.Min.Y != chip.Max.Y {
+	if box, _ := a.dropBox(a.dropView(), a.hits); chip.Empty() || box.Min.X != chip.Min.X || box.Min.Y != chip.Max.Y {
 		t.Errorf("the dropdown opens under its chip: %v, chip %v", box, chip)
 	}
 	feed(t, a, "stat<CR>")
