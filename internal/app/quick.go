@@ -153,15 +153,6 @@ func (a *App) copyQuick() tea.Cmd {
 	return tea.SetClipboard(b.String())
 }
 
-// sqlKeywords are what quick SQL completes besides tables and columns: the
-// common ones of lazysql's builtinKeywords (components/sql_completer.go).
-var sqlKeywords = []string{
-	"select", "from", "where", "and", "or", "not", "in", "is", "null", "like", "between", "exists",
-	"as", "on", "join", "left join", "using", "group by", "order by", "having", "limit", "offset",
-	"union", "all", "distinct", "case", "when", "then", "else", "end", "with", "values", "explain", "show",
-	"count", "sum", "avg", "min", "max", "coalesce", "cast", "asc", "desc",
-}
-
 // completeSQL finds the candidates for the word being typed in the quick
 // SQL (§12「补全」): the columns of the tables it names, the tree's schema's
 // tables, then keywords. The columns of a table it names that the catalog
@@ -174,8 +165,8 @@ func (a *App) completeSQL() tea.Cmd {
 		return nil
 	}
 	words := map[string]bool{} // PG folds what isn't quoted to lower case
-	for _, tk := range sqlkit.Tokens(sql) {
-		if tk.Kind == sqlkit.Word {
+	for _, tk := range sqlkit.Scan(sql, sqlkit.PG) {
+		if tk.Kind == sqlkit.Ident || tk.Kind == sqlkit.Keyword {
 			words[strings.ToLower(sql[tk.Start:tk.End])] = true
 		}
 	}
@@ -207,10 +198,10 @@ func (a *App) completeSQL() tea.Cmd {
 	if pos < 0 {
 		return tea.Batch(cmds...)
 	}
-	if ts := sqlkit.Tokens(sql[:pos]); len(ts) > 0 && ts[len(ts)-1].Kind == sqlkit.Word {
+	if ts := sqlkit.Scan(sql[:pos], sqlkit.PG); len(ts) > 0 && (ts[len(ts)-1].Kind == sqlkit.Ident || ts[len(ts)-1].Kind == sqlkit.Keyword) {
 		w := ts[len(ts)-1]
-		kws := make([]candidate, len(sqlKeywords))
-		for i, k := range sqlKeywords {
+		kws := make([]candidate, len(sqlkit.Common))
+		for i, k := range sqlkit.Common {
 			kws[i] = candidate{label: k, insert: k, note: "关键字"}
 		}
 		p.comp = ranked(sql[w.Start:pos], w.Start+len(scopes[scope].prefix), cols, tables, kws)

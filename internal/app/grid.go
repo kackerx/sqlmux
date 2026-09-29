@@ -15,6 +15,7 @@ import (
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
 	"sqlmux/internal/keymap"
+	"sqlmux/internal/sqlkit"
 	"sqlmux/internal/ui"
 )
 
@@ -126,6 +127,11 @@ func (t *dataTab) query() postgres.Query {
 // place still pays it.
 func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
 	t.note, t.failed = ui.Note{}, "" // until the next fetch the user asks for (§10.3)
+	// a ; would end the statement and start another: 1=1; drop table t (§9.6)
+	if sqlkit.HasSemicolon(t.applied, sqlkit.PG) {
+		t.err, t.shown = "WHERE 里不能有 ;", t.request
+		return nil
+	}
 	t.seq++
 	t.recount = t.recount || recount
 	a.busy++

@@ -41,33 +41,6 @@ func TestWhereContext(t *testing.T) {
 	}
 }
 
-// Multibyte spaces and digits are whole runes too: none of these may spin.
-func TestTokensMultibyte(t *testing.T) {
-	for _, s := range []string{"a\u3000b", "a\u00a0b", "id = \uff11", "x = \u0663"} {
-		ts := Tokens(s)
-		if end := ts[len(ts)-1].End; end != len(s) || len(ts) > len(s) {
-			t.Errorf("%q: %v", s, ts)
-		}
-	}
-}
-
-func TestTokens(t *testing.T) {
-	s := `a='it''s'--x` + "\n" + `/*c*/"q""q">=1`
-	var kinds []Kind
-	for _, tk := range Tokens(s) {
-		kinds = append(kinds, tk.Kind)
-	}
-	want := []Kind{Word, Op, String, Comment, Space, Comment, Quoted, Op, Number}
-	if len(kinds) != len(want) {
-		t.Fatalf("%v, want %v", kinds, want)
-	}
-	for i := range want {
-		if kinds[i] != want[i] {
-			t.Fatalf("%v, want %v", kinds, want)
-		}
-	}
-}
-
 func TestSelectLike(t *testing.T) {
 	for s, want := range map[string]bool{
 		"select 1": true, "  SELECT 1": true, "values (1)": true, "table t_order": true,

@@ -79,6 +79,27 @@ func TestWhere(t *testing.T) {
 	}
 }
 
+// A WHERE with a ; outside strings goes nowhere: the pane says so where the
+// table was, and the history does not keep it (§9.6).
+func TestWhereSemicolon(t *testing.T) {
+	a, tab, rec := withRecorder(t, 160, 45)
+	sent := len(rec.sqls)
+	feed(t, a, "/1=1; drop table t_log")
+	if _, cmd := a.Update(teaKey("<CR>")); cmd != nil {
+		cmd()
+	}
+	if len(rec.sqls) != sent || tab.err != "WHERE 里不能有 ;" || len(a.tableState(tab).History) != 0 {
+		t.Fatalf("sent %q, err %q, history %+v", rec.sqls[sent:], tab.err, a.tableState(tab).History)
+	}
+	if !strings.Contains(a.render().String(), "WHERE 里不能有 ;") {
+		t.Error("not drawn")
+	}
+	feed(t, a, "/"+strings.Repeat("<BS>", 30)+"note = ';'")
+	if _, cmd := a.Update(teaKey("<CR>")); cmd == nil {
+		t.Error("a ; in a string goes")
+	}
+}
+
 // The page query carries the WHERE, the ORDER with the row identity after
 // it, the LIMIT and the page (§8.5, §9.6).
 func TestPageSQL(t *testing.T) {
