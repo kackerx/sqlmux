@@ -2,8 +2,22 @@ package editor
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
+
+// Text objects and the commands V-BLOCK has not do nothing there (§11).
+func TestBlockLeftOut(t *testing.T) {
+	for _, ks := range []string{"<C-v>iw", "<C-v>ap", "<C-v>i(", "<C-v>jJ", "<C-v>js"} {
+		e := New("abc def\nghi jkl")
+		for _, k := range keys(t, ks) {
+			e.Feed(k)
+		}
+		if got := strings.Join(e.Lines(), "\n"); got != "abc def\nghi jkl" || e.Mode() != VisualBlock {
+			t.Errorf("%s: %q in %v", ks, got, e.Mode())
+		}
+	}
+}
 
 // Block is what the console draws a VISUAL BLOCK from.
 func TestBlock(t *testing.T) {

@@ -314,13 +314,12 @@ func star(back bool) motion {
 	}
 }
 
-// ex runs a : line: {n} goes to line n and s substitutes; the rest is the
-// console's (:w, :q), handed on as Effect.Ex.
-// Lines of the text are from 0 here, so line 0 of an ex range is -1.
-
 // badRange is vim's E16, a range past the text.
 const badRange = "范围无效"
 
+// ex runs a : line: {n} goes to line n and s substitutes; the rest is the
+// console's (:w, :q), handed on as Effect.Ex. Lines of the text are from 0
+// here, so line 0 of an ex range is -1.
 func (e *Editor) ex(line string) {
 	line = strings.TrimSpace(line)
 	from, to, given, rest, err := e.lineRange(line)

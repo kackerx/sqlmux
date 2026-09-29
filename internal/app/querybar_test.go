@@ -100,6 +100,31 @@ func TestWhereSemicolon(t *testing.T) {
 	}
 }
 
+// A page asked for before a WHERE was refused does not take its place when
+// it comes: the refusal stays, and no count follows it with the ; (§9.6).
+func TestWhereSemicolonLatePage(t *testing.T) {
+	a, tab, rec := withRecorder(t, 160, 45)
+	feed(t, a, "/id > 5")
+	_, early := a.Update(teaKey("<CR>"))
+	feed(t, a, "/"+strings.Repeat("<BS>", 10)+"1=1; drop table t_log<CR>")
+	var page tea.Msg
+	for _, m := range early().(tea.BatchMsg) {
+		if msg := m(); msg != nil {
+			if _, ok := msg.(pageMsg); ok {
+				page = msg
+			}
+		}
+	}
+	if _, cmd := a.Update(page); cmd != nil || tab.err != "WHERE 里不能有 ;" {
+		t.Fatalf("the late page: err %q, a cmd after it %v", tab.err, cmd != nil)
+	}
+	for _, s := range rec.sqls {
+		if strings.Contains(s, "drop table") {
+			t.Errorf("sent: %q", s)
+		}
+	}
+}
+
 // The page query carries the WHERE, the ORDER with the row identity after
 // it, the LIMIT and the page (§8.5, §9.6).
 func TestPageSQL(t *testing.T) {

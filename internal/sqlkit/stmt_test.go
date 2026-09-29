@@ -28,20 +28,27 @@ func TestStatements(t *testing.T) {
 }
 
 func TestStmtAt(t *testing.T) {
-	s := "\n\nselect 1;\n\nselect 2;\n-- note\n"
+	s := "\n\nselect 1;\n\n-- about\n/* the next */\n  select 2; select 3;\n-- note\n\nselect 4 /* x\ny */\n\n"
 	stmts := Statements(s, PG)
-	for pos, want := range map[int]int{
-		0:                              0, // before the first
-		strings.Index(s, "1"):          0,
-		strings.Index(s, ";\n\ns") + 2: 0, // the blank line after it
-		strings.Index(s, "select 2"):   1,
-		len(s) - 1:                     1,
+	at := func(sub string, off int) int { return strings.Index(s, sub) + off }
+	for _, c := range []struct{ pos, want int }{
+		{0, 0},                   // before the first
+		{at("1", 0), 0},          // in it
+		{at(";\n\n-", 2), 0},     // the blank line after it
+		{at("-- about", 3), 1},   // a comment right above the next
+		{at("/* the", 0), 1},     // and another
+		{at("  select 2", 0), 1}, // its line's indent
+		{at("select 3", 0), 2},   // the second on a line
+		{at("2; select", 1), 1},  // the ; of the first
+		{at("-- note", 0), 2},    // a comment after it, a blank line below
+		{at("y */", 0), 3},       // a comment in it
+		{len(s) - 1, 3},          // the blank lines at the end
 	} {
-		if got := StmtAt(stmts, pos); got != want {
-			t.Errorf("at %d: %d, want %d", pos, got, want)
+		if got := StmtAt(s, stmts, c.pos); got != c.want {
+			t.Errorf("at %d (%q): %d, want %d", c.pos, s[c.pos:min(c.pos+8, len(s))], got, c.want)
 		}
 	}
-	if StmtAt(nil, 0) != -1 {
+	if StmtAt("", nil, 0) != -1 {
 		t.Error("no statements")
 	}
 }
@@ -65,6 +72,9 @@ func TestIsRead(t *testing.T) {
 		"select * from t for no key update nowait":                                                 false,
 		"select * from (select * from t for share) s":                                              false,
 		"select * from t for key share":                                                            false,
+		"select * from t lock in share mode":                                                       false,
+		"describe t":                                                                               true,
+		"with x as (select 1 a) (select * into t2 from x)":                                         false,
 		"select substring('abc' from 1 for 2)":                                                     true,
 		"select 'delete', \"update\" -- insert":                                                    true,
 		"delete from t":                                                                            false, "update t set a = 1": false, "insert into t values (1)": false,
@@ -85,7 +95,13 @@ func TestAutoLimit(t *testing.T) {
 		{"with x as (select 1) select * from x", "with x as (select 1) select * from x\nLIMIT 101"},
 		{"table t", "table t\nLIMIT 101"},
 		{"values (1), (2)", "values (1), (2)\nLIMIT 101"},
-		{"(select 1 limit 5)", "(select 1 limit 5)\nLIMIT 101"},
+		{"(select 1 limit 5)", "(select 1 limit 5)"},
+		{"((select 1 limit 5));", "((select 1 limit 5));"},
+		{"(select 1 fetch first 1 rows only)", "(select 1 fetch first 1 rows only)"},
+		{"with x as (select 1) (select * from x limit 5)", "with x as (select 1) (select * from x limit 5)"},
+		{"(select 1 limit 5) union select 2", "(select 1 limit 5) union select 2\nLIMIT 101"},
+		{"(select 1 limit 5) union (select 2)", "(select 1 limit 5) union (select 2)\nLIMIT 101"},
+		{"with x as (select 1) select * from (select 1 limit 5) s", "with x as (select 1) select * from (select 1 limit 5) s\nLIMIT 101"},
 		{"select * from t where id in (select id from u limit 3)", "select * from t where id in (select id from u limit 3)\nLIMIT 101"},
 		{"select * from t limit 5", "select * from t limit 5"},
 		{"select * from t LIMIT 5, 10", "select * from t LIMIT 5, 10"},

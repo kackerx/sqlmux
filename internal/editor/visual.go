@@ -76,7 +76,7 @@ func (e *Editor) reselect() {
 func (e *Editor) selection(op string) span {
 	if e.mode == VisualBlock {
 		b := e.opBlock()
-		return span{start: b.start, end: b.end, visual: true, blk: &b}
+		return span{start: b.start, visual: true, blk: &b}
 	}
 	from, to, _ := e.Selection()
 	s := span{start: from, end: to, inclusive: true, visual: true}

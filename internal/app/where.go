@@ -260,8 +260,9 @@ func (a *App) runWhere(t *dataTab) tea.Cmd {
 	t.applied = t.where.Text
 	t.stopTyping()
 	t.pageNo = 0
-	cmds := []tea.Cmd{a.fetch(t, true)}
-	if strings.TrimSpace(t.applied) != "" && !sqlkit.HasSemicolon(t.applied, sqlkit.PG) { // not one fetch refuses
+	fetch := a.fetch(t, true)
+	cmds := []tea.Cmd{fetch}
+	if strings.TrimSpace(t.applied) != "" && fetch != nil { // not one fetch refuses
 		st := a.tableState(t)
 		q := config.Query{Where: t.applied, Order: t.order, Desc: t.desc, At: time.Now()}
 		if t.limit != limits[0] {

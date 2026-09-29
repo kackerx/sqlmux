@@ -14,11 +14,11 @@ const blockKind = '\x16'
 
 // block is what a VISUAL BLOCK covers (ops.c get_op_vcol): lines top to
 // bot, display columns left to right, both in. toEnd is after $, each line
-// to its end; start and end are the upper left and lower right corners.
+// to its end; start is the upper left corner.
 type block struct {
 	top, bot, left, right int
 	toEnd                 bool
-	start, end            Pos
+	start                 Pos
 }
 
 // Block is the VISUAL BLOCK being selected: lines top to bottom, display
@@ -46,13 +46,20 @@ func (e *Editor) charCols(p Pos) (first, last int) {
 	return v, v + width(l, p.Col, v, e.TabWidth) - 1
 }
 
+// spanCols are the columns the characters at p and q cover together
+// (getvcols).
+func (e *Editor) spanCols(p, q Pos) (left, right int) {
+	f1, l1 := e.charCols(p)
+	f2, l2 := e.charCols(q)
+	return min(f1, f2), max(l1, l2)
+}
+
 // opBlock is the block VISUAL BLOCK has selected; the columns of both
 // ends, or the longest line after $.
 func (e *Editor) opBlock() block {
 	from, to, _ := e.Selection()
-	f1, l1 := e.charCols(from)
-	f2, l2 := e.charCols(to)
-	b := block{top: from.Line, bot: to.Line, left: min(f1, f2), right: max(l1, l2), toEnd: e.want == wantEnd}
+	left, right := e.spanCols(from, to)
+	b := block{top: from.Line, bot: to.Line, left: left, right: right, toEnd: e.want == wantEnd}
 	if b.toEnd {
 		b.right = 0
 		for _, l := range e.lines[b.top : b.bot+1] {
@@ -60,7 +67,6 @@ func (e *Editor) opBlock() block {
 		}
 	}
 	b.start = Pos{b.top, e.coladvance(b.top, b.left)}
-	b.end = Pos{b.bot, e.coladvance(b.bot, b.right)}
 	return b
 }
 
@@ -73,7 +79,7 @@ type blockLine struct {
 	startVcol, endVcol           int
 	startCharVcols, endCharVcols int
 	preWhitesp, preWhitespC      int // the blanks right before the block, in columns and characters
-	short, oneChar               bool
+	short                        bool
 }
 
 // prep is ops.c block_prep for line n: del is whether the operator
@@ -110,7 +116,6 @@ func (e *Editor) prep(b block, n int, del bool, op string) blockLine {
 	end := start
 	bd.endVcol = bd.startVcol
 	if bd.endVcol > b.right { // all in one character
-		bd.oneChar = true
 		switch {
 		case op == "I":
 			bd.endspaces = bd.startCharVcols - bd.startspaces
@@ -165,9 +170,9 @@ func spaces(n int) string { return strings.Repeat(" ", max(n, 0)) }
 func (e *Editor) blockOp(op string, b block, c cmd) {
 	switch op {
 	case "d":
-		e.blockDelete(b, op)
+		e.blockDelete(b, false)
 	case "y":
-		e.blockYank(b, op)
+		e.blockYank(b)
 	case "c":
 		e.blockChange(b)
 	case "I", "A":
@@ -177,7 +182,7 @@ func (e *Editor) blockOp(op string, b block, c cmd) {
 	case "gu", "gU", "g~":
 		e.blockCase(b, op)
 	case ">", "<":
-		e.blockShift(b, op == "<", c.n())
+		e.blockShift(b, op, c.n())
 	case "gc":
 		e.comment(b.top, b.bot)
 	}
@@ -185,10 +190,10 @@ func (e *Editor) blockOp(op string, b block, c cmd) {
 
 // blockYank yanks the block (register.c op_yank_reg), what a tab or wide
 // character it cuts covers of it as spaces.
-func (e *Editor) blockYank(b block, op string) {
+func (e *Editor) blockYank(b block) {
 	var ls []string
 	for n := b.top; n <= b.bot; n++ {
-		bd := e.prep(b, n, false, op)
+		bd := e.prep(b, n, false, "y")
 		ls = append(ls, spaces(bd.startspaces)+e.lines[n][bd.textcol:bd.textcol+bd.textlen]+spaces(bd.endspaces))
 	}
 	w := b.right - b.left + 1
@@ -200,12 +205,16 @@ func (e *Editor) blockYank(b block, op string) {
 }
 
 // blockDelete yanks the block and deletes it (ops.c op_delete); of a tab
-// or wide character cut in two what is left of it stays as spaces.
-func (e *Editor) blockDelete(b block, op string) {
-	e.blockYank(b, op)
+// or wide character cut in two what is left of it stays as spaces. d on
+// one empty line does nothing, not even yank; c goes on to type.
+func (e *Editor) blockDelete(b block, change bool) {
+	if !change && b.top == b.bot && e.lines[b.top] == "" {
+		return
+	}
+	e.blockYank(b)
 	e.beginChange()
 	for n := b.top; n <= b.bot; n++ {
-		bd := e.prep(b, n, true, op)
+		bd := e.prep(b, n, true, "d")
 		if bd.textlen == 0 {
 			continue
 		}
@@ -225,15 +234,18 @@ type blockEdit struct {
 	first   blockLine // the first line's part as typing started
 	preLen  int       // the length of the first line after the text typed goes
 	textcol int       // c: where the text typed starts
+	indent  int       // c: the first line's indent before typing
 }
 
 // blockChange deletes the block and types in its place (ops.c op_change).
 func (e *Editor) blockChange(b block) {
-	e.blockDelete(b, "c")
+	e.blockDelete(b, true)
+	e.clampCursor() // op_delete's check_cursor_col
 	if b.start.Col > e.cur.Col && e.line() != "" {
 		e.inc(&e.cur)
 	}
-	be := &blockEdit{b: b, op: "c", preLen: len(e.lines[b.top]), textcol: e.cur.Col}
+	l := e.lines[b.top]
+	be := &blockEdit{b: b, op: "c", preLen: len(l), textcol: e.cur.Col, indent: nonBlank(l)}
 	e.startInsert(Insert, cmd{name: "c"})
 	e.ins.block = be
 }
@@ -269,6 +281,10 @@ func (e *Editor) blockDone(be *blockEdit) {
 	b := be.b
 	if be.op == "c" {
 		first := e.lines[b.top]
+		if be.textcol > be.indent { // typing past the indent: what BS took of it is no text typed
+			d := nonBlank(first) - be.indent
+			be.preLen, be.textcol = be.preLen+d, be.textcol+d
+		}
 		n := len(first) - be.preLen
 		if b.top == b.bot || n <= 0 {
 			return
@@ -305,6 +321,9 @@ func (e *Editor) blockDone(be *blockEdit) {
 	n := len(first) - add - pre
 	if pre < 0 || n <= 0 {
 		return
+	}
+	if b.bot == b.top+1 { // block_insert's u_save is of that one line: U puts it back
+		e.saveLine(b.bot, e.lines[b.bot], e.cur)
 	}
 	e.typeOnBlock(b, first[add:add+n], be.op)
 	e.cur.Col = b.start.Col
@@ -370,7 +389,7 @@ func (e *Editor) blockReplace(b block, ch string) {
 		if bd.short {
 			numc -= b.right - bd.endVcol + 1
 		}
-		if width(ch, 0, 0, e.TabWidth) > 1 {
+		if ch != "\t" && width(ch, 0, 0, e.TabWidth) > 1 { // a tab is one cell to utf_char2cells
 			if numc%2 == 1 && !bd.short {
 				bd.endspaces++
 			}
@@ -401,13 +420,9 @@ func (e *Editor) blockCase(b block, op string) {
 
 // blockShift is > and < in VISUAL BLOCK (ops.c op_shift, shift_block):
 // the text from the block's left edge moves; < only takes blanks.
-func (e *Editor) blockShift(b block, left bool, amount int) {
+func (e *Editor) blockShift(b block, op string, amount int) {
 	e.beginChange()
-	col, ts := e.cur.Col, e.TabWidth
-	op := ">"
-	if left {
-		op = "<"
-	}
+	col, ts, left := e.cur.Col, e.TabWidth, op == "<"
 	for n := b.top; n <= b.bot; n++ {
 		bd := e.prep(b, n, true, op)
 		l := e.lines[n]
@@ -468,6 +483,10 @@ func (e *Editor) blockShift(b block, left bool, amount int) {
 // line filled up with spaces.
 func (e *Editor) putBlock(after bool, count int) {
 	e.beginChange()
+	if e.cur.Line == len(e.lines)-1 { // do_put's u_save is of this one line only here
+		e.saveLine(e.cur.Line, e.line(), e.cur)
+	}
+	defer e.endChange() // U as saved, not as trackLine would take the change
 	r, ts := e.reg, e.TabWidth
 	l := e.line()
 	col, _ := e.charCols(e.cur)
@@ -528,9 +547,7 @@ func (e *Editor) putBlock(after bool, count int) {
 // selection to the other end of its own.
 func (e *Editor) swapCorners() {
 	old := e.cur
-	f1, l1 := e.charCols(old)
-	f2, l2 := e.charCols(e.vstart)
-	left, right := min(f1, f2), max(l1, l2)
+	left, right := e.spanCols(old, e.vstart)
 	e.vstart.Col = e.coladvance(e.vstart.Line, left)
 	e.cur.Col, e.want = e.coladvance(old.Line, right), right
 	if e.cur.Col == old.Col {

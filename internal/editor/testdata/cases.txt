@@ -6975,3 +6975,1317 @@ de
 ## w4: search typed bow eow without lt
 /\<id\><CR>
 █idx id
+
+## rb: c cut tab at left nothing after
+<C-v>jhhcX<Esc>
+	b█c
+abcd
+
+## rb: c cut wide at left nothing after
+<C-v>jhhcX<Esc>
+名b█c
+abcd
+
+## rb: c cut tab at left text after
+<C-v>jhhcX<Esc>
+	b█cd
+abcde
+
+## rb: d empty line reg
+kxj<C-v>d
+abc
+█
+
+## rb: x empty line reg
+kxj<C-v>x
+abc
+█
+
+## rb: d empty line then u
+kxj<C-v>du
+abc
+█
+
+## rb: y empty line reg
+kxj<C-v>y
+abc
+█
+
+## rb: c empty line reg
+kxj<C-v>cX<Esc>
+abc
+█
+
+## rb: r tab
+<C-v>jlr<Tab>
+a█bcd
+efgh
+
+## rb: I then U
+<C-v>jIX<Esc>U
+a█bcd
+efgh
+
+## rb: I three lines then U
+<C-v>jjIX<Esc>U
+a█bcd
+efgh
+ijkl
+
+## rb: A then U
+<C-v>jlAX<Esc>U
+a█bcd
+efgh
+
+## rb: c then U
+<C-v>jlcX<Esc>U
+a█bcd
+efgh
+
+## rb: d then U
+<C-v>jld0U
+a█bcd
+efgh
+
+## rb: d one line then U
+<C-v>ld0U
+a█bcd
+efgh
+
+## rb: r one line then U
+<C-v>lrxU
+a█bcd
+efgh
+
+## rb: p one line then U
+<C-v>y$pU
+█abc
+def
+
+## rb: p one line last line then U
+j<C-v>y$pU
+abc
+█def
+
+## rb: p two lines at last line then U
+<C-v>jyjpU
+█abc
+def
+
+## rb: c BS into indent
+<C-v>jc<BS><BS>XYZ<Esc>
+  a█b
+  cd
+
+## rb: I empty top line
+<C-v>jjIX<Esc>
+█
+abc
+abc
+
+## rb: A empty top line
+<C-v>jjllAX<Esc>
+█
+abcd
+ab
+
+## rb: I on empty middle line
+l<C-v>jjIX<Esc>
+a█bc
+
+abc
+
+## rb: A on empty middle line
+l<C-v>jjAX<Esc>
+a█bc
+
+abc
+
+## rb: $A empty middle line
+<C-v>jj$AX<Esc>
+█abc
+
+abcdef
+
+## rb: I BS in typed
+l<C-v>jIXY<BS><Esc>
+a█bcd
+efgh
+
+## rb: I BS before start
+ll<C-v>jI<BS>X<Esc>
+ab█cd
+efgh
+
+## rb: I CR
+l<C-v>jIX<CR>Y<Esc>
+a█bcd
+efgh
+
+## rb: A CR
+l<C-v>jAX<CR>Y<Esc>
+a█bcd
+efgh
+
+## rb: I nothing typed
+l<C-v>jI<Esc>
+a█bcd
+efgh
+
+## rb: A nothing typed short line
+<C-v>jlllA<Esc>
+█ab
+abcdef
+
+## rb: 3A count
+l<C-v>j3AX<Esc>
+a█bcd
+efgh
+
+## rb: 3I count three lines
+<C-v>jj3IXY<Esc>
+█abc
+def
+ghi
+
+## rb: I at col 0 tab line
+<C-v>jIX<Esc>
+█abc
+	def
+
+## rb: cut tab mid I at 3
+lll<C-v>jjlIX<Esc>
+█abcdef
+ab	cd
+abcdef
+
+## rb: cut tab mid A at 3
+lll<C-v>jjAX<Esc>
+█abcdef
+ab	cd
+abcdef
+
+## rb: cut wide mid I at 2
+ll<C-v>jjlIX<Esc>
+█abcdef
+a名字
+abcdef
+
+## rb: cut wide mid A at 2
+ll<C-v>jjAX<Esc>
+█abcdef
+a名字
+abcdef
+
+## rb: A short first line
+llll<C-v>kAX<Esc>
+ab
+█abcdef
+
+## rb: A short first line then u
+llll<C-v>kAX<Esc>u
+ab
+█abcdef
+
+## rb: A first line cut tab at right
+<C-v>jllAX<Esc>
+█ab	c
+abcd
+
+## rb: A first line cut wide at right
+<C-v>jllAX<Esc>
+█ab名c
+abcd
+
+## rb: I tab typed
+l<C-v>jI<Tab>X<Esc>
+a█bcd
+efgh
+
+## rb: A wide typed
+l<C-v>jA名<Esc>
+a█bcd
+efgh
+
+## rb: $A wide lines
+<C-v>j$AX<Esc>
+█名字
+ab
+
+## rb: d single col
+l<C-v>jjd
+a█bc
+def
+ghi
+
+## rb: d cursor top right to bottom left
+ll<C-v>jhhd
+ab█cd
+efgh
+
+## rb: d short lines inside
+l<C-v>jjjlld
+a█bcdef
+ab
+a
+abcdef
+
+## rb: d empty lines inside
+l<C-v>jjld
+a█bcd
+
+abcd
+
+## rb: x all lines empty
+<C-v>jx
+█
+
+x
+
+## rb: y all lines empty
+<C-v>jy
+█
+
+x
+
+## rb: y wide chars reg
+<C-v>jly
+█名字
+ab字
+
+## rb: y wide cut at right
+<C-v>jjy
+a█名
+abc
+名b
+
+## rb: d wide lines
+<C-v>jld
+█名字x
+ab字x
+
+## rb: 3p short lines
+<C-v>jlyjj$3p
+█abcd
+efgh
+x
+yz
+
+## rb: P at col 0
+<C-v>jlyjj0P
+█abcd
+efgh
+xy
+zw
+
+## rb: p on empty line
+<C-v>jlyjjp
+█abcd
+efgh
+
+wxyz
+
+## rb: P on empty line
+<C-v>jlyjjP
+█abcd
+efgh
+
+wxyz
+
+## rb: p past end count
+<C-v>jlyG2p
+█abcd
+efgh
+
+## rb: P past end
+<C-v>jlyGP
+█abcd
+efgh
+
+## rb: p tab in register
+<C-v>jy$p
+█	a
+	b
+
+## rb: $y then p
+<C-v>j$yGp
+█abcd
+ef
+xyz
+
+## rb: $y then P ragged
+<C-v>j$yjjP
+█a
+abc
+xyz
+w
+
+## rb: p into wide middle
+<C-v>jyjjlp
+█ab
+cd
+xy名
+x名y
+
+## rb: p wide register
+<C-v>jyjj$p
+█名
+字
+abc
+d
+
+## rb: 2P count
+<C-v>jly2P
+a█bcd
+efgh
+
+## rb: p then u
+<C-v>jly$pu
+a█bcd
+efgh
+
+## rb: p past end then u
+<C-v>jlyGpu
+a█bcd
+efgh
+
+## rb: p then u redo
+<C-v>jly$pu<C-r>
+a█bcd
+efgh
+
+## rb: r wide odd width
+<C-v>jllr名
+█abcd
+efgh
+
+## rb: r on wide line
+<C-v>jlrx
+█名字
+ab字
+
+## rb: r $ ragged
+<C-v>jj$rx
+█abcd
+a
+abc
+
+## rb: r empty line inside
+<C-v>jjlrx
+█abcd
+
+abcd
+
+## rb: r single col
+l<C-v>jjrx
+a█bc
+def
+ghi
+
+## rb: r then u
+l<C-v>jlrxu
+a█bcd
+efgh
+
+## rb: tilde wide
+<C-v>jl~
+█名a字b
+xYzW
+
+## rb: U $ ragged
+<C-v>jj$U
+█abcd
+a
+abc
+
+## rb: u short lines
+l<C-v>jjlu
+A█BCD
+E
+IJKL
+
+## rb: tilde then u
+l<C-v>jl~u
+a█bcd
+efgh
+
+## rb: 3>
+<C-v>j3>
+a█bcd
+efgh
+
+## rb: > mid whitespace
+<C-v>j>
+a  █ bcd
+e    fgh
+
+## rb: > tab before block
+<C-v>j>
+	a█bc
+	abc
+
+## rb: > right after tab
+<C-v>j>
+	█abc
+	abc
+
+## rb: 5< more than blanks
+<C-v>j5<
+ab█    cd
+ef    gh
+
+## rb: < block in tab
+l<C-v>jj<
+█abcd
+		efg
+abcd
+
+## rb: < tab blanks
+<C-v>j<
+a█		bc
+x		yz
+
+## rb: < empty line
+<C-v>jj<
+█  ab
+
+  cd
+
+## rb: > wide cut
+l<C-v>jj>
+█abcd
+名字
+abcd
+
+## rb: > then u
+l<C-v>j>u
+a█bcd
+efgh
+
+## rb: 2< then u redo
+<C-v>j2<u<C-r>
+a█    bcd
+e    fgh
+
+## rb: gc three lines partial
+l<C-v>jjgc
+a█bc
+  def
+ghi
+
+## rb: gc uncomment
+l<C-v>jgc
+-- a█bc
+-- def
+
+## rb: O twice
+<C-v>jlOOd
+a█bcd
+efgh
+
+## rb: o then O then d
+<C-v>jloOd
+a█bcd
+efgh
+
+## rb: O ragged short start
+<C-v>kllOd
+abcdef
+a█b
+
+## rb: O with $
+<C-v>j$Od
+a█bcd
+efghij
+
+## rb: O then j
+<C-v>jlOjd
+a█bcd
+efgh
+ijkl
+
+## rb: o then l
+<C-v>jlold
+a█bcd
+efgh
+
+## rb: C-v to V d
+<C-v>jlVd
+a█bcd
+efgh
+ijkl
+
+## rb: V to C-v d
+lVjl<C-v>d
+a█bcd
+efgh
+
+## rb: C-q in block ends
+<C-v>j<C-q>
+a█bcd
+efgh
+
+## rb: v C-v v
+vj<C-v>vd
+a█bcd
+efgh
+
+## rb: C-q from v
+vjl<C-q>d
+a█bcd
+efgh
+
+## rb: C-v from V then y
+Vj<C-v>y
+a█bcd
+efgh
+
+## rb: $ then j extends
+<C-v>$jjd
+█ab
+abcdef
+abc
+
+## rb: $ in normal then C-v
+$<C-v>jd
+█abc
+abcdef
+
+## rb: $ then h
+<C-v>j$hd
+a█bcd
+efghij
+
+## rb: $ then k
+jj<C-v>$kd
+ab
+abcdef
+█abc
+
+## rb: $ y reg width
+<C-v>jj$y
+█ab
+abcdef
+a
+
+## rb: colon linewise
+<C-v>jl:s/$/!/<CR>
+a█bcd
+efgh
+ijkl
+
+## rb: colon from bottom
+jj<C-v>kl:s/^/#/<CR>
+abcd
+efgh
+█ijkl
+
+## rb: gv after d
+<C-v>jldgvd
+a█bcdef
+efghij
+
+## rb: gv after y then d
+<C-v>jlyjgvd
+a█bcd
+efgh
+ijkl
+
+## rb: gv after $ block
+<C-v>j$<Esc>gvd
+a█bcd
+efghij
+
+## rb: gv after I
+l<C-v>jIX<Esc>gvd
+a█bcd
+efgh
+
+## rb: d then u
+l<C-v>jldu
+a█bcd
+efgh
+
+## rb: d then u redo
+l<C-v>jldu<C-r>
+a█bcd
+efgh
+
+## rb: I then u redo
+l<C-v>jjIX<Esc>u<C-r>
+a█bcd
+efgh
+ijkl
+
+## rb: c then u redo
+l<C-v>jlcXY<Esc>u<C-r>
+a█bcd
+efgh
+
+## rb: A pad then u
+<C-v>jjllAX<Esc>u
+a█bcdef
+ab
+abcdef
+
+## rb: $A then u
+<C-v>j$AX<Esc>u
+a█bcd
+ef
+
+## rb: c nothing typed
+l<C-v>jlc<Esc>
+a█bcd
+efgh
+
+## rb: c BS typed
+l<C-v>jlcXY<BS><Esc>
+a█bcd
+efgh
+
+## rb: c BS before start
+l<C-v>jlc<BS>X<Esc>
+a█bcd
+efgh
+
+## rb: c CR
+l<C-v>jlcXYZ<CR>W<Esc>
+a█bcd
+efgh
+
+## rb: c $ ragged
+<C-v>jj$cX<Esc>
+a█bcd
+e
+abc
+
+## rb: c count
+l<C-v>j2cX<Esc>
+a█bcd
+efgh
+
+## rb: c wide lines
+<C-v>jlcX<Esc>
+█名字x
+ab字x
+
+## rb: block k through short line
+llll<C-v>kkd
+abcdef
+ab
+█abcdef
+
+## rb: count C-v j d
+2<C-v>jd
+█abcd
+efgh
+
+## rb: C-v w motion d
+<C-v>jwd
+█ab cd
+efghij
+
+## rb: C-v f motion y
+<C-v>jfcy
+█abcd
+xxcx
+
+## rb: C-v G d
+<C-v>Gd
+a█bc
+def
+ghi
+
+## rb: C-v gg y
+G<C-v>ggly
+abc
+def
+█ghi
+
+## rb: block esc cursor
+<C-v>jl<Esc>
+a█bcd
+efgh
+
+## rb: block tilde count ignored
+<C-v>j3~
+a█bcd
+efgh
+
+## rb: I then gv I
+l<C-v>jIX<Esc>gvIY<Esc>
+a█bcd
+efgh
+
+## rb: block y cursor from bottom right
+jl<C-v>khy
+abcd
+e█fgh
+
+## rb: p block at end of line
+<C-v>jly$p
+a█bcd
+e
+
+## rb: p block cursor on tab
+<C-v>jlyjj$p
+█abcd
+efgh
+x	
+y	
+
+## rb: I BS before start then more
+ll<C-v>jI<BS>XY<Esc>
+ab█cd
+efgh
+
+## rb: I BS twice before start then more
+ll<C-v>jjI<BS><BS>XYZ<Esc>
+ab█cd
+efgh
+ijkl
+
+## rb: A BS then more
+l<C-v>jA<BS>XY<Esc>
+a█bcd
+efgh
+
+## rb: A BS past block start
+l<C-v>jA<BS><BS>XYZ<Esc>
+a█bcd
+efgh
+
+## rb: $A BS then more
+<C-v>j$A<BS>XY<Esc>
+a█bcd
+efgh
+
+## rb: I cut tab top line
+<C-v>jhhIX<Esc>
+	b█c
+abcd
+
+## rb: A cut tab top line
+<C-v>jhhAX<Esc>
+	b█c
+abcd
+
+## rb: I cut wide top line
+<C-v>jhhIX<Esc>
+名b█c
+abcd
+
+## rb: A cut wide top line
+<C-v>jhhAX<Esc>
+名b█c
+abcd
+
+## rb: d cut tab top line
+<C-v>jhhd
+	b█c
+abcd
+
+## rb: r cut tab top line
+<C-v>jhhrx
+	b█c
+abcd
+
+## rb: y cut tab top line
+<C-v>jhhy
+	b█c
+abcd
+
+## rb: > cut tab top line
+<C-v>jhh>
+	b█c
+abcd
+
+## rb: < cut tab top line
+<C-v>jhh<
+	b█c
+a  d
+
+## rb: $I
+<C-v>j$IX<Esc>
+a█bcd
+ef
+
+## rb: $I short line
+<C-v>jj$IX<Esc>
+ab█cd
+a
+abcdef
+
+## rb: $A count
+<C-v>j$2AX<Esc>
+a█bcd
+ef
+
+## rb: $A first line longest
+<C-v>j$AX<Esc>
+█abcdef
+ab
+
+## rb: $A tabs
+<C-v>j$AX<Esc>
+█a	b
+	
+
+## rb: $c CR
+<C-v>j$cXY<CR>Z<Esc>
+a█bcd
+efgh
+
+## rb: c top line empty
+<C-v>jlcX<Esc>
+█
+abcd
+
+## rb: c cut tab right
+<C-v>jllcX<Esc>
+█ab	c
+abcd
+
+## rb: r cut tab right
+<C-v>jllrx
+█ab	c
+abcd
+
+## rb: d cut tab right top
+<C-v>jlld
+█ab	c
+abcd
+
+## rb: y $ tab left cut
+l<C-v>jj$y
+█abcd
+	efg
+ab
+
+## rb: d $ short line
+ll<C-v>jj$d
+ab█cd
+a
+abcdef
+
+## rb: x then P restores
+l<C-v>jlxP
+a█bcd
+efgh
+
+## rb: d then P tabs
+l<C-v>jjdP
+█abcd
+	efg
+abcd
+
+## rb: O on tab corner
+<C-v>jlOd
+	█ab
+abcd
+
+## rb: O on wide corner
+<C-v>jOd
+a█名b
+abcd
+
+## rb: $ then d then gv y
+<C-v>j$dugvy
+a█bcd
+efghij
+
+## rb: colon with $
+<C-v>j$:s/^/>/<CR>
+a█bcd
+efgh
+ijkl
+
+## rb: gv after p
+<C-v>jlyjj$pgvd
+a█bcd
+efgh
+ij
+kl
+
+## rb: P on wide cursor
+<C-v>jyjjP
+█ab
+cd
+名x
+名x
+
+## rb: 2p onto tabs
+<C-v>jlyjj$2p
+█abcd
+efgh
+x	
+y	z
+
+## rb: p $ reg onto short
+<C-v>j$yjj$p
+█ab
+abcd
+x
+y
+
+## rb: y then 2P then u
+<C-v>jly2Pu
+a█bcd
+efgh
+
+## rb: r then gv r
+l<C-v>jrxgvry
+a█bcd
+efgh
+
+## rb: tilde $ with wide
+<C-v>j$~
+█aB名c
+名Dx
+
+## rb: > count 2 with $
+<C-v>j$2>
+a█bcd
+efgh
+
+## rb: < with count wide
+l<C-v>j3<
+a█   名
+b     名
+
+## rb: gc with $
+<C-v>j$gc
+a█bcd
+efgh
+
+## rb: C-v 3l d
+<C-v>3ljd
+█abcdef
+ghijkl
+
+## rb: block B motion
+$<C-v>jBd
+ab cd█ef
+gh ijkl
+
+## rb: I u then gv
+l<C-v>jIX<Esc>ugvd
+a█bcd
+efgh
+
+## rb: c then u cursor
+ll<C-v>jjlcX<Esc>u
+abc█def
+ab
+abcdef
+
+## rb: r u cursor bottom corner
+jll<C-v>khrxu
+abcdef
+abc█def
+
+## rb: A then redo cursor
+l<C-v>jAX<Esc>u<C-r>
+a█bcd
+efgh
+
+## rb: I three lines then 2u
+l<C-v>jjIX<Esc>lxu
+a█bcd
+efgh
+ijkl
+
+## rb: A pad u then redo
+<C-v>jjllAX<Esc>u<C-r>
+a█bcdef
+ab
+abcdef
+
+## rb: I count 2 two lines U
+<C-v>j2IX<Esc>kU
+█abcd
+efgh
+
+## rb: charwise tilde u gv
+lvjl~ugvd
+█abcd
+efgh
+
+## rb: V shift u gv
+Vj>ugvd
+█abcd
+efgh
+ijkl
+
+## rb: block shift u gv
+<C-v>j>ugvd
+█abcd
+efgh
+ijkl
+
+## rb: I C-u then type
+l<C-v>jIab<C-u>X<Esc>
+a█bcd
+efgh
+
+## rb: I C-u then type then u
+l<C-v>jIab<C-u>X<Esc>u
+a█bcd
+efgh
+
+## rb: I C-w then type
+l<C-v>jIab cd<C-w>X<Esc>
+a█bcd
+efgh
+
+## rb: A C-u then type then u
+l<C-v>jAab<C-u>X<Esc>u
+a█bcd
+efgh
+
+## rb: I CR BS joins back
+l<C-v>jIX<CR><BS>Y<Esc>
+a█bcd
+efgh
+
+## rb: c CR then u
+l<C-v>jlcXYZ<CR>W<Esc>u
+a█bcd
+efgh
+
+## rb: search motion in block
+<C-v>/g<CR>d
+a█bcd
+efgh
+
+## rb: $ then o then d
+<C-v>j$od
+a█bcd
+efghij
+
+## rb: r with count
+<C-v>j3rx
+a█bcd
+efgh
+
+## rb: C-v 2 dollar d
+<C-v>2$d
+a█bcd
+efghij
+klm
+
+## rb: A at end of first line
+l<C-v>jlAX<Esc>
+a█bc
+defgh
+
+## rb: $c BS
+<C-v>j$cX<BS>Y<Esc>
+a█bcd
+efgh
+
+## rb: $A 2 lines U
+<C-v>j$AX<Esc>U
+a█bcd
+ef
+
+## rb: > 2 lines U
+<C-v>j>U
+a█bcd
+efgh
+
+## rb: tilde 2 lines U
+<C-v>jl~U
+a█bcd
+efgh
+
+## rb: mode string V-BLOCK
+<C-v>j
+a█bcd
+efgh
+
+## rb: mode after C-v v
+<C-v>jv
+a█bcd
+efgh
+
+## rb: c gv
+l<C-v>jlcX<Esc>gvd
+a█bcd
+efgh
+
+## rb: I on block with empty last line
+l<C-v>jIX<Esc>
+a█bc
+
+## rb: A on block with empty last line
+l<C-v>jAX<Esc>
+a█bc
+
+## rb: A empty last line then u
+l<C-v>jAX<Esc>u
+a█bc
+
+## rb: A two short lines then u redo
+l<C-v>jjlAX<Esc>u<C-r>
+a█bcd
+a
+ab
+
+## rb: I wide typed
+l<C-v>jI名<Esc>
+a█bcd
+efgh
+
+## rb: I wide typed into wide line
+l<C-v>jjI名<Esc>
+a█bcd
+名字
+abcd
+
+## rb: c wide typed
+l<C-v>jc名<Esc>
+a█bcd
+efgh
+
+## rb: c typed into cut tab line
+l<C-v>jjcX<Esc>
+a█bcd
+		ef
+abcd
+
+## rb: d wide across block
+<C-v>jjld
+█abcd
+a名b
+abcd
+
+## rb: y wide across block reg
+<C-v>jjly
+█abcd
+a名b
+abcd
+
+## rb: r wide across block
+<C-v>jjlrx
+█abcd
+a名b
+abcd
+
+## rb: r wide char into wide line
+<C-v>jjlr字
+█abcd
+a名b
+abcd
+
+## rb: tilde block tab edge
+l<C-v>jj~
+█abcd
+	Efg
+abcd
+
+## rb: P block onto tab start
+<C-v>jyjjP
+█ab
+cd
+	x
+	y
+
+## rb: p block count onto short
+<C-v>jly$jj3p
+█abcd
+efgh
+xyzw
+q
+
+## rb: p block into longer lines
+<C-v>jlyjj0p
+█abcd
+efgh
+wxyz
+wxyz
+wxyz
+
+## rb: O same line
+<C-v>llOd
+a█bcdef
+
+## rb: O single column
+<C-v>jOd
+a█bcd
+efgh
+
+## rb: 2A short middle line
+l<C-v>jjl2AX<Esc>
+a█bcd
+a
+abcd
+
+## rb: 2p tab register
+<C-v>jy$2p
+█	a
+	b
+
+## rb: r narrow over wide block
+<C-v>jrx
+█名字
+名字
+
+## rb: r narrow over half wide
+<C-v>jjrx
+█abcd
+名字
+abcd
+
+## rb: tilde count in block
+<C-v>jl2~
+a█bcd
+efgh
+
+## rb: d then p fill spaces
+<C-v>jj$dp
+a█bcd
+e
+fghij
+
+## rb: y then P count 2 short
+<C-v>jlyjjj2P
+█abcd
+efgh
+ijkl
+x
+
+## rb: A block right edge at EOL wide
+<C-v>jAX<Esc>
+a█名
+b名
+
+## rb: c single line block
+<C-v>llcX<Esc>
+a█bcdef
+
+## rb: c single line then u
+<C-v>llcX<Esc>u
+a█bcdef
+
+## rb: I single line count
+l<C-v>3IX<Esc>
+a█bcd
+
+## rb: gc on blank lines
+<C-v>jjgc
+█a
+
+  b
+
+## rb: > on lines with only blanks
+<C-v>jj>
+█ab
+    
+ab
+
+## rb: < on lines with only blanks
+l<C-v>jj<
+█abcd
+      
+abcd

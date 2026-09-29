@@ -279,7 +279,10 @@ func (e *Editor) run(c cmd) {
 			}
 			return
 		}
-		if o := objects[c.name]; o != nil && e.mode != VisualBlock {
+		if o := objects[c.name]; o != nil {
+			if e.mode == VisualBlock { // no text objects in a block (§11)
+				return
+			}
 			start, vstart := e.cur, e.vstart
 			if _, ok := o(e, c.n(), c.name[0] == 'a'); !ok {
 				e.cur, e.vstart = start, vstart

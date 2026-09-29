@@ -41,8 +41,8 @@ type Token struct {
 
 // Scan splits s into tokens (§9.1), after lazysql's components/sql_lexer.go,
 // with each dialect's strings and comments:
-//   - PG: ” in '…', \ in E'…', $tag$…$tag$, "…" identifiers, -- and
-//     /* */ that nest;
+//   - PG: a doubled quote in '…', \ in E'…', $tag$…$tag$, "…"
+//     identifiers, -- and /* */ that nest;
 //   - MySQL: \ and doubled quotes in '…' and "…", `…` identifiers, #, --
 //     with a blank after it, /* */ that do not nest.
 //
@@ -53,7 +53,10 @@ func Scan(s string, d Dialect) []Token {
 	for i := 0; i < len(s); {
 		start := i
 		r, n := utf8.DecodeRuneInString(s[i:])
-		kind := Space
+		kind, tag := Space, ""
+		if d == PG && r == '$' {
+			tag = dollarTag(s[i:])
+		}
 		switch {
 		case strings.HasPrefix(s[i:], "--") && (d == PG || i+2 >= len(s) || s[i+2] <= ' '),
 			d == MySQL && r == '#':
@@ -68,8 +71,7 @@ func Scan(s string, d Dialect) []Token {
 			kind, i = String, quoted(s, i, true)
 		case d == PG && (r == 'e' || r == 'E') && strings.HasPrefix(s[i+1:], "'"): // E'…'
 			kind, i = String, quoted(s, i+1, true)
-		case d == PG && r == '$' && dollarTag(s[i:]) != "":
-			tag := dollarTag(s[i:])
+		case tag != "":
 			kind = String
 			if j := strings.Index(s[i+len(tag):], tag); j >= 0 {
 				i += len(tag) + j + len(tag)
@@ -205,8 +207,12 @@ func advance(s string, i int, in func(rune) bool) int {
 // words are the tokens of s that are neither blanks nor comments, and the
 // depth of parentheses each is at.
 func words(s string, d Dialect) (ts []Token, depth []int) {
+	return meaningful(s, Scan(s, d))
+}
+
+func meaningful(s string, all []Token) (ts []Token, depth []int) {
 	n := 0
-	for _, t := range Scan(s, d) {
+	for _, t := range all {
 		if t.Kind == Space || t.Kind == Comment {
 			continue
 		}

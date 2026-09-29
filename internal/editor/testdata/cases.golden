@@ -17600,3 +17600,1808 @@ idx █id
 reg: "" ""
 top: 1
 mode: n
+
+## rb: c cut tab at left nothing after
+█X 
+aX
+reg: "\x163" " bc\nbcd"
+top: 1
+mode: n
+
+## rb: c cut wide at left nothing after
+█X 
+aX
+reg: "\x163" " bc\nbcd"
+top: 1
+mode: n
+
+## rb: c cut tab at left text after
+ █Xd
+aXe
+reg: "\x163" " bc\nbcd"
+top: 1
+mode: n
+
+## rb: d empty line reg
+bc
+█
+reg: "v" "a"
+top: 1
+mode: n
+
+## rb: x empty line reg
+bc
+█
+reg: "v" "a"
+top: 1
+mode: n
+
+## rb: d empty line then u
+█abc
+
+reg: "v" "a"
+top: 1
+mode: n
+
+## rb: y empty line reg
+bc
+█
+reg: "\x161" ""
+top: 1
+mode: n
+
+## rb: c empty line reg
+bc
+█X
+reg: "\x161" ""
+top: 1
+mode: n
+
+## rb: r tab
+a█		d
+e		h
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I then U
+aXbcd
+█efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I three lines then U
+a█bcd
+eXfgh
+iXjkl
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A then U
+abcXd
+█efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: c then U
+a█d
+eXh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: d then U
+█ad
+eh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: d one line then U
+a█bcd
+efgh
+reg: "\x162" "bc"
+top: 1
+mode: n
+
+## rb: r one line then U
+a█bcd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: p one line then U
+abc█a
+def
+reg: "\x161" "a"
+top: 1
+mode: n
+
+## rb: p one line last line then U
+abc
+de█f
+reg: "\x161" "d"
+top: 1
+mode: n
+
+## rb: p two lines at last line then U
+abc
+█def
+ d
+reg: "\x161" "a\nd"
+top: 1
+mode: n
+
+## rb: c BS into indent
+XY█Z
+  cYZ
+reg: "\x161" "b\nd"
+top: 1
+mode: n
+
+## rb: I empty top line
+█X
+Xabc
+Xabc
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A empty top line
+█   X
+abcXd
+ab X
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I on empty middle line
+ab█Xc
+
+abXc
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A on empty middle line
+ab█cX
+   X
+abcX
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $A empty middle line
+█abcX
+X
+abcdefX
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I BS in typed
+ab█Xcd
+efXgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I BS before start
+ab█Xd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I CR
+abX
+█Ycd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A CR
+abcX
+█Yd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I nothing typed
+a█bcd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A nothing typed short line
+ab █ 
+abcdef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: 3A count
+ab█cXXXd
+efgXXXh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: 3I count three lines
+█XYXYXYabc
+XYXYXYdef
+XYXYXYghi
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I at col 0 tab line
+█Xabc
+X	def
+reg: "" ""
+top: 1
+mode: n
+
+## rb: cut tab mid I at 3
+abc█Xdef
+ab X cd
+abcXdef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: cut tab mid A at 3
+abc█dXef
+ab	Xcd
+abcdXef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: cut wide mid I at 2
+ab█Xcdef
+a X名字
+abXcdef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: cut wide mid A at 2
+ab█cXdef
+a名X字
+abcXdef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A short first line
+ab█   X
+abcdeXf
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A short first line then u
+a█b
+abcdef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A first line cut tab at right
+█ab	Xc
+abc	Xd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A first line cut wide at right
+█ab名Xc
+abc�Xd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I tab typed
+ab█  Xcd
+ef  Xgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A wide typed
+ab█c名d
+efg名h
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $A wide lines
+█名字X
+abX
+reg: "" ""
+top: 1
+mode: n
+
+## rb: d single col
+a█b
+de
+gh
+reg: "\x161" "c\nf\ni"
+top: 1
+mode: n
+
+## rb: d cursor top right to bottom left
+█a
+e
+reg: "\x163" "bcd\nfgh"
+top: 1
+mode: n
+
+## rb: d short lines inside
+ab█f
+ab
+a
+abf
+reg: "\x163" "cde\n\n   \ncde"
+top: 1
+mode: n
+
+## rb: d empty lines inside
+a█b
+
+ab
+reg: "\x162" "cd\n  \ncd"
+top: 1
+mode: n
+
+## rb: x all lines empty
+█
+
+x
+reg: "\x161" "\n"
+top: 1
+mode: n
+
+## rb: y all lines empty
+█
+
+x
+reg: "\x161" "\n"
+top: 1
+mode: n
+
+## rb: y wide chars reg
+█名字
+ab字
+reg: "\x162" "名\nab"
+top: 1
+mode: n
+
+## rb: y wide cut at right
+█a名
+abc
+名b
+reg: "\x163" "a名\nabc\n名b"
+top: 1
+mode: n
+
+## rb: d wide lines
+█字x
+字x
+reg: "\x162" "名\nab"
+top: 1
+mode: n
+
+## rb: 3p short lines
+abcd
+efgh
+x█ababab
+yefefefz
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: P at col 0
+abcd
+efgh
+█abxy
+efzw
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: p on empty line
+abcd
+efgh
+█ab
+efwxyz
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: P on empty line
+abcd
+efgh
+█ab
+efwxyz
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: p past end count
+abcd
+e█ababfgh
+ efef
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: P past end
+abcd
+█abefgh
+ef
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: p tab in register
+	a█	
+	b	
+reg: "\x162" "\t\n\t"
+top: 1
+mode: n
+
+## rb: $y then p
+abcd
+ef
+x█abcdyz
+ ef
+reg: "\x164" "abcd\nef"
+top: 1
+mode: n
+
+## rb: $y then P ragged
+a
+abc
+█a  xyz
+abcw
+reg: "\x163" "a\nabc"
+top: 1
+mode: n
+
+## rb: p into wide middle
+ab
+cd
+xy█a名
+x c名y
+reg: "\x161" "a\nc"
+top: 1
+mode: n
+
+## rb: p wide register
+名
+字
+abc█名
+d  字
+reg: "\x162" "名\n字"
+top: 1
+mode: n
+
+## rb: 2P count
+a█bcbcbcd
+efgfgfgh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: p then u
+abc█d
+efgh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: p past end then u
+abcd
+e█fgh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: p then u redo
+abc█dbc
+efghfg
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: r wide odd width
+█名 d
+名 h
+reg: "" ""
+top: 1
+mode: n
+
+## rb: r on wide line
+█xx字
+xx字
+reg: "" ""
+top: 1
+mode: n
+
+## rb: r $ ragged
+█xxxx
+x
+xxx
+reg: "" ""
+top: 1
+mode: n
+
+## rb: r empty line inside
+█xxcd
+
+xxcd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: r single col
+ab█x
+dex
+ghx
+reg: "" ""
+top: 1
+mode: n
+
+## rb: r then u
+ab█cd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: tilde wide
+█名a字b
+XyzW
+reg: "" ""
+top: 1
+mode: n
+
+## rb: U $ ragged
+█ABCD
+A
+ABC
+reg: "" ""
+top: 1
+mode: n
+
+## rb: u short lines
+AB█cd
+E
+IJkl
+reg: "" ""
+top: 1
+mode: n
+
+## rb: tilde then u
+ab█cd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: 3>
+a█      bcd
+e      fgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: > mid whitespace
+a  █   bcd
+e      fgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: > tab before block
+	a█  bc
+	a  bc
+reg: "" ""
+top: 1
+mode: n
+
+## rb: > right after tab
+ █   abc
+    abc
+reg: "" ""
+top: 1
+mode: n
+
+## rb: 5< more than blanks
+ab█cd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: < block in tab
+a█bcd
+	efg
+abcd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: < tab blanks
+a█	bc
+x	yz
+reg: "" ""
+top: 1
+mode: n
+
+## rb: < empty line
+█ab
+
+cd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: > wide cut
+a█  bcd
+  名字
+a  bcd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: > then u
+ab█cd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: 2< then u redo
+a█bcd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: gc three lines partial
+--█ abc
+--   def
+-- ghi
+reg: "" ""
+top: 1
+mode: n
+
+## rb: gc uncomment
+ab█c
+def
+reg: "" ""
+top: 1
+mode: n
+
+## rb: O twice
+a█d
+eh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: o then O then d
+a█d
+eh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: O ragged short start
+a█def
+a
+reg: "\x162" "bc\nb"
+top: 1
+mode: n
+
+## rb: O with $
+█a
+ej
+reg: "\x164" "bcd\nfghi"
+top: 1
+mode: n
+
+## rb: O then j
+a█d
+eh
+il
+reg: "\x162" "bc\nfg\njk"
+top: 1
+mode: n
+
+## rb: o then l
+ab█d
+efh
+reg: "\x161" "c\ng"
+top: 1
+mode: n
+
+## rb: C-v to V d
+ij█kl
+reg: "V" "abcd\nefgh\n"
+top: 1
+mode: n
+
+## rb: V to C-v d
+a█b
+ef
+reg: "\x162" "cd\ngh"
+top: 1
+mode: n
+
+## rb: C-q in block ends
+abcd
+e█fgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: v C-v v
+a█gh
+reg: "v" "bcd\nef"
+top: 1
+mode: n
+
+## rb: C-q from v
+a█d
+eh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: C-v from V then y
+a█bcd
+efgh
+reg: "\x161" "b\nf"
+top: 1
+mode: n
+
+## rb: $ then j extends
+█
+
+
+reg: "\x166" "ab\nabcdef\nabc"
+top: 1
+mode: n
+
+## rb: $ in normal then C-v
+a█b
+ab
+reg: "\x164" "c\ncdef"
+top: 1
+mode: n
+
+## rb: $ then h
+█a
+e
+reg: "\x165" "bcd\nfghij"
+top: 1
+mode: n
+
+## rb: $ then k
+ab
+█
+
+reg: "\x166" "abcdef\nabc"
+top: 1
+mode: n
+
+## rb: $ y reg width
+█ab
+abcdef
+a
+reg: "\x166" "ab\nabcdef\na"
+top: 1
+mode: n
+
+## rb: colon linewise
+abcd!
+█efgh!
+ijkl
+reg: "" ""
+top: 1
+mode: n
+
+## rb: colon from bottom
+abcd
+#efgh
+█#ijkl
+reg: "" ""
+top: 1
+mode: n
+
+## rb: gv after d
+a█f
+ej
+reg: "\x162" "de\nhi"
+top: 1
+mode: n
+
+## rb: gv after y then d
+a█d
+eh
+ijkl
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: gv after $ block
+█a
+e
+reg: "\x165" "bcd\nfghij"
+top: 1
+mode: n
+
+## rb: gv after I
+ab█cd
+efgh
+reg: "\x161" "X\nX"
+top: 1
+mode: n
+
+## rb: d then u
+ab█cd
+efgh
+reg: "\x162" "cd\ngh"
+top: 1
+mode: n
+
+## rb: d then u redo
+a█b
+ef
+reg: "\x162" "cd\ngh"
+top: 1
+mode: n
+
+## rb: I then u redo
+ab█Xcd
+efXgh
+ijXkl
+reg: "" ""
+top: 1
+mode: n
+
+## rb: c then u redo
+ab█XY
+efXY
+reg: "\x162" "cd\ngh"
+top: 1
+mode: n
+
+## rb: A pad then u
+abcd█ef
+ab
+abcdef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $A then u
+abc█d
+ef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: c nothing typed
+a█b
+ef
+reg: "\x162" "cd\ngh"
+top: 1
+mode: n
+
+## rb: c BS typed
+ab█X
+efX
+reg: "\x162" "cd\ngh"
+top: 1
+mode: n
+
+## rb: c BS before start
+a█X
+ef
+reg: "\x162" "cd\ngh"
+top: 1
+mode: n
+
+## rb: c CR
+abXYZ
+█W
+ef
+reg: "\x162" "cd\ngh"
+top: 1
+mode: n
+
+## rb: c $ ragged
+a█X
+eX
+aX
+reg: "\x163" "bcd\n\nbc"
+top: 1
+mode: n
+
+## rb: c count
+ab█Xd
+efXh
+reg: "\x161" "c\ng"
+top: 1
+mode: n
+
+## rb: c wide lines
+█X字x
+X字x
+reg: "\x162" "名\nab"
+top: 1
+mode: n
+
+## rb: block k through short line
+abcd█f
+ab
+abcdf
+reg: "\x161" "e\n \ne"
+top: 1
+mode: n
+
+## rb: count C-v j d
+█cd
+gh
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: C-v w motion d
+█
+
+reg: "\x167" "ab cd\nefghij"
+top: 1
+mode: n
+
+## rb: C-v f motion y
+█abcd
+xxcx
+reg: "\x163" "abc\nxxc"
+top: 1
+mode: n
+
+## rb: C-v G d
+a█c
+df
+gi
+reg: "\x161" "b\ne\nh"
+top: 1
+mode: n
+
+## rb: C-v gg y
+█abc
+def
+ghi
+reg: "\x162" "ab\nde\ngh"
+top: 1
+mode: n
+
+## rb: block esc cursor
+abcd
+ef█gh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: block tilde count ignored
+a█Bcd
+eFgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I then gv I
+ab█YXcd
+efYXgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: block y cursor from bottom right
+a█bcd
+efgh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: p block at end of line
+abcd█b
+e   
+reg: "\x161" "b\n"
+top: 1
+mode: n
+
+## rb: p block cursor on tab
+abcd
+efgh
+x	█ab
+y	ef
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: I BS before start then more
+abX█Yd
+efgYh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I BS twice before start then more
+aXY█Zd
+efgZh
+ijkZl
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A BS then more
+ab█XYd
+efgYh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A BS past block start
+aX█YZd
+efgZh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $A BS then more
+a█bcXY
+efghY
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I cut tab top line
+█X	bc
+abcd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A cut tab top line
+█	bcX
+abcdX
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I cut wide top line
+█X名bc
+abcd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A cut wide top line
+█名bcX
+abcdX
+reg: "" ""
+top: 1
+mode: n
+
+## rb: d cut tab top line
+█ 
+a
+reg: "\x163" " bc\nbcd"
+top: 1
+mode: n
+
+## rb: r cut tab top line
+█ xxx
+axxx
+reg: "" ""
+top: 1
+mode: n
+
+## rb: y cut tab top line
+█	bc
+abcd
+reg: "\x163" " bc\nbcd"
+top: 1
+mode: n
+
+## rb: > cut tab top line
+█    bc
+a  bcd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: < cut tab top line
+█ bc
+ad
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $I
+a█Xbcd
+eXf
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $I short line
+ab█Xcd
+a
+abXcdef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $A count
+a█bcdXX
+efXX
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $A first line longest
+█abcdefX
+abX
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $A tabs
+█a	bX
+	X
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $c CR
+aXY
+█ZXY
+e
+reg: "\x163" "bcd\nfgh"
+top: 1
+mode: n
+
+## rb: c top line empty
+█X
+Xcd
+reg: "\x162" "\nab"
+top: 1
+mode: n
+
+## rb: c cut tab right
+█X c
+Xd
+reg: "\x163" "ab \nabc"
+top: 1
+mode: n
+
+## rb: r cut tab right
+█xxx c
+xxxd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: d cut tab right top
+█ c
+d
+reg: "\x163" "ab \nabc"
+top: 1
+mode: n
+
+## rb: y $ tab left cut
+a█bcd
+	efg
+ab
+reg: "\x164" "bcd\n efg\nb"
+top: 1
+mode: n
+
+## rb: d $ short line
+ab█c
+a
+abc
+reg: "\x163" "d\n    \ndef"
+top: 1
+mode: n
+
+## rb: x then P restores
+a█cdb
+eghf
+reg: "\x162" "cd\ngh"
+top: 1
+mode: n
+
+## rb: d then P tabs
+a█bcd
+  efg
+abcd
+reg: "\x161" "b\n \nb"
+top: 1
+mode: n
+
+## rb: O on tab corner
+█	
+ab
+reg: "\x162" "ab\ncd"
+top: 1
+mode: n
+
+## rb: O on wide corner
+a█b
+ad
+reg: "\x162" "名\nbc"
+top: 1
+mode: n
+
+## rb: $ then d then gv y
+a█bcd
+efghij
+reg: "\x165" "bcd\nfghij"
+top: 1
+mode: n
+
+## rb: colon with $
+>abcd
+█>efgh
+ijkl
+reg: "" ""
+top: 1
+mode: n
+
+## rb: gv after p
+a█d
+eh
+ijbc
+klfg
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: P on wide cursor
+ab
+cd
+█a名x
+c名x
+reg: "\x161" "a\nc"
+top: 1
+mode: n
+
+## rb: 2p onto tabs
+abcd
+efgh
+x	█abab
+y	efefz
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: p $ reg onto short
+ab
+abcd
+x█ab
+yabcd
+reg: "\x164" "ab\nabcd"
+top: 1
+mode: n
+
+## rb: y then 2P then u
+a█bcd
+efgh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: r then gv r
+ab█yd
+efyh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: tilde $ with wide
+█Ab名C
+名dX
+reg: "" ""
+top: 1
+mode: n
+
+## rb: > count 2 with $
+a█    bcd
+e    fgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: < with count wide
+a █名
+b 名
+reg: "" ""
+top: 1
+mode: n
+
+## rb: gc with $
+-█- abcd
+-- efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: C-v 3l d
+█ef
+kl
+reg: "\x164" "abcd\nghij"
+top: 1
+mode: n
+
+## rb: block B motion
+ab█ 
+gh 
+reg: "\x164" "cdef\nijkl"
+top: 1
+mode: n
+
+## rb: I u then gv
+ab█d
+efh
+reg: "\x161" "c\ng"
+top: 1
+mode: n
+
+## rb: c then u cursor
+abcde█f
+ab
+abcdef
+reg: "\x162" "f\n  \nf"
+top: 1
+mode: n
+
+## rb: r u cursor bottom corner
+abcd█ef
+abcdef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A then redo cursor
+abc█Xd
+efgXh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I three lines then 2u
+abX█cd
+efXgh
+ijXkl
+reg: "v" "c"
+top: 1
+mode: n
+
+## rb: A pad u then redo
+abcd█Xef
+ab  X
+abcdXef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I count 2 two lines U
+XXabcd
+█efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: charwise tilde u gv
+a█h
+reg: "v" "bcd\nefg"
+top: 1
+mode: n
+
+## rb: V shift u gv
+█ijkl
+reg: "V" "abcd\nefgh\n"
+top: 1
+mode: n
+
+## rb: block shift u gv
+█bcd
+fgh
+ijkl
+reg: "\x161" "a\ne"
+top: 1
+mode: n
+
+## rb: I C-u then type
+ab█Xcd
+efXgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I C-u then type then u
+abab█cd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I C-w then type
+ab█ab Xcd
+efab Xgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A C-u then type then u
+abcab█d
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I CR BS joins back
+ab█XYcd
+efXYgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: c CR then u
+ab█cd
+efgh
+reg: "\x162" "cd\ngh"
+top: 1
+mode: n
+
+## rb: search motion in block
+a█d
+eh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## rb: $ then o then d
+█a
+e
+reg: "\x166" "bcd\nfghij"
+top: 1
+mode: n
+
+## rb: r with count
+a█xcd
+exgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: C-v 2 dollar d
+█a
+e
+klm
+reg: "\x165" "bcd\nfghij"
+top: 1
+mode: n
+
+## rb: A at end of first line
+ab█c X
+defgXh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: $c BS
+a█Y
+eY
+reg: "\x163" "bcd\nfgh"
+top: 1
+mode: n
+
+## rb: $A 2 lines U
+abcdX
+█ef
+reg: "" ""
+top: 1
+mode: n
+
+## rb: > 2 lines U
+a█  bcd
+e  fgh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: tilde 2 lines U
+a█BCd
+eFGh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: mode string V-BLOCK
+abcd
+e█fgh
+reg: "" ""
+top: 1
+mode: 
+
+## rb: mode after C-v v
+abcd
+e█fgh
+reg: "" ""
+top: 1
+mode: v
+
+## rb: c gv
+a█b
+ef
+reg: "\x162" "X\nX"
+top: 1
+mode: n
+
+## rb: I on block with empty last line
+ab█Xc
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A on block with empty last line
+ab█cX
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A empty last line then u
+ab█c
+reg: "" ""
+top: 1
+mode: n
+
+## rb: A two short lines then u redo
+abc█Xd
+a  X
+ab X
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I wide typed
+ab█名cd
+ef名gh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: I wide typed into wide line
+ab█名cd
+名名字
+ab名cd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: c wide typed
+ab█名d
+ef名h
+reg: "\x161" "c\ng"
+top: 1
+mode: n
+
+## rb: c typed into cut tab line
+ab█Xd
+	X ef
+abXd
+reg: "\x161" "c\n \nc"
+top: 1
+mode: n
+
+## rb: d wide across block
+█cd
+ b
+cd
+reg: "\x162" "ab\na \nab"
+top: 1
+mode: n
+
+## rb: y wide across block reg
+█abcd
+a名b
+abcd
+reg: "\x162" "ab\na \nab"
+top: 1
+mode: n
+
+## rb: r wide across block
+█xxcd
+xx b
+xxcd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: r wide char into wide line
+█字cd
+字 b
+字cd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: tilde block tab edge
+a█Bcd
+	Efg
+aBcd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: P block onto tab start
+ab
+cd
+█a	x
+c	y
+reg: "\x161" "a\nc"
+top: 1
+mode: n
+
+## rb: p block count onto short
+abcd
+efgh
+xyzw█ababab
+q   efefef
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: p block into longer lines
+abcd
+efgh
+w█abxyz
+wefxyz
+wxyz
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: O same line
+a█ef
+reg: "\x163" "bcd"
+top: 1
+mode: n
+
+## rb: O single column
+a█cd
+egh
+reg: "\x161" "b\nf"
+top: 1
+mode: n
+
+## rb: 2A short middle line
+ab█cdXX
+a   XX
+abcdXX
+reg: "" ""
+top: 1
+mode: n
+
+## rb: 2p tab register
+	a█		
+	b		
+reg: "\x162" "\t\n\t"
+top: 1
+mode: n
+
+## rb: r narrow over wide block
+█xx字
+xx字
+reg: "" ""
+top: 1
+mode: n
+
+## rb: r narrow over half wide
+█xbcd
+x 字
+xbcd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: tilde count in block
+a█BCd
+eFGh
+reg: "" ""
+top: 1
+mode: n
+
+## rb: d then p fill spaces
+a█bcd
+e
+fghij
+reg: "\x164" "bcd\n\nghij"
+top: 1
+mode: n
+
+## rb: y then P count 2 short
+abcd
+efgh
+ijkl
+█ababx
+efef
+reg: "\x162" "ab\nef"
+top: 1
+mode: n
+
+## rb: A block right edge at EOL wide
+a█名X
+b名X
+reg: "" ""
+top: 1
+mode: n
+
+## rb: c single line block
+a█Xef
+reg: "\x163" "bcd"
+top: 1
+mode: n
+
+## rb: c single line then u
+a█bcdef
+reg: "\x163" "bcd"
+top: 1
+mode: n
+
+## rb: I single line count
+ab█XXXcd
+reg: "" ""
+top: 1
+mode: n
+
+## rb: gc on blank lines
+█-- a
+--
+--   b
+reg: "" ""
+top: 1
+mode: n
+
+## rb: > on lines with only blanks
+█  ab
+      
+  ab
+reg: "" ""
+top: 1
+mode: n
+
+## rb: < on lines with only blanks
+a█bcd
+    
+abcd
+reg: "" ""
+top: 1
+mode: n

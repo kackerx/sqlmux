@@ -172,7 +172,9 @@ func (e *Editor) restore(text []string, saved Pos) {
 	// ponytail: the marks move with the lines, but vim also puts back the
 	// selection the step saved (uh_visual), which gv then selects; add it if
 	// gv after u is missed.
-	e.moveMarks(p, p+oldN, newN)
+	if oldN != newN { // u_undoredo calls mark_adjust only then
+		e.moveMarks(p, p+oldN, newN)
+	}
 	cur := Pos{Line: p}
 	// a step that changed nothing saved the cursor's line
 	if top := p; oldN+newN == 0 || saved.Line+1 >= top && saved.Line+1 <= top+newN+1 {

@@ -127,12 +127,14 @@ func (t *dataTab) query() postgres.Query {
 // place still pays it.
 func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
 	t.note, t.failed = ui.Note{}, "" // until the next fetch the user asks for (§10.3)
+	// what is on its way is older than this now, whether this goes or not
+	t.seq++
 	// a ; would end the statement and start another: 1=1; drop table t (§9.6)
 	if sqlkit.HasSemicolon(t.applied, sqlkit.PG) {
-		t.err, t.shown = "WHERE 里不能有 ;", t.request
+		t.countSeq++
+		t.err, t.shown, t.counted = "WHERE 里不能有 ;", t.request, countLost
 		return nil
 	}
-	t.seq++
 	t.recount = t.recount || recount
 	a.busy++
 	seq, table, meta, q := t.seq, t.table, a.sess.Meta, t.query()
