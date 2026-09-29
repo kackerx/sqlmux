@@ -127,7 +127,11 @@ leader = "<Space>"
 
 [keys.where] # Q-02: the WHERE typed filters it
 "<C-n>" = "where.down"
+"<Tab>" = "where.down"
+"<Down>" = "where.down"
 "<C-p>" = "where.up"
+"<S-Tab>" = "where.up"
+"<Up>" = "where.up"
 "<CR>" = "where.apply"
 "<C-f>" = "where.star"
 "<Esc>" = "where.close"

@@ -42,6 +42,7 @@ type Icons struct {
 	View, Column             Icon // the tree's (F1.12)
 	Result, Pin, Export, Log Icon // the result area's (§11)
 	Close                    Icon
+	Star, History            Icon // a WHERE's favorites and history (§9.7)
 	// Labeled sets (ascii) say nothing by themselves, so the words beside
 	// the icons stay: pane types in titles, C-p, the filter's / (§7.7).
 	Labeled bool
@@ -76,6 +77,8 @@ var NerdIcons = &Icons{
 	Export:      Icon{Text: "\uf019"}, // nf-fa-download
 	Close:       Icon{Text: "\uf00d"}, // nf-fa-times
 	Log:         Icon{Text: "\uf0f6"}, // nf-fa-file_text_o
+	Star:        Icon{Text: "\uf005"}, // nf-fa-star
+	History:     Icon{Text: "\uf1da"}, // nf-fa-history
 }
 
 var ASCIIIcons = &Icons{
@@ -104,6 +107,8 @@ var ASCIIIcons = &Icons{
 	Export:      Icon{Text: ">"},
 	Close:       Icon{Text: "x"},
 	Log:         Icon{Text: "L"},
+	Star:        Icon{Text: "*"},
+	History:     Icon{Text: "h"},
 	Labeled:     true,
 }
 
@@ -137,6 +142,6 @@ func (ic *Icons) byName() map[string]*Icon {
 		"row_add": &ic.RowAdd, "row_delete": &ic.RowDelete, "auto_refresh": &ic.AutoRefresh, "stop": &ic.Stop,
 		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column,
 		"result": &ic.Result, "pin": &ic.Pin, "export": &ic.Export, "close": &ic.Close,
-		"log": &ic.Log,
+		"log": &ic.Log, "star": &ic.Star, "history": &ic.History,
 	}
 }

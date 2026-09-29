@@ -441,9 +441,12 @@ func (a *App) completeView(c *completion, at uv.Position) (ui.Complete, uv.Recta
 	return v, box, rows
 }
 
-// histMenu is the WHERE history and favorites list (Q-02, §9.7), filtered
-// by the WHERE input itself.
-type histMenu struct{ sel int }
+// histMenu is the WHERE history and favorites list (Q-02, §9.7), all of
+// it as it opens, filtered by the WHERE input once typed into.
+type histMenu struct {
+	sel   int
+	typed bool
+}
 
 // histEntry is one of its rows: a favorite, or a history entry.
 type histEntry struct {
@@ -464,9 +467,12 @@ func (a *App) tableState(t *dataTab) *config.TableState {
 }
 
 // histEntries is the favorites, then the history, that the WHERE input
-// matches, newest first in each.
+// matches once typed into, newest first in each.
 func (a *App) histEntries(t *dataTab) (entries []histEntry, pos [][]int) {
-	st := a.tableState(t)
+	st, pattern := a.tableState(t), ""
+	if t.hist != nil && t.hist.typed {
+		pattern = t.where.Text
+	}
 	for _, g := range []struct {
 		qs  []config.Query
 		fav bool
@@ -475,7 +481,7 @@ func (a *App) histEntries(t *dataTab) (entries []histEntry, pos [][]int) {
 		for i, q := range g.qs {
 			wheres[i] = q.Where
 		}
-		ms := ui.Filter(t.where.Text, wheres)
+		ms := ui.Filter(pattern, wheres)
 		slices.SortFunc(ms, func(x, y ui.Match) int { return x.Index - y.Index })
 		for _, m := range ms {
 			entries, pos = append(entries, histEntry{g.qs[m.Index], g.fav}), append(pos, m.Pos)
@@ -484,9 +490,14 @@ func (a *App) histEntries(t *dataTab) (entries []histEntry, pos [][]int) {
 	return entries, pos
 }
 
+// histMove moves the selection by d around the ends; 0 keeps it in the
+// list, which got shorter.
 func (a *App) histMove(t *dataTab, d int) {
-	n, _ := a.histEntries(t)
-	t.hist.sel = max(min(t.hist.sel+d, len(n)-1), 0)
+	es, _ := a.histEntries(t)
+	if n := len(es); d != 0 && n > 0 {
+		t.hist.sel = ((t.hist.sel+d)%n + n) % n
+	}
+	t.hist.sel = max(min(t.hist.sel, len(es)-1), 0)
 }
 
 // histApply runs the selected entry: its WHERE, ORDER and LIMIT, from the
@@ -523,9 +534,12 @@ func sameQuery(x, y config.Query) bool {
 	return x.Where == y.Where && x.Order == y.Order && x.Desc == y.Desc && x.Limit == y.Limit
 }
 
-// historyRows is how many runs a history keeps: a table's WHERE's (§9.7),
-// a connection's quick SQL's (§12).
-const historyRows = 50
+// historyRows is how many runs a connection's quick SQL history keeps
+// (§12), whereRows a table's WHERE history (§9.7).
+const (
+	historyRows = 50
+	whereRows   = 100
+)
 
 // runWhere runs the WHERE typed, from the first page, counting again; a
 // condition goes into the history, a repeat moving up to the top (§9.7).
@@ -542,7 +556,7 @@ func (a *App) runWhere(t *dataTab) tea.Cmd {
 			q.Limit = t.limit
 		}
 		st.History = slices.Insert(slices.DeleteFunc(st.History, func(h config.Query) bool { return sameQuery(h, q) }), 0, q)
-		st.History = st.History[:min(len(st.History), historyRows)]
+		st.History = st.History[:min(len(st.History), whereRows)]
 		cmds = append(cmds, a.saveState())
 	}
 	return tea.Batch(cmds...)
@@ -550,25 +564,16 @@ func (a *App) runWhere(t *dataTab) tea.Cmd {
 
 func (a *App) histView(p *Pane, t *dataTab) (ui.Complete, uv.Rectangle, int) {
 	es, pos := a.histEntries(t)
-	v := ui.Complete{Sel: -1}
+	v := ui.Complete{Sel: t.hist.sel}
 	w := 40
-	for i, e := range es {
-		if i == 0 || e.fav != es[i-1].fav { // a group starts
-			head := "历史"
-			if e.fav {
-				head = "收藏"
-			}
-			v.Items = append(v.Items, ui.CompleteItem{Text: head, Head: true})
-		}
-		note := e.q.At.Local().Format("01-02 15:04")
+	for i, e := range es { // an icon each, no group titles (F3.31)
+		note, icon := e.q.At.Local().Format("01-02 15:04"), a.icons.History
 		if e.fav {
-			note = queryNote(e.q)
+			note, icon = queryNote(e.q), a.icons.Star
+			icon.Fg = cmp.Or(icon.Fg, a.theme.Warn)
 		}
-		if i == t.hist.sel {
-			v.Sel = len(v.Items)
-		}
-		v.Items = append(v.Items, ui.CompleteItem{Text: e.q.Where, Pos: pos[i], Note: note})
-		w = max(w, ui.Width(e.q.Where+"  "+note)+4)
+		v.Items = append(v.Items, ui.CompleteItem{Icon: icon, Text: e.q.Where, Pos: pos[i], Note: note})
+		w = max(w, ui.Width(icon.Text+" "+e.q.Where+"  "+note)+4)
 	}
 	box, rows := ui.CompleteBox(a.window(), a.whereAt(p, t), w, len(v.Items))
 	v.Top = max(0, v.Sel-rows+1)
@@ -601,20 +606,3 @@ func (a *App) saveState() tea.Cmd {
 }
 
 type stateErr struct{ err error }
-
-// histIndex is the entry at row of the list as drawn, its group titles
-// skipped.
-func (a *App) histIndex(t *dataTab, row int) int {
-	es, _ := a.histEntries(t)
-	r := 0
-	for i, e := range es {
-		if i == 0 || e.fav != es[i-1].fav {
-			r++
-		}
-		if r == row {
-			return i
-		}
-		r++
-	}
-	return len(es)
-}

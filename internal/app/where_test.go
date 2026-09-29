@@ -2,6 +2,7 @@ package app
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -200,8 +201,10 @@ func TestAcceptIgnoresCase(t *testing.T) {
 }
 
 // Every WHERE run goes into the table's history; C-r lists favorites then
-// history, filtered by what is typed; C-f stars; ↵ runs one with its ORDER
-// and LIMIT; it all outlives a restart (Q-02, §14).
+// history, a star or a clock before each, all of it till something is
+// typed, then filtered by it; Tab, ↓, S-Tab and ↑ move around the ends;
+// C-f stars; ↵ runs one with its ORDER and LIMIT; it all outlives a
+// restart (Q-02, §9.7, §14).
 func TestWhereHistory(t *testing.T) {
 	a, tab, _ := withRecorder(t, 160, 45)
 	feed(t, a, "/id > 5<CR>")
@@ -214,16 +217,22 @@ func TestWhereHistory(t *testing.T) {
 	if len(st.History) != 2 || st.History[0].Where != "id > 5" || st.History[1].Limit != 500 {
 		t.Fatalf("history %+v", st.History)
 	}
-	feed(t, a, "/"+clear+"<C-r>")
-	if tab.hist == nil || a.mode() != keymap.Command {
-		t.Fatal("C-r opens the list")
+	feed(t, a, "/"+clear+"xyz<C-r>") // what is there does not filter it
+	if es, _ := a.histEntries(tab); tab.hist == nil || a.mode() != keymap.Command || len(es) != 2 {
+		t.Fatalf("C-r opens the list, all of it: %+v", es)
 	}
 	feed(t, a, "<C-n><C-f>")
 	if len(st.Favorites) != 1 || st.Favorites[0].Where != "status = 'done'" {
 		t.Fatalf("favorites %+v", st.Favorites)
 	}
-	if f := a.render().String(); !strings.Contains(f, "收藏") || !strings.Contains(f, "amount ↑ · 500") {
+	f := a.render().String()
+	if !strings.Contains(f, a.icons.Star.Text+" status = 'done'") || !strings.Contains(f, a.icons.History.Text+" id > 5") || strings.Contains(f, "收藏") || !strings.Contains(f, "amount ↑ · 500") {
 		t.Errorf("the list:\n%s", f)
+	}
+	for keys, want := range map[string]int{"<Up>": 2, "<Down>": 1, "<Tab><Tab><Tab>": 0, "<S-Tab>": 2} { // from the first
+		if tab.hist.sel = 0; feed(t, a, keys) || tab.hist.sel != want {
+			t.Errorf("%s: at %d, want %d", keys, tab.hist.sel, want)
+		}
 	}
 	feed(t, a, clear+"don")                                      // filters the list
 	if es, _ := a.histEntries(tab); len(es) != 2 || !es[0].fav { // the favorite, and its run
@@ -237,6 +246,17 @@ func TestWhereHistory(t *testing.T) {
 	loaded, err := config.LoadState()
 	if err != nil || len(loaded.Tables["doraemon/public.t_order"].Favorites) != 1 {
 		t.Fatalf("after a restart: %+v %v", loaded, err)
+	}
+}
+
+// A table's WHERE history keeps its last 100 runs (§9.7).
+func TestWhereHistoryRows(t *testing.T) {
+	a, tab, _ := withRecorder(t, 160, 45)
+	for i := range whereRows + 1 {
+		feed(t, a, "/<C-u>id = "+strconv.Itoa(i)+"<CR>")
+	}
+	if h := a.tableState(tab).History; len(h) != whereRows || h[0].Where != "id = 100" || h[len(h)-1].Where != "id = 1" {
+		t.Errorf("%d kept, %q to %q", len(h), h[0].Where, h[len(h)-1].Where)
 	}
 }
 

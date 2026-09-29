@@ -6,10 +6,10 @@ import (
 
 // CompleteItem is one row of a Complete list.
 type CompleteItem struct {
+	Icon Icon // before Text: a WHERE history's star or history (§9.7), in dim unless it has a color
 	Text string
 	Pos  []int  // match positions in Text
 	Note string // dim, on the right: a column's type, 关键字, 值, a time
-	Head bool   // a group's title (收藏, 历史), not a pick
 }
 
 // Complete is a list under an input with no filter of its own (§9.7): the
@@ -48,10 +48,6 @@ func (c Complete) Draw(f *Frame, box uv.Rectangle, rows int) {
 	for i := c.Top; i < min(c.Top+rows, len(c.Items)); i++ {
 		it := c.Items[i]
 		line := uv.Rect(x0, box.Min.Y+1+i-c.Top, x1-x0, 1)
-		if it.Head {
-			f.Text(x0+1, line.Min.Y, x1, it.Text, uv.Style{Fg: th.Dim, Bg: th.PaneBg, Attrs: uv.AttrBold})
-			continue
-		}
 		// picked on select, the one under the pointer on row: which ↵ takes
 		// shows apart from where the pointer is (§10.2)
 		st := uv.Style{Fg: th.Fg, Bg: th.PaneBg}
@@ -62,8 +58,11 @@ func (c Complete) Draw(f *Frame, box uv.Rectangle, rows int) {
 			st.Bg = th.Row
 		}
 		f.Fill(line, st)
-		nx := x1 - 1 - Width(it.Note)
-		f.TextMatch(x0+1, line.Min.Y, nx-1, it.Text, it.Pos, st)
+		nx, x := x1-1-Width(it.Note), x0+1
+		if it.Icon.Text != "" {
+			x = f.Text(x, line.Min.Y, nx-1, it.Icon.Text+" ", it.Icon.On(uv.Style{Fg: th.Dim, Bg: st.Bg}))
+		}
+		f.TextMatch(x, line.Min.Y, nx-1, it.Text, it.Pos, st)
 		f.Text(nx, line.Min.Y, x1, it.Note, uv.Style{Fg: th.Dim, Bg: st.Bg})
 	}
 }

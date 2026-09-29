@@ -274,7 +274,7 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		case a.palette != nil:
 			return a.paletteRun(t.I, false)
 		case tab != nil && tab.hist != nil:
-			return a.histApply(tab, a.histIndex(tab, t.I))
+			return a.histApply(tab, t.I)
 		case a.drop != nil:
 			return a.dropPick(t.I)
 		case a.cols != nil: // a column's row: show or hide it (Q-04)

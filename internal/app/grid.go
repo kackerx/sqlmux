@@ -719,9 +719,13 @@ func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
 		editInput(&t.pageIn, k)
 		return nil
 	}
+	text := t.where.Text
 	a.editPaired(&t.where, k)
-	if t.hist == nil {
+	switch {
+	case t.hist == nil:
 		a.complete(t)
+	case t.where.Text != text: // typed into: the list filters by it from now on (§9.7)
+		t.hist.typed, t.hist.sel = true, 0
 	}
 	return nil
 }
