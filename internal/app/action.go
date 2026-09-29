@@ -244,16 +244,12 @@ func init() {
 		"pane.focus.right": {Title: "焦点移到右边", Run: do(func(a *App, _ Args) { a.focusSide("right") })},
 
 		// The grid moves in screen terms: j is down whichever way it is turned (§7.6).
-		"grid.left":  {Title: "左移", Run: do(func(a *App, args Args) { a.gridMove(by(0, -max(args.Count, 1))) })},
-		"grid.down":  {Title: "下移", Run: do(func(a *App, args Args) { a.gridMove(by(max(args.Count, 1), 0)) })},
-		"grid.up":    {Title: "上移", Run: do(func(a *App, args Args) { a.gridMove(by(-max(args.Count, 1), 0)) })},
-		"grid.right": {Title: "右移", Run: do(func(a *App, args Args) { a.gridMove(by(0, max(args.Count, 1))) })},
-		"grid.top": {Title: "第一行", Run: do(func(a *App, _ Args) {
-			a.gridMove(func(_, c, _, _ int) (int, int) { return 0, c })
-		})},
-		"grid.bottom": {Title: "最后一行", Run: do(func(a *App, _ Args) {
-			a.gridMove(func(_, c, rows, _ int) (int, int) { return rows - 1, c })
-		})},
+		"grid.left":   {Title: "左移", Run: do(func(a *App, args Args) { a.gridMove(by(0, -max(args.Count, 1))) })},
+		"grid.down":   {Title: "下移", Run: do(func(a *App, args Args) { a.gridMove(by(max(args.Count, 1), 0)) })},
+		"grid.up":     {Title: "上移", Run: do(func(a *App, args Args) { a.gridMove(by(-max(args.Count, 1), 0)) })},
+		"grid.right":  {Title: "右移", Run: do(func(a *App, args Args) { a.gridMove(by(0, max(args.Count, 1))) })},
+		"grid.top":    {Title: "第一行", Run: func(a *App, args Args) tea.Cmd { return a.gridLine(args.Count, false) }},
+		"grid.bottom": {Title: "最后一行", Run: func(a *App, args Args) tea.Cmd { return a.gridLine(args.Count, true) }},
 		"grid.first": {Title: "第一列", Run: do(func(a *App, _ Args) {
 			a.gridMove(func(r, _, _, _ int) (int, int) { return r, 0 })
 		})},

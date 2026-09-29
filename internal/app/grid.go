@@ -67,6 +67,7 @@ type dataTab struct {
 	note     ui.Note          // how the last save went, until the next fetch or change (Q-06)
 	failed   *string          // the row key a failed save names (§10.3), nil for none
 	wantCol  string           // the column the cursor goes to once a page is in: a column node's ↵ (§7.8)
+	wantRec  int              // the page row the cursor goes to once it is in, from 1; 0 for none: {N}G (F3.36)
 	comp     *completion      // the WHERE's candidates, while typed (§9.7)
 	hist     *histMenu        // the WHERE's history and favorites, while open (Q-02)
 	recount  bool             // a count is owed once a page is in: a request asked for one (§8.3)
@@ -189,7 +190,7 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	case m.seq != t.seq: // a newer request is on its way
 		return nil
 	case errors.Is(m.err, context.Canceled): // shown's count is still right: none owed
-		t.request, t.recount = t.shown, false
+		t.request, t.recount, t.wantRec = t.shown, false, 0
 		if t.typing != "where" {
 			t.where = ui.Input{Text: t.applied, Pos: len(t.applied)}
 		}
@@ -204,6 +205,12 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	clearBar(&t.bar, "fetch")
 	t.cols, t.page, t.next, t.shown = m.cols, m.page, m.next, t.request
 	t.row = max(min(t.row, len(t.shownRows())-1), 0)
+	if t.wantRec > 0 {
+		t.goRec(t.wantRec - 1)
+		if t.wantRec = 0; dataOf(a.focused()) == t {
+			a.gridMove(func(r, c, _, _ int) (int, int) { return r, c }) // into view
+		}
+	}
 	t.applyWantCol()
 	t.col = max(min(t.col, len(t.shownCols())-1), 0)
 	if t.recount {
@@ -218,7 +225,7 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 // act on. Its WHERE stays, to be fixed or tried again with R (§7.6).
 func (t *dataTab) backToShown() {
 	applied := t.applied
-	t.request, t.applied = t.shown, applied
+	t.request, t.applied, t.wantRec = t.shown, applied, 0
 }
 
 // applyWantCol puts the cursor on wantCol, a column node's ↵ (§7.8), once
@@ -674,6 +681,48 @@ func (a *App) gridTranspose() {
 func (a *App) scrollGrid(p *Pane, dr, dc int) {
 	if s, g, area, ok := a.gridOf(p); ok {
 		s.top, s.left, s.row, s.col = g.Scroll(area, dr, dc)
+	}
+}
+
+// gridLine is gg and G (§7.6): the first or the last row; with a count N
+// as nvim's, row N, by the numbers a table's rows show: on its page,
+// fetched when that isn't the one shown, the pages' count as PAGE's input
+// takes it (§7.8), N past the rows counted the last row. Transposed, and
+// in the result area, the Nth row on screen.
+func (a *App) gridLine(n int, bottom bool) tea.Cmd {
+	t := dataOf(a.focused())
+	if n == 0 || t == nil || t.transpose {
+		a.gridMove(func(_, c, rows, _ int) (int, int) {
+			if n == 0 && bottom {
+				return rows - 1, c
+			}
+			return max(n-1, 0), c
+		})
+		return nil
+	}
+	if t.counted == countDone {
+		n = min(n, int(max(t.count, 1)))
+	}
+	page := (n - 1) / t.shown.limit
+	if pages, ok := t.pages(); ok {
+		page = min(page, int(pages)-1)
+	}
+	rec := n - 1 - page*t.shown.limit
+	if page != t.shown.pageNo {
+		t.pageNo, t.wantRec = page, rec+1
+		return a.fetch(t, false)
+	}
+	t.goRec(rec)
+	a.gridMove(func(r, c, _, _ int) (int, int) { return r, c }) // into view
+	return nil
+}
+
+// goRec puts the cursor on page row rec, or the page's last when it has
+// fewer rows.
+func (t *dataTab) goRec(rec int) {
+	rows := t.shownRows()
+	if i := slices.IndexFunc(rows, func(sr shownRow) bool { return sr.add == nil && sr.rec == min(rec, len(t.page.Rows)-1) }); i >= 0 {
+		t.row = i
 	}
 }
 

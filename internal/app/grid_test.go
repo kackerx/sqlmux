@@ -375,3 +375,46 @@ func TestGoldenToolButtons(t *testing.T) {
 	}
 	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")
 }
+
+// {N}G and {N}gg go to row N by its number: on this page, or fetching its
+// own, N past the rows counted the last, a count not known taken as PAGE's
+// input does; transposed, field N. G and gg alone: the page's last and
+// first rows (F3.36).
+func TestGridLine(t *testing.T) {
+	a := wide(160, 45)
+	tab := loadOrders(t, a, 10)
+	tab.limit, tab.shown.limit, tab.count, tab.counted = 10, 10, 25, countDone
+	answer := func(n int) {
+		_, _, page := ordersTable(n)
+		a.Update(pageMsg{tab: tab, seq: tab.seq, cols: tab.cols, page: page})
+	}
+	if feed(t, a, "5G"); tab.row != 4 || tab.pageNo != 0 {
+		t.Fatalf("5G: row %d page %d", tab.row, tab.pageNo)
+	}
+	if feed(t, a, "15gg"); tab.pageNo != 1 {
+		t.Fatalf("15gg: page %d", tab.pageNo)
+	}
+	if answer(10); tab.row != 4 || tab.shown.pageNo != 1 {
+		t.Fatalf("15gg: row %d on page %d", tab.row, tab.shown.pageNo+1)
+	}
+	feed(t, a, "99G")
+	if answer(5); tab.shown.pageNo != 2 || tab.row != 4 {
+		t.Fatalf("99G of 25: row %d on page %d", tab.row, tab.shown.pageNo+1)
+	}
+	tab.counted = countLost
+	if feed(t, a, "99G"); tab.pageNo != 9 {
+		t.Errorf("99G, not counted: page %d", tab.pageNo+1)
+	}
+	answer(0)
+	feed(t, a, "15G")
+	answer(10)
+	if feed(t, a, "G"); tab.row != 9 {
+		t.Errorf("G: row %d", tab.row)
+	}
+	if feed(t, a, "gg"); tab.row != 0 {
+		t.Errorf("gg: row %d", tab.row)
+	}
+	if feed(t, a, "T3G"); tab.col != 2 || tab.pageNo != 1 {
+		t.Errorf("transposed 3G: field %d, page %d", tab.col, tab.pageNo)
+	}
+}
