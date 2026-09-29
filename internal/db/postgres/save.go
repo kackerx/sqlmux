@@ -29,10 +29,12 @@ type Change struct {
 }
 
 // ErrStale is a row that no longer holds what was loaded, or is gone; ErrGone
-// one to delete that is gone.
+// one to delete that is gone; ErrNotInserted one to insert that went in as
+// none, a BEFORE trigger's NULL.
 var (
-	ErrStale = errors.New("行数据已变化或行不存在")
-	ErrGone  = errors.New("行不存在")
+	ErrStale       = errors.New("行数据已变化或行不存在")
+	ErrGone        = errors.New("行不存在")
+	ErrNotInserted = errors.New("没有插入")
 )
 
 // Changes is what a save writes (§10.3, §10.6): the rows to delete, by
@@ -69,13 +71,6 @@ func ServerErrorOf(err error) ServerError {
 	return e
 }
 
-// ErrorLines is err as the result area's log shows it (§11): "ERROR:
-// <Message>", then the DETAIL and HINT lines.
-func ErrorLines(err error) []string {
-	e := ServerErrorOf(err)
-	return append([]string{e.Severity + ": " + e.Message}, e.More...)
-}
-
 // endTimeout bounds COMMIT and ROLLBACK, which a cancel must not reach: a
 // COMMIT the server has done would come back as an error (§10.3).
 const endTimeout = 10 * time.Second
@@ -109,7 +104,7 @@ func Save(ctx context.Context, w *db.Worker, schema, table string, keyCols []str
 	}
 	for _, r := range ch.Inserts {
 		sql, args := insert(schema, table, r)
-		stmts = append(stmts, stmt{sql, args, "INSERT 0 1", ErrStale})
+		stmts = append(stmts, stmt{sql, args, "INSERT 0 1", ErrNotInserted})
 	}
 	failed = -1
 	err = w.Run(ctx, func(ctx context.Context, c db.Conn) error {

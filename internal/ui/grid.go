@@ -143,16 +143,25 @@ func (v view) label(r int) string {
 	return v.g.number(r)
 }
 
-func (g Grid) number(rec int) string {
+// Number is record rec's number as the status bar shows it: + for one
+// added, as its row's number column (§10.6).
+func (g Grid) Number(rec int) string {
 	switch {
 	case g.Added[rec]:
 		return "+"
-	case g.Deleted[rec]:
-		return "−"
 	case g.Nums != nil:
 		return strconv.Itoa(g.Nums[rec])
 	}
 	return strconv.Itoa(g.First + rec + 1)
+}
+
+// number is what leads record rec's row: its Number, − for one marked
+// for deletion.
+func (g Grid) number(rec int) string {
+	if g.Deleted[rec] {
+		return "−"
+	}
+	return g.Number(rec)
 }
 
 func (g Grid) header(col GridCol) string {

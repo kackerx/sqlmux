@@ -187,6 +187,11 @@ func TestCounts(t *testing.T) {
 	if Display(r.Pending()) != "4" {
 		t.Errorf("pending count shows %q", Display(r.Pending()))
 	}
+	// a dropdown opened by a click meanwhile: its esc is its own, typing
+	drop := Context{Overlay: "dropdown", Focus: []string{"grid"}, Pane: "grid", Mode: Command}
+	if got, _ := press(t, r, drop, "<Esc>"); len(got) != 1 || got[0].Action != "dropdown.close" {
+		t.Errorf("esc in a dropdown, a count typed before: %v", actions(got))
+	}
 }
 
 func TestMappingPriority(t *testing.T) {

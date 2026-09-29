@@ -252,7 +252,8 @@ func init() {
 			a.sess.Meta.Cancel()
 			a.sess.Main.Cancel()
 		})},
-		// ↵ and esc end a cell's edit alike, keeping it (G-02)
+		// ↵ and esc end a cell's edit alike, keeping it (G-02); text no value
+		// of the column, ↵ waits, esc drops it (§10.7)
 		"cell.accept": {Title: "确定这一格", Local: true, Run: onCell(func(t *dataTab) { t.acceptCell() })},
 		"cell.done": {Title: "结束编辑", Local: true, Run: do(func(a *App, _ Args) { // esc: an edit no value of the column goes, what was before it back (§10.7)
 			if t := a.typingTab(); t != nil && t.cell != nil && !a.endEdit() {

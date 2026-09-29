@@ -65,7 +65,7 @@ type dataTab struct {
 	saving   bool             // a save is on its way (§10.3)
 	closing  bool             // :wq: the tab closes once the save lands, if nothing is left unsaved (§11)
 	note     ui.Note          // how the last save went, until the next fetch or change (Q-06)
-	failed   string           // the row key a failed save names (§10.3)
+	failed   *string          // the row key a failed save names (§10.3), nil for none
 	wantCol  string           // the column the cursor goes to once a page is in: a column node's ↵ (§7.8)
 	comp     *completion      // the WHERE's candidates, while typed (§9.7)
 	hist     *histMenu        // the WHERE's history and favorites, while open (Q-02)
@@ -144,12 +144,13 @@ func (t *dataTab) query() postgres.Query {
 // is in (§8.3): owed by the tab, so a newer request taking this one's
 // place still pays it.
 func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
-	t.note, t.failed = ui.Note{}, "" // until the next fetch the user asks for (§10.3)
+	t.note, t.failed = ui.Note{}, nil // until the next fetch the user asks for (§10.3)
 	// what is on its way is older than this now, whether this goes or not
 	t.seq++
 	// a ; would end the statement and start another: 1=1; drop table t (§9.6)
 	if sqlkit.HasSemicolon(t.applied, sqlkit.PG) {
 		t.bar = &errorBar{ui.ErrorBar{First: ui.Note{Head: "WHERE 里不能有 ;"}}, "fetch"}
+		t.backToShown()
 		return nil
 	}
 	t.recount = t.recount || recount
@@ -197,6 +198,7 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 		// ponytail: no 位置 line, the SQL being ours, not the WHERE typed;
 		// map Position into the WHERE if it is ever wanted
 		t.bar = newErrorBar("fetch", postgres.ServerErrorOf(m.err), "", "")
+		t.backToShown()
 		return nil
 	}
 	clearBar(&t.bar, "fetch")
@@ -209,6 +211,14 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 		return a.count(t)
 	}
 	return nil
+}
+
+// backToShown puts ORDER, LIMIT and PAGE back to what the rows shown came
+// from, a request having failed: what the chips show is what their keys
+// act on. Its WHERE stays, to be fixed or tried again with R (§7.6).
+func (t *dataTab) backToShown() {
+	applied := t.applied
+	t.request, t.applied = t.shown, applied
 }
 
 // applyWantCol puts the cursor on wantCol, a column node's ↵ (§7.8), once
@@ -392,11 +402,11 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 				vals[j] = edited(i, j, e)
 			}
 		}
-		if key != "" && key == t.failed {
+		if keyed && t.failed != nil && key == *t.failed { // "" too: a text key may hold it
 			mark(&g.Failed, i)
 		}
 		switch {
-		case key == "":
+		case !keyed:
 		case t.deleted[key]:
 			mark(&g.Deleted, i)
 		case changed[key]:
@@ -515,7 +525,7 @@ func autoTick(t *dataTab) tea.Cmd {
 }
 
 // gotAuto refreshes t as R does, keeping what the last save said, when it
-// shows in a pane as its current tab, with no changes, no cell being
+// shows in a pane on screen as its current tab, with no changes, no cell being
 // edited and nothing on its way; else it skips a turn. The ticking stops
 // with its interval set anew, or the tab closed (§7.8「自动刷新」).
 func (a *App) gotAuto(m autoMsg) tea.Cmd {
@@ -524,7 +534,11 @@ func (a *App) gotAuto(m autoMsg) tea.Cmd {
 		return nil
 	}
 	var cmd tea.Cmd
-	if a.paneShowing(t) != nil && t.changes() == 0 && t.cell == nil && t.out == 0 {
+	p, shown := a.paneShowing(t), false
+	if p != nil {
+		_, shown = a.layout()[p.ID] // not behind a zoomed pane
+	}
+	if shown && t.changes() == 0 && t.cell == nil && t.out == 0 {
 		note, failed := t.note, t.failed
 		cmd = a.fetch(t, true)
 		t.note, t.failed = note, failed

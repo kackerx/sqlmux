@@ -279,12 +279,11 @@ func (a *App) gotRun(m runDone) tea.Cmd {
 			a.log(r, stmt, "已取消", false)
 			cmds = append(cmds, a.showToast("查询已取消", toastTTL))
 		} else {
-			lines := postgres.ErrorLines(m.err)
-			a.log(r, stmt, lines[0], true)
-			for _, l := range lines[1:] {
+			e, text := postgres.ServerErrorOf(m.err), strings.Join(r.from.ed.Lines(), "\n")
+			a.log(r, stmt, e.Severity+": "+e.Message, true) // then DETAIL and HINT a line each (§11)
+			for _, l := range e.More {
 				r.win.log = append(r.win.log, ui.LogLine{Tail: "    " + l, Err: true})
 			}
-			e, text := postgres.ServerErrorOf(m.err), strings.Join(r.from.ed.Lines(), "\n")
 			var at []string
 			if r.from.ver == r.ver && m.set == "" { // the text is still what ran
 				r.from.failed = strings.Count(text[:r.base+s.Start], "\n")

@@ -86,6 +86,41 @@ func TestTableErrorBar(t *testing.T) {
 	}
 }
 
+// A failed fetch puts ORDER, LIMIT and PAGE back to what the rows shown
+// came from, so the chips' keys act on what they show; its WHERE stays, in
+// the input too, for R to try again. A ; turned down likewise (§7.6).
+func TestFailedFetchBackToShown(t *testing.T) {
+	a, tab, rec := withRecorder(t, 160, 45)
+	tab.next = true
+	fail := func() { a.Update(pageMsg{tab: tab, seq: tab.seq, err: &pgconn.PgError{Code: "42883", Message: "no"}}) }
+	feed(t, a, "gonote<CR>")
+	fail()
+	if sql := lastSQL(t, a, rec, a.run("grid.order.toggle", 0)); !strings.Contains(sql, `order by "id" desc`) {
+		t.Errorf("the chip's id ↑ turned: %s", sql)
+	}
+	fail()
+	feed(t, a, "]")
+	fail()
+	if feed(t, a, "]"); tab.pageNo != 1 {
+		t.Errorf("] from the page shown: page %d", tab.pageNo+1)
+	}
+	fail()
+	feed(t, a, "/bad<CR>")
+	fail()
+	if tab.request != (request{applied: "bad", limit: 100}) || tab.where.Text != "bad" {
+		t.Errorf("the WHERE stays: %+v, input %q", tab.request, tab.where.Text)
+	}
+	if sql := lastSQL(t, a, rec, a.run("grid.refresh", 0)); !strings.Contains(sql, "bad") {
+		t.Errorf("R tries it again: %s", sql)
+	}
+	fail()
+	n := len(rec.sqls)
+	feed(t, a, "/<C-u>1=1; x<CR>gl500<CR>")
+	if tab.request != (request{applied: "1=1; x", limit: 100}) || len(rec.sqls) != n || tab.bar == nil {
+		t.Errorf("a ; turned down: %+v, sent %q", tab.request, rec.sqls[n:])
+	}
+}
+
 // The bar at most six rows, the last … past them, each cut at the right;
 // the first's message cut in its middle (§7.8「错误栏」).
 func TestGoldenErrorBar160x45(t *testing.T) {

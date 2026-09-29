@@ -207,7 +207,7 @@ func (r *Resolver) feed(c Context, k Key, root *node, out *[]Result) {
 			r.count += string(k) // a lone 0 is a key (grid.first), not a count
 			return
 		}
-		if k == Esc && r.count != "" { // it takes the count back, as in vim, before a binding of its own
+		if k == Esc && r.count != "" && !c.Mode.typing() { // it takes the count back, as in vim, before a binding of its own
 			r.Reset()
 			return
 		}

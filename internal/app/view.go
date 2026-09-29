@@ -451,7 +451,7 @@ func (a *App) statusLine() ui.StatusLine {
 	}
 	// the cursor's row,col, with a table loaded in the focused pane, a result's too (§7.8)
 	if gs, g, _, ok := a.gridOf(a.focused()); ok && len(g.Rows) > 0 {
-		at := fmt.Sprintf(" %d,%d ", g.First+gs.row+1, gs.col+1)
+		at := fmt.Sprintf(" %s,%d ", g.Number(gs.row), gs.col+1)
 		s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: at, Style: bar(th.FgMuted)}}, Drop: dropCursor})
 	}
 	s.Right = append(s.Right, ui.Segment{Runs: iconRuns(ic.Conn, conn, " "+a.sess.Addr+" "), Drop: dropConn})

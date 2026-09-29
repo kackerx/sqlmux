@@ -128,7 +128,8 @@ func (a *App) dropMatches() []ui.Match {
 // chip, left aligned with it, as wide as its longest item. A schema one
 // opens under the console title's button, as hits, the frame's, have it,
 // its right edge on the pane's right border; with the button left out, at
-// that border.
+// that border. Auto refresh's under its button, or given way, at the query
+// bar's right end as a schema one.
 func (a *App) dropBox(v ui.Dropdown, hits []ui.Hit) (uv.Rectangle, int) {
 	d := a.drop
 	w := 16
@@ -151,7 +152,10 @@ func (a *App) dropBox(v ui.Dropdown, hits []ui.Hit) (uv.Rectangle, int) {
 	case dropLimit:
 		entry = a.chipRect(d.pane, d.tab, "grid.limit")
 	case dropAuto:
-		entry = a.queryBar(d.pane, d.tab).ButtonRect(bodyRect(a.layout()[d.pane.ID]), "grid.refresh.auto")
+		r := a.layout()[d.pane.ID]
+		if entry = a.queryBar(d.pane, d.tab).ButtonRect(bodyRect(r), "grid.refresh.auto"); entry.Empty() {
+			entry = uv.Rect(r.Max.X-w, bodyRect(r).Min.Y+1, w, 1)
+		}
 	}
 	return v.Box(a.window(), entry, w)
 }

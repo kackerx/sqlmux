@@ -309,7 +309,7 @@ func TestSave(t *testing.T) {
 // A row that changed or went since it was loaded fails the save: all rolled
 // back, the changes kept, the row named on the error bar, which stays till
 // a save goes, its number in error until the next change or fetch (§10.3,
-// §7.8「错误栏」). A cancel says so on the query bar.
+// §7.8「错误栏」). A cancel says so on the query bar, till the next failure.
 func TestSaveFails(t *testing.T) {
 	a, tab, _ := withMain(t, "UPDATE 0")
 	feed(t, a, "lix<Esc>")
@@ -322,7 +322,7 @@ func TestSaveFails(t *testing.T) {
 		t.Error("row 1's number is not marked")
 	}
 	feed(t, a, "jiy<Esc>")
-	if tab.failed != "" || tab.bar == nil {
+	if tab.failed != nil || tab.bar == nil {
 		t.Errorf("a change unmarks the row, the bar stays: %+v", tab.bar)
 	}
 	a.Update(saveMsg{tab: tab, failed: -1, err: context.Canceled})
@@ -334,6 +334,9 @@ func TestSaveFails(t *testing.T) {
 	a.Update(saveMsg{tab: tab, rows: []postgres.Row{{Key: []string{"12"}}}, failed: 0, err: bad})
 	if b := tab.bar; b.First != (ui.Note{Head: "[22P02] id = 12：", Mid: bad.Message, Tail: "，已回滚"}) || !slices.Equal(b.More, []string{"HINT: a number"}) {
 		t.Errorf("a server's error: %+v", b)
+	}
+	if tab.note != (ui.Note{}) {
+		t.Errorf("a failure takes the cancel's note away: %+v", tab.note)
 	}
 	a.Update(saveMsg{tab: tab, failed: -1})
 	if tab.bar != nil {
@@ -659,6 +662,13 @@ func TestSaveAndClose(t *testing.T) {
 	if a.run("tab.save.close", 0); dataOf(a.focused()) == tab {
 		t.Error("nothing to save: :wq closes at once")
 	}
+	a, tab, _ = withMain(t, "UPDATE 1") // a cell typed into as it lands: that is a change too
+	feed(t, a, "lix<Esc>")
+	cmd := a.run(exAliases["wq"], 0)
+	feed(t, a, "jli5")
+	if a.Update(cmd()); dataOf(a.focused()) != tab || tab.cell == nil || tab.cell.in.Text != "5" {
+		t.Errorf("typing as it lands: closed %v, cell %+v", dataOf(a.focused()) != tab, tab.cell)
+	}
 }
 
 // cellCases are cellCheck's cases, with whether PG 17 takes each (pg): the
@@ -668,7 +678,8 @@ var cellCases = []struct {
 	pg              bool
 }{
 	{"integer", "12", "", true}, {"integer", " 12 ", "", true}, {"integer", "+5", "", true}, {"integer", "0x1F", "", true},
-	{"integer", "1_000", "", true}, {"integer", "010", "", true}, {"integer", "", "", false},
+	{"integer", "1_000", "", true}, {"integer", "010", "", true}, {"integer", "", "不是有效的整数", false},
+	{"integer", "\t5\n", "", true}, {"integer", "5\u3000", "不是有效的整数", false}, {"integer", "\u00a05", "不是有效的整数", false},
 	{"integer", "1__0", "不是有效的整数", false}, {"integer", "_1", "不是有效的整数", false}, {"integer", "1.0", "不是有效的整数", false},
 	{"integer", "1e5", "不是有效的整数", false}, {"integer", "10d", "不是有效的整数", false}, {"integer", "--1", "不是有效的整数", false},
 	{"integer", "2147483648", "超出 int4 的范围", false}, {"integer", "-2147483648", "", true},
@@ -678,10 +689,22 @@ var cellCases = []struct {
 	{"numeric", "1_000.5", "", true}, {"numeric", "0x10", "", true}, {"numeric", "0b101", "", true}, {"numeric", "1_0e1_0", "", true},
 	{"numeric", "inf", "", true}, {"numeric", "+Infinity", "", true}, {"numeric", "-inf", "", true}, {"numeric", "NaN", "", true},
 	{"numeric", "1e", "不是有效的数字", false}, {"numeric", "e5", "不是有效的数字", false}, {"numeric(10,2)", "10d", "不是有效的数字", false},
+	{"numeric", "", "不是有效的数字", false}, {"numeric", "-NaN", "不是有效的数字", false}, {"numeric", "+nan", "不是有效的数字", false},
+	{"numeric(10,2)", "99999999.99", "", true}, {"numeric(10,2)", "99999999.994", "", true}, {"numeric(10,2)", "-99999999.995", "超出 numeric(10,2) 的范围", false},
+	{"numeric(10,2)", "123456789", "超出 numeric(10,2) 的范围", false}, {"numeric(10,2)", "1e7", "", true}, {"numeric(10,2)", "1e8", "超出 numeric(10,2) 的范围", false},
+	{"numeric(10,2)", "0.001", "", true}, {"numeric(10,2)", "0x10", "", true}, {"numeric(10,2)", "1_000.5", "", true},
+	{"numeric(10,2)", "1e-99999999999", "", false}, // PG's exponents stop far before: a ceiling
+	{"numeric(10,2)", "inf", "超出 numeric(10,2) 的范围", false}, {"numeric(10,2)", "NaN", "", true}, {"numeric(10,0)", "9999999999.4", "", true},
+	{"numeric(3,-2)", "99949", "", true}, {"numeric(3,-2)", "99950", "超出 numeric(3,-2) 的范围", false},
+	{"numeric(2,4)", "0.0099", "", true}, {"numeric(2,4)", "0.00995", "超出 numeric(2,4) 的范围", false}, {"numeric(2,4)", ".5", "超出 numeric(2,4) 的范围", false},
 	{"double precision", " 1e3 ", "", true}, {"double precision", "Infinity", "", true}, {"double precision", "-inf", "", true},
 	{"double precision", "nan", "", true}, {"double precision", "1e400", "超出 float8 的范围", false},
 	{"double precision", "1_000", "不是有效的数字", false}, {"double precision", "abc", "不是有效的数字", false},
 	{"real", "3.5", "", true}, {"real", "1e39", "超出 float4 的范围", false},
+	{"double precision", "-NaN", "", true}, {"real", "+nan", "", true}, {"double precision", "0x10", "", true}, {"double precision", "-0x1.8", "", true},
+	{"double precision", "0x1p3", "", true}, {"real", "0X1F", "", true}, {"double precision", "0x", "不是有效的数字", false},
+	{"double precision", "1e-400", "超出 float8 的范围", false}, {"double precision", "1e-310", "", true}, {"double precision", "0.0e-999", "", true},
+	{"real", "1e-50", "超出 float4 的范围", false}, {"real", "1e-40", "", true},
 	{"boolean", "t", "", true}, {"boolean", "tr", "", true}, {"boolean", "ye", "", true}, {"boolean", "of", "", true},
 	{"boolean", "on", "", true}, {"boolean", " TrUe ", "", true}, {"boolean", "1", "", true}, {"boolean", "n", "", true},
 	{"boolean", "o", "不是有效的布尔值", false}, {"boolean", "2", "不是有效的布尔值", false}, {"boolean", "tx", "不是有效的布尔值", false},
@@ -694,6 +717,11 @@ var cellCases = []struct {
 	{"date", "2026-09-20", "", true}, {"date", "2026-9-1", "", true}, {"date", "2026-09-20 BC", "", true}, {"date", " now ", "", true},
 	{"date", "Today", "", true}, {"date", "epoch", "", true}, {"date", "-infinity", "", true},
 	{"date", "2026/09/20", "不是有效的日期 / 时间", true}, // PG's too: a ceiling
+	{"date", "", "不是有效的日期 / 时间", false}, {"date", "2024-02-29", "", true}, {"date", "2000-02-29", "", true},
+	{"date", "2026-02-29", "不是有效的日期 / 时间", false}, {"date", "1900-02-29", "不是有效的日期 / 时间", false}, {"date", "2026-02-30", "不是有效的日期 / 时间", false},
+	{"date", "2026-04-31", "不是有效的日期 / 时间", false}, {"date", "2026-13-01", "不是有效的日期 / 时间", false}, {"date", "2026-00-10", "不是有效的日期 / 时间", false},
+	{"date", "2026-01-00", "不是有效的日期 / 时间", false}, {"date", "0000-01-01", "不是有效的日期 / 时间", false}, {"date", "0000-01-01 BC", "不是有效的日期 / 时间", false},
+	{"date", "0001-02-29 BC", "", true}, {"date", "0005-02-29 bc", "", true}, {"date", "0002-02-29 BC", "不是有效的日期 / 时间", false},
 	{"timestamp without time zone", "2026-09-01", "", true}, {"timestamp without time zone", "2026-09-01 10:00", "", true},
 	{"timestamp without time zone", "2026-09-01T10:00:00", "", true}, {"timestamp without time zone", "2026-09-01 10:00:00+08", "", true},
 	{"timestamp without time zone", "tomorrow", "", true},
@@ -703,6 +731,16 @@ var cellCases = []struct {
 	{"time without time zone", "10:00:00.123", "", true}, {"time without time zone", "now", "", true}, {"time without time zone", "allballs", "", true},
 	{"time without time zone", "today", "不是有效的日期 / 时间", false}, {"time without time zone", "epoch", "不是有效的日期 / 时间", false},
 	{"time with time zone", "10:00:00+08", "", true}, {"time with time zone", "10:00", "", true},
+	{"time without time zone", "25:00", "不是有效的日期 / 时间", false}, {"time without time zone", "24:00", "", true}, {"time without time zone", "24:00:00.0", "", true},
+	{"time without time zone", "24:00:01", "不是有效的日期 / 时间", false}, {"time without time zone", "24:00:00.5", "不是有效的日期 / 时间", false},
+	{"time without time zone", "10:60", "不是有效的日期 / 时间", false}, {"time without time zone", "10:59:60", "", true}, {"time without time zone", "10:59:60.5", "", true},
+	{"time without time zone", "10:00:61", "不是有效的日期 / 时间", false}, {"time without time zone", "10:00+16", "不是有效的日期 / 时间", false},
+	{"time with time zone", "10:00+08:05:43", "", true}, {"time with time zone", "10:00-15:59:59", "", true}, {"time with time zone", "10:00+15:60", "不是有效的日期 / 时间", false},
+	{"time with time zone", "10:00+15:59:60", "不是有效的日期 / 时间", false}, {"time with time zone", "10:00+0800", "", true}, {"time with time zone", "10:00+800", "", true},
+	{"timestamp with time zone", "1900-01-01 00:00:00+08:05:43", "", true}, {"timestamp with time zone", "2026-09-01 10:00+080543", "不是有效的日期 / 时间", false},
+	{"timestamp with time zone", "2026-09-01 10:00+16", "不是有效的日期 / 时间", false}, {"timestamp with time zone", "2026-09-01 10:00 +15:59", "", true},
+	{"timestamp without time zone", "2026-09-01 24:00:00", "", true}, {"timestamp without time zone", "2026-09-01 25:00", "不是有效的日期 / 时间", false},
+	{"timestamp without time zone", "2026-02-30 10:00", "不是有效的日期 / 时间", false}, {"timestamp without time zone", "2026-09-01 10:00:00+16", "不是有效的日期 / 时间", false},
 	{"text", "anything", "", true}, {"integer[]", "{1,2}", "", true},
 }
 
@@ -711,6 +749,45 @@ func TestCellCheck(t *testing.T) {
 	for _, c := range cellCases {
 		if got := cellCheck(c.typ, c.text); got != c.want {
 			t.Errorf("%s %q: %q, want %q", c.typ, c.text, got, c.want)
+		}
+	}
+}
+
+// A cell's text is checked once changed: cleared, a number's is no
+// number; left as it started, PG's own text or not, it is let be (§10.7).
+func TestCellCheckChangedOnly(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	if feed(t, a, "lli<BS>"); tab.cellHint() != "不是有效的数字" {
+		t.Errorf("amount cleared: %q", tab.cellHint())
+	}
+	feed(t, a, "<Esc>")
+	tab.page.Rows[0][6].S = "1900-01-01 00:00:00 LMT" // not ISO, as cellCheck takes it
+	if feed(t, a, "$i<CR>"); tab.cell != nil || len(tab.edits) != 0 {
+		t.Errorf("↵ on it untouched: cell %+v, edits %q", tab.cell, editsOf(tab))
+	}
+}
+
+// With a hint, the options open past it, the two placed as one: the hint
+// right at the edit, both in the window, down or up (§10.7).
+func TestCellHintWithMenu(t *testing.T) {
+	for _, c := range []struct{ keys, item string }{{"lli10d", "∅ NULL"}, {"$ixx", "◷ 现在"}} {
+		a := sized(160, 45, "nerd")
+		tab := loadOrders(t, a, 60)
+		for row := 24; row < 40; row++ {
+			a.gridGoto(fmt.Sprintf("%d 0", row))
+			feed(t, a, c.keys)
+			at := a.grid(a.focused(), tab).EditRect(gridRect(a.layout()[a.focused().ID], tab)).Min
+			lines := strings.Split(a.render().String(), "\n")
+			y := func(s string) int {
+				return slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, s) })
+			}
+			hint, item := y("不是有效的"), y(c.item)
+			down, up := hint == at.Y+2 && item > hint, hint == at.Y-2 && item >= 0 && item < hint
+			if !down && !up || item >= a.window().Max.Y {
+				t.Fatalf("%s on row %d, the edit at y %d: the hint at %d, %s at %d", c.keys, row, at.Y, hint, c.item, item)
+			}
+			feed(t, a, "<Esc>")
 		}
 	}
 }
@@ -745,8 +822,7 @@ func TestCellCheckBlocks(t *testing.T) {
 }
 
 // r takes the cursor's cell back to what was loaded, that cell alone; a
-// row with changes is marked, for its number in warn (§10.1). In the
-// result area r does nothing: its tables are not edited.
+// row with changes is marked, for its number in warn (§10.1).
 func TestRevert(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	tab := loadOrders(t, a, 3)
@@ -761,6 +837,23 @@ func TestRevert(t *testing.T) {
 		t.Errorf("all taken back: %q", editsOf(tab))
 	}
 	a.run("grid.revert", 0) // no change here: nothing to take back
+}
+
+// A text row identity may be empty: its row is marked as any other, changed,
+// deleted or failed (§10.1, §10.6).
+func TestEmptyRowKey(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	tab.page.Rows[0][0].S = ""
+	if feed(t, a, "lix<Esc>"); !a.grid(a.focused(), tab).Changed[0] {
+		t.Error("not marked changed")
+	}
+	if feed(t, a, "dd"); !a.grid(a.focused(), tab).Deleted[0] {
+		t.Error("not marked deleted")
+	}
+	if tab.failed = new(string); !a.grid(a.focused(), tab).Failed[0] {
+		t.Error("not marked failed")
+	}
 }
 
 // tagDB answers each statement with the tag of one row hit, or fails
@@ -783,9 +876,10 @@ func (d *tagDB) Exec(context.Context, string, int) ([]db.Result, error) { return
 func (d *tagDB) Close() error                                           { return nil }
 
 // o adds a row under the cursor's, the cursor to its first column: + in
-// warn, <default> in its cells till set; o on a page row again puts the
-// new one right under it. dd marks a row, again unmarks; r does too. On a
-// row added dd and r take it out (§10.6).
+// warn, <default> in its cells till set, + the status bar's row; o on a
+// page row again puts the new one right under it. dd marks a row, not
+// edited then, again unmarks; r does too. On a row added dd and r take it
+// out. Each is a change: a save's note goes (§10.6).
 func TestRowAddDelete(t *testing.T) {
 	a := wide(160, 45)
 	tab := loadOrders(t, a, 3)
@@ -793,6 +887,9 @@ func TestRowAddDelete(t *testing.T) {
 	g := a.grid(a.focused(), tab)
 	if len(tab.added) != 1 || tab.row != 1 || tab.col != 0 || !g.Added[1] || g.Rows[1][0].S != "<default>" || g.Nums[2] != 2 {
 		t.Fatalf("o: added %d, cursor %d,%d, grid %v %v", len(tab.added), tab.row, tab.col, g.Added, g.Nums)
+	}
+	if f := a.render().String(); !strings.Contains(f, " +,1 ") {
+		t.Error("the status bar's row: + as its number")
 	}
 	feed(t, a, "lidone<Esc>")
 	if e := tab.added[0].cells["status"]; e.val.S != "done" || tab.changes() != 1 || len(tab.edits) != 0 {
@@ -802,20 +899,25 @@ func TestRowAddDelete(t *testing.T) {
 	if tab.row != 1 || tab.shownRows()[2].add != tab.added[1] {
 		t.Fatalf("again: cursor %d, added %+v", tab.row, tab.added)
 	}
-	if feed(t, a, "dd"); len(tab.added) != 1 {
+	saved := ui.Note{Head: "已保存 1 行 · 3ms"} // till the next change (§10.3)
+	if tab.note = saved; feed(t, a, "dd") != false || len(tab.added) != 1 || tab.note != (ui.Note{}) {
 		t.Fatal("dd on a row added takes it out")
 	}
-	if feed(t, a, "r"); len(tab.added) != 0 { // the first one, with done in it, under the cursor now
+	if tab.note = saved; feed(t, a, "r") != false || len(tab.added) != 0 || tab.note != (ui.Note{}) { // the first one, with done in it, under the cursor now
 		t.Fatal("r on a row added takes it out")
 	}
 	feed(t, a, "gg")
 	if feed(t, a, "dd"); !tab.deleted["1"] || !a.grid(a.focused(), tab).Deleted[0] || tab.changes() != 1 {
 		t.Fatalf("dd: %v", tab.deleted)
 	}
-	if feed(t, a, "dd"); len(tab.deleted) != 0 {
+	if feed(t, a, "li"); tab.cell != nil {
+		t.Fatal("a row marked is not edited")
+	}
+	if tab.note = saved; feed(t, a, "dd") != false || len(tab.deleted) != 0 || tab.note != (ui.Note{}) {
 		t.Fatal("dd again unmarks")
 	}
-	if feed(t, a, "ddr"); len(tab.deleted) != 0 {
+	feed(t, a, "dd")
+	if tab.note = saved; feed(t, a, "r") != false || len(tab.deleted) != 0 || tab.note != (ui.Note{}) {
 		t.Fatal("r unmarks")
 	}
 	tab.cols.PK = nil
@@ -825,10 +927,11 @@ func TestRowAddDelete(t *testing.T) {
 }
 
 // A row added stays on its page, under its row; one past the last page or
-// past its page's rows goes at the last page's end (§10.6).
+// past its page's rows, a LIMIT cut since or not, goes at the last page's
+// end (§10.6).
 func TestRowAddedPlace(t *testing.T) {
 	tab := &dataTab{}
-	tab.page.Rows = make([][]db.Val, 3)
+	tab.page.Rows, tab.shown.limit = make([][]db.Val, 3), 3
 	on := &newRow{page: 0, after: 1}
 	past := &newRow{page: 4, after: 0}
 	tab.added = []*newRow{on, past}
@@ -844,11 +947,38 @@ func TestRowAddedPlace(t *testing.T) {
 	if rows := tab.shownRows(); len(rows) != 4 || rows[3].add != past {
 		t.Errorf("page 2, the last: %+v", rows)
 	}
+	early := &newRow{page: 0, after: 303} // o under row 304 at LIMIT 500, and then LIMIT 3
+	tab.added = append(tab.added, early)
+	if rows := tab.shownRows(); len(rows) != 5 || rows[4].add != early {
+		t.Errorf("a page before's, past its rows now: %+v", rows)
+	}
+}
+
+// Rows added are inserted in the order they show, whatever order they
+// were added in; while a save is out, one it inserts is not edited, or
+// what is typed would go with the row once it is saved (§10.3).
+func TestSaveRowsAdded(t *testing.T) {
+	a := wide(160, 45)
+	tab := loadOrders(t, a, 3)
+	d := &tagDB{}
+	a.sess.Main = db.NewWorker(d)
+	feed(t, a, "jjolli5<Esc>ggolli6<Esc>") // under row 3, then under row 1
+	if tab.added[0].after != 0 {
+		t.Errorf("kept in the order added, not as they show: %+v", tab.added)
+	}
+	_, cmd := a.Update(teaKey("<C-s>"))
+	if feed(t, a, "i"); tab.cell != nil {
+		t.Error("a row added edited while it is being inserted")
+	}
+	a.Update(cmd())
+	if len(d.sqls) != 4 || !strings.Contains(d.sqls[1], "[{6 false}]") || !strings.Contains(d.sqls[2], "[{5 false}]") {
+		t.Errorf("sent:\n%s", strings.Join(d.sqls, "\n"))
+	}
 }
 
 // C-s writes the deletes, then the updates, then the inserts, a row
 // marked losing its changes; saved, all go. A failure names the row, a
-// row added by its place among them (§10.6).
+// row added by its place among them, or says it went in as none (§10.6).
 func TestSaveRows(t *testing.T) {
 	a := wide(160, 45)
 	tab := loadOrders(t, a, 3)
@@ -880,11 +1010,16 @@ func TestSaveRows(t *testing.T) {
 	if a.Update(cmd()); tab.bar == nil || tab.bar.First.Head != "[23502] 新增的第 1 行：" || tab.changes() != 1 {
 		t.Fatalf("an insert fails: %+v", tab.bar)
 	}
+	d.err = nil // INSERT 0 0: a BEFORE trigger's NULL
+	_, cmd = a.Update(teaKey("<C-s>"))
+	if a.Update(cmd()); tab.bar == nil || tab.bar.First != (ui.Note{Head: "新增的第 1 行", Mid: "没有插入", Tail: "，已回滚"}) {
+		t.Fatalf("not inserted: %+v", tab.bar)
+	}
 	d.fail, d.err = "delete", nil
 	feed(t, a, "ggdd")
 	_, cmd = a.Update(teaKey("<C-s>"))
 	a.Update(cmd())
-	if b := tab.bar; b == nil || b.First.Head != "id = 1 的" || b.First.Mid != "行不存在" || tab.failed != "1" {
+	if b := tab.bar; b == nil || b.First.Head != "id = 1 的" || b.First.Mid != "行不存在" || *tab.failed != "1" {
 		t.Errorf("a delete gone: %+v", b)
 	}
 }

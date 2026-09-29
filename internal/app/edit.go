@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math/big"
 	"regexp"
 	"slices"
 	"strconv"
@@ -72,14 +73,6 @@ type newRow struct {
 	cells       map[string]edit
 }
 
-// cellsOf is r's cells set, none for no row.
-func (r *newRow) cellsOf() map[string]edit {
-	if r == nil {
-		return nil
-	}
-	return r.cells
-}
-
 // shownRow is a row the grid shows: the page's row rec, or one added.
 type shownRow struct {
 	rec int // -1 for one added
@@ -88,15 +81,15 @@ type shownRow struct {
 
 // shownRows is the grid's rows: the page's, each followed by the rows
 // added under it. One whose page is past the last or whose row is past
-// its page's goes at the last page's end, so none is out of sight
-// (§10.6).
+// its page's, a page before's under a LIMIT since cut, goes at the last
+// page's end, so none is out of sight (§10.6).
 func (t *dataTab) shownRows() []shownRow {
 	n, p := len(t.page.Rows), t.shown.pageNo
 	under := func(after int) (out []shownRow) {
 		for _, r := range t.added {
 			switch {
 			case r.page == p && r.after < n && r.after == after:
-			case after == n-1 && !t.next && (r.page > p || r.page == p && r.after >= n): // the last page's end
+			case after == n-1 && !t.next && (r.page > p || r.page == p && r.after >= n || r.page < p && r.after >= t.shown.limit): // the last page's end
 			default:
 				continue
 			}
@@ -146,7 +139,7 @@ func (t *dataTab) put(add *newRow, k editKey, e edit) {
 		t.setEdit(k, e)
 		return
 	}
-	t.note, t.failed = ui.Note{}, ""
+	t.note, t.failed = ui.Note{}, nil
 	if add.cells == nil {
 		add.cells = map[string]edit{}
 	}
@@ -168,7 +161,7 @@ func (a *App) editCell(pasted *string) tea.Cmd {
 		return nil
 	}
 	sr, key, ok := t.cursor()
-	if !ok {
+	if !ok || !t.editable(sr, key) {
 		return nil
 	}
 	if t.cols.Key() == nil {
@@ -180,9 +173,11 @@ func (a *App) editCell(pasted *string) tea.Cmd {
 		c.orig = t.page.Rows[sr.rec][field]
 	}
 	cur := c.orig
-	if e, ok := t.edits[c.key]; ok && sr.add == nil {
-		cur = e.val
-	} else if e, ok := sr.add.cellsOf()[c.key.col]; ok {
+	e, ok := t.edits[c.key]
+	if sr.add != nil {
+		e, ok = sr.add.cells[c.key.col]
+	}
+	if ok {
 		cur = e.val
 	}
 	if !cur.Null { // a NULL or DEFAULT starts empty
@@ -194,6 +189,17 @@ func (a *App) editCell(pasted *string) tea.Cmd {
 	}
 	t.typing, t.cell = "cell", c
 	return nil
+}
+
+// editable reports whether row sr, of row key key, takes changes: not one
+// marked for deletion, with no toast, r taking the mark back first
+// (§10.6); nor one added while a save inserting it is out, which would
+// lose them (§10.3).
+func (t *dataTab) editable(sr shownRow, key string) bool {
+	if sr.add != nil {
+		return !t.saving
+	}
+	return !t.deleted[key]
 }
 
 // commitCell ends the cell's edit: what was typed is its change, none when
@@ -291,7 +297,7 @@ func (a *App) setSpecial(def bool) {
 	sr, key, ok := t.cursor()
 	field := t.fieldAt(t.col)
 	name := t.page.Cols[field].Name
-	if col := t.column(name); !ok || def && col.Default == "" || !def && col.NotNull {
+	if col := t.column(name); !ok || !t.editable(sr, key) || def && col.Default == "" || !def && col.NotNull {
 		return
 	}
 	if t.cell != nil {
@@ -329,11 +335,30 @@ func (t *dataTab) moveSeg(d int) {
 }
 
 // drawCellMenu draws what a cell being edited offers under its edit, or
-// over it (§10.2): a time's parts and options in a row, or a list.
+// over it (§10.2): a time's parts and options in a row, or a list. A hint
+// goes right at the edit, the menu past it: the two placed as one, so
+// neither leaves the screen (§10.7).
 func (a *App) drawCellMenu(f *ui.Frame, p *Pane, t *dataTab) {
 	os := t.options()
 	at := a.grid(p, t).EditRect(gridRect(a.layout()[p.ID], t)).Min
-	var box uv.Rectangle
+	h := ui.CellHint{Text: t.cellHint()}
+	extra := 0 // the hint's rows
+	if h.Text != "" {
+		extra = ui.CellHintRows
+	}
+	hb, _ := ui.CompleteBox(a.window(), at, h.Width(), 1) // a hint alone
+	// place is where a menu w wide with n rows goes, and how many show
+	place := func(w, n int) (uv.Rectangle, int) {
+		box, rows := ui.CompleteBox(a.window(), at, w, n+extra)
+		if box.Min.Y > at.Y { // down: the hint on top
+			hb.Min.Y, box.Min.Y = box.Min.Y, box.Min.Y+extra
+		} else {
+			box.Max.Y -= extra
+			hb.Min.Y = box.Max.Y
+		}
+		hb.Max.Y = hb.Min.Y + extra
+		return box, max(rows-extra, 0)
+	}
 	var draw func()
 	switch k := t.cellKind(); {
 	case t.cell.folded:
@@ -342,8 +367,8 @@ func (a *App) drawCellMenu(f *ui.Frame, p *Pane, t *dataTab) {
 		for _, o := range os {
 			v.Options = append(v.Options, o.label)
 		}
-		w, h := v.Size()
-		box, _ = ui.CompleteBox(a.window(), at, w, h-2)
+		w, ht := v.Size()
+		box, _ := place(w, ht-2)
 		draw = func() { v.Draw(f, box) }
 	case len(os) > 0:
 		v := ui.Complete{Sel: t.cell.sel}
@@ -352,23 +377,11 @@ func (a *App) drawCellMenu(f *ui.Frame, p *Pane, t *dataTab) {
 			v.Items = append(v.Items, ui.CompleteItem{Text: o.label, Pos: o.pos, Note: o.note})
 			w = max(w, ui.Width(o.label+"  "+o.note)+4)
 		}
-		var rows int
-		box, rows = ui.CompleteBox(a.window(), at, w, len(v.Items))
+		box, rows := place(w, len(v.Items))
 		v.Top = max(0, v.Sel-rows+1)
 		draw = func() { v.Draw(f, box, rows) }
 	}
-	if hint := t.cellHint(); hint != "" { // right at the edit, the menu past it, down or up (§10.7)
-		h := ui.CellHint{Text: hint}
-		hb, _ := ui.CompleteBox(a.window(), at, h.Width(), 1)
-		if draw != nil {
-			d := ui.CellHintRows
-			if box.Min.Y < at.Y {
-				hb.Min.Y, d = at.Y-d, -d
-			} else {
-				hb.Min.Y = at.Y + 1
-			}
-			hb.Max.Y, box = hb.Min.Y+ui.CellHintRows, box.Add(uv.Pos(0, d))
-		}
+	if h.Text != "" {
 		h.Draw(f, hb)
 	}
 	if draw != nil {
@@ -377,13 +390,19 @@ func (a *App) drawCellMenu(f *ui.Frame, p *Pane, t *dataTab) {
 }
 
 // cellHint is what is wrong with the text of the cell being edited, if
-// anything (§10.7).
-func (t *dataTab) cellHint() string { return cellCheck(t.typeOf(t.cell.key.col), t.cell.in.Text) }
+// anything (§10.7). Text as the edit started is let be: no change, and
+// maybe PG's own output, which cellCheck may not take (1900's +08:05:43).
+func (t *dataTab) cellHint() string {
+	if c := t.cell; c.in.Text != c.start {
+		return cellCheck(t.typeOf(c.key.col), c.in.Text)
+	}
+	return ""
+}
 
 // setEdit makes e cell k's change; one giving back what was loaded is
 // none. A change starts over what the last save said (§10.3).
 func (t *dataTab) setEdit(k editKey, e edit) {
-	t.note, t.failed = ui.Note{}, ""
+	t.note, t.failed = ui.Note{}, nil
 	if !e.def && e.val == e.orig {
 		delete(t.edits, k)
 		return
@@ -405,10 +424,8 @@ func (a *App) revertCell() {
 	sr, key, ok := t.cursor()
 	switch k := (editKey{key, t.page.Cols[t.fieldAt(t.col)].Name}); {
 	case !ok:
-	case sr.add != nil:
-		t.dropAdded(sr.add)
-	case t.deleted[key]:
-		delete(t.deleted, key)
+	case sr.add != nil || t.deleted[key]: // as dd
+		a.deleteRow()
 	default:
 		if e, ok := t.edits[k]; ok {
 			t.setEdit(k, edit{val: e.orig, orig: e.orig})
@@ -433,18 +450,22 @@ func (a *App) addRow() tea.Cmd {
 		return a.readOnly(t)
 	}
 	r := &newRow{page: t.shown.pageNo, after: -1}
-	at := len(t.added)
-	if sr, _, ok := t.cursor(); ok && sr.add != nil { // right after it
+	sr, _, ok := t.cursor()
+	if ok && sr.add != nil {
 		r.page, r.after = sr.add.page, sr.add.after
-		at = slices.Index(t.added, sr.add) + 1
-	} else if ok { // before those added under it before
+	} else if ok {
 		r.after = sr.rec
-		if i := slices.IndexFunc(t.added, func(o *newRow) bool { return o.page == r.page && o.after == r.after }); i >= 0 {
-			at = i
-		}
+	}
+	// added keeps the order they show in, (page, after), a save's too:
+	// right after the cursor's, or before those added under its row before
+	at := slices.IndexFunc(t.added, func(o *newRow) bool { return cmp.Or(cmp.Compare(o.page, r.page), cmp.Compare(o.after, r.after)) >= 0 })
+	if ok && sr.add != nil {
+		at = slices.Index(t.added, sr.add) + 1
+	} else if at < 0 {
+		at = len(t.added)
 	}
 	t.added = slices.Insert(t.added, at, r)
-	t.note, t.failed = ui.Note{}, ""
+	t.note, t.failed = ui.Note{}, nil
 	t.row = slices.IndexFunc(t.shownRows(), func(sr shownRow) bool { return sr.add == r })
 	t.col = 0
 	a.gridMove(func(r, c, _, _ int) (int, int) { return r, c }) // into view
@@ -461,8 +482,12 @@ func (a *App) deleteRow() tea.Cmd {
 	if t.cols.Key() == nil {
 		return a.readOnly(t)
 	}
-	switch sr, key, ok := t.cursor(); {
-	case !ok:
+	sr, key, ok := t.cursor()
+	if !ok {
+		return nil
+	}
+	t.note, t.failed = ui.Note{}, nil // a change starts over what the last save said (§10.3)
+	switch {
 	case sr.add != nil:
 		t.dropAdded(sr.add)
 	case t.deleted[key]:
@@ -472,7 +497,6 @@ func (a *App) deleteRow() tea.Cmd {
 			t.deleted = map[string]bool{}
 		}
 		t.deleted[key] = true
-		t.note, t.failed = ui.Note{}, ""
 	}
 	return nil
 }
@@ -543,7 +567,6 @@ func (a *App) save() tea.Cmd {
 		m.rows = append(m.rows, r)
 	}
 	ch.Updates = m.rows
-	slices.SortStableFunc(m.adds, func(x, y *newRow) int { return cmp.Or(cmp.Compare(x.page, y.page), cmp.Compare(x.after, y.after)) })
 	for _, r := range m.adds {
 		var cols []postgres.Change
 		for _, c := range t.cols.Cols {
@@ -581,14 +604,15 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 	switch {
 	case errors.Is(m.err, context.Canceled):
 		t.note = ui.Note{Head: "已取消，已回滚", Fg: a.theme.Warn}
-	case m.err != nil:
+	case m.err != nil: // on the error bar: the query bar keeps what went well alone (§7.8「错误栏」)
+		t.note = ui.Note{}
 		head := ""
 		named := func(key string) string {
 			var named []string
 			for i, v := range strings.Split(key, "\x00") {
 				named = append(named, t.cols.Key()[i]+" = "+v)
 			}
-			if t.failed = key; errors.Is(m.err, postgres.ErrStale) || errors.Is(m.err, postgres.ErrGone) {
+			if t.failed = &key; errors.Is(m.err, postgres.ErrStale) || errors.Is(m.err, postgres.ErrGone) {
 				return strings.Join(named, ", ") + " 的"
 			}
 			return strings.Join(named, ", ") + "："
@@ -600,7 +624,10 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 		case i < len(m.dels)+len(m.rows):
 			head = named(strings.Join(m.rows[i-len(m.dels)].Key, "\x00"))
 		default:
-			head = fmt.Sprintf("新增的第 %d 行：", i-len(m.dels)-len(m.rows)+1)
+			head = fmt.Sprintf("新增的第 %d 行", i-len(m.dels)-len(m.rows)+1)
+			if !errors.Is(m.err, postgres.ErrNotInserted) { // ours reads on: 新增的第 2 行没有插入
+				head += "："
+			}
 		}
 		t.bar = newErrorBar("save", postgres.ServerErrorOf(m.err), head, "，已回滚")
 	default:
@@ -618,7 +645,7 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 			delete(t.deleted, k)
 		}
 		t.added = slices.DeleteFunc(t.added, func(r *newRow) bool { return slices.Contains(m.adds, r) })
-		if p := a.paneShowing(t); closing && t.changes() == 0 && p != nil { // :wq, and nothing changed since
+		if p := a.paneShowing(t); closing && t.changes() == 0 && t.cell == nil && p != nil { // :wq, and nothing changed since, nor being typed
 			a.closeTab(p)
 			return nil
 		}
@@ -690,38 +717,50 @@ var (
 // unchecked. Valid is what PG 17's input functions take, spaces around
 // it and all; the database has the last word.
 func cellCheck(typ, text string) string {
-	s := strings.TrimSpace(text)
+	s := strings.Trim(text, " \t\n\v\f\r") // C's isspace, as PG trims: not U+00A0 nor U+3000
 	switch t := baseType(typ); {
-	case text == "":
 	case intBits[t] > 0:
 		n := strings.TrimLeft(s, "+-")
 		if len(s)-len(n) > 1 || !pgInteger.MatchString(n) {
 			return "不是有效的整数"
 		}
-		base, n := 10, strings.ReplaceAll(n, "_", "")
+		sign, base, n := s[:len(s)-len(n)], 10, strings.ReplaceAll(n, "_", "")
 		if len(n) > 1 && strings.ContainsAny(n[1:2], "xXoObB") { // 010 is ten, as in PG: base 0 only past a prefix
 			base = 0
 		}
-		if _, err := strconv.ParseInt(s[:len(s)-len(strings.TrimLeft(s, "+-"))]+n, base, intBits[t]); err != nil {
+		if _, err := strconv.ParseInt(sign+n, base, intBits[t]); err != nil {
 			return fmt.Sprintf("超出 int%d 的范围", intBits[t]/8)
 		}
 	case t == "numeric", t == "real", t == "double precision":
 		n := strings.TrimLeft(s, "+-")
-		switch w := strings.ToLower(n); {
-		case len(s)-len(n) > 1:
+		w := strings.ToLower(n)
+		special := w == "nan" || w == "inf" || w == "infinity"
+		switch sign := s[:len(s)-len(n)]; {
+		case len(sign) > 1, t == "numeric" && w == "nan" && sign != "": // numeric's NaN takes no sign, a float's may
 			return "不是有效的数字"
-		case w == "nan" || w == "inf" || w == "infinity":
 		case t == "numeric":
-			if !pgDecimal.MatchString(n) && !pgInteger.MatchString(n) {
+			var p, sc int
+			switch k, _ := fmt.Sscanf(typ, "numeric(%d,%d)", &p, &sc); {
+			case !special && !pgDecimal.MatchString(n) && !pgInteger.MatchString(n):
 				return "不是有效的数字"
+			case k == 2 && w != "nan" && (special || !numericFits(n, p, sc)):
+				return "超出 " + typ + " 的范围"
 			}
-		default:
-			// ponytail: Go's ParseFloat, not strtod: 0x10 is refused and
-			// 1e-400 taken, PG the other way round
+		case special:
+		default: // strtod's: ParseFloat's, but for a hex float's exponent, _ and underflow
+			f := s
+			mant, _, _ := strings.Cut(w, "e")
+			if strings.HasPrefix(w, "0x") { // e a digit, p its exponent, which strtod doesn't need
+				var exp bool
+				if mant, _, exp = strings.Cut(w[2:], "p"); !exp {
+					f += "p0"
+				}
+			}
 			bits := map[string]int{"real": 32, "double precision": 64}[t]
-			if _, err := strconv.ParseFloat(s, bits); errors.Is(err, strconv.ErrRange) {
+			switch v, err := strconv.ParseFloat(f, bits); {
+			case errors.Is(err, strconv.ErrRange), err == nil && v == 0 && strings.Trim(mant, "0.") != "": // so small it is 0: PG's out of range too
 				return fmt.Sprintf("超出 float%d 的范围", bits/8)
-			} else if err != nil || strings.Contains(s, "_") { // Go's takes 1_000, strtod doesn't
+			case err != nil, strings.Contains(s, "_"): // ParseFloat takes 1_000, strtod doesn't
 				return "不是有效的数字"
 			}
 		}
@@ -747,26 +786,83 @@ func cellCheck(typ, text string) string {
 		if k == ui.Time || k == ui.TimeTZ {
 			words = []string{"now", "allballs"}
 		}
-		if !slices.Contains(words, strings.ToLower(s)) && !isoTime[k].MatchString(s) {
+		if !slices.Contains(words, strings.ToLower(s)) && !isoTimeOK(isoTime[k], s) {
 			return "不是有效的日期 / 时间"
 		}
 	}
 	return ""
 }
 
+// numericFits reports whether numeric text n, with no sign, fits
+// numeric(p,s): rounded to s places it is under 10^(p-s), its digits
+// from the first to the s-th past the point p at most.
+func numericFits(n string, p, s int) bool {
+	n = strings.ToLower(strings.ReplaceAll(n, "_", ""))
+	if len(n) > 1 && strings.ContainsAny(n[1:2], "xob") { // a whole number in another base
+		x, _ := new(big.Int).SetString(n, 0)
+		n = x.String()
+	}
+	mant, exp, _ := strings.Cut(n, "e")
+	e, _ := strconv.Atoi(exp) // past int's range, its end: clamped below
+	whole, frac, _ := strings.Cut(mant, ".")
+	digits := strings.TrimLeft(whole+frac, "0")
+	keep := len(digits) - len(frac) + max(min(e, 1<<20), -1<<20) + s // the rounded value's digits
+	switch {
+	case digits == "" || keep < 0: // 0, or rounded to it
+		return true
+	case keep < len(digits) && digits[keep] >= '5' && strings.Trim(digits[:keep], "9") == "": // rounded up a digit: 9.995 to 10.00
+		keep++
+	}
+	return keep <= p
+}
+
 // isoTime is what cellCheck takes as each kind's text besides its words:
 // ISO dates and times, wider than the parts a time steps (§10.2), a zone
-// on any, which PG drops for a type without one.
+// on any, which PG drops for a type without one; isoTimeOK checks the
+// fields' ranges.
 // ponytail: PG takes much more (2026/09/20, month names); add them when
 // someone is kept from one
 var isoTime = func() map[ui.TimeKind]*regexp.Regexp {
-	date, tm, zone := `\d{4,}-\d{1,2}-\d{1,2}`, `\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?`, `( ?([+-]\d{1,2}(:?\d{2})?|[zZ]))?`
-	at := `^` + date + `([ Tt]` + tm + zone + `)?( (?i:bc))?$`
+	date := `(?P<y>\d{4,})-(?P<mo>\d{1,2})-(?P<d>\d{1,2})`
+	tm := `(?P<h>\d{1,2}):(?P<mi>\d{2})(:(?P<s>\d{2})(?P<f>\.\d+)?)?`
+	zone := `( ?([+-](?P<zh>\d{1,2})(:?(?P<zm>\d{2})(:(?P<zsec>\d{2}))?)?|[zZ]))?` // +08:05:43 as PG puts 1900 in Shanghai
+	bc := `( (?P<bc>(?i:bc)))?`
+	at := `^` + date + `([ Tt]` + tm + zone + `)?` + bc + `$`
 	return map[ui.TimeKind]*regexp.Regexp{
-		ui.Date: regexp.MustCompile(`^` + date + `( (?i:bc))?$`), ui.Timestamp: regexp.MustCompile(at), ui.TimestampTZ: regexp.MustCompile(at),
+		ui.Date: regexp.MustCompile(`^` + date + bc + `$`), ui.Timestamp: regexp.MustCompile(at), ui.TimestampTZ: regexp.MustCompile(at),
 		ui.Time: regexp.MustCompile(`^` + tm + zone + `$`), ui.TimeTZ: regexp.MustCompile(`^` + tm + zone + `$`),
 	}
 }()
+
+// isoTimeOK reports whether s matches re with its fields in range, as PG
+// checks them: from year 1, the month's days in the proleptic Gregorian
+// calendar (1 BC its year 0, a leap year), 24:00:00 the latest time, a
+// leap second, a zone within 15:59:59.
+func isoTimeOK(re *regexp.Regexp, s string) bool {
+	m := re.FindStringSubmatch(s)
+	if m == nil {
+		return false
+	}
+	field := func(name string) string {
+		if i := re.SubexpIndex(name); i > 0 {
+			return m[i]
+		}
+		return ""
+	}
+	num := func(name string) int { n, _ := strconv.Atoi(field(name)); return n } // "" is 0; past int's range, its end
+	if y, mo, d := num("y"), num("mo"), num("d"); field("y") != "" {
+		ay := y // the astronomical year: 1 BC is 0
+		if field("bc") != "" {
+			ay = 1 - y
+		}
+		if y < 1 || mo < 1 || mo > 12 || d < 1 || d > time.Date(ay, time.Month(mo+1), 0, 0, 0, 0, 0, time.UTC).Day() {
+			return false
+		}
+	}
+	h, mi, sec := num("h"), num("mi"), num("s")
+	return h <= 24 && mi <= 59 && sec <= 60 && (h < 24 || mi == 0 && sec == 0 && strings.Trim(field("f"), ".0") == "") &&
+		num("zh") <= 15 && num("zm") <= 59 && num("zsec") <= 59
+}
 
 // validUUID is uuid_in's rule: 32 hex digits, a - after any four of them
 // but the last, in braces or not; no spaces.

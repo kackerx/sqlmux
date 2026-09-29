@@ -502,7 +502,8 @@ func TestCustomLimit(t *testing.T) {
 // The tool buttons: data, query, view (§7.8「工具按钮」). Auto refresh picks
 // an interval from its dropdown and shows it lit; stop lights while a
 // request of the tab's is out and runs grid.stop. An [icon] color is the
-// lit one: stop idle stays dim.
+// lit one: stop idle stays dim. With the button given way, auto refresh's
+// dropdown opens at the query bar's right end.
 func TestToolButtons(t *testing.T) {
 	a, tab, _ := withRecorder(t, 160, 45)
 	a.removePane(2)
@@ -531,10 +532,16 @@ func TestToolButtons(t *testing.T) {
 	if auto := a.toolButtons(tab)[1][1]; tab.auto != 2*time.Second || cmd == nil || auto.Tail != "2s" || auto.Fg != a.theme.Warn || auto.Plain {
 		t.Errorf("2s: auto %v, button %+v", tab.auto, auto)
 	}
+	tab.note = ui.Note{Head: strings.Repeat("x", 150)} // the buttons give way to it
+	a.run("grid.refresh.auto", 0)
+	r := a.layout()[1]
+	if box, _ := a.dropBox(a.dropView(), a.hits); box.Max.X != r.Max.X || box.Min.Y != bodyRect(r).Min.Y+2 {
+		t.Errorf("from the palette, the button given way: at %v, the pane at %v", box, r)
+	}
 }
 
 // Auto refresh fetches the page and the count again, the last save's
-// note kept, only for a tab showing with no changes, no edit and nothing
+// note kept, only for a tab on screen with no changes, no edit and nothing
 // out; else it waits a turn. A new interval, or the tab closed, ends the
 // ticking (§7.8「自动刷新」).
 func TestAutoRefresh(t *testing.T) {
@@ -552,6 +559,11 @@ func TestAutoRefresh(t *testing.T) {
 		t.Errorf("changes: no refresh, the next turn waits: out %d", tab.out)
 	}
 	tab.edits = nil
+	a.win().Zoom = 2
+	if cmd := a.gotAuto(autoMsg{tab, 1}); cmd == nil || tab.out != 0 {
+		t.Errorf("behind a zoomed pane: no refresh, the next turn waits: out %d", tab.out)
+	}
+	a.win().Zoom = 0
 	if a.gotAuto(autoMsg{tab, 0}) != nil {
 		t.Error("an old ticking goes on")
 	}

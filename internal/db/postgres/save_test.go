@@ -209,7 +209,8 @@ func TestSaveInsertsAndDeletes(t *testing.T) {
 }
 
 // One statement failing rolls all back; failed counts deletes, updates,
-// then inserts. A row to delete that is gone is ErrGone (§10.6).
+// then inserts. A row to delete that is gone is ErrGone, one to insert
+// that goes in as none ErrNotInserted (§10.6).
 func TestSaveInsertsAndDeletesRollBack(t *testing.T) {
 	ctx := context.Background()
 	w, q, _ := saver(t)
@@ -231,5 +232,18 @@ func TestSaveInsertsAndDeletesRollBack(t *testing.T) {
 	}
 	if _, err := w.Exec(ctx, "select 1", 0); err != nil {
 		t.Errorf("after: %v", err)
+	}
+	for _, sql := range []string{ // a BEFORE trigger's NULL: INSERT 0 0
+		"create table swallowed (id int primary key)",
+		"create function swallow() returns trigger language plpgsql as 'begin return null; end'",
+		"create trigger swallow before insert on swallowed for each row execute function swallow()",
+	} {
+		if _, err := w.Exec(ctx, sql, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	none := Changes{Inserts: [][]Change{{{Name: "id", Val: text("1")}}}}
+	if failed, err := Save(ctx, w, "public", "swallowed", []string{"id"}, none); !errors.Is(err, ErrNotInserted) || failed != 0 {
+		t.Errorf("not inserted: statement %d, %v", failed, err)
 	}
 }
