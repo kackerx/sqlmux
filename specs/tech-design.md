@@ -866,7 +866,7 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 | 二进制体积 | 增加约 8MB（spike 9.6MB，空程序 1.6MB） |
 | 正确性 | PG 的 `$$…$$`、`E'…'`、`::` 转换、`filter (where …)`、`$1` 参数、注释，MySQL 的反引号、`#` 注释、`limit 5, 10` 均输出正确 |
 
-**兼容处理**：goja 的正则引擎不认识长 Unicode 属性名。加载前把 `\p{Alphabetic}`、`\p{Mark}`、`\p{Decimal_Number}` 替换为 `\p{L}`、`\p{M}`、`\p{Nd}`，共三处；对 SQL 标识符而言，二者的差别可以忽略。
+**兼容处理**：goja 的正则引擎不认识长 Unicode 属性名。加载前把 `\p{Alphabetic}`、`\p{Mark}`、`\p{Decimal_Number}` 替换为 `\p{L}`、`\p{M}`、`\p{Nd}`。sql-formatter 15.9.0 里共 5 处：`\p{Alphabetic}` 3 处（15.9.0 的数字正则里多了一个前瞻 `(?![\w\p{Alphabetic}])`，用了两次），`\p{Mark}`、`\p{Decimal_Number}` 各 1 处；测试按名字逐个断言次数，升级后次数一变就失败；对 SQL 标识符而言，二者的差别可以忽略。
 
 **运行方式**：
 

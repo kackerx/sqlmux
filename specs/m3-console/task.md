@@ -222,10 +222,11 @@
 §9.5 的全部内容，另加：
 
 - [ ] sql-formatter 用 15.9.0，文件放在 `internal/sqlkit/sql-formatter.min.js`，旁边放它的 MIT LICENSE；spike 的几项检查在 golden 里重跑。
-- [ ] 范围：NORMAL 下是当前语句，不含 `;`，`;` 留在原处；VISUAL 下是选区。整次格式化算一个撤销步。
+- [ ] 范围：NORMAL 下是当前语句，不含 `;`，`;` 留在原处；VISUAL 下字符选区就是选中的文字，V-LINE、V-BLOCK 是覆盖到的整行，格式化后退出 VISUAL。整次格式化算一个撤销步，结果和原文相同时不记撤销步。格式化后光标照 vim 的 `gq` 停在格式化文字的最后一行（行首第一个非空白字符）。
+- [ ] `keyword_case` 只接受 `lower` / `upper` / `preserve`，其他值启动报错；`formatprg = ""` 用内置的。失败时 toast「格式化失败：<错误>」。
 - [ ] 在 Cmd 里异步执行，回来时缓冲区已经变过就丢弃结果。
 - [ ] 选项：`language` 为 postgresql，`keywordCase` 取 `keyword_case`（默认 lower），`tabWidth` 取 `tab_width`；配置加 `keyword_case`、`formatprg`。
-- [ ] Unicode 属性名的替换断言恰好替换 3 处，升级打包文件后次数一变测试就失败。
+- [ ] Unicode 属性名的替换按名字逐个断言次数（15.9.0 为 Alphabetic 3、Mark 1、Decimal_Number 1，§9.5），升级打包文件后次数一变测试就失败。
 - [ ] `formatprg`：`sh -c`，stdin 输入、stdout 输出，5s 超时；失败时 toast 显示 stderr 的第一行，缓冲区不变。
 
 **验收**
