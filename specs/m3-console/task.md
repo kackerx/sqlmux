@@ -664,8 +664,8 @@
 - **涉及**：`internal/editor`（寄存器）、`internal/app`（剪贴板）
 
 **开发**
-- [ ] 编辑器支持 `"+` 和 `"*`（等同）寄存器，读写系统剪贴板：`"+y{移动}`、`"+yy`、VISUAL 下 `"+y`、`"+p` / `"+P`、`"+d`、`"+x`，照 vim 的规则。其余具名寄存器照旧不做（§11）。nvim 差分测试里不测这两个寄存器。
-- [ ] 无名寄存器不再写系统剪贴板（同 vim 默认的 `clipboard=`，否则 `Y` 和 `yy` 没区别）；表格的 `yy` / `yl` 照旧写。`"+p` 用 OSC 52 查询读取（tea.ReadClipboard），终端不回应就什么都不做，没做 pbpaste / xclip 后备，用 `ponytail:` 标出；tmux 是否回应开工时实测。
+- [ ] 编辑器支持 `"+` 和 `"*`（等同）寄存器，读写系统剪贴板：`"+y{移动}`、`"+yy`、VISUAL 下 `"+y`、`"+p` / `"+P`、`"+d`、`"+x`，照 vim 的规则；VISUAL 下的 `"+p` 不做（VISUAL 的 `p` 本来就不做，§11）。其余具名寄存器照旧不做（§11）。nvim 差分测试里不测这两个寄存器。
+- [ ] 无名寄存器不再写系统剪贴板（同 vim 默认的 `clipboard=`，否则 `Y` 和 `yy` 没区别）；表格的 `yy` / `yl` 照旧写。`"+p` 用 OSC 52 查询读取（tea.ReadClipboard），终端不回应就什么都不做，没做 pbpaste / xclip 后备，用 `ponytail:` 标出；tmux 实测（3.7b）：`set-clipboard on` 时回最新的 paste buffer，默认的 `external` 不回。
 - [ ] 通过后决策者在用户的 config.toml 里加 `[map.console.normal] Y = '"+yy'` 和 `[map.console.visual] Y = '"+y'`（用户要求用 `Y` 复制到系统剪贴板）。
 
 **验收**
@@ -687,7 +687,10 @@
   - NORMAL 下 `/` 打开历史 / 收藏下拉（这里不需要搜索）。
   - 模式块照 console 显示 NORMAL / INSERT。
   - `C-c` 照旧等同 `esc`（它也是取消查询、连按退出的键），清空条件用 NORMAL 下的 `dd` / `cc`，或 INSERT 下的 `C-u`。
-- [ ] WHERE 的 NORMAL 用哪个作用域名、撤销历史按什么范围记，开工时由 worker 提议。F6.6 关掉 vim 模式后，WHERE 回到现在的普通输入框。
+- [ ] 作用域 `[keys.wherenormal]`（WHERE 在 NORMAL 下生效，§6.4）：`<CR>` = `where.run`「执行」、`/` = `where.history`、`<Esc>` = `where.leave`「回到表格」，没绑的交给编辑器；`[keys.normal]` 的键（`C-hjkl`、leader、`gt`、`?`）照常生效，同 console 的 NORMAL，切走焦点照现在的规则放弃这次编辑。用户映射只用 `[map.normal]`。INSERT 下照旧是 `input` 作用域。
+- [ ] 撤销历史：每次从表格进入 WHERE 新开一段，每次 INSERT 一个撤销步（同 console）；`↵` 或回表格就丢掉。
+- [ ] 单行的规则：INSERT 下 `↵` 执行不换行，粘贴里的换行照旧换成空格；`yy` 之后 `p` / `P` 把整行当字符放在光标后 / 前；`:` 不做事；VISUAL（`v` 后 `d` / `c` / `y`）能用，模式块显示 VISUAL；从表格点进来是 INSERT，已在 NORMAL 时点击只移光标；状态栏两种模式都显示「-- editing WHERE --」。
+- [ ] 直接替换 WHERE 现在的 ui.Input 路径，不为 F6.6 预留；F6.6 设计时再定无模式的用法。
 
 **验收**
 - [ ] e2e：`/` 进 WHERE 输入、`esc` 到 NORMAL、`dd` 清空、`i` 输入新条件、`↵` 执行；NORMAL 下 `ciw` 改一个词；NORMAL 下 `/` 打开历史下拉；NORMAL 下 `esc` 回表格，没执行的改动丢掉。
