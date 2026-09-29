@@ -247,6 +247,7 @@ func init() {
 		"grid.revert":       {Title: "撤回这一格的修改", Run: do(func(a *App, _ Args) { a.revertCell() })},
 		"grid.row.add":      {Title: "新增一行", Run: func(a *App, _ Args) tea.Cmd { return a.addRow() }},
 		"grid.row.delete":   {Title: "标记 / 取消删除这一行", Run: func(a *App, _ Args) tea.Cmd { return a.deleteRow() }},
+		"result.toggle":     {Title: "显示 / 隐藏结果区", Run: do(func(a *App, _ Args) { a.toggleResult() })},
 		"grid.refresh.auto": {Title: "自动刷新", Run: do(func(a *App, _ Args) { a.openDrop(dropAuto) })},
 		"grid.stop": {Title: "停止", Run: do(func(a *App, _ Args) { // the query bar's stop: what C-c cancels (§8.3)
 			a.sess.Meta.Cancel()

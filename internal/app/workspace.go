@@ -80,6 +80,8 @@ type Window struct {
 
 	focusTick int
 	focusedAt map[int]int // pane ID → focusTick when it last got focus
+
+	resultHidden bool // SPC r took the result area out of the layout, its tabs kept (§11)
 }
 
 // focus moves focus to pane id, remembering when: moving by direction
@@ -361,7 +363,7 @@ func (a *App) closeTab(p *Pane) {
 // height kept for the next time (§11).
 func (a *App) removePane(id int) {
 	win := a.win()
-	if res := win.Result; res != nil && id != res.ID && len(win.Root.Leaves()) == 2 {
+	if res := win.Result; res != nil && id != res.ID && len(win.Root.Leaves()) == 2 && !win.resultHidden {
 		return
 	}
 	if res := win.Result; res != nil && id == res.ID {

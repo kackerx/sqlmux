@@ -28,6 +28,7 @@ leader = "<Space>"
 "<Leader>x" = "pane.close"
 "<Leader>q" = "pane.number"
 "<Leader>b" = "tree.toggle"
+"<Leader>r" = "result.toggle"
 "?" = "keyhelp.open" # every pane in NORMAL: a console's VISUAL ? stays vim's (§6.5)
 "<Leader>?" = "keyhelp.open" # anywhere
 "<Esc>" = "pane.error.close" # a console's VISUAL esc stays vim's: no normal scope there (§7.8)

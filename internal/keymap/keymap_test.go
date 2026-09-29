@@ -421,7 +421,7 @@ func TestNext(t *testing.T) {
 	for _, n := range next {
 		keys = append(keys, string(n.Key))
 	}
-	if strings.Join(keys, "") != "y"+"scnpl%\"zxqb?" {
+	if strings.Join(keys, "") != "y"+"scnpl%\"zxqbr?" {
 		t.Errorf("SPC next keys in binding order: %q", strings.Join(keys, ""))
 	}
 	if next[0].RHS == nil || next[0].Table != "map.normal" || next[1].Action != "session.list" || next[1].Table != "keys.normal" {

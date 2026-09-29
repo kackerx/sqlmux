@@ -64,14 +64,55 @@ func resultOf(p *Pane) *resultTab {
 }
 
 // resultPane is window w's result area, made at its bottom when it has
-// none: its old height, or result_height the first time (§11).
+// none: its old height, or result_height the first time (§11). One SPC r
+// hid stays hidden.
 func (a *App) resultPane(w *Window) *Pane {
 	if w.Result == nil {
 		w.lastID++
 		w.Result = &Pane{ID: w.lastID, Tabs: []Tab{{Name: "日志", Result: &resultTab{}}}, Prev: -1}
-		w.Root = &Node{Split: Vert, Ratio: cmp.Or(w.resultRatio, 1-a.resultHeight), A: w.Root, B: leaf(w.Result)}
+		a.putResult(w)
 	}
 	return w.Result
+}
+
+// putResult puts w's result area at its bottom, the old height kept.
+func (a *App) putResult(w *Window) {
+	w.Root = &Node{Split: Vert, Ratio: cmp.Or(w.resultRatio, 1-a.resultHeight), A: w.Root, B: leaf(w.Result)}
+}
+
+// showResult is resultPane, one SPC r hid back as it was: a run shows it.
+func (a *App) showResult(w *Window) *Pane {
+	p := a.resultPane(w)
+	if w.resultHidden {
+		w.resultHidden = false
+		a.putResult(w)
+	}
+	return p
+}
+
+// toggleResult is SPC r (§11): the result area out of the layout, its
+// tabs kept, or back as it was; nothing without one. Hidden with the
+// focus in it, the focus goes back to the pane focused before.
+func (a *App) toggleResult() {
+	switch w := a.win(); {
+	case w.Result == nil:
+	case w.resultHidden:
+		a.showResult(w)
+	default:
+		w.resultRatio, w.Root, w.resultHidden = w.Root.Ratio, w.Root.A, true // it is the root's lower half
+		if w.Zoom == w.Result.ID {
+			w.Zoom = 0
+		}
+		if w.Focus == w.Result.ID {
+			var prev *Pane
+			for _, p := range a.panesByNumber() {
+				if (p != w.Tree || w.TreeOpen) && (prev == nil || a.recent(p.ID, prev.ID)) {
+					prev = p
+				}
+			}
+			w.focus(prev.ID)
+		}
+	}
 }
 
 type (
@@ -152,7 +193,7 @@ func (a *App) runSQL(t *consoleTab, name, sql string, base, ver int) tea.Cmd {
 	a.sess.RunSeq++
 	r := &run{from: t, name: name, sql: sql, base: base, ver: ver, seq: a.sess.RunSeq, start: time.Now(), win: a.win(), stmts: stmts}
 	t.running, t.failed, t.bar = r, -1, nil
-	p := a.resultPane(r.win)
+	p := a.showResult(r.win)
 	at, old := a.placeRun(r, []Tab{{Name: r.label(1), Result: &resultTab{run: r}}})
 	r.prev = old
 	selectTab(p, at)

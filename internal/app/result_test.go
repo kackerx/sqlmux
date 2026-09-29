@@ -411,6 +411,39 @@ func TestResultAreaCloses(t *testing.T) {
 	}
 }
 
+// SPC r hides the result area, its tabs kept and the console taller, and
+// brings it back as it was; nothing before the first run. The focus in it
+// goes back to the pane before. A run finishing hidden stays so; one
+// started shows it (§11).
+func TestResultToggle(t *testing.T) {
+	d := &execDB{res: map[string]db.Result{"select 1": rows(1)}}
+	a, c := inRun(t, d, "select 1")
+	win := a.win()
+	if press(t, a, "<Space>r"); win.Result != nil {
+		t.Fatal("no result area: nothing")
+	}
+	press(t, a, "<CR>")
+	console := a.focused()
+	h := a.layout()[console.ID].Dy()
+	res, ratio := win.Result, win.Root.Ratio
+	win.focus(res.ID)
+	press(t, a, "<Space>r")
+	if _, shown := a.layout()[res.ID]; shown || win.Result != res || len(res.Tabs) != 2 || a.layout()[console.ID].Dy() <= h || a.focused() != console {
+		t.Fatalf("hidden: shown %v, tabs %v, height %d of %d, focus %d", shown, tabNames(res), a.layout()[console.ID].Dy(), h, a.focused().ID)
+	}
+	if press(t, a, "<Space>r"); a.layout()[console.ID].Dy() != h || win.Root.Ratio != ratio || tabNames(res) != "日志 console_1 #1" {
+		t.Fatalf("back: height %d of %d, tabs %v", a.layout()[console.ID].Dy(), h, tabNames(res))
+	}
+	_, cmd := a.Update(teaKey("<CR>"))
+	press(t, a, "<Space>r")
+	if a.Update(runOf(t, cmd)); !win.resultHidden {
+		t.Error("a run finishing hidden shows it")
+	}
+	if press(t, a, "<CR>"); win.resultHidden || c.running != nil {
+		t.Error("a run started shows it")
+	}
+}
+
 // The result area's title as the window narrows: the words go first,
 // then export, transpose, pin, rerun, strictly; close stays longest
 // (§11「工具行」). Then a run's placeholder, and the log tab with an error
