@@ -1,5 +1,5 @@
-│  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7                   │
+│  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7                  │
 │  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7    已保存 1 行 · 3ms │
 │       id = 1：invalid input syntax for type numeric: "abc"，已回滚 │
 │  id = 1：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…，已回滚 │
-│  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7                   │
+│  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7                  │

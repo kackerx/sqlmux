@@ -318,15 +318,21 @@ func TestColType(t *testing.T) {
 }
 
 // The tool buttons at a few widths, auto refresh on and a request out:
-// whole groups give way, view, query, then data (§7.8「工具按钮」).
+// a group on one box, transpose on none; whole groups give way,
+// transpose, auto refresh and stop, + −, then save and refresh. Last, the
+// pointer on refresh lights it alone (§7.8「工具按钮」).
 func TestGoldenToolButtons(t *testing.T) {
 	var rows []string
-	for _, w := range []int{160, 110, 90, 70} {
+	for _, w := range []int{160, 110, 90, 70, 160} {
 		a := wide(w, 20)
 		tab := loadOrders(t, a, 3)
 		tab.auto, tab.out = 5*time.Second, 1
 		tab.edits = map[editKey]edit{{"1", "note"}: {val: db.Val{S: "x"}}, {"2", "note"}: {val: db.Val{S: "y"}}}
 		r := a.layout()[a.focused().ID]
+		if len(rows) == 4 {
+			at := a.queryBar(a.focused(), tab).ButtonRect(bodyRect(r), "grid.refresh").Min
+			a.Update(tea.MouseMotionMsg{X: at.X, Y: at.Y})
+		}
 		rows = append(rows, ansi.Cut(strings.Split(a.render().String(), "\n")[r.Min.Y+2], r.Min.X, r.Max.X))
 	}
 	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")

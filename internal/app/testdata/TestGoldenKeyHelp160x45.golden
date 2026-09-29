@@ -1,6 +1,6 @@
 ┌─ ⓪  doraemon ─────── SPC b ─┐ ┌─ ①  t_order ──────────────────────────────────────────────────────┐ ┌─ ②  console_1 ──────── doraemon.public ▾  ▶ run  ↵ ─┐
 │  15 tables                  │ │ WHERE                                                            ▾ │ │   1                                                  │
-│──────────────────────────────│ │  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7                   │ │                                                      │
+│──────────────────────────────│ │  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7                  │ │                                                      │
 │ ▾  doraemon                 │ │    │  id │ status │ amount │ paid │ meta        │ note           ││ │                                                      │
 │   ▸  agentable              │ │────┼──────┼────────┼────────┼──────┼─────────────┼────────────────┼│ │                                                      │
 │   ▾  public                 │ │  1 │    1 │ runni… │   1.99 │ t    │ {"n": 1, "… │ note 1         ││ │                                                      │

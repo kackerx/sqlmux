@@ -3,6 +3,7 @@ package ui
 import (
 	"cmp"
 	"image/color"
+	"slices"
 
 	uv "github.com/charmbracelet/ultraviolet"
 )
@@ -44,6 +45,15 @@ type Button struct {
 	Plain  bool        // a state button unlit: Fg, whatever [icon] says
 }
 
+// ButtonGroup is buttons side by side on one sep box, or none when Bare
+// (§7.8「工具按钮」). On a short row the group with the least Stay gives
+// way first.
+type ButtonGroup struct {
+	Buttons []Button
+	Bare    bool
+	Stay    int
+}
+
 // width is " <icon> ", or " <icon> tail ".
 func (b Button) width() int {
 	if b.Tail != "" {
@@ -59,9 +69,9 @@ type QueryBar struct {
 	Where   Input
 	Typing  bool // the WHERE input has the keys
 	Chips   []Chip
-	Buttons [][]Button // in groups: data, query, view (§7.8「工具按钮」)
-	Right   string     // "auto · 6000 行 · 12ms"
-	Note    Note       // how a save went, in Right's place while it stands (Q-06)
+	Buttons []ButtonGroup // left to right (§7.8「工具按钮」)
+	Right   string        // "auto · 6000 行 · 12ms"
+	Note    Note          // how a save went, in Right's place while it stands (Q-06)
 	Pane    int
 }
 
@@ -91,7 +101,7 @@ func (q QueryBar) ButtonRect(r uv.Rectangle, action string) uv.Rectangle {
 	chips, groups := q.shown(r)
 	for i, g := range q.buttonRects(r, chips, groups) {
 		for j, br := range g {
-			if q.Buttons[i][j].Action == action {
+			if q.Buttons[i].Buttons[j].Action == action {
 				return br
 			}
 		}
@@ -99,21 +109,20 @@ func (q QueryBar) ButtonRect(r uv.Rectangle, action string) uv.Rectangle {
 	return uv.Rectangle{}
 }
 
-// buttonRects is where the first groups of buttons go on the second row,
-// past chips chips: a column between two, two between groups.
-func (q QueryBar) buttonRects(r uv.Rectangle, chips, groups int) [][]uv.Rectangle {
-	x := q.end(r, chips, 0)
-	var out [][]uv.Rectangle
-	for i, g := range q.Buttons[:groups] {
+// buttonRects is where the buttons of groups, the shown ones, go on the
+// second row past chips chips, by group: side by side, two columns
+// between groups; none for a group given way.
+func (q QueryBar) buttonRects(r uv.Rectangle, chips int, groups []int) [][]uv.Rectangle {
+	x := q.end(r, chips, nil)
+	out := make([][]uv.Rectangle, len(q.Buttons))
+	for i, g := range groups {
 		if i > 0 {
-			x++
+			x += 2
 		}
-		var rs []uv.Rectangle
-		for _, b := range g {
-			rs = append(rs, uv.Rect(x, r.Min.Y+1, b.width(), 1))
-			x += b.width() + 1
+		for _, b := range q.Buttons[g].Buttons {
+			out[g] = append(out[g], uv.Rect(x, r.Min.Y+1, b.width(), 1))
+			x += b.width()
 		}
-		out = append(out, rs)
 	}
 	return out
 }
@@ -180,10 +189,14 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 			f.Text(x+Width(c.Icon.Text), y, cr.Max.X, " ", uv.Style{Bg: ist.Bg})
 		}
 	}
-	for i, g := range q.buttonRects(r, chips, groups) { // boxes on sep, lit whole under the pointer (§7.8)
+	for i, g := range q.buttonRects(r, chips, groups) { // a group's box on sep, a button lit whole under the pointer (§7.8)
+		box := th.Sep
+		if q.Buttons[i].Bare {
+			box = th.PaneBg
+		}
 		for j, br := range g {
-			b := q.Buttons[i][j]
-			st := uv.Style{Fg: cmp.Or[color.Color](b.Fg, th.Info), Bg: th.Sep}
+			b := q.Buttons[i].Buttons[j]
+			st := uv.Style{Fg: cmp.Or[color.Color](b.Fg, th.Info), Bg: box}
 			if b.Action != "" && f.Region(br, Target{Kind: KindHint, Pane: q.Pane, Action: b.Action}) {
 				st.Bg = th.Select
 			}
@@ -212,26 +225,30 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 	return cursor
 }
 
-// shown is how many chips and groups of buttons show: all that fit, and
-// a note, which goes before them: whole groups give way from the right
-// (view, query, data), then the chips (§7.8「查询条」). The count in
-// Right just is not shown.
-func (q QueryBar) shown(r uv.Rectangle) (chips, groups int) {
-	chips, groups = len(q.Chips), len(q.Buttons)
+// shown is how many chips show and which groups of buttons, left to
+// right: all that fit, and a note, which goes before them: whole groups
+// give way, the least Stay first, then the chips from the right (§7.8
+// 「查询条」). The count in Right just is not shown.
+func (q QueryBar) shown(r uv.Rectangle) (chips int, groups []int) {
+	chips = len(q.Chips)
+	for i := range q.Buttons {
+		groups = append(groups, i)
+	}
 	need := Width(q.Note.Head + q.Note.Mid + q.Note.Tail)
-	for chips+groups > 0 && q.end(r, chips, groups)+need >= r.Max.X-1 {
-		if groups > 0 {
-			groups--
-		} else {
+	for chips+len(groups) > 0 && q.end(r, chips, groups)+need >= r.Max.X-1 {
+		if len(groups) == 0 {
 			chips--
+			continue
 		}
+		least := slices.MinFunc(groups, func(a, b int) int { return cmp.Compare(q.Buttons[a].Stay, q.Buttons[b].Stay) })
+		groups = slices.DeleteFunc(groups, func(g int) bool { return g == least })
 	}
 	return chips, groups
 }
 
-// end is where the first chips and groups of buttons end on the second
-// row: what is right of them starts after it.
-func (q QueryBar) end(r uv.Rectangle, chips, groups int) int {
+// end is where the first chips and the groups of buttons end on the
+// second row: what is right of them starts a column after it.
+func (q QueryBar) end(r uv.Rectangle, chips int, groups []int) int {
 	x := r.Min.X + 1
 	for _, c := range q.Chips[:chips] {
 		x += Width(c.text()) + 1
@@ -239,13 +256,16 @@ func (q QueryBar) end(r uv.Rectangle, chips, groups int) int {
 	if chips > 0 {
 		x++ // two columns after the last chip
 	}
-	for i, g := range q.Buttons[:groups] {
+	for i, g := range groups {
 		if i > 0 {
-			x++ // two between groups
+			x += 2 // two between groups
 		}
-		for _, b := range g {
-			x += b.width() + 1 // and a column apart
+		for _, b := range q.Buttons[g].Buttons {
+			x += b.width()
 		}
+	}
+	if len(groups) > 0 {
+		x++
 	}
 	return x
 }

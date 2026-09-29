@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"image/color"
 	"strings"
 	"sync"
 	"testing"
@@ -499,7 +500,8 @@ func TestCustomLimit(t *testing.T) {
 	}
 }
 
-// The tool buttons: data, query, view (§7.8「工具按钮」). Auto refresh picks
+// The tool buttons: + −, save and refresh, auto refresh and stop,
+// transpose on no box (§7.8「工具按钮」). Auto refresh picks
 // an interval from its dropdown and shows it lit; stop lights while a
 // request of the tab's is out and runs grid.stop. An [icon] color is the
 // lit one: stop idle stays dim. With the button given way, auto refresh's
@@ -509,14 +511,14 @@ func TestToolButtons(t *testing.T) {
 	a.removePane(2)
 	tab.out = 0 // the count loadOrders asked for: never answered here
 	bs := a.toolButtons(tab)
-	if len(bs) != 3 || len(bs[0]) != 3 || bs[0][2].Action != "save" || bs[1][0].Action != "grid.refresh" || bs[2][0].Action != "grid.transpose" {
+	if len(bs) != 4 || len(bs[0].Buttons) != 2 || bs[1].Buttons[0].Action != "save" || bs[1].Buttons[1].Action != "grid.refresh" || bs[3].Buttons[0].Action != "grid.transpose" || !bs[3].Bare {
 		t.Fatalf("groups %+v", bs)
 	}
-	if stop := bs[1][2]; stop.Action != "" || stop.Fg != a.theme.Dim || !stop.Plain {
+	if stop := bs[2].Buttons[1]; stop.Action != "" || stop.Fg != a.theme.Dim || !stop.Plain {
 		t.Errorf("stop idle: %+v", stop)
 	}
 	a.fetch(tab, false)
-	if stop := a.toolButtons(tab)[1][2]; stop.Action != "grid.stop" || stop.Fg != a.theme.Error || stop.Plain {
+	if stop := a.toolButtons(tab)[2].Buttons[1]; stop.Action != "grid.stop" || stop.Fg != a.theme.Error || stop.Plain {
 		t.Errorf("stop with a page out: %+v", stop)
 	}
 	answer(a, tab)
@@ -529,7 +531,7 @@ func TestToolButtons(t *testing.T) {
 	}
 	_, cmd := a.Update(teaKey("<Down>"))
 	_, cmd = a.Update(teaKey("<CR>"))
-	if auto := a.toolButtons(tab)[1][1]; tab.auto != 2*time.Second || cmd == nil || auto.Tail != "2s" || auto.Fg != a.theme.Warn || auto.Plain {
+	if auto := a.toolButtons(tab)[2].Buttons[0]; tab.auto != 2*time.Second || cmd == nil || auto.Tail != "2s" || auto.Fg != a.theme.Warn || auto.Plain {
 		t.Errorf("2s: auto %v, button %+v", tab.auto, auto)
 	}
 	tab.note = ui.Note{Head: strings.Repeat("x", 150)} // the buttons give way to it
@@ -537,6 +539,23 @@ func TestToolButtons(t *testing.T) {
 	r := a.layout()[1]
 	if box, _ := a.dropBox(a.dropView(), a.hits); box.Max.X != r.Max.X || box.Min.Y != bodyRect(r).Min.Y+2 {
 		t.Errorf("from the palette, the button given way: at %v, the pane at %v", box, r)
+	}
+}
+
+// A group of buttons is one sep box, transpose on none; the pointer
+// lights one button alone (§7.8「工具按钮」).
+func TestToolButtonBoxes(t *testing.T) {
+	a, tab, _ := withRecorder(t, 160, 45)
+	a.removePane(2)
+	q, body := a.queryBar(a.focused(), tab), bodyRect(a.layout()[1])
+	add, del, tr := q.ButtonRect(body, "grid.row.add"), q.ButtonRect(body, "grid.row.delete"), q.ButtonRect(body, "grid.transpose")
+	bg := func(x int) color.Color { return a.render().Buf.CellAt(x, add.Min.Y).Style.Bg }
+	if add.Max.X != del.Min.X || bg(add.Max.X-1) != a.theme.Sep || bg(del.Min.X) != a.theme.Sep || bg(tr.Min.X) != a.theme.PaneBg {
+		t.Errorf("boxes: + %v, − %v, transpose %v", add, del, tr)
+	}
+	a.Update(tea.MouseMotionMsg{X: del.Min.X, Y: del.Min.Y})
+	if bg(del.Min.X) != a.theme.Select || bg(del.Max.X-1) != a.theme.Select || bg(add.Max.X-1) != a.theme.Sep {
+		t.Error("the pointer on − lights it alone")
 	}
 }
 

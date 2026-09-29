@@ -477,10 +477,11 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	}
 }
 
-// toolButtons are t's query bar buttons (§7.8「工具按钮」): data, query and
-// view. Stop and auto refresh go by their state: an [icon] color only
-// when lit.
-func (a *App) toolButtons(t *dataTab) [][]ui.Button {
+// toolButtons are t's query bar buttons (§7.8「工具按钮」): + −, save and
+// refresh, auto refresh and stop, transpose, giving way in the order
+// transpose, auto refresh and stop, + −, save and refresh. Stop and auto
+// refresh go by their state: an [icon] color only when lit.
+func (a *App) toolButtons(t *dataTab) []ui.ButtonGroup {
 	th, ic := a.theme, a.icons
 	save := ui.Button{Icon: ic.Save, Action: "save", Fg: th.Info} // Q-05
 	if n := t.changes(); n > 0 {
@@ -494,10 +495,11 @@ func (a *App) toolButtons(t *dataTab) [][]ui.Button {
 	if t.out > 0 {
 		stop.Fg, stop.Plain, stop.Action = th.Error, false, "grid.stop"
 	}
-	return [][]ui.Button{
-		{{Icon: ic.RowAdd, Action: "grid.row.add", Fg: th.Focus}, {Icon: ic.RowDelete, Action: "grid.row.delete", Fg: th.Error}, save},
-		{{Icon: ic.Refresh, Action: "grid.refresh", Fg: th.Info}, auto, stop},
-		{{Icon: ic.Transpose, Action: "grid.transpose", Fg: th.Info}},
+	return []ui.ButtonGroup{
+		{Buttons: []ui.Button{{Icon: ic.RowAdd, Action: "grid.row.add", Fg: th.Focus}, {Icon: ic.RowDelete, Action: "grid.row.delete", Fg: th.Error}}, Stay: 2},
+		{Buttons: []ui.Button{save, {Icon: ic.Refresh, Action: "grid.refresh", Fg: th.Info}}, Stay: 3},
+		{Buttons: []ui.Button{auto, stop}, Stay: 1},
+		{Buttons: []ui.Button{{Icon: ic.Transpose, Action: "grid.transpose", Fg: th.Info}}, Bare: true},
 	}
 }
 

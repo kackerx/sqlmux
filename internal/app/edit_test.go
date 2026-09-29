@@ -55,7 +55,7 @@ func TestEditCell(t *testing.T) {
 	if !g.Edited[[2]int{0, 1}] || g.Rows[0][1].S != "done" {
 		t.Errorf("the grid shows the change: %v %v", g.Edited, g.Rows[0][1])
 	}
-	if b := a.queryBar(a.focused(), tab).Buttons[0][2]; b.Action != "save" || b.Tail != "1" {
+	if b := a.queryBar(a.focused(), tab).Buttons[1].Buttons[0]; b.Action != "save" || b.Tail != "1" {
 		t.Errorf("save button %+v", b)
 	}
 	feed(t, a, "<CR>")
@@ -96,7 +96,7 @@ func TestEditsOutlivePages(t *testing.T) {
 	_, cols, page := ordersTable(3)
 	other := db.Result{Cols: page.Cols, Rows: page.Rows[1:]}
 	a.Update(pageMsg{tab: tab, seq: tab.seq, cols: cols, page: other})
-	if g := a.grid(a.focused(), tab); len(g.Edited) != 0 || a.queryBar(a.focused(), tab).Buttons[0][2].Tail != "1" {
+	if g := a.grid(a.focused(), tab); len(g.Edited) != 0 || a.queryBar(a.focused(), tab).Buttons[1].Buttons[0].Tail != "1" {
 		t.Fatalf("row 1 is not on this page: %v", g.Edited)
 	}
 	a.Update(pageMsg{tab: tab, seq: tab.seq, cols: cols, page: page})
