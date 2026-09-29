@@ -307,7 +307,7 @@
 **开发**
 - [ ] 按 §7.9「自动配对」：console 的 INSERT、WHERE 输入框、快速 SQL；配对条件、跳过右括号、退格成对删除；配置 `autopairs`。
 - [ ] 编辑器里做成一个选项，nvim 差分测试的生成器和比对都关掉它：导出字段 `AutoPairs`，和 `TabWidth` 并列，零值是关，app 按配置打开。配置 `autopairs` 在顶层，布尔值，类型不对时照现有规则启动报错。
-- [ ] 带次数的 INSERT 重放时照样配对：`3i(<Esc>` 得到 `((()))`。REPLACE 模式和 `:` / `/` 命令行不配对。成对删除只管 BS / `C-h`，`C-w` / `C-u` 照旧。
+- [ ] 带次数的 INSERT 重放时照样配对：`3i(<Esc>` 得到 `((()))`；`o` / `O` 带次数时每个重复出来的行各配一对，换行前先把光标移到行尾：`3o(<Esc>` 得到三行 `()`（reviewer 实测原来右括号全堆到最后一行）。粘贴在所有地方都原样插入，不配对、不跳过（WHERE 和快速 SQL 的粘贴原来逐字符走了配对）。REPLACE 模式和 `:` / `/` 命令行不配对。成对删除只管 BS / `C-h`，`C-w` / `C-u` 照旧。
 - [ ] 配对和删词的规则写成 editor 导出的纯函数，WHERE 和快速 SQL 在 `app.editInput` 里调用。ui 不 import editor，否则测试会循环 import（editor 测试 → keymap → config → ui）。
 - [ ] 接受补全时，插入的内容以引号结尾、光标后面正好是同一个引号，就把这个引号一起替换掉：WHERE 里 `status = '█'` 接受 `'done'` 得到 `status = 'done'█`，而不是 `'done''`。
 
