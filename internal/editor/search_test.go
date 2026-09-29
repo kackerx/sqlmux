@@ -1,0 +1,55 @@
+package editor
+
+import (
+	"strings"
+	"testing"
+)
+
+// RE2 reads + ? | ( ) as vim's \v does, not as vim's default magic: these
+// cannot be compared with nvim, so they are checked here.
+func TestRE2Patterns(t *testing.T) {
+	for _, c := range []struct{ keys, text, want string }{
+		{":s/(\\w+) (\\w+)/\\2 \\1/<CR>", "select id", "id select"},
+		{":s/a+/x/<CR>", "baaab", "bxb"},
+		{":s/ab?c/x/g<CR>", "ac abc abbc", "x x abbc"},
+		{":s/id|name/x/g<CR>", "id, name", "x, x"},
+		{":s/(a)(b)/[&:\\2]/<CR>", "ab", "[ab:b]"},
+		{":s/x/$1/<CR>", "x", "$1"},
+		{"/name|id<CR>x", "select name", "select ame"},
+		{"/a{2}<CR>x", "a aa", "a a"},
+	} {
+		e := New(c.text)
+		for _, k := range keys(t, c.keys) {
+			e.Feed(k)
+		}
+		if got := strings.Join(e.Lines(), "\n"); got != c.want {
+			t.Errorf("%s on %q: %q, want %q", c.keys, c.text, got, c.want)
+		}
+	}
+}
+
+func TestSearchErrors(t *testing.T) {
+	for _, c := range []struct{ keys, want string }{
+		{"/zz<CR>", "找不到：zz"},
+		{":s/zz/x/<CR>", "找不到：zz"},
+		{"/a(<CR>", "正则有误：error parsing regexp: missing closing ): `(?i)a(`"},
+		{":w<CR>", ""},
+	} {
+		e := New("select")
+		var eff Effect
+		for _, k := range keys(t, c.keys) {
+			eff = e.Feed(k)
+		}
+		if eff.Error != c.want {
+			t.Errorf("%s: %q, want %q", c.keys, eff.Error, c.want)
+		}
+	}
+	e := New("select")
+	var eff Effect
+	for _, k := range keys(t, ":wq<CR>") {
+		eff = e.Feed(k)
+	}
+	if eff.Ex != "wq" {
+		t.Errorf(":wq: Ex %q, want wq", eff.Ex)
+	}
+}

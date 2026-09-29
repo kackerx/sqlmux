@@ -2387,3 +2387,341 @@ vjd
   █a
 b
 c
+
+## / search
+/from<CR>
+█select id from t
+
+## / next line
+/where<CR>
+█select id
+from t
+where x
+
+## / wraps
+/select<CR>
+select id
+fr█om t
+
+## / count
+2/a<CR>
+█xa ya za
+
+## / not found
+/zzz<CR>
+sel█ect
+
+## / smartcase lower
+/from<CR>
+█select FROM x
+
+## / smartcase upper
+/From<CR>
+█select from From
+
+## / regex dot
+/f.m<CR>
+█select fom from
+
+## / regex class
+/[0-9]<CR>
+█select a1
+
+## / regex anchor
+/^w<CR>
+█select w
+where
+
+## / digit
+/\d<CR>
+█id = 42
+
+## / star
+/ab*c<CR>
+█x ac abbc
+
+## / end anchor
+/t$<CR>
+█select t
+from t
+
+## / empty uses last
+/a<CR>/<CR>
+█xa ya za
+
+## ?
+?id<CR>
+select id from█ t
+
+## ? wraps
+?where<CR>
+where x
+se█lect
+
+## ? count
+2?a<CR>
+xa ya za█
+
+## n
+/a<CR>n
+█xa ya za
+
+## N
+/a<CR>nN
+█xa ya za
+
+## n after ?
+?a<CR>n
+xa ya za█
+
+## N after ?
+?a<CR>N
+xa ya █za
+
+## 2n
+/a<CR>2n
+█xa ya za wa
+
+## n wraps to self
+/q<CR>n
+█q x
+
+## n none
+n
+█select
+
+## * 
+*
+█id, name, id
+
+## * wraps
+*
+name, id, █id
+
+## * partial word
+*
+█id idx id
+
+## * after cursor
+*
+█, id x id
+
+## * case
+*
+█ID x id
+
+## #
+#
+id, name, █id
+
+## * count
+2*
+█a b a c a
+
+## * then n
+*n
+█a b a c a
+
+## # then n
+#n
+a b a c █a
+
+## * punct
+*
+a █-- b --
+
+## d/
+d/from<CR>
+█select id from t
+
+## d? 
+d?id<CR>
+select id from█ t
+
+## dn
+/a<CR>0dn
+█xa ya za
+
+## c/
+c/from<CR>x<Esc>
+█select id from t
+
+## y/
+y/from<CR>
+█select id from t
+
+## v/
+v/from<CR>d
+█select id from t
+
+## / esc
+/fr<Esc>
+█select from
+
+## / BS
+/frx<BS>om<CR>
+█select from
+
+## / BS empty exits
+/<BS>x
+█select
+
+## / C-u
+/xyz<C-u>from<CR>
+█select from
+
+## / C-w
+/a from<C-w>fr<CR>
+█select a from
+
+## / Left
+/fom<Left>r<CR>
+█select from
+
+## :3
+:3<CR>
+█a
+b
+c
+d
+
+## :3 keeps column
+:3<CR>
+ab█c
+def
+ghi
+
+## :0
+:0<CR>
+a
+█b
+
+## :99
+:99<CR>
+█a
+b
+
+## :s
+:s/a/x/<CR>
+█a a a
+
+## :s g
+:s/a/x/g<CR>
+█a a a
+
+## :s no trailing delim
+:s/a/x<CR>
+█a a
+
+## :%s
+:%s/a/x/<CR>
+█a a
+b a
+c
+
+## :%s g
+:%s/a/x/g<CR>
+a a
+█b a
+
+## :s &
+:s/id/[&]/<CR>
+█select id
+
+## :s escaped &
+:s/id/\&/<CR>
+█select id
+
+## :s delimiter
+:s#a/b#c#<CR>
+█x a/b
+
+## :s escaped delim
+:s/a\/b/c/<CR>
+█x a/b
+
+## :s i flag
+:s/A/x/i<CR>
+█a A
+
+## :s smartcase
+:s/A/x/<CR>
+█a A
+
+## :s ignorecase
+:s/a/x/g<CR>
+█a A
+
+## :s not found
+:s/zz/x/<CR>
+sel█ect
+
+## :s empty pattern last search
+/id<CR>:s//x/<CR>
+█select id
+
+## :s dollar
+:s/$/;/<CR>
+█select
+
+## :s to nothing
+:s/ id//<CR>
+█select id
+
+## :s cursor line
+:%s/b/x/<CR>
+a
+b
+█c
+b
+
+## :s indent cursor
+:s/a/x/<CR>
+   █a
+
+## :s undo
+:%s/a/x/<CR>u
+a
+█a
+
+## :s then n
+:s/b/x/<CR>n
+█a b b
+
+## v :s
+vj:s/a/x/<CR>
+█a
+a
+a
+
+## V :s
+Vj:s/a/x/g<CR>
+a
+█a a
+a
+
+## :s range visual cursor
+Vj<Esc>G:'<,'>s/a/x/<CR>
+█a
+a
+a
+
+## : esc
+:3<Esc>
+█a
+b
+c
+
+## U after :s
+ix<Esc>j:s/a/b/<CR>U
+█a
+a
+
+## U after :s same line
+:s/a/b/<CR>U
+█a a
+
+## U after :%s
+:%s/a/b/<CR>U
+█a
+a

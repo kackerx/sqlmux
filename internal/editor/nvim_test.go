@@ -109,23 +109,32 @@ func TestNvim(t *testing.T) {
 	}
 }
 
-func run(t *testing.T, c nvimCase) string {
-	keys, err := keymap.Parse(c.keys)
+// keys splits vim notation into keys as the keymap sends them.
+func keys(t *testing.T, s string) []string {
+	ks, err := keymap.Parse(s)
 	if err != nil {
-		t.Fatalf("%s: %v", c.title, err)
+		t.Fatalf("%s: %v", s, err)
 	}
+	out := make([]string, len(ks))
+	for i, k := range ks {
+		out[i] = string(k)
+	}
+	return out
+}
+
+func run(t *testing.T, c nvimCase) string {
 	e := New("")
 	e.lines, e.cur = append([]string(nil), c.text...), c.cur
 	e.clampCursor() // as nvim's cursor() does
 	e.SetHeight(nvimRows)
-	for _, k := range keys {
-		e.Feed(string(k))
+	for _, k := range keys(t, c.keys) {
+		e.Feed(k)
 	}
 	kind := ""
 	if e.reg.kind != 0 {
 		kind = string(e.reg.kind)
 	}
-	return result(e.lines, e.cur, kind, e.reg.text, e.top, map[Mode]string{Normal: "n", Insert: "i", Replace: "R", Visual: "v", VisualLine: "V"}[e.mode])
+	return result(e.lines, e.cur, kind, e.reg.text, e.top, map[Mode]string{Normal: "n", Insert: "i", Replace: "R", Visual: "v", VisualLine: "V", Command: "c"}[e.mode])
 }
 
 func readGolden(t *testing.T) map[string]string {

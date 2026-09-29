@@ -27,17 +27,20 @@ const (
 	Replace
 	Visual
 	VisualLine
+	Command // the / ? or : line is open
 )
 
 // String is the name the status bar shows (§7.8).
 func (m Mode) String() string {
-	return [...]string{"NORMAL", "INSERT", "REPLACE", "VISUAL", "V-LINE"}[m]
+	return [...]string{"NORMAL", "INSERT", "REPLACE", "VISUAL", "V-LINE", "COMMAND"}[m]
 }
 
 // Effect is what a key did that the console acts on.
 type Effect struct {
-	Changed bool // the text changed: save it, drop the failed ▶ (§11)
-	Yanked  bool // the register changed: the clipboard gets it (§11)
+	Changed bool   // the text changed: save it, drop the failed ▶ (§11)
+	Yanked  bool   // the register changed: the clipboard gets it (§11)
+	Ex      string // a : command the editor does not run itself (:w, :q)
+	Error   string // what went wrong, for a toast: 找不到：foo
 }
 
 const (
@@ -64,6 +67,9 @@ type Editor struct {
 
 	vstart     Pos // where VISUAL started: the other end of the selection
 	lastVisual visualArea
+
+	cl         *cmdline // the / ? or : line being typed
+	lastSearch search
 
 	done, undone []step
 	snap         []string // the text before the change being made; nil when none is
@@ -109,6 +115,9 @@ func (e *Editor) Feed(k string) Effect {
 	switch e.mode {
 	case Insert, Replace:
 		e.insertKey(k)
+	case Command:
+		e.cmdKey(k)
+		e.settle()
 	default:
 		if k == "<lt>" {
 			k = "<"
@@ -149,6 +158,12 @@ func (e *Editor) normal() {
 	if st == complete {
 		e.run(c)
 	}
+	e.settle()
+}
+
+// settle ends a command back in NORMAL or VISUAL: its change is one undo
+// step, and the cursor is on the text.
+func (e *Editor) settle() {
 	if e.mode == Normal || e.visual() {
 		e.trackLine()
 		e.endChange()
@@ -181,7 +196,7 @@ func parse(keys []string, visual bool) (c cmd, st status) {
 		if c.name, c.arg, _, st = word(keys, true); st != complete {
 			return c, st
 		}
-		if motions[c.name] == nil && objects[c.name] == nil {
+		if motions[c.name] == nil && objects[c.name] == nil && c.name != "/" && c.name != "?" {
 			return c, invalid
 		}
 		return c, complete
@@ -190,6 +205,7 @@ func parse(keys []string, visual bool) (c cmd, st status) {
 	if visual {
 		known = motions[c.name] != nil || objects[c.name] != nil || visualCommands[c.name] != nil
 	}
+	known = known || c.name == "/" || c.name == "?" || c.name == ":"
 	if !known {
 		return c, invalid
 	}
@@ -240,6 +256,10 @@ func count(keys []string) (int, []string) {
 
 func (e *Editor) run(c cmd) {
 	e.curswant() // vim settles it before each command (update_topline_cursor)
+	if c.name == "/" || c.name == "?" || c.name == ":" && c.op == "" {
+		e.openCmdline(c.name, c)
+		return
+	}
 	if c.op != "" {
 		e.operate(c)
 		return
@@ -313,6 +333,8 @@ func init() {
 		"v":  func(e *Editor, _ cmd) { e.startVisual(Visual) },
 		"V":  func(e *Editor, _ cmd) { e.startVisual(VisualLine) },
 		"gv": func(e *Editor, _ cmd) { e.reselect() },
+		"*":  func(e *Editor, c cmd) { e.star(c, false) },
+		"#":  func(e *Editor, c cmd) { e.star(c, true) },
 
 		"u":     func(e *Editor, c cmd) { e.undo(c.n()) },
 		"<C-r>": func(e *Editor, c cmd) { e.redo(c.n()) },

@@ -42,6 +42,8 @@ func init() {
 		"%": percent,
 		"{": para(-1), "}": para(1),
 		"H": screenLine('H'), "M": screenLine('M'), "L": screenLine('L'),
+		"n": func(e *Editor, c cmd, _ string) target { return e.findNext(c, false) },
+		"N": func(e *Editor, c cmd, _ string) target { return e.findNext(c, true) },
 		"_": func(e *Editor, c cmd, _ string) target { // the line count-1 down, at its first non-blank
 			n := min(e.cur.Line+c.n()-1, len(e.lines)-1)
 			return target{to: Pos{n, nonBlank(e.lines[n])}, ok: true, linewise: true}

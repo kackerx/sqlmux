@@ -6879,3 +6879,495 @@ mode: n
 reg: "v" "a\nb\n"
 top: 1
 mode: n
+
+## / search
+select id █from t
+reg: "" ""
+top: 1
+mode: n
+
+## / next line
+select id
+from t
+█where x
+reg: "" ""
+top: 1
+mode: n
+
+## / wraps
+█select id
+from t
+reg: "" ""
+top: 1
+mode: n
+
+## / count
+xa y█a za
+reg: "" ""
+top: 1
+mode: n
+
+## / not found
+sel█ect
+reg: "" ""
+top: 1
+mode: n
+
+## / smartcase lower
+select █FROM x
+reg: "" ""
+top: 1
+mode: n
+
+## / smartcase upper
+select from █From
+reg: "" ""
+top: 1
+mode: n
+
+## / regex dot
+select █fom from
+reg: "" ""
+top: 1
+mode: n
+
+## / regex class
+select a█1
+reg: "" ""
+top: 1
+mode: n
+
+## / regex anchor
+select w
+█where
+reg: "" ""
+top: 1
+mode: n
+
+## / digit
+id = █42
+reg: "" ""
+top: 1
+mode: n
+
+## / star
+x █ac abbc
+reg: "" ""
+top: 1
+mode: n
+
+## / end anchor
+select █t
+from t
+reg: "" ""
+top: 1
+mode: n
+
+## / empty uses last
+xa y█a za
+reg: "" ""
+top: 1
+mode: n
+
+## ?
+select █id from t
+reg: "" ""
+top: 1
+mode: n
+
+## ? wraps
+█where x
+select
+reg: "" ""
+top: 1
+mode: n
+
+## ? count
+x█a ya za
+reg: "" ""
+top: 1
+mode: n
+
+## n
+xa y█a za
+reg: "" ""
+top: 1
+mode: n
+
+## N
+x█a ya za
+reg: "" ""
+top: 1
+mode: n
+
+## n after ?
+x█a ya za
+reg: "" ""
+top: 1
+mode: n
+
+## N after ?
+xa ya z█a
+reg: "" ""
+top: 1
+mode: n
+
+## 2n
+xa ya z█a wa
+reg: "" ""
+top: 1
+mode: n
+
+## n wraps to self
+█q x
+reg: "" ""
+top: 1
+mode: n
+
+## n none
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## * 
+id, name, █id
+reg: "" ""
+top: 1
+mode: n
+
+## * wraps
+name, █id, id
+reg: "" ""
+top: 1
+mode: n
+
+## * partial word
+id idx █id
+reg: "" ""
+top: 1
+mode: n
+
+## * after cursor
+, id x █id
+reg: "" ""
+top: 1
+mode: n
+
+## * case
+ID x █id
+reg: "" ""
+top: 1
+mode: n
+
+## #
+█id, name, id
+reg: "" ""
+top: 1
+mode: n
+
+## * count
+a b a c █a
+reg: "" ""
+top: 1
+mode: n
+
+## * then n
+a b a c █a
+reg: "" ""
+top: 1
+mode: n
+
+## # then n
+█a b a c a
+reg: "" ""
+top: 1
+mode: n
+
+## * punct
+a -- █b --
+reg: "" ""
+top: 1
+mode: n
+
+## d/
+█from t
+reg: "v" "select id "
+top: 1
+mode: n
+
+## d? 
+select █ t
+reg: "v" "id from"
+top: 1
+mode: n
+
+## dn
+█a ya za
+reg: "v" "x"
+top: 1
+mode: n
+
+## c/
+█xfrom t
+reg: "v" "select id "
+top: 1
+mode: n
+
+## y/
+█select id from t
+reg: "v" "select id "
+top: 1
+mode: n
+
+## v/
+█rom t
+reg: "v" "select id f"
+top: 1
+mode: n
+
+## / esc
+█select from
+reg: "" ""
+top: 1
+mode: n
+
+## / BS
+select █from
+reg: "" ""
+top: 1
+mode: n
+
+## / BS empty exits
+█elect
+reg: "v" "s"
+top: 1
+mode: n
+
+## / C-u
+select █from
+reg: "" ""
+top: 1
+mode: n
+
+## / C-w
+select █a from
+reg: "" ""
+top: 1
+mode: n
+
+## / Left
+█select from
+reg: "" ""
+top: 1
+mode: n
+
+## :3
+a
+b
+█c
+d
+reg: "" ""
+top: 1
+mode: n
+
+## :3 keeps column
+abc
+def
+gh█i
+reg: "" ""
+top: 1
+mode: n
+
+## :0
+█a
+b
+reg: "" ""
+top: 1
+mode: n
+
+## :99
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## :s
+█x a a
+reg: "" ""
+top: 1
+mode: n
+
+## :s g
+█x x x
+reg: "" ""
+top: 1
+mode: n
+
+## :s no trailing delim
+█x a
+reg: "" ""
+top: 1
+mode: n
+
+## :%s
+x a
+█b x
+c
+reg: "" ""
+top: 1
+mode: n
+
+## :%s g
+x x
+█b x
+reg: "" ""
+top: 1
+mode: n
+
+## :s &
+█select [id]
+reg: "" ""
+top: 1
+mode: n
+
+## :s escaped &
+█select &
+reg: "" ""
+top: 1
+mode: n
+
+## :s delimiter
+█x c
+reg: "" ""
+top: 1
+mode: n
+
+## :s escaped delim
+█x c
+reg: "" ""
+top: 1
+mode: n
+
+## :s i flag
+█x A
+reg: "" ""
+top: 1
+mode: n
+
+## :s smartcase
+█a x
+reg: "" ""
+top: 1
+mode: n
+
+## :s ignorecase
+█x x
+reg: "" ""
+top: 1
+mode: n
+
+## :s not found
+sel█ect
+reg: "" ""
+top: 1
+mode: n
+
+## :s empty pattern last search
+█select x
+reg: "" ""
+top: 1
+mode: n
+
+## :s dollar
+█select;
+reg: "" ""
+top: 1
+mode: n
+
+## :s to nothing
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## :s cursor line
+a
+x
+c
+█x
+reg: "" ""
+top: 1
+mode: n
+
+## :s indent cursor
+   █x
+reg: "" ""
+top: 1
+mode: n
+
+## :s undo
+█a
+a
+reg: "" ""
+top: 1
+mode: n
+
+## :s then n
+a x █b
+reg: "" ""
+top: 1
+mode: n
+
+## v :s
+x
+█x
+a
+reg: "" ""
+top: 1
+mode: n
+
+## V :s
+a
+x x
+█x
+reg: "" ""
+top: 1
+mode: n
+
+## :s range visual cursor
+x
+█x
+a
+reg: "" ""
+top: 1
+mode: n
+
+## : esc
+█a
+b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## U after :s
+xa
+█a
+reg: "" ""
+top: 1
+mode: n
+
+## U after :s same line
+█a a
+reg: "" ""
+top: 1
+mode: n
+
+## U after :%s
+█a
+b
+reg: "" ""
+top: 1
+mode: n
