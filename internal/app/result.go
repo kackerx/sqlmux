@@ -177,16 +177,19 @@ func (a *App) runSQL(t *consoleTab, name, sql string, base, ver int) tea.Cmd {
 			// kept out of transactions only: in a failed one a SET fails too
 			// and the user's rollback would never run; in one going on, a
 			// rollback may take the SET back.
-			switch {
+			switch tx := txStatus(c); {
 			case schema == "":
-			case txStatus(c) == 'E':
+			case tx == 'E':
 				s.mainPath = ""
 			case s.mainPath != schema:
 				if err := postgres.SetSearchPath(ctx, c, schema, s.startedPath); err != nil {
 					s.mainPath, m.set = "", "set search_path to "+schema
 					return err
 				}
-				s.mainPath = schema
+				s.mainPath = ""
+				if tx == 'I' { // set in a transaction, the run's rollback may take it back
+					s.mainPath = schema
+				}
 			}
 			var err error
 			m.rs, err = db.ExecEach(ctx, c, texts, maxRows)

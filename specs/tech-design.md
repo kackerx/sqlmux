@@ -803,7 +803,7 @@ catalog 按 session 缓存。console 执行 DDL 后（由 §9.3 的判定得知�
   - 原始路径在建连时用 `SHOW search_path` 读取，接在后面，这样装在 `public` 等 schema 里的扩展函数仍然能找到。设置时用 `set_config('search_path', $1, false)` 带参数的写法，不把原始值拼进 SQL：服务器上设了 `search_path = ''`，或者 DSN 里写了 `$user,public` 时，拼接会报语法错（快速 SQL 已经这样写）。
   - **只在事务外记住 search_path**（M3 审查时在真 PG 上复现）：
     - `Main` 处在出错的事务里时（pgconn 的 TxStatus 为 `E`），跳过 SET 直接执行，并清掉记下的值。否则 SET 本身报 25P02，按「SET 失败时后面的语句不执行」，用户的 `rollback` 永远执行不到，session 卡死到重启。
-    - 一次执行结束时连接还在事务里（TxStatus 不是 `I`），不记这次的 SET，下次一定重新 SET。否则事务里做的 SET 被用户的 `rollback` 撤掉之后，记下的值还当它在，下一次悄悄按别的 schema 查表。
+    - 做 SET 的那一刻或者执行结束时，只要有一个时刻连接处在事务里（TxStatus 不是 `I`），就不记这次的 SET，下次一定重新 SET。否则事务里做的 SET 被用户的 `rollback` 撤掉之后，记下的值还当它在，下一次悄悄按别的 schema 查表。只看结束时的状态不够：SET 做在事务里、这次执行又以 `rollback` 结束时，结束时已经在事务外，SET 却已被撤掉（M3 复审时在真 PG 上复现）。
   - **schema 被删掉之后**：PG 接受不存在的 schema，SET 照样成功，只是找表时跳过它。catalog 重新加载后，选中的 schema 已经不存在的 console 退回树当前的 schema，不弹提示，同树退回 `current_schema()` 的做法。
   - 已知上限：用 `select set_config('search_path', …)` 改 search_path 不会让记下的值作废（首词是 select），代码里用 `ponytail:` 标出。
 - **影响范围**：console 的补全以它自己选择的 schema 为准。表格查询始终带 schema 前缀，不受影响。
@@ -1294,6 +1294,12 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 - 连接定义单独放一个文件，是因为应用改写 TOML 时会丢掉注释，所以不能去改用户手写的 config.toml。
 - `name`、`engine`、`dsn` 必填。`name` 会用作 console 文件的目录名（§11），所以不允许含 `/`、`\`，也不能以 `.` 开头，否则启动报错。`engine` 在 M1 只接受 `postgres`，其他值报错「目前只支持 postgres」。
 - **启动时找不到连接**：没有 `connections.toml`、文件里没有连接，或者 `sqlmux <名字>` 找不到这个名字时，在终端打印错误就退出（退出码 1），不进入界面。错误里写明配置文件的路径；名字找不到时列出已有的连接名。连接失败（比如密码错误）也一样，打印驱动返回的错误后退出；pgconn 逐个地址尝试时会打出多行（标题一行，每个地址一行），照样输出，不压成一行。在界面里新建连接（S-03）要到 M5。
+- **界面语言**（M6，用户要求）：`language = "zh" | "en"`，默认 `zh`，写错启动报错。
+  - 界面上所有文案都走一处翻译：toast、提示、确认框、查询条与结果区的文字、状态栏的模式附加信息、面板的范围标签与底栏、Action 的标题、引导页、日志、错误说明（数据库返回的原文不翻译）。
+  - 做法照 gettext：中文原文就是 key，`en` 是一张「中文 → 英文」的表，找不到就显示原文。这样现有代码只需要把字符串包一层，不用先给每条文案起名字。带参数的文案用占位符（如「已保存 %d 行」）。
+  - 命令面板按当前语言的标题搜索，action id 照旧可以搜。
+  - 键位文字不属于文案，照旧从 keymap 读（§6.7）。
+  - 测试：单测扫一遍所有包，找出没走翻译的中文字面量；`en` 表里缺的条目也由单测报出来。golden 和 e2e 照旧按 `zh` 断言，`en` 另加几张 golden。
 - **state.json**（M1 F1.5 起）：路径 `$XDG_STATE_HOME/sqlmux/state.json`，读写都在 `config` 包里。
   - 内容：`recent` 是面板的最近使用，记成 `{"kind": "table", "id": "public.t_order"}`，kind 为 window / pane / table / command；`tables` 的键是 `"<连接名>/<schema>.<表>"`（不同连接可能有同名表），每张表下存 history 和 favorites。
   - 启动时读一次；每次改动（执行 WHERE、收藏、面板运行）都写一次。写入：在 Update 里序列化，在 Cmd 里写临时文件再 rename，权限 0600；用互斥锁和版本号，丢掉比已写入版本更旧的快照，避免两个 Cmd 并发时旧内容覆盖新内容。
@@ -1303,6 +1309,7 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 # config.toml
 theme        = "tokyonight-storm"
 icons        = "nerd"            # nerd | ascii
+language     = "zh"              # zh | en，界面文案的语言（M6）
 timeoutlen   = 1000
 result_height = 0.4              # 底部结果区默认所占的高度比例
 formatprg    = ""                # 例如 "pg_format -"；为空时使用内置的 sql-formatter
