@@ -71,6 +71,10 @@ type dataTab struct {
 	count    int64            // the rows the WHERE keeps, as far as counted says
 	counted  countState
 	countSeq int // the last count's; older ones are dropped
+
+	out     int           // its pages, counts and saves on their way: stop lights (§7.8「工具按钮」)
+	auto    time.Duration // auto refresh's interval, 0 for off (§7.8「自动刷新」)
+	autoGen int           // the auto refresh ticking; one set anew stops the old
 }
 
 // request is a page of a table as asked for.
@@ -148,6 +152,7 @@ func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
 	}
 	t.recount = t.recount || recount
 	a.busy++
+	t.out++
 	seq, table, meta, q := t.seq, t.table, a.sess.Meta, t.query()
 	cols, cached := a.sess.cols[idOf(table)]
 	page := func() tea.Msg {
@@ -172,6 +177,7 @@ func (a *App) fetch(t *dataTab, recount bool) tea.Cmd {
 // its count as it was (§7.6, §8.3).
 func (a *App) gotPage(m pageMsg) tea.Cmd {
 	a.busy--
+	m.tab.out--
 	if m.cols.Cols != nil {
 		a.sess.cols[idOf(m.tab.table)] = m.cols
 	}
@@ -221,6 +227,7 @@ func (a *App) count(t *dataTab) tea.Cmd {
 	}
 	t.countSeq++
 	t.counted = counting
+	t.out++
 	seq, meta, q := t.countSeq, a.sess.Meta, t.query()
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
@@ -231,6 +238,7 @@ func (a *App) count(t *dataTab) tea.Cmd {
 }
 
 func (a *App) gotCount(m countMsg) {
+	m.tab.out--
 	if t := m.tab; m.seq == t.countSeq {
 		t.count, t.counted = m.n, countDone
 		if m.err != nil { // DeadlineExceeded past 3s, or the WHERE's own error
@@ -426,12 +434,85 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 			page,
 			{Label: "COLS", Value: fmt.Sprintf("%d/%d", len(t.shownCols()), len(t.page.Cols)), Action: "grid.cols"},
 		},
-		Buttons: []ui.Button{
-			{Icon: ic.Save, Action: "save", Count: len(t.edits)}, // Q-05
-			{Icon: ic.Refresh, Action: "grid.refresh"},
-			{Icon: ic.Transpose, Action: "grid.transpose"},
-		},
+		Buttons: a.toolButtons(t),
 	}
+}
+
+// toolButtons are t's query bar buttons (§7.8「工具按钮」): data, query and
+// view. Stop and auto refresh go by their state: an [icon] color only
+// when lit.
+func (a *App) toolButtons(t *dataTab) [][]ui.Button {
+	th, ic := a.theme, a.icons
+	save := ui.Button{Icon: ic.Save, Action: "save", Fg: th.Info} // Q-05
+	if n := len(t.edits); n > 0 {
+		save.Tail = strconv.Itoa(n)
+	}
+	auto := ui.Button{Icon: ic.AutoRefresh, Action: "grid.refresh.auto", Fg: th.Info, Plain: true}
+	if t.auto > 0 {
+		auto.Fg, auto.Plain, auto.Tail = th.Warn, false, autoLabel(t.auto)
+	}
+	stop := ui.Button{Icon: ic.Stop, Fg: th.Dim, Plain: true}
+	if t.out > 0 {
+		stop.Fg, stop.Plain, stop.Action = th.Error, false, "grid.stop"
+	}
+	return [][]ui.Button{
+		{{Icon: ic.RowAdd, Fg: th.Focus}, {Icon: ic.RowDelete, Fg: th.Error}, save}, // + and − take clicks with F3.24
+		{{Icon: ic.Refresh, Action: "grid.refresh", Fg: th.Info}, auto, stop},
+		{{Icon: ic.Transpose, Action: "grid.transpose", Fg: th.Info}},
+	}
+}
+
+// autoIntervals are auto refresh's choices, off first (§7.8「自动刷新」).
+var autoIntervals = []time.Duration{0, 2 * time.Second, 5 * time.Second, 10 * time.Second, 30 * time.Second, time.Minute}
+
+// autoLabel is an interval as its dropdown and button say it: 关, 5s, 60s.
+func autoLabel(d time.Duration) string {
+	if d == 0 {
+		return "关"
+	}
+	return fmt.Sprintf("%ds", int(d/time.Second))
+}
+
+// autoMsg is auto refresh's tick for t, from ticking gen.
+type autoMsg struct {
+	tab *dataTab
+	gen int
+}
+
+// autoTick waits t's interval for the next auto refresh.
+func autoTick(t *dataTab) tea.Cmd {
+	gen := t.autoGen
+	return tea.Tick(t.auto, func(time.Time) tea.Msg { return autoMsg{t, gen} })
+}
+
+// gotAuto refreshes t as R does, keeping what the last save said, when it
+// shows in a pane as its current tab, with no changes, no cell being
+// edited and nothing on its way; else it skips a turn. The ticking stops
+// with its interval set anew, or the tab closed (§7.8「自动刷新」).
+func (a *App) gotAuto(m autoMsg) tea.Cmd {
+	t := m.tab
+	if m.gen != t.autoGen || !a.tabOpen(t) {
+		return nil
+	}
+	var cmd tea.Cmd
+	if a.paneShowing(t) != nil && len(t.edits) == 0 && t.cell == nil && t.out == 0 {
+		note, failed := t.note, t.failed
+		cmd = a.fetch(t, true)
+		t.note, t.failed = note, failed
+	}
+	return tea.Batch(cmd, autoTick(t))
+}
+
+// tabOpen reports whether t is a tab in some pane of the session.
+func (a *App) tabOpen(t *dataTab) bool {
+	for _, w := range a.sess.Windows {
+		for _, p := range w.Root.Leaves() {
+			if slices.ContainsFunc(p.Tabs, func(tb Tab) bool { return tb.Data == t }) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // chipRect is where pane p draws the chip of t's query bar running action.

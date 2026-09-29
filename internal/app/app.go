@@ -115,6 +115,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotPage(msg)
 	case countMsg:
 		a.gotCount(msg)
+	case autoMsg:
+		return a, a.gotAuto(msg)
 	case quickMsg:
 		return a, a.gotQuick(msg)
 	case colsMsg:

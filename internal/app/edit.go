@@ -353,6 +353,7 @@ func (a *App) save() tea.Cmd {
 	}
 	t.saving = true
 	a.busy++
+	t.out++
 	main, table, key := a.sess.Main, t.table, t.cols.Key()
 	return func() tea.Msg {
 		start := time.Now()
@@ -370,6 +371,7 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 	a.busy--
 	t := m.tab
 	t.saving = false
+	t.out--
 	closing := t.closing
 	t.closing = false
 	switch {

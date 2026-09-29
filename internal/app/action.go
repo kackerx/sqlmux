@@ -242,9 +242,14 @@ func init() {
 		"grid.last": {Title: "最后一列", Run: do(func(a *App, _ Args) {
 			a.gridMove(func(r, _, _, cols int) (int, int) { return r, cols - 1 })
 		})},
-		"grid.transpose": {Title: "转置", Run: do(func(a *App, _ Args) { a.gridTranspose() })},
-		"grid.edit":      {Title: "编辑单元格", Run: func(a *App, _ Args) tea.Cmd { return a.editCell(nil) }},
-		"grid.revert":    {Title: "撤回这一格的修改", Run: do(func(a *App, _ Args) { a.revertCell() })},
+		"grid.transpose":    {Title: "转置", Run: do(func(a *App, _ Args) { a.gridTranspose() })},
+		"grid.edit":         {Title: "编辑单元格", Run: func(a *App, _ Args) tea.Cmd { return a.editCell(nil) }},
+		"grid.revert":       {Title: "撤回这一格的修改", Run: do(func(a *App, _ Args) { a.revertCell() })},
+		"grid.refresh.auto": {Title: "自动刷新", Run: do(func(a *App, _ Args) { a.openDrop(dropAuto) })},
+		"grid.stop": {Title: "停止", Run: do(func(a *App, _ Args) { // the query bar's stop: what C-c cancels (§8.3)
+			a.sess.Meta.Cancel()
+			a.sess.Main.Cancel()
+		})},
 		// ↵ and esc end a cell's edit alike, keeping it (G-02)
 		"cell.accept": {Title: "确定这一格", Local: true, Run: onCell(func(t *dataTab) { t.acceptCell() })},
 		"cell.done": {Title: "结束编辑", Local: true, Run: do(func(a *App, _ Args) { // esc: an edit no value of the column goes, what was before it back (§10.7)

@@ -36,6 +36,8 @@ type Icons struct {
 	// The query bar's buttons (Q-05) and ORDER's direction; nil Fg: info
 	// and warn (§7.7)
 	Save, Refresh, Transpose Icon
+	RowAdd, RowDelete        Icon // the query bar's data group (§7.8「工具按钮」)
+	AutoRefresh, Stop        Icon // and its query group
 	SortAsc, SortDesc        Icon
 	View, Column             Icon // the tree's (F1.12)
 	Result, Pin, Export      Icon // the result area's (§11)
@@ -47,52 +49,60 @@ type Icons struct {
 
 // Nerd Font glyphs, all from the BMP private use area.
 var NerdIcons = &Icons{
-	Schema:    Icon{Text: "\uf0e8"}, // nf-fa-sitemap
-	Table:     Icon{Text: "\uf0ce"}, // nf-fa-table
-	Console:   Icon{Text: "\uf489"}, // nf-oct-terminal
-	Filter:    Icon{Text: "\uf0b0"}, // nf-fa-filter
-	Postgres:  Icon{Text: "\ue76e"}, // nf-dev-postgresql
-	Search:    Icon{Text: "\uf002"}, // nf-fa-search
-	Keys:      Icon{Text: "\uf11c"}, // nf-fa-keyboard_o
-	Conn:      Icon{Text: "\uf1e6"}, // nf-fa-plug
-	Key:       Icon{Text: "\uf084"}, // nf-fa-key
-	Command:   Icon{Text: "\uf0e7"}, // nf-fa-bolt
-	Window:    Icon{Text: "\uf2d2"}, // nf-fa-window_restore
-	Save:      Icon{Text: "\uf0c7"}, // nf-fa-save
-	Refresh:   Icon{Text: "\uf021"}, // nf-fa-refresh
-	Transpose: Icon{Text: "\uf0ec"}, // nf-fa-exchange
-	SortAsc:   Icon{Text: "\uf160"}, // nf-fa-sort_amount_asc
-	SortDesc:  Icon{Text: "\uf161"}, // nf-fa-sort_amount_desc
-	View:      Icon{Text: "\uf06e"}, // nf-fa-eye
-	Column:    Icon{Text: "\ueb5f"}, // nf-cod-symbol_field
-	Result:    Icon{Text: "\uf022"}, // nf-fa-list_alt
-	Pin:       Icon{Text: "\uf435"}, // nf-oct-pin
-	Export:    Icon{Text: "\uf019"}, // nf-fa-download
-	Close:     Icon{Text: "\uf00d"}, // nf-fa-times
+	Schema:      Icon{Text: "\uf0e8"}, // nf-fa-sitemap
+	Table:       Icon{Text: "\uf0ce"}, // nf-fa-table
+	Console:     Icon{Text: "\uf489"}, // nf-oct-terminal
+	Filter:      Icon{Text: "\uf0b0"}, // nf-fa-filter
+	Postgres:    Icon{Text: "\ue76e"}, // nf-dev-postgresql
+	Search:      Icon{Text: "\uf002"}, // nf-fa-search
+	Keys:        Icon{Text: "\uf11c"}, // nf-fa-keyboard_o
+	Conn:        Icon{Text: "\uf1e6"}, // nf-fa-plug
+	Key:         Icon{Text: "\uf084"}, // nf-fa-key
+	Command:     Icon{Text: "\uf0e7"}, // nf-fa-bolt
+	Window:      Icon{Text: "\uf2d2"}, // nf-fa-window_restore
+	Save:        Icon{Text: "\uf0c7"}, // nf-fa-save
+	Refresh:     Icon{Text: "\uf021"}, // nf-fa-refresh
+	Transpose:   Icon{Text: "\uf0ec"}, // nf-fa-exchange
+	RowAdd:      Icon{Text: "\uf067"}, // nf-fa-plus
+	RowDelete:   Icon{Text: "\uf068"}, // nf-fa-minus
+	AutoRefresh: Icon{Text: "\uf017"}, // nf-fa-clock_o
+	Stop:        Icon{Text: "\uf04d"}, // nf-fa-stop
+	SortAsc:     Icon{Text: "\uf160"}, // nf-fa-sort_amount_asc
+	SortDesc:    Icon{Text: "\uf161"}, // nf-fa-sort_amount_desc
+	View:        Icon{Text: "\uf06e"}, // nf-fa-eye
+	Column:      Icon{Text: "\ueb5f"}, // nf-cod-symbol_field
+	Result:      Icon{Text: "\uf022"}, // nf-fa-list_alt
+	Pin:         Icon{Text: "\uf435"}, // nf-oct-pin
+	Export:      Icon{Text: "\uf019"}, // nf-fa-download
+	Close:       Icon{Text: "\uf00d"}, // nf-fa-times
 }
 
 var ASCIIIcons = &Icons{
 	Schema: Icon{Text: "#"}, Table: Icon{Text: "+"}, Console: Icon{Text: ">"},
-	Filter:    Icon{Text: "?"},
-	Postgres:  Icon{Text: "pg"},
-	Search:    Icon{Text: "~"},
-	Keys:      Icon{Text: "kb"},
-	Conn:      Icon{Text: "@"},
-	Key:       Icon{Text: "*"},
-	Command:   Icon{Text: ":"},
-	Window:    Icon{Text: "[]"},
-	Save:      Icon{Text: "[S]"},
-	Refresh:   Icon{Text: "[R]"},
-	Transpose: Icon{Text: "[T]"},
-	SortAsc:   Icon{Text: "↑"},
-	SortDesc:  Icon{Text: "↓"},
-	View:      Icon{Text: "v"},
-	Column:    Icon{Text: "-"},
-	Result:    Icon{Text: "="},
-	Pin:       Icon{Text: "*"},
-	Export:    Icon{Text: ">"},
-	Close:     Icon{Text: "x"},
-	Labeled:   true,
+	Filter:      Icon{Text: "?"},
+	Postgres:    Icon{Text: "pg"},
+	Search:      Icon{Text: "~"},
+	Keys:        Icon{Text: "kb"},
+	Conn:        Icon{Text: "@"},
+	Key:         Icon{Text: "*"},
+	Command:     Icon{Text: ":"},
+	Window:      Icon{Text: "[]"},
+	Save:        Icon{Text: "[S]"},
+	Refresh:     Icon{Text: "[R]"},
+	Transpose:   Icon{Text: "[T]"},
+	RowAdd:      Icon{Text: "+"},
+	RowDelete:   Icon{Text: "-"},
+	AutoRefresh: Icon{Text: "@"},
+	Stop:        Icon{Text: "#"},
+	SortAsc:     Icon{Text: "↑"},
+	SortDesc:    Icon{Text: "↓"},
+	View:        Icon{Text: "v"},
+	Column:      Icon{Text: "-"},
+	Result:      Icon{Text: "="},
+	Pin:         Icon{Text: "*"},
+	Export:      Icon{Text: ">"},
+	Close:       Icon{Text: "x"},
+	Labeled:     true,
 }
 
 // IconSet maps the config value `icons = "nerd" | "ascii"`.
@@ -122,6 +132,7 @@ func (ic *Icons) byName() map[string]*Icon {
 		"filter": &ic.Filter, "search": &ic.Search, "keys": &ic.Keys, "conn": &ic.Conn,
 		"key": &ic.Key, "postgres": &ic.Postgres, "command": &ic.Command, "window": &ic.Window,
 		"save": &ic.Save, "refresh": &ic.Refresh, "transpose": &ic.Transpose,
+		"row_add": &ic.RowAdd, "row_delete": &ic.RowDelete, "auto_refresh": &ic.AutoRefresh, "stop": &ic.Stop,
 		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column,
 		"result": &ic.Result, "pin": &ic.Pin, "export": &ic.Export, "close": &ic.Close,
 	}

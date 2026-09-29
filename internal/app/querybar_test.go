@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
@@ -225,6 +226,7 @@ func TestOrderByAColumnNamedDefault(t *testing.T) {
 // pointer (§7.8).
 func TestQueryBarIconColors(t *testing.T) {
 	a, _, _ := withRecorder(t, 160, 45)
+	a.removePane(2) // wide enough for every group
 	iconAt := func(action string) uv.Style {
 		r := find(t, a, ui.Target{Kind: ui.KindHint, Pane: 1, Action: action})
 		return a.render().Buf.CellAt(r.Min.X+1, r.Min.Y).Style // past the space before it
@@ -494,5 +496,67 @@ func TestCustomLimit(t *testing.T) {
 	feed(t, a, strings.Repeat("<BS>", 3)+"0")
 	if v := a.dropView(); len(v.Items) != 3 || v.Items[0] == "0" {
 		t.Errorf("0 is no size, only a filter: %v", v.Items)
+	}
+}
+
+// The tool buttons: data, query, view (§7.8「工具按钮」). Auto refresh picks
+// an interval from its dropdown and shows it lit; stop lights while a
+// request of the tab's is out and runs grid.stop. An [icon] color is the
+// lit one: stop idle stays dim.
+func TestToolButtons(t *testing.T) {
+	a, tab, _ := withRecorder(t, 160, 45)
+	a.removePane(2)
+	tab.out = 0 // the count loadOrders asked for: never answered here
+	bs := a.toolButtons(tab)
+	if len(bs) != 3 || len(bs[0]) != 3 || bs[0][2].Action != "save" || bs[1][0].Action != "grid.refresh" || bs[2][0].Action != "grid.transpose" {
+		t.Fatalf("groups %+v", bs)
+	}
+	if stop := bs[1][2]; stop.Action != "" || stop.Fg != a.theme.Dim || !stop.Plain {
+		t.Errorf("stop idle: %+v", stop)
+	}
+	a.fetch(tab, false)
+	if stop := a.toolButtons(tab)[1][2]; stop.Action != "grid.stop" || stop.Fg != a.theme.Error || stop.Plain {
+		t.Errorf("stop with a page out: %+v", stop)
+	}
+	answer(a, tab)
+	click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: 1, Action: "grid.refresh.auto"}).Min)
+	if a.drop == nil || a.drop.kind != dropAuto {
+		t.Fatal("auto refresh opens its dropdown")
+	}
+	if v := a.dropView(); strings.Join(v.Items, " ") != "关 2s 5s 10s 30s 60s" || v.Mark != 0 {
+		t.Fatalf("items %v, mark %d", v.Items, v.Mark)
+	}
+	_, cmd := a.Update(teaKey("<Down>"))
+	_, cmd = a.Update(teaKey("<CR>"))
+	if auto := a.toolButtons(tab)[1][1]; tab.auto != 2*time.Second || cmd == nil || auto.Tail != "2s" || auto.Fg != a.theme.Warn || auto.Plain {
+		t.Errorf("2s: auto %v, button %+v", tab.auto, auto)
+	}
+}
+
+// Auto refresh fetches the page and the count again, the last save's
+// note kept, only for a tab showing with no changes, no edit and nothing
+// out; else it waits a turn. A new interval, or the tab closed, ends the
+// ticking (§7.8「自动刷新」).
+func TestAutoRefresh(t *testing.T) {
+	a, tab, _ := withRecorder(t, 160, 45)
+	tab.out = 0 // the count loadOrders asked for: never answered here
+	tab.auto, tab.autoGen = 2*time.Second, 1
+	tab.note = ui.Note{Head: "已保存 1 行 · 3ms"}
+	if cmd := a.gotAuto(autoMsg{tab, 1}); cmd == nil || tab.note.Head == "" || tab.out != 1 || !tab.recount {
+		t.Fatalf("a refresh: note %+v, out %d, recount %v", tab.note, tab.out, tab.recount)
+	}
+	answer(a, tab)
+	tab.out = 0 // and the count it asks for
+	tab.edits = map[editKey]edit{{"1", "note"}: {val: db.Val{S: "x"}}}
+	if cmd := a.gotAuto(autoMsg{tab, 1}); cmd == nil || tab.out != 0 {
+		t.Errorf("changes: no refresh, the next turn waits: out %d", tab.out)
+	}
+	tab.edits = nil
+	if a.gotAuto(autoMsg{tab, 0}) != nil {
+		t.Error("an old ticking goes on")
+	}
+	a.closeTab(a.focused())
+	if a.gotAuto(autoMsg{tab, 1}) != nil {
+		t.Error("a closed tab ticks on")
 	}
 }

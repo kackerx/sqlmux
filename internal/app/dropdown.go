@@ -20,6 +20,7 @@ const (
 	dropOrder dropKind = iota
 	dropLimit
 	dropSchema
+	dropAuto // auto refresh's interval (§7.8「自动刷新」)
 )
 
 // dropdown is the open one-pick dropdown; tab or console, in pane, is what
@@ -88,6 +89,11 @@ func (a *App) dropItems() (items []string, current int) {
 			}
 		}
 		return items, current
+	case dropAuto:
+		for _, i := range autoIntervals {
+			items = append(items, autoLabel(i))
+		}
+		return items, slices.Index(autoIntervals, d.tab.auto)
 	case dropLimit: // a number typed goes first
 		if n := limitTyped(d.input.Text); n > 0 {
 			items = append(items, strconv.Itoa(n))
@@ -144,6 +150,8 @@ func (a *App) dropBox(v ui.Dropdown, hits []ui.Hit) (uv.Rectangle, int) {
 		entry = a.chipRect(d.pane, d.tab, "grid.order")
 	case dropLimit:
 		entry = a.chipRect(d.pane, d.tab, "grid.limit")
+	case dropAuto:
+		entry = a.queryBar(d.pane, d.tab).ButtonRect(bodyRect(a.layout()[d.pane.ID]), "grid.refresh.auto")
 	}
 	return v.Box(a.window(), entry, w)
 }
@@ -166,9 +174,15 @@ func (a *App) dropPick(i int) tea.Cmd {
 	}
 	at := ms[i].Index
 	item := items[at]
-	if d.kind == dropSchema { // the next run sets it (§8.6)
+	switch t := d.tab; d.kind {
+	case dropSchema: // the next run sets it (§8.6)
 		d.console.schema = item
 		return nil
+	case dropAuto: // the ticking so far stops; this interval's starts
+		if t.auto, t.autoGen = autoIntervals[at], t.autoGen+1; t.auto == 0 {
+			return nil
+		}
+		return autoTick(t)
 	}
 	switch t := d.tab; d.kind {
 	case dropOrder:

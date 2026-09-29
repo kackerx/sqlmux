@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -314,4 +315,19 @@ func TestColType(t *testing.T) {
 			t.Errorf("colType(%q) = %v, want %v", typ, got, want)
 		}
 	}
+}
+
+// The tool buttons at a few widths, auto refresh on and a request out:
+// whole groups give way, view, query, then data (§7.8「工具按钮」).
+func TestGoldenToolButtons(t *testing.T) {
+	var rows []string
+	for _, w := range []int{160, 110, 90, 70} {
+		a := wide(w, 20)
+		tab := loadOrders(t, a, 3)
+		tab.auto, tab.out = 5*time.Second, 1
+		tab.edits = map[editKey]edit{{"1", "note"}: {val: db.Val{S: "x"}}, {"2", "note"}: {val: db.Val{S: "y"}}}
+		r := a.layout()[a.focused().ID]
+		rows = append(rows, ansi.Cut(strings.Split(a.render().String(), "\n")[r.Min.Y+2], r.Min.X, r.Max.X))
+	}
+	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")
 }
