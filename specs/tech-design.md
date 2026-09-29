@@ -833,7 +833,9 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 2. 以 WITH 开头的，继续在顶层扫描：出现 INSERT、UPDATE、DELETE、MERGE 就判为写。
 3. `EXPLAIN ANALYZE` 后面跟写语句时判为写，因为它会真正执行；`EXPLAIN (ANALYZE, BUFFERS) …` 这种括号写法里的 ANALYZE 也算。
 4. PG 的 `SELECT … INTO 新表` 会建表，判为写。
-5. 其余一律判为写。
+5. 带行锁子句的 SELECT（`FOR UPDATE` / `FOR SHARE` / `FOR NO KEY UPDATE` / `FOR KEY SHARE`）判为写，不论在不在 WITH 里：它会加锁，PG 的只读事务也拒绝它。
+6. WITH 之后在任何括号深度出现 INSERT、UPDATE、DELETE、MERGE 都判为写：CTE 里的写语句在括号里，只看顶层会漏掉。EXPLAIN 括号写法里的 `ANALYZE false` / `off` / `0` 不算 ANALYZE。
+7. 其余一律判为写。
 
 这个判定只用于提示（F-05 的黄色提示、只读 session 的拦截说明），保护靠数据库层（§13）。
 
