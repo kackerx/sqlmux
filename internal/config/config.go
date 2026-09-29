@@ -23,7 +23,11 @@ type Config struct {
 	// MaxRows the rows a console's run keeps of each result (§11).
 	ResultHeight float64
 	MaxRows      int
-	theme        string // the name Parse read; Load finds the theme, as it touches the disk
+	// KeywordCase and FormatPrg are gq's (§9.5): sql-formatter's keywordCase,
+	// or a command to format with instead of it.
+	KeywordCase string
+	FormatPrg   string
+	theme       string // the name Parse read; Load finds the theme, as it touches the disk
 
 	// Leader and Bindings are the raw [keys] and [map.*] entries; the keymap
 	// package gives them meaning.
@@ -39,7 +43,7 @@ type Binding struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 1000}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 1000, KeywordCase: "lower"}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -85,6 +89,8 @@ func Parse(data string) (*Config, error) {
 		Timeoutlen *int     `toml:"timeoutlen"`
 		TabWidth   *int     `toml:"tab_width"`
 		Height     *float64 `toml:"result_height"`
+		Case       *string  `toml:"keyword_case"`
+		FormatPrg  string   `toml:"formatprg"`
 		Console    struct {
 			MaxRows *int `toml:"max_rows"`
 		} `toml:"console"`
@@ -122,6 +128,13 @@ func Parse(data string) (*Config, error) {
 		}
 		c.ResultHeight = *h
 	}
+	if k := raw.Case; k != nil {
+		if *k != "lower" && *k != "upper" && *k != "preserve" {
+			return nil, fmt.Errorf(`keyword_case = %q：只能是 "lower"、"upper" 或 "preserve"`, *k)
+		}
+		c.KeywordCase = *k
+	}
+	c.FormatPrg = raw.FormatPrg
 	if n := raw.Console.MaxRows; n != nil {
 		if *n <= 0 {
 			return nil, fmt.Errorf("[console] max_rows = %d：必须大于 0", *n)

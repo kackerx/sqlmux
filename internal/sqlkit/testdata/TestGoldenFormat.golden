@@ -1,0 +1,60 @@
+-- pg: create function f() returns int as $$ select 1 $$ language sql
+create function f () returns int as $$ select 1 $$ language sql
+
+-- pg: select E'a\'b', x::int, count(*) filter (where y > 0) from t where id = $1 -- the one
+group by x
+select
+  E'a\'b',
+  x::int,
+  count(*) filter (
+    where
+      y > 0
+  )
+from
+  t
+where
+  id = $1 -- the one
+group by
+  x
+
+-- pg: /* two */ update t set a = 1 where b in (select b from u); delete from t
+/* two */
+update t
+set
+  a = 1
+where
+  b in (
+    select
+      b
+    from
+      u
+  );
+
+delete from t
+
+-- mysql: select `a b`, c from `t` # a comment
+where d = 'x' limit 5, 10
+select
+  `a b`,
+  c
+from
+  `t` # a comment
+where
+  d = 'x'
+limit
+  5, 10
+
+-- mysql: insert into t (a) values (1), (2) on duplicate key update a = values(a)
+insert into
+  t (a)
+values
+  (1),
+  (2)
+on duplicate key update
+  a = values(a)
+
+-- upper, tab_width 4
+SELECT
+    a
+FROM
+    t

@@ -101,3 +101,21 @@ func TestSize(t *testing.T) {
 		}
 	}
 }
+
+// Replace is one undo step, the cursor on the first non-blank of its last
+// line, as gq leaves it; the same text is none.
+func TestReplace(t *testing.T) {
+	e := New("x select a, b from t; y\nz")
+	if eff := e.Replace(Pos{0, 2}, Pos{0, 20}, "select\n  a,\n  b\nfrom\n  t"); !eff.Changed || e.Cursor() != (Pos{4, 2}) {
+		t.Fatalf("%v, cursor %v", eff, e.Cursor())
+	}
+	if got := strings.Join(e.Lines(), "\n"); got != "x select\n  a,\n  b\nfrom\n  t; y\nz" {
+		t.Fatalf("%q", got)
+	}
+	if eff := e.Replace(Pos{1, 2}, Pos{1, 4}, "a,"); eff.Changed {
+		t.Error("the same text")
+	}
+	if e.Feed("u"); strings.Join(e.Lines(), "\n") != "x select a, b from t; y\nz" {
+		t.Errorf("u: %q", e.Lines())
+	}
+}

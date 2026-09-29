@@ -83,18 +83,30 @@ type (
 	runTick struct{ r *run }
 )
 
-// consoleRun is ↵ in a console (§11「执行」): the statement under the
-// cursor, the one a ▶ on line arg starts, or what VISUAL selects, a block
-// by its whole lines as V-LINE; VISUAL then ends, the cursor where it is.
+// consoleRun is ↵ in a console (§11「执行」), a click on a ▶ on line arg:
+// what consoleSpan says.
 func (a *App) consoleRun(arg string) tea.Cmd {
 	p := a.focused()
 	t := consoleOf(p)
 	if t == nil || t.running != nil { // a run at a time a console
 		return nil
 	}
+	text, from, to := consoleSpan(t, arg)
+	if from < 0 {
+		return nil
+	}
+	return a.runSQL(t, p.Object(), text[from:to], from)
+}
+
+// consoleSpan is what ↵ and gq take of console t (§9.5, §11): the
+// statement under the cursor, the one a ▶ on line arg starts, or what
+// VISUAL selects, a block by its whole lines as V-LINE; VISUAL then ends,
+// the cursor where it is. from and to are offsets into text, the lines
+// joined; from is -1 for nothing.
+func consoleSpan(t *consoleTab, arg string) (text string, from, to int) {
 	ed := t.ed
 	lines := ed.Lines()
-	text := strings.Join(lines, "\n")
+	text = strings.Join(lines, "\n")
 	at := func(pos editor.Pos) int { // pos's offset in text
 		off := pos.Col
 		for _, l := range lines[:pos.Line] {
@@ -103,15 +115,13 @@ func (a *App) consoleRun(arg string) tea.Cmd {
 		return off
 	}
 	stmts := sqlkit.Statements(text, sqlkit.PG)
-	from, to := -1, -1
+	from, to = -1, -1
 	switch s, e, visual := ed.Selection(); {
 	case arg != "":
-		n, _ := strconv.Atoi(arg)
-		if n < 1 || n > len(lines) {
-			return nil
-		}
-		if i := sqlkit.StmtAt(text, stmts, at(editor.Pos{Line: n - 1})); i >= 0 {
-			from, to = stmts[i].Start, stmts[i].End
+		if n, _ := strconv.Atoi(arg); n >= 1 && n <= len(lines) {
+			if i := sqlkit.StmtAt(text, stmts, at(editor.Pos{Line: n - 1})); i >= 0 {
+				from, to = stmts[i].Start, stmts[i].End
+			}
 		}
 	case visual && ed.Mode() == editor.Visual:
 		from, to = at(s), at(e)
@@ -131,10 +141,7 @@ func (a *App) consoleRun(arg string) tea.Cmd {
 	if _, _, visual := ed.Selection(); visual {
 		ed.Feed("<Esc>")
 	}
-	if from < 0 {
-		return nil
-	}
-	return a.runSQL(t, p.Object(), text[from:to], from)
+	return text, from, to
 }
 
 // runSQL runs sql of console t, named name, which is at base in its text:

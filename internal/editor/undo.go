@@ -239,3 +239,33 @@ func (e *Editor) Load(text string) Effect {
 	e.scrollToCursor()
 	return e.eff
 }
+
+// Replace puts text in place of the text from up to to, as a formatter's
+// gq does (§9.5): one undo step, none when nothing changes, in NORMAL,
+// the cursor on the first non-blank of the last line put in.
+func (e *Editor) Replace(from, to Pos, text string) Effect {
+	e.eff = Effect{}
+	if e.visual() {
+		e.endVisual()
+	}
+	e.keys = nil
+	before, after := e.lines[from.Line][:from.Col], e.lines[to.Line][to.Col:]
+	ls := strings.Split(text, "\n")
+	last := len(ls) - 1
+	ls[0] = before + ls[0]
+	ls[last] += after
+	if slices.Equal(ls, e.lines[from.Line:to.Line+1]) {
+		return e.eff
+	}
+	e.cur = from
+	e.setLine(from.Line, ls[0])
+	if to.Line > from.Line {
+		e.deleteLines(from.Line+1, to.Line+1)
+	}
+	e.insertLines(from.Line+1, ls[1:]...)
+	n := from.Line + last
+	e.cur, e.want = Pos{n, firstNonBlank(e.lines[n])}, wantUnset
+	e.settle()
+	e.scrollToCursor()
+	return e.eff
+}

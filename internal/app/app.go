@@ -28,6 +28,8 @@ type App struct {
 	tabWidth     int     // the consoles' (§14)
 	maxRows      int     // a console run keeps of each result (§11)
 	resultHeight float64 // the share the result area first takes
+	keywordCase  string  // gq's (§9.5)
+	formatPrg    string
 
 	palette  *palette    // non-nil while the command palette is open (COMMAND mode)
 	drop     *dropdown   // non-nil while a one-pick dropdown is open (§8.6, §7.8)
@@ -76,6 +78,7 @@ var whichKeyDelay = 400 * time.Millisecond
 func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, warning string) *App {
 	return &App{
 		theme: cfg.Theme, icons: cfg.Icons, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, resultHeight: cfg.ResultHeight,
+		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess,
 		mouse: uv.Pos(-1, -1), warning: warning, state: st,
 	}
@@ -126,6 +129,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotExternal(msg)
 	case runDone:
 		return a, a.gotRun(msg)
+	case formatDone:
+		return a, a.gotFormat(msg)
 	case runTick:
 		if !msg.r.done {
 			return a, a.runTick(msg.r)
