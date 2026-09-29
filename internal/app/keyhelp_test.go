@@ -66,18 +66,21 @@ func TestKeyHelp(t *testing.T) {
 	}
 }
 
-// The tree and a landing tab have ?; <leader>? opens it anywhere, a
-// console too, whose ? stays vim's backward search.
+// ? opens it in every pane in NORMAL, a console's too, whose VISUAL ?
+// stays vim's backward search; <leader>? anywhere.
 func TestKeyHelpWhere(t *testing.T) {
 	a := inTree(160, 45)
 	if feed(t, a, "?"); a.keyHelp == nil || !slices.Contains(helpItems(a), "t "+title("tree.open.tab")+" [keys.tree]") {
 		t.Fatalf("tree: %v", helpItems(a))
 	}
 	a, c := inConsole(t, "")
-	if feed(t, a, "?"); a.keyHelp != nil || c.ed.Mode() != editor.Command {
-		t.Fatal("a console's ? is vim's")
+	if feed(t, a, "?"); a.keyHelp == nil || !slices.Contains(helpItems(a), "↵ "+title("console.run")+" [keys.console]") {
+		t.Fatalf("a console's ? in NORMAL: %v", helpItems(a))
 	}
-	feed(t, a, "<Esc><Space>?")
+	if feed(t, a, "<Esc>v?"); a.keyHelp != nil || c.ed.Mode() != editor.Command {
+		t.Fatal("a console's ? in VISUAL is vim's")
+	}
+	feed(t, a, "<Esc><Esc><Space>?")
 	if a.keyHelp == nil || !slices.Contains(helpItems(a), "↵ "+title("console.run")+" [keys.console]") {
 		t.Fatalf("SPC ? in a console: %v", helpItems(a))
 	}
@@ -158,7 +161,7 @@ func TestKeyHelpTitle(t *testing.T) {
 		t.Fatalf("g?: %+v", a.keyHelp)
 	}
 	a, c := inConsole(t, "")
-	if feed(t, a, "<Space>?"); a.keyHelp == nil || a.keyHelpView().Prefix != "SPC ?" || c == nil {
+	if feed(t, a, "<Space>?"); a.keyHelp == nil || a.keyHelpView().Prefix != "?" || c == nil {
 		t.Errorf("a console's: %q", a.keyHelpView().Prefix)
 	}
 }

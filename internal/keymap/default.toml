@@ -28,7 +28,8 @@ leader = "<Space>"
 "<Leader>x" = "pane.close"
 "<Leader>q" = "pane.number"
 "<Leader>b" = "tree.toggle"
-"<Leader>?" = "keyhelp.open" # anywhere, a console too: its ? is vim's (§6.5)
+"?" = "keyhelp.open" # every pane in NORMAL: a console's VISUAL ? stays vim's (§6.5)
+"<Leader>?" = "keyhelp.open" # anywhere
 "<Esc>" = "pane.error.close" # a console's VISUAL esc stays vim's: no normal scope there (§7.8)
 "gt" = "tab.next"
 "gT" = "tab.prev"
@@ -59,7 +60,6 @@ leader = "<Space>"
 "[" = "grid.page.prev"
 "yy" = "grid.yank"
 "yi" = "grid.yank.insert"
-"?" = "keyhelp.open"
 # not in normal: a console's : and ; are its vim's (§6.8)
 ":" = "palette.command"
 ";" = "palette.sql"
@@ -81,7 +81,6 @@ leader = "<Space>"
 "t" = "tree.open.tab"
 "/" = "tree.filter"
 "R" = "tree.refresh"
-"?" = "keyhelp.open"
 ":" = "palette.command"
 ";" = "palette.sql"
 
@@ -89,7 +88,6 @@ leader = "<Space>"
 "t" = "tab.table"
 "c" = "console.new"
 "x" = "tab.close"
-"?" = "keyhelp.open"
 ":" = "palette.command"
 ";" = "palette.sql"
 
