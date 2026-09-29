@@ -576,7 +576,7 @@ func TestWhichKeyShowsAfterDelay(t *testing.T) {
 		}
 	}
 	// §6.8's SPC keys, in default.toml order
-	if got := strings.Join(keys, " "); got != `s c n p l % " z x q b` {
+	if got := strings.Join(keys, " "); got != `s c n p l % " z x q b ?` {
 		t.Errorf("SPC items: %s", got)
 	}
 	if row := strings.Split(a.render().String(), "\n")[a.h-2]; !strings.HasPrefix(row, "└") {
@@ -719,7 +719,7 @@ func TestUserLeaderKeys(t *testing.T) {
 	a := configured(t, 160, 45, "[keys.normal]\n\"<Leader>h\" = \"pane.focus.left\"")
 	feed(t, a, "<Space>")
 	due(a)
-	if !slices.Contains(a.whichKeyOverlay().Items, ui.WhichKeyItem{Key: "h", Title: "焦点移到左边"}) {
+	if !slices.Contains(a.whichKeyOverlay().Items, ui.WhichKeyItem{Key: "h", Title: "焦点移到左边", Group: "keys.normal"}) {
 		t.Errorf("which-key lacks SPC h: %v", a.whichKeyOverlay().Items)
 	}
 	feed(t, a, "h")

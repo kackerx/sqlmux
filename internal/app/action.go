@@ -181,6 +181,17 @@ func init() {
 		"cols.none":   {Run: when(inCols, func(a *App) tea.Cmd { a.colsSetAll(false); return nil })},
 		"cols.filter": {Run: when(inCols, func(a *App) tea.Cmd { a.cols.typing = true; return nil })},
 		"cols.close":  {Run: when(inCols, func(a *App) tea.Cmd { a.colsEsc(); return nil })},
+		// The ? help (§6.5).
+		"keyhelp.open":  {Title: "键位帮助", Run: do(func(a *App, _ Args) { a.keyHelp = &keyHelp{ctx: a.context()} })},
+		"keyhelp.close": {Run: do(func(a *App, _ Args) { a.keyHelp = nil })},
+		"keyhelp.back": {Run: when(inKeyHelp, func(a *App) tea.Cmd {
+			if h := a.keyHelp; len(h.prefix) > 0 {
+				h.prefix, h.top = h.prefix[:len(h.prefix)-1], 0
+			}
+			return nil
+		})},
+		"keyhelp.scroll.down": {Run: when(inKeyHelp, func(a *App) tea.Cmd { a.scrollKeyHelp(1, true); return nil })},
+		"keyhelp.scroll.up":   {Run: when(inKeyHelp, func(a *App) tea.Cmd { a.scrollKeyHelp(-1, true); return nil })},
 
 		// "pane.focus <id>" is what a click runs; untitled, it stays out of the palette.
 		"pane.focus": {Run: do(func(a *App, args Args) {
@@ -372,6 +383,9 @@ func (a *App) run(action string, count int) tea.Cmd {
 	id, arg, _ := strings.Cut(action, " ")
 	if !strings.HasPrefix(id, "cell.") && id != "cancel" { // cancel is esc here, which commits itself
 		a.endEdit()
+	}
+	if !strings.HasPrefix(id, "keyhelp.") && id != "cancel" { // a global key (C-p) goes past the ? help: it closes (§6.5)
+		a.keyHelp = nil
 	}
 	act := actions[id]
 	if act.Run == nil {

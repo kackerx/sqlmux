@@ -109,7 +109,10 @@ func (a *App) render() *ui.Frame {
 	y := a.h - 1
 	a.statusLine().Draw(f, uv.Rect(0, y, a.w, 1))
 	if a.whichKey {
-		a.whichKeyOverlay().Draw(f, uv.Rect(0, 0, a.w, y))
+		a.whichKeyOverlay().Draw(f, a.overlayArea())
+	}
+	if a.keyHelp != nil {
+		a.keyHelpView().Draw(f, a.overlayArea())
 	}
 	if t := a.typingTab(); t != nil { // the WHERE's lists (§9.7), a cell's options (§10.2)
 		switch p := a.focused(); {
@@ -483,8 +486,14 @@ func (a *App) selectionInfo(ed *editor.Editor) string {
 
 // whichKeyOverlay lists what can follow the pending keys (§6.5).
 func (a *App) whichKeyOverlay() ui.WhichKey {
-	w := ui.WhichKey{Prefix: keymap.Display(a.res.Pending())}
-	for _, n := range a.res.Next() {
+	return ui.WhichKey{Prefix: keymap.Display(a.res.Pending()), Items: whichKeyItems(a.res.Next())}
+}
+
+// whichKeyItems are next as which-key and the ? help list them, by the
+// table each comes from (§6.5).
+func whichKeyItems(next []keymap.Next) []ui.WhichKeyItem {
+	var items []ui.WhichKeyItem
+	for _, n := range next {
 		t := title(n.Action)
 		switch {
 		case n.RHS != nil:
@@ -492,9 +501,9 @@ func (a *App) whichKeyOverlay() ui.WhichKey {
 		case n.Action == "":
 			t = "…" // a longer prefix
 		}
-		w.Items = append(w.Items, ui.WhichKeyItem{Key: keymap.Display([]keymap.Key{n.Key}), Title: t})
+		items = append(items, ui.WhichKeyItem{Key: keymap.Display([]keymap.Key{n.Key}), Title: t, Group: n.Table})
 	}
-	return w
+	return items
 }
 
 // drawThinBar is the folded sidebar (§7.8): "»" on top, then "schema · SPC b"

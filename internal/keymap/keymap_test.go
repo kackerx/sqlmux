@@ -416,10 +416,10 @@ func TestNext(t *testing.T) {
 	for _, n := range next {
 		keys = append(keys, string(n.Key))
 	}
-	if strings.Join(keys, "") != "y"+"scnpl%\"zxqb" {
+	if strings.Join(keys, "") != "y"+"scnpl%\"zxqb?" {
 		t.Errorf("SPC next keys in binding order: %q", strings.Join(keys, ""))
 	}
-	if next[0].RHS == nil || next[1].Action != "session.list" {
+	if next[0].RHS == nil || next[0].Table != "map.normal" || next[1].Action != "session.list" || next[1].Table != "keys.normal" {
 		t.Errorf("entries: %+v %+v", next[0], next[1])
 	}
 	press(t, r, grid, "g") // not bound after SPC: the sequence ends
@@ -429,5 +429,31 @@ func TestNext(t *testing.T) {
 	press(t, r, grid, "g")
 	if n := r.Next(); len(n) != 7 || n[0].Key != "g" || n[5].Key != "t" { // grid's g-keys first, then normal's
 		t.Errorf("g next: %+v", n)
+	}
+}
+
+// Map.Next is a level of a context's keys for the ? help: grouped by the
+// table each comes from in scope order, a prefix in the highest table
+// that has it, nothing a higher table hides repeated (§6.5).
+func TestMapNext(t *testing.T) {
+	m := mustLoad(t, "[map.grid.normal]\nJ = \"5j\"\n[keys.normal]\ngz = \"pane.zoom\"\nj = \"pane.close\"")
+	var got []string
+	for _, n := range m.Next(grid, nil) {
+		if n.Key == "J" || n.Key == "j" || n.Key == "g" || n.Key == "<C-h>" || n.Key == "<C-p>" {
+			got = append(got, string(n.Key)+" "+n.Table)
+		}
+	}
+	if want := []string{"J map.grid.normal", "j keys.grid", "g keys.grid", "<C-h> keys.normal", "<C-p> keys.global"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("top level: %v", got)
+	}
+	got = nil
+	for _, n := range m.Next(grid, []Key{"g"}) {
+		got = append(got, string(n.Key)+" "+n.Table)
+	}
+	if want := []string{"g keys.grid", "o keys.grid", "l keys.grid", "p keys.grid", "c keys.grid", "t keys.normal", "T keys.normal", "z keys.normal"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("g: %v", got)
+	}
+	if m.Next(grid, []Key{"x", "y"}) != nil {
+		t.Error("past what it binds: nothing")
 	}
 }

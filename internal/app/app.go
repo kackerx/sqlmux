@@ -37,6 +37,7 @@ type App struct {
 	cols     *colsMenu   // non-nil while the COLS list is open (Q-04)
 	confirm  *confirmBox // non-nil while it asks before changes go (§10.5)
 	whichKey bool        // the which-key overlay is up (§6.5)
+	keyHelp  *keyHelp    // non-nil while the ? help is open (§6.5)
 	// paneNumbers is SPC q's overlay: the next key picks a pane by its ⟨n⟩.
 	paneNumbers bool
 
@@ -248,7 +249,7 @@ func (a *App) click(p uv.Position) tea.Cmd {
 	case ui.KindNumber:
 		a.jumpToPane(keymap.Key(strconv.Itoa(t.I)))
 	case ui.KindBackdrop: // outside an overlay: close it; outside a confirm box: no
-		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols, a.confirm = false, false, nil, nil, nil, nil
+		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols, a.confirm, a.keyHelp = false, false, nil, nil, nil, nil, nil
 		a.res.Reset()
 	case ui.KindRow:
 		switch tab, c := a.typingTab(), a.completing(); {
@@ -280,6 +281,11 @@ func (a *App) click(p uv.Position) tea.Cmd {
 			return a.treeFold(n, !n.Open)
 		}
 	case ui.KindItem:
+		if a.keyHelp != nil {
+			if next := a.keys.Next(a.keyHelp.ctx, a.keyHelp.prefix); t.I < len(next) {
+				return a.keyHelpKey(next[t.I].Key)
+			}
+		}
 		if next := a.res.Next(); t.I < len(next) {
 			return a.press(next[t.I].Key)
 		}
@@ -327,6 +333,10 @@ func (a *App) click(p uv.Position) tea.Cmd {
 // Shift turns the vertical wheel horizontal, as does a touchpad's sideways
 // swipe (buttons 6 and 7).
 func (a *App) wheel(m tea.Mouse) {
+	if a.keyHelp != nil { // a notch a row (§6.5)
+		a.scrollKeyHelp(map[tea.MouseButton]int{tea.MouseWheelUp: -1, tea.MouseWheelDown: 1}[m.Button], false)
+		return
+	}
 	if t, _ := ui.HitAt(a.hits, uv.Pos(m.X, m.Y)); strings.HasPrefix(t.Action, "cell.seg ") { // over a time's part: step it (§10.2)
 		d := map[tea.MouseButton]string{tea.MouseWheelUp: "cell.inc ", tea.MouseWheelDown: "cell.dec "}[m.Button]
 		if d != "" {
@@ -394,6 +404,8 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 		}
 		for _, k := range r.Keys { // unbound keys go to the input that has them
 			switch t := a.typingTab(); {
+			case a.keyHelp != nil:
+				cmds = append(cmds, a.keyHelpKey(k))
 			case a.palette != nil:
 				cmds = append(cmds, a.paletteKey(k))
 			case a.drop != nil:
@@ -417,7 +429,7 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 // mode is derived from state, never stored (§3 principle 3).
 func (a *App) mode() keymap.Mode {
 	switch t, c := a.typingTab(), a.focusedConsole(); {
-	case a.palette != nil, a.drop != nil, a.cols != nil, a.confirm != nil, t != nil && t.hist != nil: // an overlay has the keys (§7.8)
+	case a.palette != nil, a.drop != nil, a.cols != nil, a.confirm != nil, a.keyHelp != nil, t != nil && t.hist != nil: // an overlay has the keys (§7.8)
 		return keymap.Command
 	case a.win().tree.filtering, t != nil:
 		return keymap.Insert
@@ -436,6 +448,8 @@ func (a *App) context() keymap.Context {
 	switch typing := a.typingTab(); {
 	case a.confirm != nil:
 		return keymap.Context{Overlay: "confirm", Mode: keymap.Command}
+	case a.keyHelp != nil: // the keys it lists come to keyHelpKey
+		return keymap.Context{Overlay: "keyhelp", Mode: keymap.Command}
 	case a.palette != nil && a.palette.comp != nil: // ↵ and esc are the input's, as in a WHERE (§9.7)
 		return keymap.Context{Overlay: "complete", Focus: []string{"input"}, Mode: keymap.Command}
 	case a.palette != nil:

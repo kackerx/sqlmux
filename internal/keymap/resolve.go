@@ -68,6 +68,7 @@ type node struct {
 	bound  bool
 	action string
 	rhs    []Key
+	table  string // the scope that put it there first, the highest (§6.5)
 }
 
 // trie merges the scopes of c into one trie, cached per context. The first
@@ -82,8 +83,8 @@ func (m *Map) trie(c Context, maps bool) *node {
 	for _, t := range m.scopes(c, maps) {
 		bs := m.tables[t]
 		if t == "leader" {
-			bs = nil
-			for _, b := range m.tables["keys.normal"] {
+			bs, t = nil, "keys.normal"
+			for _, b := range m.tables[t] {
 				if b.Keys[0] == Leader {
 					bs = append(bs, b)
 				}
@@ -96,7 +97,7 @@ func (m *Map) trie(c Context, maps bool) *node {
 					n.next = map[Key]*node{}
 				}
 				if n.next[k] == nil {
-					n.next[k] = &node{}
+					n.next[k] = &node{table: t}
 					n.order = append(n.order, k)
 				}
 				n = n.next[k]
@@ -156,18 +157,35 @@ type Next struct {
 	Key    Key
 	Action string // "" for a mapping or a further prefix
 	RHS    []Key  // set for a mapping
+	Table  string // the config table it comes from, "keys.grid" (§6.5)
 }
 
-// Next lists what can follow the pending keys, in binding order (§6.5
-// which-key). It is empty when nothing is pending.
-func (r *Resolver) Next() []Next {
-	if r.node == nil {
+// Next lists what can follow the pending keys (§6.5 which-key). It is
+// empty when nothing is pending.
+func (r *Resolver) Next() []Next { return r.node.children() }
+
+// Next lists what can follow prefix in context c, user maps and all: the
+// ? help's level (§6.5). It is empty past what c binds.
+func (m *Map) Next(c Context, prefix []Key) []Next {
+	n := m.trie(c, true)
+	for _, k := range prefix {
+		if n = n.next[k]; n == nil {
+			return nil
+		}
+	}
+	return n.children()
+}
+
+// children are n's in binding order, which is by table in the order of
+// scopes: a table creates all its nodes before the next one's.
+func (n *node) children() []Next {
+	if n == nil {
 		return nil
 	}
-	out := make([]Next, 0, len(r.node.order))
-	for _, k := range r.node.order {
-		n := r.node.next[k]
-		out = append(out, Next{Key: k, Action: n.action, RHS: n.rhs})
+	out := make([]Next, 0, len(n.order))
+	for _, k := range n.order {
+		c := n.next[k]
+		out = append(out, Next{Key: k, Action: c.action, RHS: c.rhs, Table: c.table})
 	}
 	return out
 }

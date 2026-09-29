@@ -63,7 +63,7 @@ func consoleOf(p *Pane) *consoleTab {
 // focusedConsole is the console that has the keys: the focused pane's
 // current tab, with no overlay over it.
 func (a *App) focusedConsole() *consoleTab {
-	if a.palette != nil || a.drop != nil || a.cols != nil || a.confirm != nil {
+	if a.palette != nil || a.drop != nil || a.cols != nil || a.confirm != nil || a.keyHelp != nil {
 		return nil
 	}
 	return consoleOf(a.focused())

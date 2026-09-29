@@ -28,6 +28,7 @@ leader = "<Space>"
 "<Leader>x" = "pane.close"
 "<Leader>q" = "pane.number"
 "<Leader>b" = "tree.toggle"
+"<Leader>?" = "keyhelp.open" # anywhere, a console too: its ? is vim's (§6.5)
 "gt" = "tab.next"
 "gT" = "tab.prev"
 
@@ -54,6 +55,7 @@ leader = "<Space>"
 "[" = "grid.page.prev"
 "yy" = "grid.yank"
 "yi" = "grid.yank.insert"
+"?" = "keyhelp.open"
 # not in normal: a console's : and ; are its vim's (§6.8)
 ":" = "palette.command"
 ";" = "palette.sql"
@@ -75,6 +77,7 @@ leader = "<Space>"
 "t" = "tree.open.tab"
 "/" = "tree.filter"
 "R" = "tree.refresh"
+"?" = "keyhelp.open"
 ":" = "palette.command"
 ";" = "palette.sql"
 
@@ -82,6 +85,7 @@ leader = "<Space>"
 "t" = "tab.table"
 "c" = "console.new"
 "x" = "tab.close"
+"?" = "keyhelp.open"
 ":" = "palette.command"
 ";" = "palette.sql"
 
@@ -124,6 +128,12 @@ leader = "<Space>"
 "<CR>" = "where.apply"
 "<C-f>" = "where.star"
 "<Esc>" = "where.close"
+
+[keys.keyhelp] # §6.5: the other keys it lists are pressed
+"<Esc>" = "keyhelp.close"
+"<BS>" = "keyhelp.back"
+"<C-d>" = "keyhelp.scroll.down"
+"<C-u>" = "keyhelp.scroll.up"
 
 [keys.input] # every input
 "<C-r>" = "where.history" # does something in the WHERE input only
