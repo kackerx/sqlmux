@@ -167,6 +167,7 @@ Tab 的种类：
 - 除结果区外，pane 不再分 data / console 类型。pane 的标题图标、右侧提示（`▶ run`、schema 下拉）、按键作用域都跟着当前 tab 的类型走；tab 栏每个 tab 前面画类型图标。`Pane.Kind` 只剩「普通 / 结果区」之分，M0 修剪时说的那几张按 PaneKind 下标的并行表随之删掉。
 - 结果区照旧是独立的 pane，只放结果 tab；console 的执行结果不论 console 在哪个 pane，都进底部结果区（§11）。
 - 打开表时当前 tab 是 console：`↵` 不替换它，改为在这个 pane 新开一个 tab。console 里是用户写的 SQL，不能被一张表顶掉。
+- 焦点不在普通 pane 上（比如在树上）时，目标 pane 取最近聚焦过、而且当前 tab 不是 console 的那个；所有普通 pane 的当前 tab 都是 console 时，才在最近聚焦过的那个里新开 tab。否则默认布局里从 ② console 回到树打开表，表会开成 ② 的第二个 tab，① 空着（M3 F3.7 定）。
 - 快速 SQL 的 `C-e`（在 console 中打开）在目标 pane 新开一个 console tab。
 - 目录树的工作区里，pane 节点不再标类型，tab 节点按各自的类型显示图标。
 - **引导页**：没有 tab 的 pane、点 `+` 新开的 tab、分割出来的新 pane，都显示同一个引导页，不再是空白。内容区中间两个按钮：「打开表」打开命令面板的表范围，选中的表开在这里；「新建 console」直接在这里开一个 console。按钮可点击，旁边的键位文字从 keymap 读。它取代 M1 里「`+` 聚焦树的过滤框」的做法：面板的表范围能跨 schema 模糊搜，更适合挑表。
