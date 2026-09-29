@@ -1142,7 +1142,7 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 | smallint / integer / bigint | 可带正负号的整数，在该类型的范围内；照 PG 17 也认前后空格、`0x1F`、`1_000` | 「不是有效的整数」「超出 int4 的范围」 |
 | numeric / real / double precision | 小数、科学计数法、`NaN`、`Infinity`、`-Infinity`；照 PG 17 也认 `inf`、`1_000.5`、`0x10` | 「不是有效的数字」 |
 | boolean | PG 认的写法：`t f true false yes no on off 1 0` 及其唯一前缀（`tr`、`ye`、`of`），不分大小写，可带前后空格 | 「不是有效的布尔值」 |
-| date / time / timestamp 系列 | §10.2 分段能解析的 ISO 写法，或该类型认的特殊词：time 只有 `now` `allballs`；date / timestamp 有 `now` `today` `tomorrow` `yesterday` `infinity` `-infinity` `epoch`。PG 还认的其他写法（`2026/09/20`、月份名）会被挡住，是已知上限 | 「不是有效的日期 / 时间」 |
+| date / time / timestamp 系列 | ISO 写法（比 §10.2 分段宽，分段仍只认 PG 的输出格式）：日期 `YYYY-M-D`，可带 ` BC`；时间 `H:MM[:SS[.f]]`，允许 `24:00:00`；timestamp / timestamptz 是日期，后面可以跟空格或 `T` 加时间，再可以跟时区 `±HH[:MM]` 或 `Z`（timestamp 带时区也放行，PG 会忽略它）。或者该类型认的特殊词：time 只有 `now` `allballs`；date / timestamp 有 `now` `today` `tomorrow` `yesterday` `infinity` `-infinity` `epoch`。PG 还认的其他写法（`2026/09/20`、月份名）会被挡住，是已知上限 | 「不是有效的日期 / 时间」 |
 | uuid | 32 个十六进制字符，可带连字符（任意每 4 位一个）或成对的花括号 | 「不是有效的 UUID」 |
 | json / jsonb | 合法的 JSON | 「不是有效的 JSON」 |
 | 其他 | 不检查 | |
