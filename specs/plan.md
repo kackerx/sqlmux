@@ -10,7 +10,7 @@
 | M3 console | [m3-console/task.md](m3-console/task.md) | vim 编辑器、执行、底部结果区、格式化、补全、schema 下拉；表格与 console 混放 tab | 改进项 F3.12–F3.24 全部通过（2026-09-29），与 M2 一起等用户验收 |
 | M4 命令面板 | [m4-palette/task.md](m4-palette/task.md) | 快速 SQL 接上 M3、DDL 预览 | 清单已定，等 M2 / M3 验收后开工 |
 | M5 工作现场 | [m5-workspace/task.md](m5-workspace/task.md) | 多 session / window、只读与事务模式、MySQL | draft |
-| M6 配置 | [m6-config/task.md](m6-config/task.md) | 键位配置收尾、主题、持久化、界面中英文切换 | draft |
+| M6 配置 | [m6-config/task.md](m6-config/task.md) | 键位配置收尾、主题、持久化、界面中英文切换、布局文件（保存与恢复工作现场） | draft |
 
 ## 任务文件的格式
 
