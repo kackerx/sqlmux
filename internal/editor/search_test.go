@@ -59,3 +59,36 @@ func TestSearchErrors(t *testing.T) {
 		t.Errorf(":wq: Ex %q, want wq", eff.Ex)
 	}
 }
+
+// C-w in the command line and in every input (§7.9): back past the
+// blanks, then over a run of one class; M-BS is C-w.
+func TestWordStart(t *testing.T) {
+	for s, want := range map[string]string{
+		"select foo.bar": "select foo.", "a  ": "", "   ": "", "x = 'ab": "x = '", "id, ": "id", "": "", "a 中文": "a ",
+	} {
+		if got := s[:WordStart(s, len(s))]; got != want {
+			t.Errorf("%q: %q, want %q", s, got, want)
+		}
+	}
+	e := New("")
+	feedAll(t, e, ":abc def<M-BS>")
+	if _, text, _, _ := e.CmdLine(); text != "abc " {
+		t.Errorf(":abc def M-BS: %q", text)
+	}
+	e = New("x")
+	feedAll(t, e, "A select foo.bar<M-BS><Esc>")
+	if e.Lines()[0] != "x select foo." {
+		t.Fatalf("INSERT: %q", e.Lines())
+	}
+	if feedAll(t, e, "u"); e.Lines()[0] != "x select foo.bar" {
+		t.Errorf("M-BS breaks the undo step as C-w: %q", e.Lines())
+	}
+	e = New("ab cd")
+	if feedAll(t, e, "$<M-BS>v<M-BS>"); e.Lines()[0] != "ab cd" || e.Mode() != Visual {
+		t.Errorf("NORMAL and VISUAL: %q %v", e.Lines(), e.Mode())
+	}
+	e = New("")
+	if feedAll(t, e, "2ia b<M-BS><Esc>"); e.Lines()[0] != "a a " {
+		t.Errorf("a count types C-w again: %q", e.Lines())
+	}
+}

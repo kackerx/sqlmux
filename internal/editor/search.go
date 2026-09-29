@@ -75,21 +75,8 @@ func (e *Editor) cmdKey(k string) {
 			q := prev(t, p)
 			cl.text, cl.pos = t[:q]+t[p:], q
 		}
-	case "<C-w>": // the blanks before the cursor and a run of one class (ex_getln.c)
-		if p == 0 {
-			return
-		}
-		q := prev(t, p)
-		for q > 0 && isSpace(rune(t[q])) {
-			q = prev(t, q)
-		}
-		c := classAt(t, q)
-		for q > 0 && classAt(t, q) == c {
-			q = prev(t, q)
-		}
-		if classAt(t, q) != c {
-			q = next(t, q)
-		}
+	case "<C-w>", "<M-BS>": // M-BS is C-w in all typing (§7.9)
+		q := WordStart(t, p)
 		cl.text, cl.pos = t[:q]+t[p:], q
 	case "<C-u>":
 		cl.text, cl.pos = t[p:], 0
@@ -102,6 +89,27 @@ func (e *Editor) cmdKey(k string) {
 			cl.text, cl.pos = t[:p]+s+t[p:], p+len(s)
 		}
 	}
+}
+
+// WordStart is where the command line's C-w deletes back to from p in s
+// (ex_getln.c): past the blanks before p, then a run of one class; the
+// inputs' C-w too (§7.9).
+func WordStart(s string, p int) int {
+	if p == 0 {
+		return 0
+	}
+	q := prev(s, p)
+	for q > 0 && isSpace(rune(s[q])) {
+		q = prev(s, q)
+	}
+	c := classAt(s, q)
+	for q > 0 && classAt(s, q) == c {
+		q = prev(s, q)
+	}
+	if classAt(s, q) != c {
+		q = next(s, q)
+	}
+	return q
 }
 
 func (e *Editor) closeCmdline() {

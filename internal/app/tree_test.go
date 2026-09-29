@@ -350,6 +350,30 @@ func TestTreeMouse(t *testing.T) {
 	}
 }
 
+// C-w, M-BS and C-u in every input (§7.9): the tree's filter, a WHERE,
+// the palette, a cell's edit, where all of it goes while all selected.
+func TestInputDeleteWord(t *testing.T) {
+	a := inTree(160, 45)
+	in := &a.win().tree.filter
+	for _, c := range []struct{ keys, want string }{
+		{"/t_order foo<C-w>", "t_order "}, {"<M-BS>", ""}, {"ab cd<Left><Left><C-u>", "cd"},
+	} {
+		if feed(t, a, c.keys); in.Text != c.want {
+			t.Errorf("filter %s: %q, want %q", c.keys, in.Text, c.want)
+		}
+	}
+	a, tab, _ := withRecorder(t, 160, 45)
+	if feed(t, a, "/id > 5<C-w><M-BS>"); tab.where.Text != "id " {
+		t.Errorf("WHERE: %q", tab.where.Text)
+	}
+	if feed(t, a, "<Esc><C-p>@t_ord<C-w>"); a.palette.input.Text != "@" {
+		t.Errorf("palette: %q", a.palette.input.Text)
+	}
+	if feed(t, a, "<Esc>i<C-w>"); tab.cell == nil || tab.cell.in.Text != "" {
+		t.Errorf("a cell's edit, all selected: %+v", tab.cell)
+	}
+}
+
 // The live filter (§7.8): INSERT while typing; the tables and views it
 // matches, across schemas, with the nodes above them opened, and nothing
 // else; ↵ keeps it for the list, esc clears it, the cursor staying on its

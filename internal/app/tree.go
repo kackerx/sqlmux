@@ -11,6 +11,7 @@ import (
 
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
+	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -471,6 +472,12 @@ func editInput(in *ui.Input, k keymap.Key) bool {
 		return false
 	case "<BS>":
 		in.Backspace()
+		return true
+	case "<C-w>", "<M-BS>": // M-BS is C-w in all typing (§7.9)
+		in.DeleteBack(editor.WordStart(in.Text, in.Pos))
+		return true
+	case "<C-u>":
+		in.DeleteBack(0)
 		return true
 	}
 	if keymap.Text(k) == "" {

@@ -128,6 +128,8 @@ func teaKey(k keymap.Key) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
 	case "<BS>":
 		return tea.KeyPressMsg{Code: tea.KeyBackspace}
+	case "<M-BS>":
+		return tea.KeyPressMsg{Code: tea.KeyBackspace, Mod: tea.ModAlt}
 	case "<Space>":
 		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 	case "<Tab>":

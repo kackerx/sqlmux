@@ -42,8 +42,12 @@ func (e *Editor) indentOf(l string) string {
 }
 
 // insertKey takes a key typed in INSERT or REPLACE. nvim maps C-w and C-u
-// to <C-G>u first: what was typed so far is an undo step of its own.
+// to <C-G>u first: what was typed so far is an undo step of its own. M-BS
+// is C-w (§7.9).
 func (e *Editor) insertKey(k string) {
+	if k == "<M-BS>" {
+		k = "<C-w>"
+	}
 	if k == "<C-w>" || k == "<C-u>" {
 		e.endChange()
 		e.ins.fresh = true

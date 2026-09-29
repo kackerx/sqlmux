@@ -32,6 +32,16 @@ func (in *Input) Backspace() {
 	in.Pos = len(before)
 }
 
+// DeleteBack deletes from byte offset q to the cursor, all of the text
+// when it is all selected (C-w and C-u, §7.9).
+func (in *Input) DeleteBack(q int) {
+	if in.All {
+		*in = Input{}
+		return
+	}
+	in.Text, in.Pos = in.Text[:q]+in.Text[in.Pos:], q
+}
+
 // Left and Right first drop a selection, the cursor to its end that way.
 func (in *Input) Left() {
 	if in.All {
