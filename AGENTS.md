@@ -212,6 +212,7 @@ sqlmux/
   3. 界面行为：用 tmux 做黑盒测试。
 - **e2e 只测真实终端才能验证的行为**：终端模式、SGR 鼠标、resize、字素宽度、时序（连按、超时、取消）、配置加载，以及真实数据库上的端到端流程。布局、颜色、位置交给渲染 golden（worker 写）。M0 每次改 UI 都要重写几十条 e2e 断言，F0.13 一次就是 33 条。
   - 已有的 e2e 保留。UI 改动让纯布局的 e2e 断言失效、而 golden 已经覆盖时，删掉这些断言，不重写；golden 没覆盖的，在退回里请 worker 补 golden 场景。
+- **跑全量回归时也只编译一次 sqlmux**，各脚本共用；`lib.sh` 里给出跳过编译的开关，跑完删掉临时目录里的二进制和日志（2026-09-29：scratch 里攒了 14 轮、6GB）。
 - **tmux 黑盒测试一律通过 `e2e/lib.sh` 进行**：worker 在 main 上、tester 在 e2e worktree 里，会同时跑同一套脚本。
   - `lib.sh` 每次运行都使用独立的 socket `sqlmux-e2e-<pid>`，退出时执行 kill-server 并删除 socket 文件。
   - 不要写死 socket 名，否则一方的 kill-server 或 resize 会打到另一方的会话上；也不要碰用户自己的 tmux。
