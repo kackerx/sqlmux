@@ -8510,3 +8510,743 @@ a█bcd
 ## paste: normal then redo
 <Paste>"XY"u<C-r>
 a█bcd
+
+## p sidescroll: A on an 80-col line esc
+A<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: A then Esc on an 80-col line
+A<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: A x on a 79-col line esc
+Ax<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: A x Esc on a 79-col line
+Ax<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: A xyz BS BS BS esc
+Axyz<BS><BS><BS><Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: A xyz BS BS BS Esc
+Axyz<BS><BS><BS><Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: wide cut at the left
+$20h
+█a中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中
+
+## p sidescroll: wide cut at the left h
+$20hh
+█a中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中
+
+## p sidescroll: wide cut at the left 30h
+$30h
+█a中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中
+
+## p sidescroll: wide chars $ then 0
+$0
+█a中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中
+
+## p sidescroll: tab far right
+$
+█																																																												b
+
+## p sidescroll: tab far right then 20h
+$20h
+█																																																												b
+
+## p sidescroll: tab far right then 41h
+$41h
+█																																																												b
+
+## p sidescroll: tab odd start 20h
+$20h
+█a																																																												b
+
+## p sidescroll: tab odd start 20h in insert esc
+$20hi<Esc>
+█a																																																												b
+
+## p sidescroll: tab odd start 20h insert Left esc
+$20hi<Left><Esc>
+█a																																																												b
+
+## p sidescroll: o from far right esc
+$o<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: o from near right esc
+85lo<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: cc from far right esc
+$cc<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: b from far right
+$b
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: B then e
+$Be
+█aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa
+
+## p sidescroll: ? backwards
+$?b<CR>
+█aaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: star far right
+$*
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa word word
+
+## p sidescroll: star far right2
+*
+█word aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa word
+
+## p sidescroll: R past the edge esc
+$Rxyz<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: R past the edge Esc
+$Rxyz<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: J to a long line
+J
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+bbbb
+
+## p sidescroll: J to a long line far
+J
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+bbbb
+
+## p sidescroll: x then 0 then u
+$x0u
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: u restores far right
+$xu
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: G to a long last line
+G$gg
+█short
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: G to a long last line keep
+G$k
+█short
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: v-block $
+<C-v>j$
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: v-block $ k
+j<C-v>k$
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: v-block 90l
+<C-v>j90l
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: p a long register
+yyP$
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: yl p far right
+$ylp
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: ctrl-d to long lines
+$<C-d>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+a
+aa
+aaa
+aaaa
+aaaaa
+aaaaaa
+aaaaaaa
+aaaaaaaa
+aaaaaaaaa
+aaaaaaaaaa
+aaaaaaaaaaa
+aaaaaaaaaaaa
+aaaaaaaaaaaaa
+aaaaaaaaaaaaaa
+aaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: zz keeps left
+$zz
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: insert Right at the edge esc
+79li<Right><Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: insert End wide esc
+A中<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: insert End wide 78 esc
+A中<Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: wide at the edge 79
+$
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa中
+
+## p sidescroll: wide at the edge 78 l
+78ll
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa中b
+
+## p sidescroll: v$ on an 80-col line
+v$
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: v$ on an 79-col line
+v$
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: 0 from 45 off
+$0
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: h back to off by 1
+$41h
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: dd onto short
+$dd
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+short
+
+## p sidescroll: dd onto long
+$jdd
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+short
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: I on indented far esc
+$I<Esc>
+█                                                            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: ^ on indented far
+$^
+█                                                            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: ~ at edge
+79l~
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: r at edge
+80lrx
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: f far
+fb
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab
+
+## p sidescroll: F back
+$Fb
+█abaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: A then Up to short esc
+jA<Up><Esc>
+█short
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: A then CR esc
+A<CR><Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: A then C-w esc
+A<C-w><Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: A then C-u esc
+A<C-u><Esc>
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: search far then n wrap
+/b<CR>n
+baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: gv far
+$vhh<Esc>0gv
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: % far
+%
+█(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+
+## p sidescroll: ctrl-v o far
+<C-v>$o
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: visual o far
+v$o
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p sidescroll: 3 lines j j wide
+90ljj
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p paste: normal on a wide char
+<Paste>"XY"
+a█中b
+
+## p paste: normal ending in a wide char
+<Paste>"X中"
+a█bc
+
+## p paste: normal lines ending wide
+<Paste>"X\n中"
+a█bc
+
+## p paste: normal lines ending two chars
+<Paste>"X\nYZ"
+a█bc
+
+## p paste: normal on empty buffer multi
+<Paste>"X\nY"
+█
+
+## p paste: normal on empty buffer trailing nl
+<Paste>"X\n"
+█
+
+## p paste: normal only newline
+<Paste>"\n"
+a█bc
+
+## p paste: normal two newlines
+<Paste>"\n\n"
+a█bc
+
+## p paste: normal empty
+<Paste>""
+a█bc
+
+## p paste: normal empty then u
+<Paste>""u
+a█bc
+
+## p paste: normal then j
+<Paste>"XYZXYZ"j
+a█bc
+abcdefghijklmn
+
+## p paste: normal then u cursor
+ll<Paste>"XY"u
+a█bcdef
+
+## p paste: normal then U
+<Paste>"XY"U
+a█bcd
+
+## p paste: normal then p reg
+yl<Paste>"XY"p
+a█bcd
+
+## p paste: normal on a tab
+<Paste>"XY"
+a█	b
+
+## p paste: normal crlf at end
+<Paste>"XY\r\n"
+a█bc
+
+## p paste: normal cr cr lf
+<Paste>"X\r\r\nY"
+a█bc
+
+## p paste: insert then Down
+i<Down><Paste>"XXXXX"<Down>q<Esc>
+a█bc
+abcdefghij
+abcdefghij
+
+## p paste: insert then Up
+A<Paste>"XXXXXXX"<Up>q<Esc>
+abcdefghijkl
+a█bc
+
+## p paste: insert count
+3ia<Paste>"XY"b<Esc>
+█c
+
+## p paste: insert count only paste
+3i<Paste>"XY"<Esc>
+█c
+
+## p paste: insert o autoindent then paste space
+o<Paste>"x "<Esc>
+  a█bc
+
+## p paste: insert o autoindent then paste
+o<Paste>"x"<Esc>
+  a█bc
+
+## p paste: insert o paste then Down
+o<Paste>"x "<Down><Esc>
+  a█bc
+zz
+
+## p paste: insert o autoindent then paste only spaces
+o<Paste>"  "<Esc>
+  a█bc
+
+## p paste: insert then C-w
+A <Paste>"foo bar"<C-w><Esc>
+a█bc
+
+## p paste: insert then C-u
+A <Paste>"foo bar"<C-u><Esc>
+a█bc
+
+## p paste: insert then C-u 2
+A<Paste>"foo\nbar"<C-u><Esc>
+a█bc
+
+## p paste: insert BS over a pasted newline
+A<Paste>"x\n"<BS><BS><Esc>
+a█bc
+
+## p paste: insert then u then C-r
+A<Paste>"x"<Esc>u<C-r>
+a█bc
+
+## p paste: insert U
+A<Paste>"x"<Esc>U
+a█bc
+
+## p paste: insert U multi
+A<Paste>"x\ny"<Esc>U
+a█bc
+
+## p paste: insert Left then paste then u
+A<Left><Paste>"x"<Esc>u
+a█bc
+
+## p paste: insert Left typed then paste u
+Aq<Left><Paste>"x"<Esc>u
+a█bc
+
+## p paste: insert at 0 count
+2I<Paste>"x"<Esc>
+a█bc
+
+## p paste: insert on block I
+<C-v>jI<Paste>"XY"<Esc>
+a█bc
+def
+
+## p paste: insert on block A
+<C-v>jA<Paste>"XY"<Esc>
+a█bc
+def
+
+## p paste: insert on block I typed
+<C-v>jIq<Paste>"XY"<Esc>
+a█bc
+def
+
+## p paste: insert on block I two lines
+<C-v>jI<Paste>"X\nY"<Esc>
+a█bc
+def
+
+## p paste: insert on block c
+<C-v>jc<Paste>"XY"<Esc>
+a█bc
+def
+
+## p paste: replace wide pasted
+R<Paste>"中"<Esc>
+a█bcd
+
+## p paste: replace past end
+R<Paste>"XYZ"<Esc>
+abc█d
+
+## p paste: replace then BS
+Rq<Paste>"XY"<BS><BS><Esc>
+a█bcde
+
+## p paste: replace then BS 1
+R<Paste>"XY"<BS><Esc>
+a█bcde
+
+## p paste: replace then type
+R<Paste>"XY"q<Esc>
+a█bcde
+
+## p paste: replace count
+2Rq<Paste>"XY"<Esc>
+a█bcdefg
+
+## p paste: replace crlf
+R<Paste>"X\r\nY"<Esc>
+a█bcdefg
+
+## p paste: replace then u
+Rq<Paste>"XY"<Esc>u
+a█bcde
+
+## p paste: replace then Up
+R<Paste>"XY"<Up><Esc>
+abcdefghij
+a█bcde
+
+## p paste: replace trailing nl
+R<Paste>"XY\n"<Esc>
+a█bcde
+
+## p paste: replace on empty line
+R<Paste>"XY"<Esc>
+█
+
+## p paste: replace end of line
+A<Esc>R<Paste>"XY"<Esc>
+a█b
+
+## p paste: visual backwards
+lvh<Paste>"XY"
+a█bcd
+
+## p paste: visual whole line to eol at end
+v$<Paste>"XY"
+a█bcd
+
+## p paste: visual to the end of last line
+$v<Paste>"XY"
+a█bcd
+
+## p paste: visual trailing nl
+vl<Paste>"XY\n"
+a█bcd
+
+## p paste: visual empty
+vl<Paste>""
+a█bcd
+
+## p paste: visual on wide
+v<Paste>"XY"
+a█中b
+
+## p paste: visual then gv
+vl<Paste>"XYZ"gv
+a█bcdef
+
+## p paste: visual on empty line
+v<Paste>"XY"
+a
+█
+b
+
+## p paste: visual over lines to eol
+vj$<Paste>"XY"
+a█bc
+def
+ghi
+
+## p paste: visual over all to eol
+vj$<Paste>"XY"
+a█bc
+def
+
+## p paste: visual from col 0 to end of last line
+0vj$<Paste>"XY"
+a█bc
+def
+
+## p paste: v-line first line
+V<Paste>"XY\n"
+o█ne
+two
+
+## p paste: v-line want kept
+$V<Paste>"XY\n"
+o█ne
+two
+
+## p paste: v-line col 2
+llV<Paste>"XY\n"
+o█nes
+two
+
+## p paste: v-line next short
+llV<Paste>"XY\n"
+o█nes
+t
+
+## p paste: v-line next empty
+llV<Paste>"XY\n"
+o█nes
+
+x
+
+## p paste: v-line last up
+jVk<Paste>"XY\n"
+o█ne
+two
+three
+
+## p paste: v-line last two lines
+Vj<Paste>"XY\n"
+zero
+o█ne
+two
+
+## p paste: v-line indented next
+V<Paste>"XY\n"
+o█ne
+    two
+
+## p paste: v-line multi lines pasted
+V<Paste>"A\nB\n"
+o█ne
+two
+
+## p paste: v-line then u
+Vj<Paste>"XY\n"u
+zero
+o█ne
+two
+
+## p paste: v-block to eol
+ll<C-v>jl<Paste>"XY"
+a█bcd
+efgh
+
+## p paste: v-block $
+<C-v>j$<Paste>"XY"
+a█bcd
+ef
+
+## p paste: v-block short line
+<C-v>jll<Paste>"XY"
+a█bcd
+e
+fghij
+
+## p paste: v-block multi lines pasted
+<C-v>jl<Paste>"X\nY"
+a█bcd
+efgh
+
+## p paste: long in normal far
+$<Paste>"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p paste: normal long multi
+<Paste>"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\ny"
+█ab
+
+## p paste: visual far right
+$v<Paste>"XY"
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+## p ai: o paste space CR
+o<Paste>"x "<CR>y<Esc>
+  a█bc
+
+## p ai: o paste nl
+o<Paste>"x \n"<Esc>
+  a█bc
+
+## p ai: o paste nl then type
+o<Paste>"x \n"y<Esc>
+  a█bc
+
+## p ai: o paste space then type
+o<Paste>"x "y<Esc>
+  a█bc
+
+## p ai: o paste space then Up
+o<Paste>"x "<Up><Esc>
+  a█bc
+
+## p ai: o paste space BS
+o<Paste>"x "<BS><Esc>
+  a█bc
+
+## p ai: CR paste space
+A<CR><Paste>"x "<Esc>
+  a█bc
+
+## p ai: o paste two spaced lines
+o<Paste>"x \ny "<Esc>
+  a█bc
+
+## p ai: o paste empty-ish
+o<Paste>" \n "<Esc>
+  a█bc
+
+## p ai: o paste then Right
+o<Paste>"x "<Left><Esc>
+  a█bc
+
+## p insert long multi esc
+i<Paste>"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\ny"<Esc>
+█ab
+
+## p insert Up after paste
+A<Up><Paste>"XXXXXXXX"<Up>q<Esc>
+abcdefghijklmnop
+abcdefghijklmnop
+a█bc
+
+## p replace Up after paste
+R<Up><Paste>"XX"<Up>q<Esc>
+abcdefghijklmnop
+abcdefghijklmnop
+abcdefghi█j
+
+## p replace Up short then paste Up
+R<Up><Paste>"XX"<Up>q<Esc>
+abcdefghijklmnop
+abc
+abcdefghi█j
+
+## p insert Up short then paste Up
+i<Up><Paste>"XX"<Up>q<Esc>
+abcdefghijklmnop
+abcdef
+abcdefghi█j

@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -32,6 +33,78 @@ func TestClick(t *testing.T) {
 	feedAll(t, e, "y<Esc>u")
 	if got := strings.Join(e.Lines(), "\n"); e.Mode() != Normal || got != "axbc\nabcdef" {
 		t.Errorf("INSERT, a click, typing, u: %q in %v", got, e.Mode())
+	}
+}
+
+// In INSERT a click or the wheel that moves the cursor ends the change so
+// far, as an arrow key: what the probes of nvim_input_mouse gave.
+func TestMouseInInsert(t *testing.T) {
+	lines := func() *Editor {
+		var ls []string
+		for i := 1; i <= 30; i++ {
+			ls = append(ls, fmt.Sprintf("line%d", i))
+		}
+		e := New(strings.Join(ls, "\n"))
+		e.SetHeight(22)
+		return e
+	}
+	for _, c := range []struct {
+		name string
+		e    *Editor
+		do   func(e *Editor)
+		want string // the first lines and the cursor
+	}{
+		{"wheel, then u keeps what came before", lines(), func(e *Editor) {
+			feedAll(t, e, "Ax")
+			e.Scroll(3)
+			feedAll(t, e, "y<Esc>u")
+		}, "line1x line2 line3 line4 {3 4}"},
+		{"wheel drops the count", lines(), func(e *Editor) {
+			feedAll(t, e, "3ix")
+			e.Scroll(3)
+			feedAll(t, e, "<Esc>")
+		}, "xline1 line2 line3 line4 {3 0}"},
+		{"wheel leaves an autoindent", New("  abc\n" + strings.Repeat("x\n", 29)), func(e *Editor) {
+			e.SetHeight(22)
+			feedAll(t, e, "o")
+			e.Scroll(3)
+			feedAll(t, e, "<Esc>")
+		}, "  abc  x x {3 0}"},
+		{"a click where the cursor is keeps the undo step", New("abc\ndef"), func(e *Editor) {
+			feedAll(t, e, "ix")
+			e.Click(0, 1)
+			feedAll(t, e, "y<Esc>u")
+		}, "abc def {0 0}"},
+		{"a click along the line ends it", New("abcdef\ndef"), func(e *Editor) {
+			feedAll(t, e, "ix")
+			e.Click(0, 4)
+			feedAll(t, e, "y<Esc>u")
+		}, "xabcdef def {0 4}"},
+		{"a click off an autoindent", New("  abc\ndef"), func(e *Editor) {
+			feedAll(t, e, "o")
+			e.Click(2, 1)
+			feedAll(t, e, "<Esc>")
+		}, "  abc  def {2 0}"},
+		{"the wheel drops d and stays", lines(), func(e *Editor) {
+			feedAll(t, e, "d")
+			e.Scroll(3)
+			feedAll(t, e, "w")
+		}, "line1 line2 line3 line4 {1 0}"},
+		{"a click drops d", New("abc def ghi"), func(e *Editor) { // nvim deletes to the click
+			feedAll(t, e, "d")
+			e.Click(0, 6)
+		}, "abc def ghi {0 6}"},
+	} {
+		c.do(c.e)
+		ls := c.e.Lines()[:min(4, len(c.e.Lines()))]
+		if got := fmt.Sprintf("%s %v", strings.Join(ls, " "), c.e.Cursor()); got != c.want || c.e.Pending() != "" {
+			t.Errorf("%s: %q pending %q, want %q", c.name, got, c.e.Pending(), c.want)
+		}
+	}
+	e := lines()
+	feedAll(t, e, "d")
+	if e.Scroll(3); e.Top() != 0 {
+		t.Errorf("d, the wheel: top %d", e.Top())
 	}
 }
 

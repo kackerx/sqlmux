@@ -77,6 +77,16 @@ func (e *Editor) editKey(k string) {
 		e.arrow(k)
 		return
 	default:
+		if t, ok := strings.CutPrefix(k, pasteKey); ok {
+			want := wantUnset // do_put sets curswant
+			if e.mode == Replace {
+				want = e.want // vim.paste sets REPLACE's lines, which leaves it
+			}
+			e.putText(strings.Split(t, "\n"))
+			in.keys = append(in.keys, k)
+			e.want = want
+			return
+		}
 		t := keyText(k)
 		if did = t != ""; did {
 			e.typeText(t)
@@ -260,42 +270,45 @@ func (e *Editor) del() {
 	e.ins.ai = false
 }
 
-// arrow moves the cursor in INSERT. That ends the change so far: undo
-// takes back what was typed after it separately, and no count repeats.
+// arrow moves the cursor in INSERT, which ends the change so far.
 func (e *Editor) arrow(k string) {
-	l := e.line()
+	was, l := e.cur, e.line()
 	switch k {
 	case "<Left>":
-		if e.cur.Col == 0 {
-			return
+		if e.cur.Col > 0 {
+			e.cur.Col, e.want = prev(l, e.cur.Col), wantUnset
 		}
-		e.cur.Col = prev(l, e.cur.Col)
-		e.want = wantUnset
 	case "<Right>":
-		if e.cur.Col >= len(l) {
-			return
+		if e.cur.Col < len(l) {
+			e.cur.Col, e.want = next(l, e.cur.Col), wantUnset
 		}
-		e.cur.Col = next(l, e.cur.Col)
-		e.want = wantUnset
 	case "<Up>", "<Down>":
-		d := 1
+		n := e.cur.Line + 1
 		if k == "<Up>" {
-			d = -1
+			n -= 2
 		}
-		n := e.cur.Line + d
-		if n < 0 || n >= len(e.lines) {
-			return
+		if n >= 0 && n < len(e.lines) {
+			e.cur = Pos{n, e.coladvance(n, e.want)}
 		}
-		e.dropIndent()
-		e.cur = Pos{n, e.coladvance(n, e.want)}
 	}
-	e.jumped()
+	e.insMoved(was)
 }
 
-// jumped ends the INSERT's change so far after the cursor moved by itself
-// (edit.c start_arrow): undo takes back what is typed after it separately,
-// and no count repeats.
-func (e *Editor) jumped() {
+// insMoved ends the INSERT's change so far when an arrow key or the mouse
+// moved the cursor off was (edit.c start_arrow, which ins_mouse and
+// ins_mousescroll call only when the cursor moved): undo takes back what
+// is typed after it separately, no count repeats, and an indent nothing
+// was typed after goes from the line left.
+func (e *Editor) insMoved(was Pos) {
+	if e.ins == nil || e.cur == was {
+		return
+	}
+	if e.cur.Line != was.Line {
+		at := e.cur
+		e.cur = was
+		e.dropIndent()
+		e.cur = at
+	}
 	in := e.ins
 	in.arrowed, in.fresh, in.ai, in.keys, in.count = true, true, false, nil, 1
 	e.endChange()

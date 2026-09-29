@@ -14,15 +14,13 @@ func (e *Editor) Click(n, vcol int) {
 	if e.visual() {
 		e.endVisual()
 	}
+	// ponytail: a pending operator goes; nvim applies it up to the click
+	// (d, a click, deletes to there). Do that if anyone asks for it.
 	e.keys = nil
 	n = min(max(n, 0), len(e.lines)-1)
-	if e.ins != nil && n != e.cur.Line {
-		e.dropIndent() // edit.c stop_insert, when leaving the line
-	}
+	was := e.cur
 	e.cur, e.want = Pos{n, e.coladvance(n, vcol)}, vcol
-	if e.ins != nil {
-		e.jumped()
-	}
+	e.insMoved(was)
 	e.scrollToCursor()
 }
 
@@ -43,20 +41,27 @@ func (e *Editor) Drag(n, vcol int) {
 	}
 	n = min(max(n, 0), len(e.lines)-1)
 	e.cur, e.want = Pos{n, e.coladvance(n, vcol)}, vcol
-	e.clampCursor()
 	e.scrollToCursor()
 }
 
 // Scroll moves the view n lines down, up for a negative n, as the wheel
 // does: until the last line is at the top at most; the cursor stays in view.
+// Pending keys go, and with an operator among them the view stays
+// (nv_scroll_line's checkclearop).
 func (e *Editor) Scroll(n int) {
-	switch {
-	case e.mode == Command:
+	if e.mode == Command {
 		return
-	case n > 0:
+	}
+	c, _ := parse(e.keys, e.visual())
+	if e.keys = nil; c.op != "" {
+		return
+	}
+	was := e.cur
+	if n > 0 {
 		e.scrollUp(n)
-	case n < 0:
+	} else if n < 0 {
 		e.scrollDown(-n)
 	}
 	e.scrollSideways()
+	e.insMoved(was)
 }

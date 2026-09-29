@@ -214,6 +214,11 @@ func writeGolden(t *testing.T, cases []nvimCase) {
 // nvim_paste() as the terminal's, run from a <Cmd> mapping so the mode
 // stays what the keys before it left. wincol() scrolls sideways as a
 // redraw would, which nothing after the last command did.
+//
+// Two pastes this cannot give right, so no case has them: on the : or /
+// line vim.paste feeds the text with nvim_feedkeys, to the end of the
+// typeahead, after the keys that follow; and after a count or a pending
+// operator the <Cmd> runs as the operator's motion.
 func nvim(t *testing.T, path string, c nvimCase) string {
 	var text []string
 	for _, l := range c.text {

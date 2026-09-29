@@ -16,7 +16,8 @@ type step struct {
 }
 
 // The text changes only through setLine, insertLines, deleteLines and
-// joinNext, which open a step when none is open. The ends of the last
+// joinNext, which open a step when none is open, and Load, which opens
+// one itself (it sets every line, so no mark follows). The ends of the last
 // VISUAL (gv, '<,'>) follow the lines they are on, as vim's marks do
 // (mark.c mark_adjust, mark_col_adjust).
 

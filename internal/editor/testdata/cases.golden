@@ -19746,3 +19746,1151 @@ a█bXYcd
 reg: "" ""
 top: 1
 mode: n
+
+## p sidescroll: A on an 80-col line esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: A then Esc on an 80-col line
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: A x on a 79-col line esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█x
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: A x Esc on a 79-col line
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█x
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: A xyz BS BS BS esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "" ""
+top: 1
+left: 3
+mode: n
+
+## p sidescroll: A xyz BS BS BS Esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "" ""
+top: 1
+left: 3
+mode: n
+
+## p sidescroll: wide cut at the left
+a中中中中中中中中中中中中中中中中中中中中中中中中中中中中中█中中中中中中中中中中中中中中中中中中中中中
+reg: "" ""
+top: 1
+left: 21
+mode: n
+
+## p sidescroll: wide cut at the left h
+a中中中中中中中中中中中中中中中中中中中中中中中中中中中中█中中中中中中中中中中中中中中中中中中中中中中
+reg: "" ""
+top: 1
+left: 21
+mode: n
+
+## p sidescroll: wide cut at the left 30h
+a中中中中中中中中中中中中中中中中中中中█中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中
+reg: "" ""
+top: 1
+left: 21
+mode: n
+
+## p sidescroll: wide chars $ then 0
+█a中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中
+reg: "" ""
+top: 1
+mode: n
+
+## p sidescroll: tab far right
+																																																												█b
+reg: "" ""
+top: 1
+left: 80
+mode: n
+
+## p sidescroll: tab far right then 20h
+																																								█																				b
+reg: "" ""
+top: 1
+left: 80
+mode: n
+
+## p sidescroll: tab far right then 41h
+																			█																																									b
+reg: "" ""
+top: 1
+mode: n
+
+## p sidescroll: tab odd start 20h
+a																																								█																				b
+reg: "" ""
+top: 1
+left: 80
+mode: n
+
+## p sidescroll: tab odd start 20h in insert esc
+a																																							█																					b
+reg: "" ""
+top: 1
+left: 78
+mode: n
+
+## p sidescroll: tab odd start 20h insert Left esc
+a																																						█																						b
+reg: "" ""
+top: 1
+left: 76
+mode: n
+
+## p sidescroll: o from far right esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+█
+reg: "" ""
+top: 1
+mode: n
+
+## p sidescroll: o from near right esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+█
+reg: "" ""
+top: 1
+mode: n
+
+## p sidescroll: cc from far right esc
+█
+reg: "V" "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+top: 1
+mode: n
+
+## p sidescroll: b from far right
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa █aaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 31
+mode: n
+
+## p sidescroll: B then e
+aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaaa aaaaaaaaa█a
+reg: "" ""
+top: 1
+left: 90
+mode: n
+
+## p sidescroll: ? backwards
+aaaaa█baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+mode: n
+
+## p sidescroll: star far right
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa █word word
+reg: "" ""
+top: 1
+left: 20
+mode: n
+
+## p sidescroll: star far right2
+word aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa █word
+reg: "" ""
+top: 1
+left: 17
+mode: n
+
+## p sidescroll: R past the edge esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaxy█z
+reg: "" ""
+top: 1
+left: 2
+mode: n
+
+## p sidescroll: R past the edge Esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaxy█z
+reg: "" ""
+top: 1
+left: 2
+mode: n
+
+## p sidescroll: J to a long line
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█ bbbb
+reg: "" ""
+top: 1
+mode: n
+
+## p sidescroll: J to a long line far
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█ bbbb
+reg: "" ""
+top: 1
+left: 80
+mode: n
+
+## p sidescroll: x then 0 then u
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "v" "a"
+top: 1
+left: 20
+mode: n
+
+## p sidescroll: u restores far right
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "v" "a"
+top: 1
+left: 20
+mode: n
+
+## p sidescroll: G to a long last line
+shor█t
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 4
+mode: n
+
+## p sidescroll: G to a long last line keep
+shor█t
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 4
+mode: n
+
+## p sidescroll: v-block $
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█
+reg: "" ""
+top: 1
+mode: 
+
+## p sidescroll: v-block $ k
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 21
+mode: 
+
+## p sidescroll: v-block 90l
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█aaaaaaaaaa
+reg: "" ""
+top: 1
+left: 11
+mode: 
+
+## p sidescroll: p a long register
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "V" "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+top: 1
+left: 20
+mode: n
+
+## p sidescroll: yl p far right
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "v" "a"
+top: 1
+left: 21
+mode: n
+
+## p sidescroll: ctrl-d to long lines
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+a
+aa
+aaa
+aaaa
+aaaaa
+aaaaaa
+aaaaaaa
+aaaaaaaa
+aaaaaaaaa
+aaaaaaaaaa
+aaaaaaaaaa█a
+aaaaaaaaaaaa
+aaaaaaaaaaaaa
+aaaaaaaaaaaaaa
+aaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 12
+left: 10
+mode: n
+
+## p sidescroll: zz keeps left
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "" ""
+top: 1
+left: 20
+mode: n
+
+## p sidescroll: insert Right at the edge esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█aaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: insert End wide esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█中
+reg: "" ""
+top: 1
+left: 2
+mode: n
+
+## p sidescroll: insert End wide 78 esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█中
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: wide at the edge 79
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█中
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: wide at the edge 78 l
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa中█b
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: v$ on an 80-col line
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█
+reg: "" ""
+top: 1
+left: 1
+mode: v
+
+## p sidescroll: v$ on an 79-col line
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█
+reg: "" ""
+top: 1
+mode: v
+
+## p sidescroll: 0 from 45 off
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+mode: n
+
+## p sidescroll: h back to off by 1
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 20
+mode: n
+
+## p sidescroll: dd onto short
+shor█t
+reg: "V" "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+top: 1
+left: 4
+mode: n
+
+## p sidescroll: dd onto long
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█a
+reg: "V" "short\n"
+top: 1
+left: 20
+mode: n
+
+## p sidescroll: I on indented far esc
+                                                           █ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 59
+mode: n
+
+## p sidescroll: ^ on indented far
+                                                            █aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 60
+mode: n
+
+## p sidescroll: ~ at edge
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA█aaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: r at edge
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█xaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: f far
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█b
+reg: "" ""
+top: 1
+left: 11
+mode: n
+
+## p sidescroll: F back
+a█baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 1
+mode: n
+
+## p sidescroll: A then Up to short esc
+shor█t
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+left: 4
+mode: n
+
+## p sidescroll: A then CR esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+█
+reg: "" ""
+top: 1
+mode: n
+
+## p sidescroll: A then C-w esc
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█ 
+reg: "" ""
+top: 1
+left: 22
+mode: n
+
+## p sidescroll: A then C-u esc
+█
+reg: "" ""
+top: 1
+mode: n
+
+## p sidescroll: search far then n wrap
+baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+mode: n
+
+## p sidescroll: gv far
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█aaa
+reg: "" ""
+top: 1
+left: 18
+mode: v
+
+## p sidescroll: % far
+(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█)
+reg: "" ""
+top: 1
+left: 22
+mode: n
+
+## p sidescroll: ctrl-v o far
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+mode: 
+
+## p sidescroll: visual o far
+█aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+reg: "" ""
+top: 1
+mode: v
+
+## p sidescroll: 3 lines j j wide
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中中
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa█aaaaaaaaaa
+reg: "" ""
+top: 1
+left: 12
+mode: n
+
+## p paste: normal on a wide char
+a中X█Yb
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal ending in a wide char
+abX█中c
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal lines ending wide
+abX
+█中c
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal lines ending two chars
+abX
+Y█Zc
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal on empty buffer multi
+X
+█Y
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal on empty buffer trailing nl
+X
+█
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal only newline
+ab
+█c
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal two newlines
+ab
+
+█c
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal empty
+a█bc
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal empty then u
+a█bc
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal then j
+abXYZXYZc
+abcdefg█hijklmn
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal then u cursor
+abc█def
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal then U
+a█bcd
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal then p reg
+abXY█bcd
+reg: "v" "b"
+top: 1
+mode: n
+
+## p paste: normal on a tab
+a	X█Yb
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal crlf at end
+abXY
+█c
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: normal cr cr lf
+abX
+
+█Yc
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert then Down
+abc
+aXXXXXbcdefghij
+abcdef█qghij
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert then Up
+abcdefghij█qkl
+abcXXXXXXX
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert count
+aXYbaXYbaXY█bc
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert count only paste
+XYXYX█Yc
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert o autoindent then paste space
+  abc
+  █x
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert o autoindent then paste
+  abc
+  █x
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert o paste then Down
+  abc
+  x
+z█z
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert o autoindent then paste only spaces
+  abc
+█
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert then C-w
+abc foo█ 
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert then C-u
+ab█c
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert then C-u 2
+abcfoo
+█
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert BS over a pasted newline
+ab█c
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert then u then C-r
+abc█x
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert U
+ab█c
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert U multi
+ab█c
+y
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert Left then paste then u
+ab█c
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert Left typed then paste u
+abc█q
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert at 0 count
+x█xabc
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert on block I
+a█XYbc
+dXYef
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert on block A
+a█bXYc
+deXYf
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert on block I typed
+a█qXYbc
+dqXYef
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert on block I two lines
+aX
+█Ybc
+def
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: insert on block c
+aX█Yc
+dXYf
+reg: "\x161" "b\ne"
+top: 1
+mode: n
+
+## p paste: replace wide pasted
+█a中
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace past end
+ab█cXYZ
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace then BS
+█abXYe
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace then BS 1
+█aXYde
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace then type
+a█qYde
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace count
+aq█qXYfg
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace crlf
+█aX
+Ydefg
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace then u
+a█bcde
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace then Up
+█abcdefghij
+aXYde
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace trailing nl
+█aXY
+de
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace on empty line
+█XY
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: replace end of line
+█aXY
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: visual backwards
+aX█Yd
+reg: "v" "bc"
+top: 1
+mode: n
+
+## p paste: visual whole line to eol at end
+aX█Y
+reg: "v" "bcd"
+top: 1
+mode: n
+
+## p paste: visual to the end of last line
+abcX█Y
+reg: "v" "d"
+top: 1
+mode: n
+
+## p paste: visual trailing nl
+aXY
+█d
+reg: "v" "bc"
+top: 1
+mode: n
+
+## p paste: visual empty
+a█d
+reg: "v" "bc"
+top: 1
+mode: n
+
+## p paste: visual on wide
+aX█Yb
+reg: "v" "中"
+top: 1
+mode: n
+
+## p paste: visual then gv
+aX█YZdef
+reg: "v" "bc"
+top: 1
+mode: v
+
+## p paste: visual on empty line
+a
+X█Yb
+reg: "v" "\n"
+top: 1
+mode: n
+
+## p paste: visual over lines to eol
+aX█Yghi
+reg: "v" "bc\ndef\n"
+top: 1
+mode: n
+
+## p paste: visual over all to eol
+aX█Y
+reg: "v" "bc\ndef"
+top: 1
+mode: n
+
+## p paste: visual from col 0 to end of last line
+X█Y
+reg: "v" "abc\ndef"
+top: 1
+mode: n
+
+## p paste: v-line first line
+tXY
+█wo
+reg: "V" "one\n"
+top: 1
+mode: n
+
+## p paste: v-line want kept
+twXY
+█o
+reg: "V" "one\n"
+top: 1
+mode: n
+
+## p paste: v-line col 2
+twXY
+█o
+reg: "V" "ones\n"
+top: 1
+mode: n
+
+## p paste: v-line next short
+XY
+█t
+reg: "V" "ones\n"
+top: 1
+mode: n
+
+## p paste: v-line next empty
+XY
+█
+x
+reg: "V" "ones\n"
+top: 1
+mode: n
+
+## p paste: v-line last up
+tXY
+█hree
+reg: "V" "one\ntwo\n"
+top: 1
+mode: n
+
+## p paste: v-line last two lines
+zero
+XY
+█
+reg: "V" "one\ntwo\n"
+top: 1
+mode: n
+
+## p paste: v-line indented next
+ XY
+█   two
+reg: "V" "one\n"
+top: 1
+mode: n
+
+## p paste: v-line multi lines pasted
+tA
+B
+█wo
+reg: "V" "one\n"
+top: 1
+mode: n
+
+## p paste: v-line then u
+zero
+█one
+two
+reg: "V" "one\ntwo\n"
+top: 1
+mode: n
+
+## p paste: v-block to eol
+abcX█Y
+efg
+reg: "\x162" "d\nh"
+top: 1
+mode: n
+
+## p paste: v-block $
+aX█Y
+e
+reg: "\x163" "bcd\nf"
+top: 1
+mode: n
+
+## p paste: v-block short line
+aX█Ycd
+e
+fghij
+reg: "\x161" "b\n"
+top: 1
+mode: n
+
+## p paste: v-block multi lines pasted
+aX
+█Yd
+eh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## p paste: long in normal far
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx█x
+reg: "" ""
+top: 1
+left: 79
+mode: n
+
+## p paste: normal long multi
+axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+█yb
+reg: "" ""
+top: 1
+mode: n
+
+## p paste: visual far right
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX█Y
+reg: "v" "a"
+top: 1
+left: 21
+mode: n
+
+## p ai: o paste space CR
+  abc
+  x
+  █y
+reg: "" ""
+top: 1
+mode: n
+
+## p ai: o paste nl
+  abc
+  x 
+█
+reg: "" ""
+top: 1
+mode: n
+
+## p ai: o paste nl then type
+  abc
+  x 
+█y
+reg: "" ""
+top: 1
+mode: n
+
+## p ai: o paste space then type
+  abc
+  x █y
+reg: "" ""
+top: 1
+mode: n
+
+## p ai: o paste space then Up
+  a█bc
+  x
+reg: "" ""
+top: 1
+mode: n
+
+## p ai: o paste space BS
+  abc
+  █x
+reg: "" ""
+top: 1
+mode: n
+
+## p ai: CR paste space
+  abc
+  █x
+reg: "" ""
+top: 1
+mode: n
+
+## p ai: o paste two spaced lines
+  abc
+  x 
+█y
+reg: "" ""
+top: 1
+mode: n
+
+## p ai: o paste empty-ish
+  abc
+   
+█
+reg: "" ""
+top: 1
+mode: n
+
+## p ai: o paste then Right
+  abc
+  █x 
+reg: "" ""
+top: 1
+mode: n
+
+## p insert long multi esc
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+█yab
+reg: "" ""
+top: 1
+mode: n
+
+## p insert Up after paste
+abcdefghijk█qlmnop
+abcXXXXXXXXdefghijklmnop
+abc
+reg: "" ""
+top: 1
+mode: n
+
+## p replace Up after paste
+abcdefghi█qklmnop
+abcdefghiXXlmnop
+abcdefghij
+reg: "" ""
+top: 1
+mode: n
+
+## p replace Up short then paste Up
+abcdefghi█qklmnop
+abcXX
+abcdefghij
+reg: "" ""
+top: 1
+mode: n
+
+## p insert Up short then paste Up
+abcdefgh█qijklmnop
+abcdefXX
+abcdefghij
+reg: "" ""
+top: 1
+mode: n
