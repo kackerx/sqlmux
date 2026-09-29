@@ -88,7 +88,7 @@ func TestThemeFile(t *testing.T) {
 	if c.Theme.PaneBg == ui.TokyonightStorm.PaneBg || c.Theme.Fg != ui.TokyonightStorm.Fg {
 		t.Errorf("pane_bg %v fg %v", c.Theme.PaneBg, c.Theme.Fg)
 	}
-	if c.Icons.Console.Text != "C" || c.Icons.Data != ui.ASCIIIcons.Data {
+	if c.Icons.Console.Text != "C" || c.Icons.Table != ui.ASCIIIcons.Table {
 		t.Errorf("icons %+v", c.Icons)
 	}
 	if c, err := load(`theme = "tokyonight-storm"`); err != nil || c.Theme != ui.TokyonightStorm {

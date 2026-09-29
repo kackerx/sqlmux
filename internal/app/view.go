@@ -163,22 +163,22 @@ func (a *App) render() *ui.Frame {
 	return f
 }
 
+// drawPane paints pane p, ⟨n⟩, over r: the title, the hints and the body
+// its current tab's type has (§5), a landing page with no tab or a new one.
 func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	th := f.Theme
+	icon, word := a.tabIcon(p.tab())
 	b := ui.Block{
 		Num:     a.icons.Number(n),
-		Icon:    a.kindIcon(p.Kind),
-		Title:   a.label(p.Kind.String()),
+		Icon:    icon,
+		Title:   a.label(word),
 		Object:  p.Object(),
 		Focused: a.win().Focus == p.ID,
 		Pane:    p.ID,
 	}
 	var tabHints []ui.Hint
 	switch {
-	case len(p.Tabs) == 0:
-		// An empty pane: ▶ run and the schema dropdown act on the current tab,
-		// and there is none (§7.8).
-	case p.Kind == KindConsole:
+	case consoleOf(p) != nil:
 		// Drawn left to right; Prio says what goes first when space runs out
 		// (§7.8). The schema dropdown comes before ▶ run in F3.11.
 		b.Hints = append([]ui.Hint{
@@ -188,7 +188,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 			ui.Hint{Key: a.keys.Hint("console.format", "console"), Label: "format", Action: "console.format"},
 			ui.Hint{Key: a.hints("normal", "/", "tab.next", "tab.prev")},
 		)
-	case p.Kind == KindData:
+	case dataOf(p) != nil:
 		tabHints = bound(
 			ui.Hint{Key: a.hints("grid", "", "grid.left", "grid.down", "grid.up", "grid.right")},
 			ui.Hint{Key: a.keys.Hint("grid.edit", "grid"), Label: "edit", Action: "grid.edit"},
@@ -201,16 +201,19 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	if in.Empty() {
 		return
 	}
-	if len(p.Tabs) == 0 { // an empty pane: nothing but the + to open a tab
-		ui.Tabs{Pane: p.ID}.Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
+	tabs := ui.Tabs{Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}
+	for i := range p.Tabs {
+		ic, _ := a.tabIcon(&p.Tabs[i])
+		tabs.Names, tabs.Icons = append(tabs.Names, p.Tabs[i].Name), append(tabs.Icons, ic)
+	}
+	tabs.Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
+	if p.tab().landing() { // what it can become (§5「引导页」)
+		ui.Landing{Pane: p.ID, Buttons: []ui.LandingButton{
+			{Icon: a.icons.Table, Label: "打开表", Key: a.keys.Hint("tab.table", "landing"), Action: "tab.table"},
+			{Icon: a.icons.Console, Label: "新建 console", Key: a.keys.Hint("console.new", "landing"), Action: "console.new"},
+		}}.Draw(f, bodyRect(r))
 		return
 	}
-	names := make([]string, len(p.Tabs))
-	for i, t := range p.Tabs {
-		names[i] = t.Name
-	}
-	ui.Tabs{Names: names, Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID}.
-		Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
 	if c := consoleOf(p); c != nil {
 		view, body := a.consoleView(p, c)
 		if cur := view.Draw(f, body); cur.X >= 0 && b.Focused && a.focusedConsole() == c {
@@ -298,9 +301,16 @@ func (a *App) label(s string) string {
 	return ""
 }
 
-func (a *App) kindIcon(k PaneKind) ui.Icon {
-	ic := a.icons
-	return [...]ui.Icon{ic.Schema, ic.Data, ic.Console}[k]
+// tabIcon is the icon of tab t's type and the word ascii icons need beside
+// it (§7.7): none for a landing tab, or no tab.
+func (a *App) tabIcon(t *Tab) (ui.Icon, string) {
+	switch {
+	case t != nil && t.Data != nil:
+		return a.icons.Table, "table"
+	case t != nil && t.Console != nil:
+		return a.icons.Console, "console"
+	}
+	return ui.Icon{}, ""
 }
 
 // iconRuns is " <icon>" and then tail as status bar runs, the icon in its own

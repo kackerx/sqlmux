@@ -41,8 +41,8 @@ sort_asc = { fg = "#ff0000" }
 	if th.Bar != TokyonightStorm.Bar || th.Fg != TokyonightStorm.Fg {
 		t.Error("tokens the file doesn't name must stay")
 	}
-	if ic.Console != (Icon{"C", c("#ff0000")}) || ic.Table != (Icon{"+", c("#a9dc76")}) || ic.Data != ASCIIIcons.Data || ic.SortAsc != (Icon{"↑", c("#ff0000")}) {
-		t.Errorf("icons: console %v table %v data %v", ic.Console, ic.Table, ic.Data)
+	if ic.Console != (Icon{"C", c("#ff0000")}) || ic.Table != (Icon{"+", c("#a9dc76")}) || ic.Schema != ASCIIIcons.Schema || ic.SortAsc != (Icon{"↑", c("#ff0000")}) {
+		t.Errorf("icons: console %v table %v schema %v", ic.Console, ic.Table, ic.Schema)
 	}
 	if ASCIIIcons.Console.Text != ">" || TokyonightStorm.Row == th.Row {
 		t.Error("the built-in sets must not change")

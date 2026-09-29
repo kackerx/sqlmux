@@ -21,7 +21,7 @@ var defaultTOML string
 var tables = []string{
 	"keys.confirm", "keys.palette", "keys.where", "keys.cols", "keys.dropdown", "keys.sessions",
 	"keys.complete", "keys.options", "keys.cell", "keys.input",
-	"keys.result", "keys.grid", "keys.tree", "keys.console", "keys.normal", "keys.global",
+	"keys.result", "keys.grid", "keys.tree", "keys.console", "keys.landing", "keys.normal", "keys.global",
 	"map.console.normal", "map.console.visual", "map.grid.normal", "map.grid.visual",
 	"map.tree.normal", "map.tree.visual", "map.normal", "map.visual",
 }
@@ -219,6 +219,7 @@ var when = map[string]string{
 	"keys.grid":     "焦点在表格（NORMAL）",
 	"keys.tree":     "焦点在 schema 树（NORMAL）",
 	"keys.console":  "console 的 NORMAL / VISUAL（M3）",
+	"keys.landing":  "引导页：新 tab、没有 tab 的 pane（M3）",
 	"keys.result":   "结果区，叠在 grid 之上（M3）",
 	"keys.palette":  "命令面板打开时",
 	"keys.dropdown": "ORDER / LIMIT 下拉框打开时",

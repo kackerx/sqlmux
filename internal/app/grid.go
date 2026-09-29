@@ -19,15 +19,15 @@ import (
 	"sqlmux/internal/ui"
 )
 
-// Tab is one tab of a pane (§5): a data pane's carries its table, a
-// console pane's its console.
+// Tab is one tab of a pane (§5): a table's carries it, a console's the
+// console; one with neither is a landing tab.
 type Tab struct {
 	Name    string
 	Data    *dataTab
 	Console *consoleTab
 }
 
-// dataTab is a table open in a data pane (§5, §7.6, §7.8「查询条」).
+// dataTab is a table open in a tab (§5, §7.6, §7.8「查询条」).
 // Positions are the data's, transposed or not, among the columns COLS shows.
 type dataTab struct {
 	table     db.Table
@@ -52,6 +52,7 @@ type dataTab struct {
 	cell     *cellEdit        // the cell being edited, while typing is "cell" (§10.1)
 	edits    map[editKey]edit // changes not saved, of every page (§10.1)
 	saving   bool             // a save is on its way (§10.3)
+	closing  bool             // :wq: the tab closes once the save lands, if nothing is left unsaved (§11)
 	note     ui.Note          // how the last save went, until the next fetch or change (Q-06)
 	failed   string           // the row key a failed save names (§10.3)
 	wantCol  string           // the column the cursor goes to once a page is in: a column node's ↵ (§7.8)
@@ -298,7 +299,7 @@ func bodyRect(r uv.Rectangle) uv.Rectangle {
 	return uv.Rect(r.Min.X+1, r.Min.Y+1, max(r.Dx()-2, 0), max(r.Dy()-3, 0))
 }
 
-// gridRect is where a data pane at r draws its table: under the query bar.
+// gridRect is where a pane at r draws its table: under the query bar.
 func gridRect(r uv.Rectangle) uv.Rectangle {
 	b := bodyRect(r)
 	b.Min.Y = min(b.Min.Y+ui.QueryBarRows, b.Max.Y)

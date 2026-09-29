@@ -6,11 +6,13 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 )
 
-// Tabs is a pane's tab bar, drawn on the last inner row (§7.2, §7.8):
+// Tabs is a pane's tab bar, drawn on the last inner row (§7.2, §7.8), each
+// tab with its type's icon (a landing tab has none, §7.7):
 //
-//	1:t_order* │ 2:t_user- │ +            hjkl · ↵ edit · gt/gT
+//	1:▦ t_order* │ 2:▦ t_user- │ 3:新 tab │ +      hjkl · ↵ edit · gt/gT
 type Tabs struct {
 	Names     []string
+	Icons     []Icon // by tab; a zero Icon for none
 	Cur, Prev int
 	Hints     []Hint // right-aligned "Key Label" items
 	Pane      int
@@ -33,7 +35,12 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 			mark = "-"
 		}
 		start := x
-		x = f.Text(x, y, r.Max.X, fmt.Sprintf(" %d:%s%s ", i+1, n, mark), st)
+		x = f.Text(x, y, r.Max.X, fmt.Sprintf(" %d:", i+1), st)
+		if ic := t.Icons[i]; ic.Text != "" {
+			x = f.Text(x, y, r.Max.X, ic.Text, ic.On(st))
+			x = f.Text(x, y, r.Max.X, " ", st)
+		}
+		x = f.Text(x, y, r.Max.X, n+mark+" ", st)
 		f.Region(uv.Rect(start, y, x-start, 1), Target{Kind: KindTab, Pane: t.Pane, I: i})
 	}
 	if len(t.Names) > 0 {

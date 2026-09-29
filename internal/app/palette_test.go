@@ -262,7 +262,7 @@ func TestPaletteScopesFilter(t *testing.T) {
 	a := twoPanes(160, 45, "nerd")
 	feed(t, a, "<C-p>")
 	all := strings.Join(namesOf(a), " ")
-	for _, s := range []string{"窗口:0: data", "Pane:① data · t_order", "表:t_user", "命令:左右分割"} {
+	for _, s := range []string{"窗口:0: data", "Pane:① table · t_order", "表:t_user", "命令:左右分割"} {
 		if !strings.Contains(all, s) {
 			t.Errorf("所有 lacks %s", s)
 		}
@@ -280,7 +280,8 @@ func TestPaletteOpensTables(t *testing.T) {
 	if a.palette != nil || tabNames(data) != "t_user t_user" || data.Cur != 0 {
 		t.Fatalf("↵: tabs %v cur %d", tabNames(data), data.Cur)
 	}
-	a.win().focus(2) // from the console: the first data pane
+	a.win().focus(2)
+	a.win().focus(0) // from the tree, ⟨2⟩ focused last: its current tab is a console (§5)
 	feed(t, a, "<C-p>@t_sku<C-t>")
 	if tabNames(data) != "t_user t_user t_sku" || data.Cur != 2 || data.Prev != 0 {
 		t.Fatalf("C-t: tabs %v cur %d prev %d", tabNames(data), data.Cur, data.Prev)
@@ -309,10 +310,10 @@ func TestPaletteOpensTables(t *testing.T) {
 	}
 
 	a = twoPanes(160, 45, "nerd")
-	feed(t, a, ":q<CR>:q<CR>") // no data pane left
+	feed(t, a, ":q<CR>:q<CR>") // the console's pane left
 	feed(t, a, "<C-p>@t_user<CR>")
-	if leaves := a.win().Root.Leaves(); len(leaves) != 1 || leaves[0].Kind != KindConsole || leaves[0].Object() != "console_1" {
-		t.Errorf("with no data pane nothing opens: %v", tabNames(leaves[0]))
+	if leaves := a.win().Root.Leaves(); len(leaves) != 1 || tabNames(leaves[0]) != "console_1 t_user" || leaves[0].Cur != 1 {
+		t.Errorf("a console is not replaced, the table opens beside it (§5): %v", tabNames(leaves[0]))
 	}
 }
 
@@ -328,20 +329,20 @@ func TestPaletteFocusesPanes(t *testing.T) {
 // pane ends, one on that pane stays (§12, §5).
 func TestPaletteFocusUnzooms(t *testing.T) {
 	for _, c := range []struct {
-		name, keys string
-		zoomed     int // the pane zoomed before
-		zoom       int // after
+		name, keys  string
+		zoomed      int // the pane zoomed before
+		focus, zoom int // after
 	}{
-		{"table from the zoomed console", "<C-p>@t_user<CR>", 2, 0},
-		{"table into the zoomed data pane", "<C-p>@t_user<CR>", 1, 1},
-		{"pane hidden by the zoom", "<C-p>%t_order<CR>", 2, 0},
+		{"table from the zoomed console: beside it", "<C-p>@t_user<CR>", 2, 2, 2},
+		{"table in the zoomed data pane", "<C-p>@t_user<CR>", 1, 1, 1},
+		{"pane hidden by the zoom", "<C-p>%t_order<CR>", 2, 1, 0},
 	} {
 		a := twoPanes(160, 45, "nerd")
 		a.win().focus(c.zoomed)
 		feed(t, a, "<Space>z")
 		feed(t, a, c.keys)
-		if a.win().Focus != 1 || a.win().Zoom != c.zoom {
-			t.Errorf("%s: focus %d zoom %d, want focus 1 zoom %d", c.name, a.win().Focus, a.win().Zoom, c.zoom)
+		if a.win().Focus != c.focus || a.win().Zoom != c.zoom {
+			t.Errorf("%s: focus %d zoom %d, want focus %d zoom %d", c.name, a.win().Focus, a.win().Zoom, c.focus, c.zoom)
 		}
 	}
 }

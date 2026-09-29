@@ -2,6 +2,7 @@ package app
 
 import (
 	"image/color"
+	"slices"
 	"strings"
 	"testing"
 
@@ -136,9 +137,9 @@ func TestSidebarHintRow(t *testing.T) {
 	}
 }
 
-// The window's only pane, once its last tab is closed, is empty: no
-// placeholder text, the title just "⟨n⟩ <icon>", and a tab bar holding just a
-// clickable +.
+// The window's only pane, once its last tab is closed, has no tab: the
+// title just "⟨n⟩", the landing page's two buttons in the middle with
+// their keys, clickable, and a tab bar holding just a clickable + (§5).
 func TestEmptyPane(t *testing.T) {
 	a := twoPanes(160, 45, "nerd")
 	feed(t, a, ":q<CR>:q<CR>:q<CR>") // both data tabs, then the console's
@@ -149,23 +150,23 @@ func TestEmptyPane(t *testing.T) {
 	f, r := a.render(), a.layout()[p.ID]
 	lines := strings.Split(f.String(), "\n")
 	cells := func(y int) string { return strings.TrimSpace(ansi.Cut(lines[y], r.Min.X+1, r.Max.X-1)) } // by cells: the tree's 工作区 is wide
-	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ① "+ui.NerdIcons.Console.Text+" ─") || strings.Contains(top, "run") || strings.Contains(top, "▾") {
+	if top := string([]rune(lines[r.Min.Y])[r.Min.X:r.Max.X]); !strings.HasPrefix(top, "┌─ ① ─") || strings.Contains(top, "run") {
 		t.Errorf("title, with no hints: %q", top)
 	}
+	var body []string
 	for y := r.Min.Y + 1; y < r.Max.Y-2; y++ {
 		if got := cells(y); got != "" {
-			t.Fatalf("row %d is not empty: %q", y, got)
+			body = append(body, got)
 		}
+	}
+	if want := []string{ui.NerdIcons.Table.Text + " 打开表 t", ui.NerdIcons.Console.Text + " 新建 console c"}; !slices.Equal(body, want) {
+		t.Errorf("landing page: %q", body)
 	}
 	if got := cells(r.Max.Y - 2); got != "+" {
 		t.Errorf("tab bar: %q, want just +", got)
 	}
-	plus := false
-	for _, h := range f.Hits {
-		plus = plus || h.Target == ui.Target{Kind: ui.KindHint, Pane: p.ID, Action: "tab.new"}
-	}
-	if !plus {
-		t.Error("the + has no hit region")
+	for _, act := range []string{"tab.new", "tab.table", "console.new"} {
+		find(t, a, ui.Target{Kind: ui.KindHint, Pane: p.ID, Action: act})
 	}
 }
 
@@ -295,5 +296,29 @@ table = { fg = "#a9dc76" }
 	}
 	if st := cell(7, ui.NerdIcons.Table.Text); st.Fg != ic.Table.Fg { // the first table, under doraemon, public and Tables
 		t.Errorf("table icon %v, want %v", st.Fg, ic.Table.Fg)
+	}
+}
+
+// A pane holding a table, a console and a new tab (§5): each tab's icon in
+// the tab bar, the current one's title and body; switching tabs switches
+// the title's icon, ▶ run and the keys' scope along.
+func TestGoldenMixedTabs160x45(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	a := wide(160, 45)
+	p := a.focused()
+	loadOrders(t, a, 3)
+	a.run("console.new", 0)
+	a.run("tab.new", 0)
+	golden.RequireEqual(t, a.render().String())
+	for _, c := range []struct {
+		keys, scope string
+		run         bool
+	}{{"gt", "grid", false}, {"gt", "console", true}, {"gt", "landing", false}} {
+		feed(t, a, c.keys)
+		top := strings.Split(a.render().String(), "\n")[0]
+		icon, _ := a.tabIcon(p.tab())
+		if a.paneScope() != c.scope || strings.Contains(top, "▶ run") != c.run || icon.Text != "" && !strings.Contains(top, icon.Text+" "+p.Object()) {
+			t.Errorf("%s to %s: scope %s, title %q", c.keys, p.Object(), a.paneScope(), top)
+		}
 	}
 }

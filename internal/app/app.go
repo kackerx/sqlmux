@@ -438,9 +438,17 @@ func (a *App) context() keymap.Context {
 	return keymap.Context{Focus: []string{a.paneScope()}, Pane: a.paneScope(), Mode: a.mode()}
 }
 
-// paneScope is the keymap scope of the focused pane.
+// paneScope is the keymap scope of the focused pane: its current tab's.
 func (a *App) paneScope() string {
-	return [...]string{KindSchema: "tree", KindData: "grid", KindConsole: "console"}[a.focused().Kind]
+	switch p := a.focused(); {
+	case p == a.win().Tree:
+		return "tree"
+	case dataOf(p) != nil:
+		return "grid"
+	case consoleOf(p) != nil:
+		return "console"
+	}
+	return "landing" // a new tab, or none (§6.4)
 }
 
 func (a *App) focused() *Pane {

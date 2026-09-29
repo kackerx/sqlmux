@@ -70,7 +70,10 @@ func testSession() *Session {
 // (§5), and a second window.
 func m0Layout(a *App) *App {
 	data := a.win().Root.A.Pane
-	data.Tabs, data.Cur, data.Prev = []Tab{{Name: "t_order"}, {Name: "t_user"}}, 0, 1
+	data.Cur, data.Prev = 0, 1
+	for _, name := range []string{"t_order", "t_user"} { // not fetched, nor in the catalog: opening public.t_order finds no tab of it
+		data.Tabs = append(data.Tabs, Tab{Name: name, Data: newDataTab(db.Table{Schema: "m0", Name: name})})
+	}
 	a.sess.Windows = append(a.sess.Windows, &Window{Name: "report"})
 	return a
 }
@@ -232,7 +235,7 @@ func TestCloseTab(t *testing.T) {
 		t.Fatalf("after :q: tabs %v cur %d", tabNames(data), data.Cur)
 	}
 	feed(t, a, ":q<CR>")
-	if leaves := a.win().Root.Leaves(); len(leaves) != 1 || leaves[0].Kind != KindConsole || a.win().Focus != leaves[0].ID {
+	if leaves := a.win().Root.Leaves(); len(leaves) != 1 || consoleOf(leaves[0]) == nil || a.win().Focus != leaves[0].ID {
 		t.Fatalf("closing the last tab should close the pane and focus the console: %v focus %d", leaves, a.win().Focus)
 	}
 	feed(t, a, ":q<CR>")
@@ -359,7 +362,7 @@ func TestCloseTabPicksNext(t *testing.T) {
 		for _, name := range c.tabs {
 			p.Tabs = append(p.Tabs, Tab{Name: name})
 		}
-		a.closeTab()
+		a.closeTab(p)
 		if got := tabNames(p); got != strings.Join(c.want, " ") || p.Cur != c.wantCur || p.Prev != -1 {
 			t.Errorf("%v cur %d prev %d: got %v cur %d prev %d; want %v cur %d", c.tabs, c.cur, c.prev, got, p.Cur, p.Prev, c.want, c.wantCur)
 		}
@@ -461,47 +464,80 @@ func TestClickTab(t *testing.T) {
 	}
 }
 
-// + puts the keys in the tree's filter; the table picked next, in the tree
-// or the palette, opens in a new tab of the pane whose + it was. Leaving
-// the tree forgets it (§7.8「tab 栏」).
-func TestTabNewPlus(t *testing.T) {
+// + opens a landing tab and switches to it. Its 打开表 puts the table
+// picked in its place, open elsewhere or not, with ↵ or C-t; its 新建
+// console a console, the least console_n not open (§5「引导页」). x closes it.
+func TestLandingTab(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	left := a.focused()
-	feed(t, a, "<C-p>@t_user<CR><Space>%") // the new, empty pane on the right has focus
-	plus := func(p int) {
-		click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: p, Action: "tab.new"}).Min)
-		if win := a.win(); win.Focus != win.Tree.ID || !win.tree.filtering || win.newTabIn != p {
-			t.Fatalf("+ of %d: focus %d filtering %v newTab %d", p, win.Focus, win.tree.filtering, win.newTabIn)
+	if a.paneScope() != "landing" {
+		t.Fatalf("an empty pane: scope %s", a.paneScope())
+	}
+	feed(t, a, "<C-p>@t_user<CR>")
+	plus := func() {
+		click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: left.ID, Action: "tab.new"}).Min)
+		if left.Cur != len(left.Tabs)-1 || !left.tab().landing() || left.Object() != "新 tab" || a.paneScope() != "landing" {
+			t.Fatalf("+: tabs %v cur %d scope %s", tabNames(left), left.Cur, a.paneScope())
 		}
 	}
-	plus(left.ID)
-	feed(t, a, "t_user<CR><CR>") // keep the filter, open its first match
-	if tabNames(left) != "t_user t_user" || left.Cur != 1 || a.win().Focus != left.ID || a.win().newTabIn != 0 {
-		t.Fatalf("tree ↵: tabs %v cur %d focus %d newTab %d", tabNames(left), left.Cur, a.win().Focus, a.win().newTabIn)
+	plus()
+	if left.Prev != 0 {
+		t.Errorf("+: prev %d, want the tab it was on", left.Prev)
 	}
-	if a.win().tree.filter.Text != "t_user" {
-		t.Fatal("↵ keeps the filter")
+	feed(t, a, "t")
+	if a.palette == nil || a.palette.into != left || a.palette.input.Text != "@" {
+		t.Fatalf("t: palette %+v", a.palette)
 	}
-	plus(left.ID)
-	if a.win().tree.filter.Text != "" {
-		t.Error("+ keeps the last filter") // a new pick (§7.8)
+	feed(t, a, "t_user<CR>") // open in ⟨1⟩ already: no pick, it takes the landing tab's place
+	if tabNames(left) != "t_user t_user" || left.Cur != 1 || a.palette != nil {
+		t.Fatalf("打开表 ↵: tabs %v cur %d", tabNames(left), left.Cur)
 	}
-	feed(t, a, "<Esc>")
-	if a.win().newTabIn != left.ID {
-		t.Fatal("esc in the filter only clears it")
-	}
-	feed(t, a, "<C-p>@t_sku<CR>")
+	plus()
+	click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: left.ID, Action: "tab.table"}).Min)
+	feed(t, a, "t_sku<C-t>")
 	if tabNames(left) != "t_user t_user t_sku" || left.Cur != 2 {
-		t.Fatalf("palette ↵: tabs %v cur %d", tabNames(left), left.Cur)
+		t.Fatalf("打开表 C-t: tabs %v cur %d", tabNames(left), left.Cur)
 	}
-	right := a.win().Root.Leaves()[1]
-	plus(right.ID) // an empty pane's + too
-	if feed(t, a, "<Esc><C-l>"); a.win().newTabIn != 0 {
-		t.Error("leaving the tree keeps what + asked")
+	plus()
+	feed(t, a, "c") // console_1 is open in ⟨2⟩
+	if tabNames(left) != "t_user t_user t_sku console_2" || consoleOf(left) == nil || a.paneScope() != "console" {
+		t.Fatalf("c: tabs %v scope %s", tabNames(left), a.paneScope())
 	}
-	a.run("tab.new", 0) // from the palette: where a table would open
-	if a.win().newTabIn != left.ID {
-		t.Errorf("tab.new: newTab %d, want the focused data pane %d", a.win().newTabIn, left.ID)
+	plus()
+	if feed(t, a, "x"); tabNames(left) != "t_user t_user t_sku console_2" || a.confirm != nil {
+		t.Errorf("x on a landing tab: tabs %v", tabNames(left))
+	}
+}
+
+// console.new from the palette opens a console in a new tab of the focused
+// pane, or openTarget's from the tree.
+func TestNewConsole(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	a := sized(160, 45, "nerd")
+	left := a.focused()
+	feed(t, a, "<C-p>@t_user<CR>")
+	a.run("console.new", 0)
+	if tabNames(left) != "t_user console_2" || left.Cur != 1 {
+		t.Fatalf("from ⟨1⟩: %v", tabNames(left))
+	}
+	a.win().focus(0)
+	a.run("console.new", 0) // the tree: the pane focused last whose current tab is no console, else the last
+	if tabNames(left) != "t_user console_2 console_3" || a.win().Focus != left.ID {
+		t.Fatalf("from the tree: %v, focus %d", tabNames(left), a.win().Focus)
+	}
+}
+
+// From the tree a table goes to the pane focused last whose current tab is
+// no console: not beside console_1 in the default layout (§5).
+func TestOpenTargetSkipsConsoles(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<C-l><C-h><C-h>") // ⟨2⟩, then ⟨1⟩, then the tree
+	a.win().focus(2)
+	a.win().focus(0)
+	treeTo(t, a, "t_user")
+	feed(t, a, "<CR>")
+	if p := a.focused(); p.ID != 1 || tabNames(p) != "t_user" || tabNames(a.win().pane(2)) != "console_1" {
+		t.Fatalf("opened in ⟨%d⟩: %v", p.ID, tabNames(p))
 	}
 }
 
@@ -571,7 +607,7 @@ func TestWhichKeyKeys(t *testing.T) {
 // (§12).
 func TestEveryDefaultActionHasATitle(t *testing.T) {
 	keys, _ := keymap.New(config.Default())
-	anywhere := []string{"global", "normal", "grid", "tree", "console", "result"}
+	anywhere := []string{"global", "normal", "grid", "tree", "console", "landing", "result"}
 	for _, id := range keys.Actions() {
 		listed := slices.ContainsFunc(anywhere, func(s string) bool { return keys.Hint(id, s) != "" })
 		if listed != (actions[id].Title != "") {
@@ -588,7 +624,8 @@ func TestEveryDefaultActionHasATitle(t *testing.T) {
 func titles(a *App) []string {
 	var out []string
 	for i, p := range a.win().Root.Leaves() {
-		out = append(out, fmt.Sprintf("⟨%d⟩%s", i+1, p.Kind))
+		_, word := a.tabIcon(p.tab())
+		out = append(out, fmt.Sprintf("⟨%d⟩%s", i+1, word))
 	}
 	return out
 }
@@ -596,7 +633,7 @@ func titles(a *App) []string {
 func TestSplitAndClosePanes(t *testing.T) {
 	a := twoPanes(160, 45, "nerd")
 	feed(t, a, `<Space>"`) // split ⟨1⟩ data below
-	if got := strings.Join(titles(a), " "); got != "⟨1⟩data ⟨2⟩data ⟨3⟩console" {
+	if got := strings.Join(titles(a), " "); got != "⟨1⟩table ⟨2⟩ ⟨3⟩console" {
 		t.Fatalf("after SPC \": %s", got)
 	}
 	if p := a.focused(); len(p.Tabs) != 0 || a.win().Focus != 3 {
@@ -607,7 +644,7 @@ func TestSplitAndClosePanes(t *testing.T) {
 		t.Errorf("stacked halves: %v %v", top, bot)
 	}
 	feed(t, a, "<Space>%") // and the new one right
-	if got := strings.Join(titles(a), " "); got != "⟨1⟩data ⟨2⟩data ⟨3⟩data ⟨4⟩console" {
+	if got := strings.Join(titles(a), " "); got != "⟨1⟩table ⟨2⟩ ⟨3⟩ ⟨4⟩console" {
 		t.Fatalf("after SPC %%: %s", got)
 	}
 

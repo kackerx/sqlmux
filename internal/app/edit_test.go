@@ -600,3 +600,29 @@ func TestGoldenTimePick160x45(t *testing.T) {
 	feed(t, a, "j$i<Tab>")
 	golden.RequireEqual(t, a.render().String())
 }
+
+// :wq saves a table's changes and closes it once they are; when the save
+// fails the tab stays with the reason on its query bar, and nothing is
+// asked (§11「文件」). With nothing to save it is :q.
+func TestSaveAndClose(t *testing.T) {
+	for _, c := range []struct {
+		tag    string
+		closed bool
+	}{{"UPDATE 1", true}, {"UPDATE 0", false}} {
+		a, tab, _ := withMain(t, c.tag)
+		p := a.focused()
+		feed(t, a, "lix<Esc>")
+		cmd := a.run(exAliases["wq"], 0)
+		if cmd == nil || a.confirm != nil || dataOf(p) != tab {
+			t.Fatalf("%s: :wq saves first: confirm %v", c.tag, a.confirm)
+		}
+		a.Update(cmd())
+		if closed := dataOf(p) != tab; closed != c.closed || a.confirm != nil {
+			t.Errorf("%s: closed %v, confirm %v, note %+v", c.tag, closed, a.confirm, tab.note)
+		}
+	}
+	a, tab, _ := withMain(t, "UPDATE 1")
+	if a.run("tab.save.close", 0); dataOf(a.focused()) == tab {
+		t.Error("nothing to save: :wq closes at once")
+	}
+}

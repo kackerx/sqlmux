@@ -62,8 +62,8 @@ func (t *dataTab) rowKey(rec int) string {
 // text all selected, or with text pasted in its place. A table without a
 // row identity can't be saved to, so it isn't edited.
 func (a *App) editCell(pasted *string) tea.Cmd {
-	p, t, ok := a.focusedGrid()
-	if !ok || p.Kind != KindData || len(t.page.Rows) == 0 {
+	_, t, ok := a.focusedGrid()
+	if !ok || len(t.page.Rows) == 0 {
 		return nil
 	}
 	if t.cols.Key() == nil {
@@ -171,8 +171,8 @@ func (t *dataTab) applyOption(o option) {
 // cell.default, §10.2); an edit of it under way ends so. Not for a column
 // that can't hold it, nor a table with no row identity.
 func (a *App) setSpecial(def bool) {
-	p, t, ok := a.focusedGrid()
-	if !ok || p.Kind != KindData || len(t.page.Rows) == 0 || t.cols.Key() == nil {
+	_, t, ok := a.focusedGrid()
+	if !ok || len(t.page.Rows) == 0 || t.cols.Key() == nil {
 		return
 	}
 	field := t.fieldAt(t.col)
@@ -289,7 +289,7 @@ func (a *App) save() tea.Cmd {
 		return nil
 	}
 	t := dataOf(p)
-	if p.Kind != KindData || t == nil || len(t.edits) == 0 || t.saving {
+	if t == nil || len(t.edits) == 0 || t.saving {
 		return nil
 	}
 	sent := maps.Clone(t.edits)
@@ -325,6 +325,8 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 	a.busy--
 	t := m.tab
 	t.saving = false
+	closing := t.closing
+	t.closing = false
 	switch {
 	case errors.Is(m.err, context.Canceled):
 		t.note = ui.Note{Head: "已取消，已回滚", Fg: a.theme.Warn}
@@ -351,6 +353,10 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 				now.orig = e.val
 				t.edits[k] = now
 			}
+		}
+		if p := a.paneShowing(t); closing && len(t.edits) == 0 && p != nil { // :wq, and nothing changed since
+			a.closeTab(p)
+			return nil
 		}
 		cmd := a.fetch(t, true) // the rows may leave the WHERE now
 		t.note = ui.Note{Head: fmt.Sprintf("已保存 %d 行 · %s", len(m.rows), m.took.Round(time.Millisecond))}

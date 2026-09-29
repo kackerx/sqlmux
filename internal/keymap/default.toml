@@ -76,6 +76,13 @@ leader = "<Space>"
 ":" = "palette.command"
 ";" = "palette.sql"
 
+[keys.landing] # a new tab, or a pane with none (§5)
+"t" = "tab.table"
+"c" = "console.new"
+"x" = "tab.close"
+":" = "palette.command"
+";" = "palette.sql"
+
 [keys.console] # NORMAL / VISUAL; everything else goes to the vim engine
 "<CR>" = "console.run"
 "gq" = "console.format"

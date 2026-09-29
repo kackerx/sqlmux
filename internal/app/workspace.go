@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strconv"
 
@@ -11,35 +12,52 @@ import (
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
 	"sqlmux/internal/keymap"
-	"sqlmux/internal/ui"
 )
 
-// PaneKind is what a pane shows.
-type PaneKind uint8
-
-const (
-	KindSchema PaneKind = iota // the ⟨0⟩ sidebar
-	KindData
-	KindConsole
-)
-
-func (k PaneKind) String() string {
-	return [...]string{"schema", "data", "console"}[k]
-}
-
+// Pane is the sidebar or one of the split tree's: tables and consoles,
+// side by side in its tabs (§5).
 type Pane struct {
 	ID        int // stable; the sidebar is 0
-	Kind      PaneKind
 	Tabs      []Tab
 	Cur, Prev int // tab bar * and - (T-01)
 }
 
 // Object is the title's "· name" part: the current tab.
 func (p *Pane) Object() string {
-	if p.Cur < len(p.Tabs) {
-		return p.Tabs[p.Cur].Name
+	if t := p.tab(); t != nil {
+		return t.Name
 	}
 	return ""
+}
+
+// tab is the current tab; nil when the pane has none.
+func (p *Pane) tab() *Tab {
+	if p.Cur < len(p.Tabs) {
+		return &p.Tabs[p.Cur]
+	}
+	return nil
+}
+
+// landing is what a new tab is until a table or a console takes its place
+// (§5「引导页」).
+func landing() Tab { return Tab{Name: "新 tab"} }
+
+// landing reports whether t shows the landing page: a new tab, or no tab.
+func (t *Tab) landing() bool { return t == nil || t.Data == nil && t.Console == nil }
+
+// putTab puts tab in pane p: over the current tab, or after the last one,
+// which it becomes, the current one the previous.
+func putTab(p *Pane, tab Tab, over bool) {
+	if over && len(p.Tabs) > 0 {
+		p.Tabs[p.Cur] = tab
+		return
+	}
+	p.Prev = p.Cur
+	if len(p.Tabs) == 0 { // an empty pane: there is no tab to go back to
+		p.Prev = -1
+	}
+	p.Tabs = append(p.Tabs, tab)
+	p.Cur = len(p.Tabs) - 1
 }
 
 type Window struct {
@@ -52,7 +70,6 @@ type Window struct {
 	Focus    int // pane ID
 	Zoom     int // zoomed pane ID; 0 = none (P-03)
 	lastID   int // highest pane ID handed out
-	newTabIn int // the pane whose + was clicked: the table picked next opens in a new tab there; 0 for none
 
 	focusTick int
 	focusedAt map[int]int // pane ID → focusTick when it last got focus
@@ -60,8 +77,7 @@ type Window struct {
 
 // focus moves focus to pane id, remembering when: moving by direction
 // prefers the neighbour focused most recently (§5). Leaving a pane leaves
-// its input too: the tree's filter row, a table's query bar. Leaving the
-// tree drops what a + asked of it.
+// its input too: the tree's filter row, a table's query bar.
 func (w *Window) focus(id int) {
 	if w.focusedAt == nil {
 		w.focusedAt = map[int]int{}
@@ -69,7 +85,7 @@ func (w *Window) focus(id int) {
 	w.focusTick++
 	w.Focus, w.focusedAt[id] = id, w.focusTick
 	if id != w.Tree.ID {
-		w.tree.filtering, w.newTabIn = false, 0
+		w.tree.filtering = false
 	}
 	for _, p := range w.Root.Leaves() {
 		if t := dataOf(p); t != nil && p.ID != id {
@@ -109,19 +125,19 @@ type Session struct {
 func (a *App) win() *Window { return a.sess.Windows[a.sess.Active] }
 
 // newSession is a session's default workspace (§5): one window, data, with
-// the sidebar, an empty data pane and console_1 beside it at 5 : 4 (§7.8),
+// the sidebar, a pane with no tab and console_1 beside it at 5 : 4 (§7.8),
 // which has what its file kept (§11).
 func newSession(name, addr string, main, meta *db.Worker) (*Session, error) {
 	cons, err := openConsole(name, 1)
 	if err != nil {
 		return nil, err
 	}
-	data := &Pane{ID: 1, Kind: KindData, Prev: -1}
-	console := &Pane{ID: 2, Kind: KindConsole, Tabs: []Tab{{Name: "console_1", Console: cons}}, Prev: -1}
+	data := &Pane{ID: 1, Prev: -1}
+	console := &Pane{ID: 2, Tabs: []Tab{{Name: "console_1", Console: cons}}, Prev: -1}
 	w := &Window{
 		Name:     "data",
 		TreeOpen: true,
-		Tree:     &Pane{ID: 0, Kind: KindSchema},
+		Tree:     &Pane{ID: 0},
 		Root:     &Node{Split: Horiz, Ratio: 5.0 / 9, A: leaf(data), B: leaf(console)},
 		lastID:   2,
 	}
@@ -158,16 +174,16 @@ func (s *Session) Close() {
 }
 
 // openTable shows table t and focuses where it shows (§7.8「打开已有的表」,
-// §12). A new tab (C-t, the tree's t, the table picked after a +) opens in
-// openTarget's pane. Else a tab of the window that has t is switched to,
-// or, with several, picked from the palette; with none, t's first page is
-// fetched in place of the target's current tab.
+// §12). A new tab (C-t, the tree's t) opens in openTarget's pane. Else a
+// tab of the window that has t is switched to, or, with several, picked
+// from the palette; with none, t's first page is fetched in place of the
+// target's current tab, unless that is a console or has changes not saved.
 func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 	p := a.openTarget()
 	if p == nil {
 		return nil
 	}
-	if newTab = newTab || a.win().newTabIn == p.ID; !newTab {
+	if !newTab {
 		switch open := a.tabsOf(t); len(open) {
 		case 0:
 		case 1:
@@ -178,22 +194,18 @@ func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 			return nil
 		}
 	}
-	if cur := dataOf(p); cur != nil && len(cur.edits) > 0 { // never over changes not saved (§12)
-		newTab = true
-	}
+	cur := p.tab()
+	// never over SQL the user wrote, nor over changes not saved (§5, §12)
+	newTab = newTab || cur != nil && (cur.Console != nil || cur.Data != nil && len(cur.Data.edits) > 0)
+	return a.openTableIn(p, t, !newTab)
+}
+
+// openTableIn opens table t in pane p, over its current tab or in a new
+// one, and focuses it.
+func (a *App) openTableIn(p *Pane, t db.Table, over bool) tea.Cmd {
 	a.showPane(p.ID)
 	tab := Tab{Name: t.Name, Data: newDataTab(t)}
-	switch {
-	case !newTab && len(p.Tabs) > 0:
-		p.Tabs[p.Cur] = tab
-	default:
-		p.Prev = p.Cur
-		if len(p.Tabs) == 0 { // an empty pane: there is no tab to go back to
-			p.Prev = -1
-		}
-		p.Tabs = append(p.Tabs, tab)
-		p.Cur = len(p.Tabs) - 1
-	}
+	putTab(p, tab, over)
 	return a.fetch(tab.Data, true)
 }
 
@@ -247,26 +259,76 @@ func (a *App) cycleTab(d, count int) {
 	}
 }
 
-// newTab is tab.new, a tab bar's +: the tree's filter takes the keys, and
-// the table picked next opens in a new tab of the pane it is for (§7.8).
+// newTab is tab.new, a tab bar's +: a landing tab after the last one,
+// which it becomes, in the focused pane (§5「引导页」).
 func (a *App) newTab() {
-	p := a.openTarget()
+	p := a.normalPane()
 	if p == nil {
 		return
 	}
-	// a new pick: the last one's filter would take what is typed after it (§7.8)
-	a.win().tree.filter = ui.Input{}
-	a.treeFilter()
-	if win := a.win(); win.Focus == win.Tree.ID {
-		win.newTabIn = p.ID
-	}
+	a.showPane(p.ID)
+	putTab(p, landing(), false)
 }
 
-// closeTab closes the focused pane's current tab (:q). Closing the last tab
-// closes the pane too, except the sidebar and the window's only pane.
-func (a *App) closeTab() {
-	p := a.focused()
-	if p.Kind == KindSchema || len(p.Tabs) == 0 {
+// normalPane is the focused pane, or openTarget's while the tree has the
+// focus.
+func (a *App) normalPane() *Pane {
+	if p := a.focused(); p != a.win().Tree {
+		return p
+	}
+	return a.openTarget()
+}
+
+// newConsole is console.new (§5, §11): console_n, n the least not open in
+// the session, with what its file keeps, in place of a landing tab or in a
+// new tab of normalPane.
+func (a *App) newConsole() tea.Cmd {
+	p := a.normalPane()
+	if p == nil {
+		return nil
+	}
+	n := 1
+	for a.consoleOpen(config.ConsolePath(a.sess.Name, n)) {
+		n++
+	}
+	c, err := openConsole(a.sess.Name, n)
+	if err != nil {
+		return a.showToast(err.Error(), toastTTL)
+	}
+	a.showPane(p.ID)
+	putTab(p, Tab{Name: fmt.Sprintf("console_%d", n), Console: c}, p.tab().landing())
+	return nil
+}
+
+// consoleOpen is whether a console of the session is open on path.
+func (a *App) consoleOpen(path string) bool {
+	for _, w := range a.sess.Windows {
+		for _, p := range w.Root.Leaves() {
+			for _, t := range p.Tabs {
+				if t.Console != nil && t.Console.path == path {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// paneShowing is the pane of the window whose current tab is t; nil when
+// t is not on screen.
+func (a *App) paneShowing(t *dataTab) *Pane {
+	for _, p := range a.win().Root.Leaves() {
+		if dataOf(p) == t {
+			return p
+		}
+	}
+	return nil
+}
+
+// closeTab closes pane p's current tab (:q). Closing the last tab closes
+// the pane too, except the sidebar and the window's only pane.
+func (a *App) closeTab(p *Pane) {
+	if p == a.win().Tree || len(p.Tabs) == 0 {
 		return
 	}
 	closed := p.Cur
@@ -330,11 +392,11 @@ func (a *App) recent(x, y int) bool {
 func (a *App) splitPane(d Dir) {
 	win := a.win()
 	p := a.focused()
-	if p.Kind == KindSchema {
+	if p == win.Tree {
 		return
 	}
 	win.lastID++ // never reused, so pane IDs stay stable (§5)
-	np := &Pane{ID: win.lastID, Kind: p.Kind, Prev: -1}
+	np := &Pane{ID: win.lastID, Prev: -1}
 	win.Root, win.Zoom = win.Root.split(p.ID, d, np), 0
 	win.focus(np.ID)
 }

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -214,23 +215,23 @@ func (a *App) treeNodes() (ns []node, matches int) {
 		if w.Root != nil {
 			leaves = w.Root.Leaves()
 		}
-		listed := func(p *Pane) bool { return p.Kind == KindData || p.Kind == KindConsole }
 		wid := fmt.Sprintf("window:%d", wi)
-		if !add(node{id: wid, kind: nodeWindow, win: wi, TreeNode: ui.TreeNode{Depth: 1, Branch: slices.ContainsFunc(leaves, listed), Open: a.opened(wid, true), Icon: ic.Window, IconFg: th.Info, Text: w.Name}}) {
+		if !add(node{id: wid, kind: nodeWindow, win: wi, TreeNode: ui.TreeNode{Depth: 1, Branch: len(leaves) > 0, Open: a.opened(wid, true), Icon: ic.Window, IconFg: th.Info, Text: w.Name}}) {
 			continue
 		}
-		for n, p := range leaves { // numbered by ⟨n⟩: the sidebar is 0
-			if !listed(p) {
-				continue
-			}
+		for n, p := range leaves { // numbered by ⟨n⟩: the sidebar is 0; no type, the tabs have theirs (§5)
 			pid := fmt.Sprintf("%s/pane:%d", wid, p.ID)
-			text := a.kindIcon(p.Kind).Text + " " + a.label(p.Kind.String())
-			if !add(node{id: pid, kind: nodePane, win: wi, pane: p, TreeNode: ui.TreeNode{Depth: 2, Branch: len(p.Tabs) > 0, Open: a.opened(pid, true), Icon: ui.Icon{Text: ic.Number(n + 1)}, Text: strings.TrimSpace(text)}}) {
+			if !add(node{id: pid, kind: nodePane, win: wi, pane: p, TreeNode: ui.TreeNode{Depth: 2, Branch: len(p.Tabs) > 0, Open: a.opened(pid, true), Icon: ui.Icon{Text: ic.Number(n + 1)}}}) {
 				continue
 			}
 			for i, tb := range p.Tabs {
+				icon, _ := a.tabIcon(&p.Tabs[i])
+				fg := th.Info // a console's
+				if tb.Data != nil {
+					fg = th.Func
+				}
 				tn := node{id: fmt.Sprintf("%s/tab:%d", pid, i), kind: nodeTab, win: wi, pane: p, tab: i, TreeNode: ui.TreeNode{
-					Depth: 3, Icon: ic.Table, IconFg: th.Func, Text: tb.Name,
+					Depth: 3, Icon: icon, IconFg: fg, Text: tb.Name,
 					Current: wi == s.Active && p == target && i == p.Cur,
 				}}
 				if tb.Data != nil {
@@ -472,21 +473,22 @@ func editInput(in *ui.Input, k keymap.Key) bool {
 	return true
 }
 
-// openTarget is the data pane a table opens in (§12): the one whose + was
-// clicked, the focused one, else the one focused most recently (the first,
-// if none ever was); nil when there is none.
+// openTarget is the pane a table opens in (§5, §12): the focused one;
+// with the tree focused, the one focused most recently whose current tab
+// is no console, else the most recent of all (the first, if none ever
+// was).
 func (a *App) openTarget() *Pane {
-	if p := a.win().pane(a.win().newTabIn); p != nil && p.Kind == KindData { // newTabIn 0 is the sidebar: none
+	if p := a.focused(); p != a.win().Tree {
 		return p
 	}
-	if p := a.focused(); p.Kind == KindData {
-		return p
-	}
-	var best *Pane
+	var best, recent *Pane
 	for _, p := range a.win().Root.Leaves() {
-		if p.Kind == KindData && (best == nil || a.recent(p.ID, best.ID)) {
+		if recent == nil || a.recent(p.ID, recent.ID) {
+			recent = p
+		}
+		if consoleOf(p) == nil && (best == nil || a.recent(p.ID, best.ID)) {
 			best = p
 		}
 	}
-	return best
+	return cmp.Or(best, recent)
 }

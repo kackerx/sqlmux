@@ -21,6 +21,7 @@ type palette struct {
 	sel, top int       // selected candidate, first one shown
 	pick     *db.Table // listing its tabs instead, to pick one: it is open in several (§7.8「打开已有的表」)
 	pickCol  string    // a column node's ↵ led to the pick: the tab picked goes to that column
+	into     *Pane     // a landing tab's 打开表: the table picked takes its place, open elsewhere or not (§5)
 
 	// Quick SQL's (§12).
 	comp  *completion
@@ -89,9 +90,8 @@ const recentRows = 50
 
 // exAliases rank their command first when typed exactly in the command
 // scope, so :q↵ and :qa↵ work as they always have (§12); a console's
-// editor runs its : commands by them (§11). :wq is :q, which writes a
-// console before it closes.
-var exAliases = map[string]string{"q": "tab.close", "qa": "quit", "w": "save", "wq": "tab.close"}
+// editor runs its : commands by them (§11).
+var exAliases = map[string]string{"q": "tab.close", "qa": "quit", "w": "save", "wq": "tab.save.close"}
 
 func (a *App) openPalette(text string) {
 	a.palette = &palette{input: ui.Input{Text: text, Pos: len(text)}}
@@ -116,11 +116,18 @@ func (a *App) paletteItems() []paletteItem {
 	}
 	win := fmt.Sprintf("%d: %s", a.sess.Active, a.win().Name)
 	for n, p := range a.panesByNumber() {
-		name := a.icons.Number(n) + " " + p.Kind.String()
-		if p.Object() != "" {
-			name += " · " + p.Object()
+		// by the current tab's type, words and all: they are what is searched (§7.7)
+		icon, word := a.tabIcon(p.tab())
+		if p == a.win().Tree {
+			icon, word = a.icons.Schema, "schema"
 		}
-		items = append(items, paletteItem{itemPane, strconv.Itoa(p.ID), a.kindIcon(p.Kind), name, win})
+		name := strings.TrimSpace(a.icons.Number(n) + " " + word)
+		if obj := p.Object(); obj != "" && word != "" {
+			name += " · " + obj
+		} else if obj != "" {
+			name += " " + obj
+		}
+		items = append(items, paletteItem{itemPane, strconv.Itoa(p.ID), icon, name, win})
 	}
 	// the tree's schema first, as the tree lists it, then the others (§12)
 	for _, here := range []bool{true, false} {
@@ -357,12 +364,16 @@ func (a *App) paletteDo(it paletteItem, newTab bool) tea.Cmd {
 		a.paletteMove(0) // and the list scrolls to it
 		return cmd
 	}
+	into := a.palette.into
 	a.palette = nil
 	switch it.kind {
 	case itemCommand:
 		return a.run(it.id, 0)
 	case itemTable:
 		if i := slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Schema+"."+t.Name == it.id }); i >= 0 {
+			if into != nil {
+				return a.openTableIn(into, a.sess.Tables[i], true)
+			}
 			return a.openTable(a.sess.Tables[i], newTab)
 		}
 	case itemPane:

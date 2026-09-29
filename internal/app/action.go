@@ -84,18 +84,37 @@ func init() {
 				if err := t.flush(); err != nil {
 					return a.saveFailed(err)
 				}
-				a.closeTab()
+				a.closeTab(a.focused())
 				return nil
 			}
 			n, name := 0, ""
 			if t := dataOf(a.focused()); t != nil {
 				n, name = len(t.edits), t.table.Name+" "
 			}
-			return a.unlessUnsaved(n, name, "关闭", func() tea.Cmd { a.closeTab(); return nil })
+			return a.unlessUnsaved(n, name, "关闭", func() tea.Cmd { a.closeTab(a.focused()); return nil })
+		}},
+		// :wq (§11): a table's changes are saved first, and it closes once
+		// they are; a console is written by closing it anyway.
+		"tab.save.close": {Title: "保存并关闭 tab", Run: func(a *App, _ Args) tea.Cmd {
+			if t := dataOf(a.focused()); t != nil && len(t.edits) > 0 {
+				cmd := a.save()
+				t.closing = t.saving
+				return cmd
+			}
+			return a.run("tab.close", 0)
 		}},
 		"tab.next": {Title: "下一个 tab", Run: do(func(a *App, args Args) { a.cycleTab(1, args.Count) })},
 		"tab.prev": {Title: "上一个 tab", Run: do(func(a *App, args Args) { a.cycleTab(-1, args.Count) })},
 		"tab.new":  {Title: "新建 tab", Run: do(func(a *App, _ Args) { a.newTab() })},
+		// a landing page's two buttons (§5「引导页」)
+		"tab.table": {Title: "打开表", Run: do(func(a *App, _ Args) {
+			p := a.focused()
+			a.openPalette("@")
+			if p != a.win().Tree && p.tab().landing() {
+				a.palette.into = p
+			}
+		})},
+		"console.new": {Title: "新建 console", Run: func(a *App, _ Args) tea.Cmd { return a.newConsole() }},
 
 		"pane.split.right": {Title: "左右分割", Run: do(func(a *App, _ Args) { a.splitPane(Horiz) })},
 		"pane.split.below": {Title: "上下分割", Run: do(func(a *App, _ Args) { a.splitPane(Vert) })},

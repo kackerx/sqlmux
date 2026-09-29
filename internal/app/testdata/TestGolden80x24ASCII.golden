@@ -1,4 +1,4 @@
-┌─ ⟨0⟩ @ doraemon ─────┐ ┌─ ⟨1⟩ = data ───────────────┐ ┌─ ⟨2⟩ > console · c… ─┐
+┌─ ⟨0⟩ @ doraemon ─────┐ ┌─ ⟨1⟩ ──────────────────────┐ ┌─ ⟨2⟩ > console · c… ─┐
 │ ? / 15 tables        │ │                            │ │   1                  │
 │──────────────────────│ │                            │ │                      │
 │ ▾ pg doraemon        │ │                            │ │                      │
@@ -8,8 +8,8 @@
 │       ▸ + agent  124 │ │                            │ │                      │
 │       ▸ + agent_ver… │ │                            │ │                      │
 │       ▸ + goal    57 │ │                            │ │                      │
-│       ▸ + mt_task    │ │                            │ │                      │
-│       ▸ + mt_task_l… │ │                            │ │                      │
+│       ▸ + mt_task    │ │      + 打开表 t            │ │                      │
+│       ▸ + mt_task_l… │ │      > 新建 console c      │ │                      │
 │       ▸ + schema_mi… │ │                            │ │                      │
 │       ▸ + t_order    │ │                            │ │                      │
 │       ▸ + t_order_i… │ │                            │ │                      │
@@ -19,6 +19,6 @@
 │       ▸ + t_user 38k │ │                            │ │                      │
 │       ▸ + t_user_ad… │ │                            │ │                      │
 │──────────────────────│ │                            │ │                      │
-│ j/k move · ↵ open    │ │ +                          │ │ 1:console_1* │ +     │
+│ j/k move · ↵ open    │ │ +                          │ │ 1:> console_1* │ +   │
 └──────────────────────┘ └────────────────────────────┘ └──────────────────────┘
  pg doraemon ▾  0: data*             ~ C-p  kb ·    @ pg@localhost:5432  NORMAL 

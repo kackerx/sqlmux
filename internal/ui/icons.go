@@ -25,7 +25,7 @@ func (i Icon) On(st uv.Style) uv.Style {
 // Icons are the glyphs used in titles and the sidebar (§7.7).
 type Icons struct {
 	Schema, Table Icon
-	Data, Console Icon
+	Console       Icon
 	Filter        Icon
 	Postgres      Icon
 	Search, Keys  Icon // status bar: palette entry, pending keys
@@ -47,7 +47,6 @@ type Icons struct {
 var NerdIcons = &Icons{
 	Schema:    Icon{Text: "\uf0e8"}, // nf-fa-sitemap
 	Table:     Icon{Text: "\uf0ce"}, // nf-fa-table
-	Data:      Icon{Text: "\uf1c0"}, // nf-fa-database
 	Console:   Icon{Text: "\uf489"}, // nf-oct-terminal
 	Filter:    Icon{Text: "\uf0b0"}, // nf-fa-filter
 	Postgres:  Icon{Text: "\ue76e"}, // nf-dev-postgresql
@@ -67,8 +66,7 @@ var NerdIcons = &Icons{
 }
 
 var ASCIIIcons = &Icons{
-	Schema: Icon{Text: "#"}, Table: Icon{Text: "+"},
-	Data: Icon{Text: "="}, Console: Icon{Text: ">"},
+	Schema: Icon{Text: "#"}, Table: Icon{Text: "+"}, Console: Icon{Text: ">"},
 	Filter:    Icon{Text: "?"},
 	Postgres:  Icon{Text: "pg"},
 	Search:    Icon{Text: "~"},
@@ -110,7 +108,7 @@ func (ic *Icons) Number(n int) string {
 // byName names the icons the way a theme file's [icon] table does (§7.7).
 func (ic *Icons) byName() map[string]*Icon {
 	return map[string]*Icon{
-		"schema": &ic.Schema, "table": &ic.Table, "data": &ic.Data, "console": &ic.Console,
+		"schema": &ic.Schema, "table": &ic.Table, "console": &ic.Console,
 		"filter": &ic.Filter, "search": &ic.Search, "keys": &ic.Keys, "conn": &ic.Conn,
 		"key": &ic.Key, "postgres": &ic.Postgres, "command": &ic.Command, "window": &ic.Window,
 		"save": &ic.Save, "refresh": &ic.Refresh, "transpose": &ic.Transpose,
