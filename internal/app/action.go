@@ -94,6 +94,24 @@ func init() {
 			}
 			return a.unlessUnsaved(n, name, "关闭", func() tea.Cmd { a.closeTab(a.focused()); return nil })
 		}},
+		// "tab.close.at <pane> <i>" is a click on a tab's × (F3.35): x on that
+		// tab, the one current before it back once it goes
+		"tab.close.at": {Run: func(a *App, args Args) tea.Cmd {
+			var id, i int
+			p := (*Pane)(nil)
+			if _, err := fmt.Sscan(args.Arg, &id, &i); err == nil {
+				p = a.win().pane(id)
+			}
+			if p == nil || i >= len(p.Tabs) {
+				return nil
+			}
+			a.focusPane(id)
+			selectTab(p, i)
+			if p == a.win().Result {
+				return a.run("result.close", 0)
+			}
+			return a.run("tab.close", 0)
+		}},
 		// :wq (§11): a table's changes are saved first, and it closes once
 		// they are; a console is written by closing it anyway.
 		"tab.save.close": {Title: "保存并关闭 tab", Run: func(a *App, _ Args) tea.Cmd {

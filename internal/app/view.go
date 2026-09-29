@@ -223,7 +223,10 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	if in.Empty() {
 		return
 	}
-	tabs := ui.Tabs{Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID, NoNew: p == a.win().Result}
+	tabs := ui.Tabs{Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID, NoNew: p == a.win().Result, Close: a.icons.Close}
+	if p == a.win().Result { // the log stays (§11)
+		tabs.Keep = 1
+	}
 	for i := range p.Tabs {
 		ic, _ := a.tabIcon(&p.Tabs[i])
 		tabs.Names, tabs.Icons = append(tabs.Names, p.Tabs[i].Name), append(tabs.Icons, ic)

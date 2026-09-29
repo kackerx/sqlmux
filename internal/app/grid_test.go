@@ -106,6 +106,44 @@ func TestGoldenTabs160x45(t *testing.T) {
 	golden.RequireEqual(t, a.render().String())
 }
 
+// The pointer on a tab shows × at its mark, or after its name, the bar
+// not moving: here over the previous, an unmarked and the current tab
+// (F3.35).
+func TestGoldenTabClose(t *testing.T) {
+	a := wide(160, 45)
+	loadOrders(t, a, 3)
+	feed(t, a, "<C-p>@t_user<CR><C-p>@t_sku<CR>1gt3gt") // t_order, t_user -, t_sku *
+	p := a.focused()
+	bar := func() string { return strings.Split(a.render().String(), "\n")[a.layout()[p.ID].Max.Y-2] }
+	rows := []string{bar()}
+	for i := range 3 {
+		at := find(t, a, ui.Target{Kind: ui.KindTab, Pane: p.ID, I: i}).Min
+		a.Update(tea.MouseMotionMsg{X: at.X, Y: at.Y})
+		rows = append(rows, bar())
+	}
+	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")
+}
+
+// A click on a tab's × closes it as x does, asking first when it has
+// changes, the tab current before it back; the log has none (F3.35).
+func TestTabCloseClick(t *testing.T) {
+	a := wide(160, 45)
+	tab := loadOrders(t, a, 3)
+	feed(t, a, "lix<Esc><C-p>@t_user<CR>") // t_order changed, t_user current
+	p := a.focused()
+	x := func(i int) {
+		at := find(t, a, ui.Target{Kind: ui.KindTab, Pane: p.ID, I: i}).Min
+		a.Update(tea.MouseMotionMsg{X: at.X, Y: at.Y})
+		click(a, find(t, a, ui.Target{Kind: ui.KindButton, Pane: p.ID, Action: fmt.Sprintf("tab.close.at %d %d", p.ID, i)}).Min)
+	}
+	if x(0); a.confirm == nil || len(p.Tabs) != 2 {
+		t.Fatal("changes: it asks")
+	}
+	if feed(t, a, "y"); len(p.Tabs) != 1 || dataOf(p).table.Name != "t_user" || dataOf(p) == tab {
+		t.Fatalf("closed: %v", tabNames(p))
+	}
+}
+
 // A table open in two tabs, one of them filtered: the palette lists them
 // to pick one (§7.8「打开已有的表」).
 func TestGoldenTabPick160x45(t *testing.T) {

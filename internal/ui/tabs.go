@@ -17,6 +17,11 @@ type Tabs struct {
 	Hints     []Hint // right-aligned "Key Label" items
 	Pane      int
 	NoNew     bool // no + to open a tab: the result area's (§11)
+	// Close is what the tab under the pointer shows at its mark, a click
+	// on it closing that tab (F3.35); none for none. The first Keep tabs
+	// have none: the result area's log.
+	Close Icon
+	Keep  int
 }
 
 func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
@@ -35,14 +40,28 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		case t.Prev:
 			mark = "-"
 		}
-		start := x
-		x = f.Text(x, y, r.Max.X, fmt.Sprintf(" %d:", i+1), st)
-		if ic := t.Icons[i]; ic.Text != "" {
+		num, ic := fmt.Sprintf(" %d:", i+1), t.Icons[i]
+		w := Width(num+n+mark) + 1
+		if ic.Text != "" {
+			w += Width(ic.Text) + 1
+		}
+		tab := uv.Rect(x, y, w, 1)
+		f.Region(tab, Target{Kind: KindTab, Pane: t.Pane, I: i})
+		x = f.Text(x, y, r.Max.X, num, st)
+		if ic.Text != "" {
 			x = f.Text(x, y, r.Max.X, ic.Text, ic.On(st))
 			x = f.Text(x, y, r.Max.X, " ", st)
 		}
-		x = f.Text(x, y, r.Max.X, n+mark+" ", st)
-		f.Region(uv.Rect(start, y, x-start, 1), Target{Kind: KindTab, Pane: t.Pane, I: i})
+		x = f.Text(x, y, r.Max.X, n, st)
+		tail := mark + " "
+		if t.Close.Text != "" && i >= t.Keep && f.Mouse.In(tab) { // × in the mark's place, or the blank's after the name
+			cst := st
+			if f.Region(uv.Rect(x, y, Width(t.Close.Text), 1), Target{Kind: KindButton, Pane: t.Pane, Action: fmt.Sprintf("tab.close.at %d %d", t.Pane, i)}) {
+				cst.Bg = th.Select
+			}
+			x, tail = f.Text(x, y, r.Max.X, t.Close.Text, t.Close.On(cst)), tail[1:]
+		}
+		x = f.Text(x, y, r.Max.X, tail, st)
 	}
 	if !t.NoNew {
 		if len(t.Names) > 0 {
