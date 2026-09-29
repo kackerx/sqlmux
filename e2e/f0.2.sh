@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # F0.2 Frame、Block、主题与静态布局（specs/m0-skeleton/task.md F0.2；tech-design §7.2 §7.3 §7.8）
 # icons = "ascii" 要到 F0.3 才接入配置文件，这里只检查 golden；黑盒部分见 f0.3.sh。
-# 前面的用例用 SOLO（① 独占右侧）；最后一节是 M3 F3.6 的默认布局 ⓪ | ① | ② console_1（schema 下拉框到 F3.11）。
+# 前面的用例用 SOLO（① 独占右侧）；最后一节是 M3 的默认布局 ⓪ | ① | ② console_1（F3.6 补回 console，F3.11 补回 schema 下拉框）。
 . "$(dirname "$0")/lib.sh"
 SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
 e2e_build || exit 1
@@ -73,13 +73,13 @@ check "resize 60x15 → 5x5 → 160x45 后画面完整" eval 'running && widths_
 SOLO= start
 check "上边框角：侧栏 [1,32]、① [34,103]、② [105,160]；①:② = 70:56 = 5:4" eval 'cols_are ┌ 1 "1 34 105" && cols_are ┐ 1 "32 103 160"'
 check "② console 未聚焦：边框 border、标题 dim" eval 'style_has 105 1 fg=$BORDER && style_has 160 44 fg=$BORDER && at "②" 1 fg=$DIM && at "console_1" 1 fg=$DIM'
-check "160 宽 ② 标题：② <图标> console_1，右边 ▶ run ↵" eval '[[ $(e2e_text 105 160 1) =~ ^┌─\ ②\ $NF_CONSOLE\ console_1\ ─+\ \ ▶\ run\ \ ↵\ ─┐$ ]] || { echo "  $(e2e_text 105 160 1)"; false; }'
+check "160 宽 ② 标题：② <图标> console_1，右边 sqlmux.public ▾ 和 ▶ run ↵（F3.11）" eval '[[ $(e2e_text 105 160 1) =~ ^┌─\ ②\ $NF_CONSOLE\ console_1\ ─+\ sqlmux\.public\ ▾\ \ ▶\ run\ \ ↵\ ─┐$ ]] || { echo "  $(e2e_text 105 160 1)"; false; }'
 check "▶ run：focus 底、bg 字、粗体；↵ dim" eval 'at "▶ run" 1 "fg=$BG" && at "▶ run" 1 "bg=$FOCUS" && at "▶ run" 1 bold && at "▶ run" 1 bold 3 && at "↵ ─┐" 1 fg=$DIM'
-# 标题栏退让（§7.8 pane 标题）：先截对象名（截完就不显示），再按 ▶ run > ↵ 从低往高丢，最后只留 ⟨n⟩
+# 标题栏退让（§7.8 pane 标题）：先截对象名（截完就不显示），再按 ▶ run > 下拉框 > ↵ 从低往高丢，最后只留 ⟨n⟩
 console_title() { local c; c=$(e2e_find ┌ 1); c=${c##* }; e2e_text "$c" "$(e2e_flag pane_width)" 1; }
 title_ends() { local got; got=$(console_title); [[ $got == *"$1" ]] || { echo "  console title '$got', want suffix '$1'"; false; }; }
 # §7.8 第 2 步：提示放不下才跳过——被跳过的提示，宽度一定大于「对象名 + 填充的 ─」所占的列数；
-# 键位文字 ↵ 依附于 ▶ run，只在 run 显示时才要求（也才允许）出现。提示宽度含前导空格："  ▶ run " 8，" ↵" 2。
+# 键位文字 ↵ 依附于 ▶ run，只在 run 显示时才要求（也才允许）出现。提示宽度含前导空格："  ▶ run " 8，" sqlmux.public ▾" 16，" ↵" 2。
 no_wasted_room() {
   T=$(console_title) python3 - <<'PY'
 import os, re, sys
@@ -91,7 +91,7 @@ free = len(m[1]) + len(m[2])
 run = "▶ run" in m[3]
 if "↵" in m[3] and not run:
     sys.exit(f"  {t!r}: ↵ shown without ▶ run")
-want = {"▶ run": 8, **({"↵": 2} if run else {})}
+want = {"▶ run": 8, "sqlmux.public ▾": 16, **({"↵": 2} if run else {})}
 extra = 0 if m[3].strip() else 1   # with no hint at all the title ends "─┐"; the first hint also brings the space in " ─┐"
 skipped = [h for h, w in want.items() if h not in m[3] and free >= w + extra]
 if skipped:
@@ -99,8 +99,10 @@ if skipped:
 PY
 }
 SOLO= start -x 200
-check "200 宽：对象名完整，①:② 仍约为 5:4" eval 't=$(console_title); [[ $t == "┌─ ② $NF_CONSOLE console_1 ─"*"─  ▶ run  ↵ ─┐" ]] && set -- $(e2e_find ┌ 1) $(e2e_find ┐ 1) && dw=$(($5 - $2 + 1)) cw=$(($6 - $3 + 1)) && ((dw * 4 - cw * 5 <= 9 && cw * 5 - dw * 4 <= 9)) || { echo "  $t"; false; }'
-SOLO= start -x 100; check "100 宽：对象名截短，▶ run ↵ 在" title_ends "② $NF_CONSOLE console…   ▶ run  ↵ ─┐"
+check "200 宽：对象名完整，sqlmux.public ▾ 在 ▶ run ↵ 左边，①:② 仍约为 5:4" eval 't=$(console_title); [[ $t == "┌─ ② $NF_CONSOLE console_1 ─"*"─ sqlmux.public ▾  ▶ run  ↵ ─┐" ]] && set -- $(e2e_find ┌ 1) $(e2e_find ┐ 1) && dw=$(($5 - $2 + 1)) cw=$(($6 - $3 + 1)) && ((dw * 4 - cw * 5 <= 9 && cw * 5 - dw * 4 <= 9)) || { echo "  $t"; false; }'
+SOLO= start -x 140; check "140 宽：提示都在，对象名先截短" title_ends "② $NF_CONSOLE console_1 ─ sqlmux.public ▾  ▶ run  ↵ ─┐"
+SOLO= start -x 110; check "110 宽：↵ 最先让位，下拉框和 ▶ run 还在" title_ends "② $NF_CONSOLE  sqlmux.public ▾  ▶ run  ─┐"
+SOLO= start -x 100; check "100 宽：下拉框放不下被跳过，▶ run ↵ 在" title_ends "② $NF_CONSOLE console…   ▶ run  ↵ ─┐"
 SOLO= start -x 70;  check "70 宽：对象名放不下就不显示，▶ run ↵ 仍在" title_ends "② $NF_CONSOLE   ▶ run  ↵ ─┐"
 SOLO= start -x 60;  check "60 宽：提示都放不下，只剩 ② <图标> 和截短的对象名" title_ends "─ ② $NF_CONSOLE cons… ─┐"
 ok=1; for w in 65 70 75 80 85; do

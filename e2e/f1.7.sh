@@ -87,7 +87,7 @@ check "esc 先关补全列表，面板还在" eval 'is_open && [[ -z $(pop) ]]'
 e2e_type a; sleep 0.5; e2e_keys Enter; sleep 0.3
 check "sta：status 已选中，↵ 接受，不执行（F1.14）" eval '[[ $(input) == ";select st from t_order where status" && -z $(title) ]]'
 e2e_type " = 'done' and m"; sleep 0.5
-check "输入 m：列 meta → 表 mv_order_by_status → 关键字，首字符都是 m（F1.14）" eval '[[ $(items | head -1) == "meta "*"· t_order" && $(items | sed -n 2p) == "mv_order_by_status 表" && $(items | sed -n 3p) == *" 关键字" ]] || { items; false; }'
+check "输入 m：列 meta → 物化视图 mv_order_by_status（F3.10 起标「视图」）→ 关键字，首字符都是 m（F1.14）" eval '[[ $(items | head -1) == "meta "*"· t_order" && $(items | sed -n 2p) == "mv_order_by_status 视图" && $(items | sed -n 3p) == *" 关键字" ]] || { items; false; }'
 e2e_keys BSpace; e2e_type paid; sleep 0.5
 check "输入完整的 paid：列表开着，选中的就是 paid" eval '[[ $(items | head -1) == "paid "* ]] || { items; false; }'
 e2e_keys Enter; wait_for 8 eval '[[ -n $(title) ]]'

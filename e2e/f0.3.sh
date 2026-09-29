@@ -22,7 +22,7 @@ run
 check "keys：退出码 0、stderr 为空" eval 'rc_is 0 && [[ -z $ERR ]]'
 check "keys：markdown 表头" out_has $'| 作用域 | 键 | 操作 |\n|---|---|---|'
 check "keys：行数与 default.toml 的绑定数一致" eval '(( $(grep -c "^| [a-z]" <<<"$OUT") == $(grep -cE "^[\"'"'"']" "$E2E_ROOT/internal/keymap/default.toml") ))'
-check "keys：§6.8 抽查（C-p / SPC s / SPC \" / 表格 ↵ / console gq / result P）" eval 'out_has "| global | \`C-p\` | palette.open |" && out_has "| normal | \`SPC s\` | session.list |" && out_has "| normal | \`SPC \"\` | pane.split.below |" && out_has "| grid | \`↵\` | grid.edit |" && out_has "| console | \`gq\` | console.format |" && out_has "| result | \`P\` | result.pin |"'
+check "keys：§6.8 抽查（C-p / SPC s / SPC \" / 表格 ↵ / console ↵ / result P；gq 是编辑器的操作符，不在 keymap 里，b8bf335）" eval 'out_has "| global | \`C-p\` | palette.open |" && out_has "| normal | \`SPC s\` | session.list |" && out_has "| normal | \`SPC \"\` | pane.split.below |" && out_has "| grid | \`↵\` | grid.edit |" && out_has "| console | \`↵\` | console.run |" && out_has "| result | \`P\` | result.pin |"'
 check "默认键位只用 §6.2 允许的键（无 Alt、C-S-、C-数字、C-i/m/[、F 键、Home/End/PgUp/PgDn）" eval '! grep -E "\`[^\`]*(M-|A-|C-S-|C-[0-9]|C-i|C-m|C-\[|F[0-9]|Home|End|PageUp|PageDown)[^\`]*\`" <<<"$OUT"'
 check "C-h 只出现在 NORMAL" eval '[[ $(grep -F "\`C-h\`" <<<"$OUT" | cut -d"|" -f2 | tr -d " " | sort -u) == normal ]]'
 run --check; check "--check：默认配置退出码 0" rc_is 0
