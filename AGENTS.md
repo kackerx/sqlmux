@@ -56,7 +56,7 @@ sqlmux/
 
 凭记忆拿不准的数据库行为，比如驱动的取消语义、类型的文本格式、information_schema 在不同版本间的差异，不要猜。写一个最小的集成测试，在 `docker compose` 起的 PG / MySQL 上跑一遍，以结果为准。
 
-**集成测试环境**：`docker compose` 只在主工作区（`/Users/ctw/proj/sqlmux`）起一份，由 worker 负责 `docker compose up -d`。其他 worktree（e2e / review / verify）不要执行 `up`：compose 按目录名取项目名，会再起一套容器抢同一个端口；加 `-p sqlmux` 也不行，seed 的挂载路径不同会让它重建主工作区的容器。其他 worktree 直接用 `SQLMUX_TEST_PG` 连它，只读的测试共用 `sqlmux` 库没有问题。要锁表、写库或者其他会影响别人的测试，在同一个 PG 实例上自己建一个库（如 `sqlmux_e2e_<pid>`），用 `testdata/seed/pg.sql` 导入，只在这个库上操作，退出时 drop 掉；不要在共用的 `sqlmux` 库上加锁或写数据。seed 只在数据卷为空时导入一次，改了 `testdata/seed/*.sql` 要 `docker compose up -d -V` 才会生效，worker 改完 seed 要通知 reviewer 和 tester。
+**集成测试环境**：`docker compose` 只在主工作区（`/Users/ctw/proj/sqlmux`）起一份，由 worker 负责 `docker compose up -d postgres`。MySQL 容器到 M5 才用得上，之前不起（2026-09-29 机器内存吃紧时停掉，空转也占 400MB 以上）。其他 worktree（e2e / review / verify）不要执行 `up`：compose 按目录名取项目名，会再起一套容器抢同一个端口；加 `-p sqlmux` 也不行，seed 的挂载路径不同会让它重建主工作区的容器。其他 worktree 直接用 `SQLMUX_TEST_PG` 连它，只读的测试共用 `sqlmux` 库没有问题。要锁表、写库或者其他会影响别人的测试，在同一个 PG 实例上自己建一个库（如 `sqlmux_e2e_<pid>`），用 `testdata/seed/pg.sql` 导入，只在这个库上操作，退出时 drop 掉；不要在共用的 `sqlmux` 库上加锁或写数据。seed 只在数据卷为空时导入一次，改了 `testdata/seed/*.sql` 要 `docker compose up -d -V` 才会生效，worker 改完 seed 要通知 reviewer 和 tester。
 
 驱动或依赖本身已经提供的能力，直接用，不要重写。例如 PG 的标识符加引号，用 `pgx.Identifier{...}.Sanitize()`。
 
@@ -175,6 +175,7 @@ sqlmux/
   - e2e 只跑和这次改动相关的脚本（合入 `e2e` 分支之后）。**全量 e2e 每个审查节点跑一次**；修复 commit 也只跑相关的脚本，tester 在批次上会跑全量，里程碑最后还有一次完整回归（M1 复盘：全量一轮约 20 分钟，每个 commit 都跑，一天等了 217 分钟）；
   - **送审和全量 e2e 同时进行**（用户：提速，但首要保证质量）：上面的检查和相关的 e2e 都通过后就送审，全量 e2e 同时在后台跑。送审消息里写明全量还在跑，并列出预期的失败。跑完只有出现清单外的失败时，才再给 reviewer 发一条，算这一轮的补充，不另开一轮。跑到一半合进了 `e2e` 分支的，不重跑，除非新脚本覆盖的正是这一批；
   - 跑 e2e 用一次阻塞的命令等它结束再读结果，或者放到后台等完成通知，不要 `sleep` 轮询：每次轮询都要把整个上下文重读一遍；
+  - 一次跑多个脚本时只编译一次 sqlmux，各脚本共用这个二进制，不要每个脚本各编一份（一份 26MB，全量一轮 1GB）；跑完删掉临时目录里的二进制；
   - 说明用英文、以 feature ID 开头，例如 `F1.6: data pane tabs`。
 - **到审查节点**：一条消息把 commit 范围发给 reviewer，逐个 feature 写明希望重点审查的地方。
 - **收到退回时**：无论是 reviewer 的「必须改」还是 tester 的 bug，都修复后提交新的 commit，把修复的范围发给 reviewer。
@@ -202,7 +203,7 @@ sqlmux/
 **tester 的规则**：
 
 - **测试请求来自 reviewer**：只测审查通过的批次，测试结论只在审查通过的 sha 上给。发现问题退回给 worker；worker 的修复 commit 会先经过 reviewer，再回到你这里。
-- **worker 送审时就开始准备**：收到 worker 的「节点 N 已送审」后，不等 reviewer，先读这批的 spec 和验收项、写脚本、在送审的 sha 上试跑。发现 spec 没写到或写得有问题的地方，马上问决策者；决策者的答复要改代码时，会转给还在审查的 reviewer，并进它的那一轮退回，不再单独多退一轮（M1 复盘：F1.6–F1.7 的三个 spec 问题在测试时才提，多了一轮 30–40 分钟的退回）。
+- **worker 送审时就开始准备**：收到 worker 的「节点 N 已送审」后，不等 reviewer，先读这批的 spec 和验收项、写脚本、在送审的 sha 上试跑。试跑只跑新写或改过的脚本，不跑全量：这一轮的全量由 worker 在送审时跑（2026-09-29：两边同时跑全量，把机器跑卡了）。发现 spec 没写到或写得有问题的地方，马上问决策者；决策者的答复要改代码时，会转给还在审查的 reviewer，并进它的那一轮退回，不再单独多退一轮（M1 复盘：F1.6–F1.7 的三个 spec 问题在测试时才提，多了一轮 30–40 分钟的退回）。
 - **不在主工作区操作**：在单独的 worktree 中测试，用 `git worktree add /Users/ctw/proj/sqlmux-e2e -b e2e` 创建。测试之前，先在 worktree 里执行 `git merge <sha>`。
 - **只改 `e2e/` 目录**（e2e 脚本），提交到 `e2e` 分支。worker 会定期把 `e2e` 分支合并进 `main`。
 - **测试分三层**：
