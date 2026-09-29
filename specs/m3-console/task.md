@@ -20,8 +20,8 @@
   - 编辑器的差分测试与 nvim 的结果完全一致；
   - 用户验收通过后，打 tag `m3`（`m2` 同时打）。
 - **审查节点**：
-  1. F3.3 之后：F3.1–F3.3，编辑器（除块选择），纯逻辑，有 nvim 差分兜底；
-  2. F3.5 之后：F3.4–F3.5，块选择与 sqlkit；
+  1. F3.3 之后：F3.1–F3.3，编辑器（除块选择），纯逻辑，有 nvim 差分兜底（已通过）；
+  2. F3.5 之后：F3.4–F3.5，块选择与 sqlkit（已通过）；
   3. F3.8 之后：F3.6–F3.8，console tab、混放与引导页、执行与结果区；
   4. F3.11 之后：F3.9–F3.11，格式化、补全、schema 下拉。
 - **M1 / M2 的 e2e**：默认布局加入 console 后，⟨1⟩ 的宽度从占满变成 5/9，M1 / M2 脚本里依赖 data pane 宽度、`C-l` 焦点的地方可能失效。tester 在 `lib.sh` 里加一个开头先关掉 ⟨2⟩ 的辅助函数，不逐条改断言。
@@ -30,50 +30,50 @@
 
 ---
 
-## F3.1 编辑器核心与差分测试框架 · 状态：todo
+## F3.1 编辑器核心与差分测试框架 · 状态：passed（f551bac；e2e 428c35d）
 
 - **依赖**：M0
 - **涉及**：`internal/editor`
 
 **开发**
-- [ ] 接口：`New(text)`、`Feed(key)`（按键用 keymap 的记法字符串，editor 不 import keymap）、`Lines()`、`Cursor()`、`Mode()`、`Pending()`、`Selection()`、`SetHeight(n)`、`Top()`，另返回这一步的效果：寄存器变了、要执行的 ex 命令、内容变了。editor 不 import ui 和 bubbletea（§4）。
-- [ ] 位置为行加字节列，与 nvim 的 `getpos` 相同；显示列按 `ansi.GraphemeWidth`，Tab 按 `tab_width` 对齐。
-- [ ] 缓冲区、§11 表里的全部移动、INSERT / REPLACE、次数前缀；不折行，横向跟着光标（§11「不做」）。
-- [ ] INSERT：Tab 补到下一个 `tab_width` 的倍数（等同 `expandtab ts=sw=tab_width sts=0`），`↵` 继承缩进，带次数的插入（`3ix<Esc>`），方向键照 nvim 断开撤销步。
-- [ ] 撤销：每步保存整份 `[]string` 快照和光标，没改过的行共享字符串；不设上限，用 `ponytail:` 标出大文件会变慢。
-- [ ] 差分框架（§15）：`cases.txt` 每条是「`## 标题`、按键、初始文本（█ 标光标）」；golden 记录结果文本（█ 标光标）、无名寄存器的内容与类型、topline；生成器用 `feedkeys(keys, 'xt')` 和 §15 列的选项，文件头记 nvim 版本。
+- [x] 接口：`New(text)`、`Feed(key)`（按键用 keymap 的记法字符串，editor 不 import keymap）、`Lines()`、`Cursor()`、`Mode()`、`Pending()`、`Selection()`、`SetHeight(n)`、`Top()`，另返回这一步的效果：寄存器变了、要执行的 ex 命令、内容变了。editor 不 import ui 和 bubbletea（§4）。
+- [x] 位置为行加字节列，与 nvim 的 `getpos` 相同；显示列按 `ansi.GraphemeWidth`，Tab 按 `tab_width` 对齐。
+- [x] 缓冲区、§11 表里的全部移动、INSERT / REPLACE、次数前缀；不折行，横向跟着光标（§11「不做」）。
+- [x] INSERT：Tab 补到下一个 `tab_width` 的倍数（等同 `expandtab ts=sw=tab_width sts=0`），`↵` 继承缩进，带次数的插入（`3ix<Esc>`），方向键照 nvim 断开撤销步。
+- [x] 撤销：每步保存整份 `[]string` 快照和光标，没改过的行共享字符串；不设上限，用 `ponytail:` 标出大文件会变慢。
+- [x] 差分框架（§15）：`cases.txt` 每条是「`## 标题`、按键、初始文本（█ 标光标）」；golden 记录结果文本（█ 标光标）、无名寄存器的内容与类型、topline；生成器用 `feedkeys(keys, 'xt')` 和 §15 列的选项，文件头记 nvim 版本。
 
 **验收**
-- [ ] 差分用例覆盖移动、INSERT / REPLACE、次数、撤销，结果与 nvim 全部一致。
-- [ ] 运行 `go test ./internal/editor` 不需要安装 nvim。
+- [x] 差分用例覆盖移动、INSERT / REPLACE、次数、撤销，结果与 nvim 全部一致。
+- [x] 运行 `go test ./internal/editor` 不需要安装 nvim。
 
-## F3.2 操作符、文本对象、VISUAL 与寄存器 · 状态：todo
+## F3.2 操作符、文本对象、VISUAL 与寄存器 · 状态：passed（f551bac；e2e 428c35d）
 
 - **依赖**：F3.1
 - **涉及**：`internal/editor`
 
 **开发**
-- [ ] §11 表里的操作符、文本对象、VISUAL / VISUAL LINE、简写（`dd x J ~ r p gc` 等）。操作符的双写形式（`dd cc yy >> << gcc guu gUU g~~`）走「同一个操作符再按一次 = 作用于当前行」的通用规则，不逐个写。
-- [ ] 无名寄存器带类型；yank 或删除后产生「写剪贴板」的效果，`p` 只读内部寄存器（§11「寄存器」）。
+- [x] §11 表里的操作符、文本对象、VISUAL / VISUAL LINE、简写（`dd x J ~ r p gc` 等）。操作符的双写形式（`dd cc yy >> << gcc guu gUU g~~`）走「同一个操作符再按一次 = 作用于当前行」的通用规则，不逐个写。
+- [x] 无名寄存器带类型；yank 或删除后产生「写剪贴板」的效果，`p` 只读内部寄存器（§11「寄存器」）。
 
 **验收**
-- [ ] 差分用例覆盖每一个操作符与文本对象的组合类别，结果与 nvim 全部一致。
+- [x] 差分用例覆盖每一个操作符与文本对象的组合类别，结果与 nvim 全部一致。
 
-## F3.3 搜索与命令行 · 状态：todo
+## F3.3 搜索与命令行 · 状态：passed（f551bac；e2e 428c35d）
 
 - **依赖**：F3.2
 - **涉及**：`internal/editor`
 
 **开发**
-- [ ] `/ ? n N * #`，RE2、smartcase；找不到时产生「找不到：<pat>」的效果（app 用 toast 显示）；`n` / `N` 绕回时不提示。
-- [ ] `:` 命令行：`:{n}`、`:s`（范围只做当前行、`%`、`'<,'>`；分隔符可以是任意非字母数字字符；标志 `g i`；`\1`、`&`）；其余命令作为 ex 效果交给 app（§11「命令行」）。
-- [ ] 命令行的状态放在 editor 里，差分用例能直接覆盖 `/foo<CR>`、`:%s/a/b/g<CR>`。
+- [x] `/ ? n N * #`，RE2、smartcase；找不到时产生「找不到：<pat>」的效果（app 用 toast 显示）；`n` / `N` 绕回时不提示。
+- [x] `:` 命令行：`:{n}`、`:s`（范围只做当前行、`%`、`'<,'>`；分隔符可以是任意非字母数字字符；标志 `g i`；`\1`、`&`）；其余命令作为 ex 效果交给 app（§11「命令行」）。
+- [x] 命令行的状态放在 editor 里，差分用例能直接覆盖 `/foo<CR>`、`:%s/a/b/g<CR>`。
 
 **验收**
-- [ ] F3.1–F3.3 的差分用例合计至少 200 条，覆盖每一类操作，结果与 nvim 全部一致。
-- [ ] RE2 与 vim 语法不同的写法（`+`、`?`、`|`、`()`）有单测。
+- [x] F3.1–F3.3 的差分用例合计至少 200 条，覆盖每一类操作，结果与 nvim 全部一致。
+- [x] RE2 与 vim 语法不同的写法（`+`、`?`、`|`、`()`）有单测。
 
-## F3.4 块选择（VISUAL BLOCK） · 状态：todo
+## F3.4 块选择（VISUAL BLOCK） · 状态：passed（f551bac；e2e 428c35d）
 
 - **依赖**：F3.2
 - **涉及**：`internal/editor`
@@ -82,37 +82,37 @@
 
 实现 §11 表格中「VISUAL BLOCK」一行及其补充说明的全部内容：
 
-- [ ] `I`、`A`、`$A`、`c`：先在第一行输入，按 esc 后复制到其余各行；
-- [ ] `d`、`x`、`y`；`y` 复制时，寄存器类型为块；`p`、`P` 按块粘贴；
-- [ ] `r`、`~`、`u`、`U`、`>`、`<`、`gc`；`o`、`O` 切换选区的对角。
-- [ ] 模式 VisualBlock，状态栏显示 V-BLOCK；`<C-q>` 也当作 `<C-v>`（nvim 的 `nv_visual` 就是这样处理的），所以 §11 说的 Windows 改绑 `C-q` 不用额外配置；v、V、C-v 互相切换同 nvim。
-- [ ] 给绘制的接口：`Selection()` 语义不变，另加 `Block()` 返回上下行和左右显示列，`$` 延伸时右边为 `math.MaxInt`。
-- [ ] 寄存器的块类型记为 `"\x16{宽度}"`（`getregtype` 的写法），内容是各行用 `\n` 连起来的文字，同 `getreg`。
-- [ ] 块下按 `:` 照其他 VISUAL 预填 `'<,'>`，按行执行。清单外的块操作不做：`D C S R X Y s J`、块里的文本对象、块下的 `p`。
+- [x] `I`、`A`、`$A`、`c`：先在第一行输入，按 esc 后复制到其余各行；
+- [x] `d`、`x`、`y`；`y` 复制时，寄存器类型为块；`p`、`P` 按块粘贴；
+- [x] `r`、`~`、`u`、`U`、`>`、`<`、`gc`；`o`、`O` 切换选区的对角。
+- [x] 模式 VisualBlock，状态栏显示 V-BLOCK；`<C-q>` 也当作 `<C-v>`（nvim 的 `nv_visual` 就是这样处理的），所以 §11 说的 Windows 改绑 `C-q` 不用额外配置；v、V、C-v 互相切换同 nvim。
+- [x] 给绘制的接口：`Selection()` 语义不变，另加 `Block()` 返回上下行和左右显示列，`$` 延伸时右边为 `math.MaxInt`。
+- [x] 寄存器的块类型记为 `"\x16{宽度}"`（`getregtype` 的写法），内容是各行用 `\n` 连起来的文字，同 `getreg`。
+- [x] 块下按 `:` 照其他 VISUAL 预填 `'<,'>`，按行执行。清单外的块操作不做：`D C S R X Y s J`、块里的文本对象、块下的 `p`。
 
 **验收**
-- [ ] 差分用例覆盖上面列出的全部操作，结果与 nvim 一致，包括短行上的 `I` / `A` / `c`、块边界落在 Tab 上或宽字符中间的情况。
+- [x] 差分用例覆盖上面列出的全部操作，结果与 nvim 一致，包括短行上的 `I` / `A` / `c`、块边界落在 Tab 上或宽字符中间的情况。
 
-## F3.5 sqlkit：词法、分句、读写判定、自动 LIMIT · 状态：todo
+## F3.5 sqlkit：词法、分句、读写判定、自动 LIMIT · 状态：passed（f551bac；e2e 428c35d）
 
 - **依赖**：M1
 - **涉及**：`internal/sqlkit`
 
 **开发**
-- [ ] 扫描器：在现有的 `Tokens` 上扩展成 `Scan(s, dialect)`，输出 token 的类型、字节偏移和行号；方言为 `sqlkit.PG`、`sqlkit.MySQL`；`WhereContext`、`SelectLike` 改用它。先参考 lazysql 的 `sql_lexer.go`，提交说明里写明。
-- [ ] token 类型加 Keyword，按单独一个文件里的关键字表判断；补全用的关键字从这张表里取常用的部分。
-- [ ] 分句（§9.2）：语句从第一个不是空白、也不是注释的 token 开始，到 `;` 之前为止；光标在第一条语句之前时取第一条。PG 14 的 `BEGIN ATOMIC … END` 里的 `;` 会被切开，用 `ponytail:` 标出。先看 usql 的 `stmt/`。
-- [ ] 读写判定（§9.3，含 `SELECT … INTO`、括号写法的 `EXPLAIN (ANALYZE …)`）。先看 lazysql 的 `validation.go`。
-- [ ] 自动 LIMIT `AutoLimit(stmt, n)`（§9.4）。
-- [ ] WHERE 的 `;` 检查接进 WHERE 的执行（§9.6）。
+- [x] 扫描器：在现有的 `Tokens` 上扩展成 `Scan(s, dialect)`，输出 token 的类型、字节偏移和行号；方言为 `sqlkit.PG`、`sqlkit.MySQL`；`WhereContext`、`SelectLike` 改用它。先参考 lazysql 的 `sql_lexer.go`，提交说明里写明。
+- [x] token 类型加 Keyword，按单独一个文件里的关键字表判断；补全用的关键字从这张表里取常用的部分。
+- [x] 分句（§9.2）：语句从第一个不是空白、也不是注释的 token 开始，到 `;` 之前为止；光标在第一条语句之前时取第一条。PG 14 的 `BEGIN ATOMIC … END` 里的 `;` 会被切开，用 `ponytail:` 标出。先看 usql 的 `stmt/`。
+- [x] 读写判定（§9.3，含 `SELECT … INTO`、括号写法的 `EXPLAIN (ANALYZE …)`）。先看 lazysql 的 `validation.go`。
+- [x] 自动 LIMIT `AutoLimit(stmt, n)`（§9.4）。
+- [x] WHERE 的 `;` 检查接进 WHERE 的执行（§9.6）。
 
 **验收**
-- [ ] 表驱动的单元测试覆盖以下情况：
+- [x] 表驱动的单元测试覆盖以下情况：
   - `$tag$…$tag$`、`E'…'`、可嵌套的 `/* */` 注释；
   - MySQL 的反引号、`#` 注释、`-- `（后面必须跟空格才算注释）；
   - 包含写语句的 CTE；`EXPLAIN ANALYZE` 与 `EXPLAIN (ANALYZE, BUFFERS)` 后面跟写语句；`SELECT … INTO`；
   - 语句已有 LIMIT 或 FETCH 时，不再追加 LIMIT；末尾带 `--` 注释时追加的 LIMIT 仍然生效。
-- [ ] e2e：WHERE 输入 `1=1; drop table t_log` 后执行，pane 第一行显示「WHERE 里不能有 ;」，没有发出查询。
+- [x] e2e：WHERE 输入 `1=1; drop table t_log` 后执行，pane 第一行显示「WHERE 里不能有 ;」，没有发出查询。
 
 ## F3.6 console tab · 状态：todo
 
