@@ -81,7 +81,7 @@ check "表名的前几个字母：出现候选 t_order、t_order_item" eval 'n=$
 clear_all; e2e_type ";select st"; sleep 0.5
 check "还没写表名：没有列候选（没有 status）" eval '! items | grep -q "^status " || { items; false; }'
 e2e_type " from t_order where st"; sleep 0.8
-check "写了 t_order 之后：列 status 出现，排在关键字前面" eval '[[ $(items | head -1) == "status order_status · t_order" && $(items | sed -n 2p) == *" 关键字" ]] || { items; false; }'
+check "写了 t_order 之后：列 status 排第一，接着是表 / 视图（F3.12 起词首的 st 也匹配 mv_order_by_status），关键字在最后" eval '[[ $(items | head -1) == "status order_status · t_order" && $(items | sed -n 2p) == "mv_order_by_status 视图" && $(items | sed -n 3p) == *" 关键字" ]] || { items; false; }'
 e2e_keys Escape; sleep 0.3
 check "esc 先关补全列表，面板还在" eval 'is_open && [[ -z $(pop) ]]'
 e2e_type a; sleep 0.5; e2e_keys Enter; sleep 0.3

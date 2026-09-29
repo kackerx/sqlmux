@@ -88,4 +88,19 @@ check "不可空的 amount 上「设为 NULL」：不做事" eval '[[ $(cell amo
 key C-s; wait_for 8 eval '[[ $(qb) == *已保存* ]]'
 check "C-s：status 4 写成默认值 pending，note 10 写成 NULL，paid 1 写成 true，status 3 写成 done" eval '[[ $(psql_n "select status from t_order where id = 4") == pending && -z $(psql_n "select note from t_order where id = 10") && $(psql_n "select paid from t_order where id = 1") == t && $(psql_n "select status from t_order where id = 3") == done ]]'
 
+# ---- F3.15：非时间列的选项浮层是作用域 options，Tab / S-Tab / C-n / C-p / ↑ / ↓ 移动并绕回（§10.2「键盘」）
+goto paid 2; key Enter
+key Tab
+check "paid 编辑中 Tab：选中 true" eval '[[ $(picked) == "true 值" ]] || { echo "  $(picked)"; false; }'
+key Tab
+check "再 Tab：false" eval '[[ $(picked) == "false 值" ]] || { echo "  $(picked)"; false; }'
+key BTab
+check "S-Tab：回到 true" eval '[[ $(picked) == "true 值" ]]'
+key Up
+check "第一项再 ↑：绕到最后的 ∅ NULL" eval '[[ $(picked) == "∅ NULL" ]] || { echo "  $(picked)"; false; }'
+key Down; key C-n
+check "↓ 绕回第一项，C-n 再到 false" eval '[[ $(picked) == "false 值" ]] || { echo "  $(picked)"; false; }'
+key Enter
+check "↵：应用 false，格子显示 f" eval 'mode_is NORMAL && [[ $(cell paid 2) == f ]] || { echo "  $(cell paid 2)"; false; }'
+
 e2e_done

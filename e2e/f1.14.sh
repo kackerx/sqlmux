@@ -40,7 +40,7 @@ key Up;   check "↑ 同 S-Tab" sel_is null
 
 # ---- 候选的第一个字符必须和输入的第一个字符相同（不分大小写），其余照 fzf
 edit; typ at
-check "at：只有 a 开头的候选（amount），没有 status、created_at" eval '[[ $(names) == *amount* && $(names) != *status* && $(names) != *created_at* ]] || { echo "  $(names)"; false; }'
+check "at：首字符要落在词首（F3.12）：amount 和 _ 之后的 created_at、deleted_at，没有 status" eval '[[ $(names) == *amount* && $(names) == *created_at* && $(names) == *deleted_at* && $(names) != *status* ]] || { echo "  $(names)"; false; }'
 edit; typ Am
 check "Am：首字符不分大小写，仍出现 amount" eval '[[ $(names) == *amount* ]] || { echo "  $(names)"; false; }'
 edit; typ STA
