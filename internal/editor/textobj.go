@@ -148,30 +148,81 @@ func wordObject(big bool) object {
 	}
 }
 
-// unmatched finds, from p but not at it, the bracket find that the
-// brackets between do not match: other opens (or closes) one more level.
-// Quotes do not count, as in current_block.
-func (e *Editor) unmatched(p Pos, find, other byte, dir int) (Pos, bool) {
-	step, depth := e.inc, 0
-	if dir < 0 {
+// findMatch looks from p, not at it, for the bracket findc that the
+// brackets between leave unmatched, each initc on the way wanting one more
+// (search.c findmatchlimit, less its lisp, #if and raw string parts). A
+// bracket counts only when it is escaped by a backslash as the one matched
+// is (escaped). smart is 'cpoptions' without %: a bracket in "…" does not
+// count when its line has an even number of ", nor one in 'x' or '\x'.
+// ponytail: a line ending in \ does not carry a string on to the next as in
+// nvim; SQL strings do not continue that way.
+func (e *Editor) findMatch(p Pos, initc, findc byte, back, smart, escaped bool) (Pos, bool) {
+	step := e.inc
+	if back {
 		step = e.dec
 	}
+	count, inquote, quotes, line := 0, false, false, -1
 	for step(&p) != -1 {
 		l := e.lines[p.Line]
-		if p.Col >= len(l) {
-			continue
-		}
-		switch l[p.Col] {
-		case find:
-			if depth == 0 {
-				return p, true
+		if p.Line != line { // a new line: count its quotes, skipping '"' and \"
+			line = p.Line
+			n := 0
+			for i := 0; i < len(l); i++ {
+				if l[i] == '"' && (i == 0 || l[i-1] != '\'' || at(l, i+1) != '\'') {
+					n++
+				}
+				if l[i] == '\\' && i+1 < len(l) {
+					i++
+				}
 			}
-			depth--
-		case other:
-			depth++
+			quotes = smart && n%2 == 0
+		}
+		c := at(l, p.Col)
+		switch {
+		case c == 0:
+			if p.Col == 0 || l[p.Col-1] != '\\' {
+				inquote = false
+			}
+		case c == '"':
+			if quotes && backslashes(l, p.Col)%2 == 0 {
+				inquote = !inquote
+			}
+		case c == '\'' && smart && back && p.Col > 1 && l[p.Col-2] == '\'':
+			p.Col -= 2
+		case c == '\'' && smart && back && p.Col > 2 && l[p.Col-2] == '\\' && l[p.Col-3] == '\'':
+			p.Col -= 3
+		case c == '\'' && smart && !back && at(l, p.Col+1) == '\\' && at(l, p.Col+2) != 0 && at(l, p.Col+3) == '\'':
+			p.Col += 3
+		case c == '\'' && smart && !back && at(l, p.Col+1) != 0 && at(l, p.Col+2) == '\'':
+			p.Col += 2
+		case !inquote && (c == initc || c == findc) && (backslashes(l, p.Col)%2 == 1) == escaped:
+			if c == initc {
+				count++
+			} else if count == 0 {
+				return p, true
+			} else {
+				count--
+			}
 		}
 	}
 	return p, false
+}
+
+// backslashes is how many backslashes are right before col.
+func backslashes(l string, col int) int {
+	n := 0
+	for col-n > 0 && l[col-n-1] == '\\' {
+		n++
+	}
+	return n
+}
+
+// at is the byte at i in s, 0 outside it (vim's NUL at the end of a line).
+func at(s string, i int) byte {
+	if i >= 0 && i < len(s) {
+		return s[i]
+	}
+	return 0
 }
 
 func blockObject(open, shut byte) object {
@@ -196,16 +247,16 @@ func blockObject(open, shut byte) object {
 		}
 		var start Pos
 		ok := false
-		if _, ok = e.unmatched(e.cur, open, shut, -1); ok {
+		if _, ok = e.findMatch(e.cur, shut, open, true, false, false); ok {
 			for ; count > 0; count-- {
-				if e.cur, ok = e.unmatched(e.cur, open, shut, -1); !ok {
+				if e.cur, ok = e.findMatch(e.cur, shut, open, true, false, false); !ok {
 					break
 				}
 				start = e.cur
 			}
 		} else { // not in a block: the next one on
 			for ; count > 0; count-- {
-				if e.cur, ok = e.unmatched(e.cur, open, shut, 1); !ok {
+				if e.cur, ok = e.findMatch(e.cur, shut, open, false, false, false); !ok {
 					break
 				}
 				start = e.cur
@@ -214,7 +265,7 @@ func blockObject(open, shut byte) object {
 		if !ok {
 			return fail()
 		}
-		end, ok := e.unmatched(e.cur, shut, open, 1)
+		end, ok := e.findMatch(e.cur, open, shut, false, true, false)
 		if !ok {
 			return fail()
 		}
@@ -237,11 +288,11 @@ func blockObject(open, shut byte) object {
 				// no bigger than the selection: the block around it
 				e.cur = oldStart
 				e.decl(&e.cur)
-				if start, ok = e.unmatched(e.cur, open, shut, -1); !ok {
+				if start, ok = e.findMatch(e.cur, shut, open, true, true, false); !ok {
 					return fail()
 				}
 				e.cur = start
-				if end, ok = e.unmatched(e.cur, shut, open, 1); !ok {
+				if end, ok = e.findMatch(e.cur, open, shut, false, true, false); !ok {
 					return fail()
 				}
 				e.cur = end
@@ -309,12 +360,6 @@ func prevQuote(l string, col int, q byte, escape bool) int {
 func quoteObject(q byte) object {
 	return func(e *Editor, count int, include bool) (span, bool) {
 		l := e.line()
-		at := func(i int) byte {
-			if i < len(l) {
-				return l[i]
-			}
-			return 0
-		}
 		colStart, colEnd := e.cur.Col, 0
 		inclusive, visEmpty, visBefore, inside, selectedQuote := false, true, false, false, false
 		visual := e.visual()
@@ -327,10 +372,10 @@ func quoteObject(q byte) object {
 		if !visEmpty {
 			var i int
 			if visBefore {
-				inside = e.vstart.Col > 0 && l[e.vstart.Col-1] == q && at(e.cur.Col) != 0 && at(e.cur.Col+1) == q
+				inside = e.vstart.Col > 0 && l[e.vstart.Col-1] == q && at(l, e.cur.Col) != 0 && at(l, e.cur.Col+1) == q
 				i, colEnd = e.vstart.Col, e.cur.Col
 			} else {
-				inside = e.cur.Col > 0 && l[e.cur.Col-1] == q && at(e.vstart.Col) != 0 && at(e.vstart.Col+1) == q
+				inside = e.cur.Col > 0 && l[e.cur.Col-1] == q && at(l, e.vstart.Col) != 0 && at(l, e.vstart.Col+1) == q
 				i, colEnd = e.cur.Col, e.vstart.Col
 			}
 			for ; i <= colEnd && i < len(l); i++ {
@@ -341,7 +386,7 @@ func quoteObject(q byte) object {
 			}
 		}
 		switch {
-		case !visEmpty && at(colStart) == q:
+		case !visEmpty && at(l, colStart) == q:
 			if visBefore {
 				if colStart = nextQuote(l, colStart+1, q, false); colStart < 0 {
 					return span{}, false
@@ -350,14 +395,14 @@ func quoteObject(q byte) object {
 					colEnd, colStart = colStart, e.cur.Col
 				}
 			} else {
-				if colEnd = prevQuote(l, colStart, q, false); at(colEnd) != q {
+				if colEnd = prevQuote(l, colStart, q, false); at(l, colEnd) != q {
 					return span{}, false
 				}
-				if colStart = prevQuote(l, colEnd, q, true); at(colStart) != q {
+				if colStart = prevQuote(l, colEnd, q, true); at(l, colStart) != q {
 					colStart, colEnd = colEnd, e.cur.Col
 				}
 			}
-		case at(colStart) == q || !visEmpty:
+		case at(l, colStart) == q || !visEmpty:
 			first := colStart
 			if !visEmpty {
 				if visBefore {
@@ -379,7 +424,7 @@ func quoteObject(q byte) object {
 				}
 			}
 		default:
-			if colStart = prevQuote(l, colStart, q, true); at(colStart) != q {
+			if colStart = prevQuote(l, colStart, q, true); at(l, colStart) != q {
 				if colStart = nextQuote(l, colStart, q, false); colStart < 0 {
 					return span{}, false
 				}
@@ -389,8 +434,8 @@ func quoteObject(q byte) object {
 			}
 		}
 		if include { // the blanks after, else those before
-			if white(at(colEnd + 1)) {
-				for white(at(colEnd + 1)) {
+			if white(at(l, colEnd+1)) {
+				for white(at(l, colEnd+1)) {
 					colEnd++
 				}
 			} else {
@@ -404,7 +449,7 @@ func quoteObject(q byte) object {
 		}
 		start := Pos{e.cur.Line, colStart}
 		if visual && (visEmpty || visBefore && !selectedQuote &&
-			(inside || at(e.vstart.Col) != q && (e.vstart.Col == 0 || l[e.vstart.Col-1] != q))) {
+			(inside || at(l, e.vstart.Col) != q && (e.vstart.Col == 0 || l[e.vstart.Col-1] != q))) {
 			e.vstart = start
 		}
 		e.cur.Col = colEnd
@@ -417,7 +462,7 @@ func quoteObject(q byte) object {
 		if visEmpty || visBefore {
 			e.dec(&e.cur)
 		} else {
-			if inside || !selectedQuote && at(e.vstart.Col) != q && (at(e.vstart.Col) == 0 || at(e.vstart.Col+1) != q) {
+			if inside || !selectedQuote && at(l, e.vstart.Col) != q && (at(l, e.vstart.Col) == 0 || at(l, e.vstart.Col+1) != q) {
 				e.dec(&e.cur)
 				e.vstart = e.cur
 			}

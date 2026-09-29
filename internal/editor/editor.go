@@ -186,15 +186,14 @@ func parse(keys []string, visual bool) (c cmd, st status) {
 		if n > 0 {
 			c.count = max(c.count, 1) * n
 		}
-		switch {
-		case len(keys) == 0:
-			return c, waiting
-		case keys[0] == c.op[len(c.op)-1:] && len(keys) == 1: // dd, gUU, gcc: the line
-			c.name = "_"
-			return c, complete
-		}
 		if c.name, c.arg, _, st = word(keys, true); st != complete {
 			return c, st
+		}
+		// dd, gUU, gUgU: the line. gcc is a mapping of its own in nvim, which a
+		// count does not split.
+		if c.name == c.op || c.name == c.op[len(c.op)-1:] && (c.op != "gc" || n == 0) {
+			c.name = "_"
+			return c, complete
 		}
 		if motions[c.name] == nil && objects[c.name] == nil && c.name != "/" && c.name != "?" {
 			return c, invalid
@@ -213,14 +212,14 @@ func parse(keys []string, visual bool) (c cmd, st status) {
 }
 
 // word reads a command's name off keys: g and z take a second key, and so
-// do i and a where they start a text object; f, t and r then take a
-// character.
-func word(keys []string, objects bool) (name, arg string, rest []string, st status) {
+// do i and a where they start a text object (textObj); f, t and r then
+// take a character.
+func word(keys []string, textObj bool) (name, arg string, rest []string, st status) {
 	if len(keys) == 0 {
 		return "", "", nil, waiting
 	}
 	name, keys = keys[0], keys[1:]
-	if name == "g" || name == "z" || objects && (name == "i" || name == "a") {
+	if name == "g" || name == "z" || textObj && (name == "i" || name == "a") {
 		if len(keys) == 0 {
 			return "", "", nil, waiting
 		}
@@ -290,7 +289,14 @@ func (e *Editor) run(c cmd) {
 		return
 	}
 	commands[c.name](e, c)
+	if resetWant[c.name] {
+		e.want = wantUnset
+	}
 }
+
+// resetWant are the commands after which j and k aim for the cursor's
+// column again (vim sets w_set_curswant).
+var resetWant = map[string]bool{"u": true, "<C-r>": true, "U": true, "J": true, "r": true, "~": true, "p": true, "P": true}
 
 // commands are the NORMAL commands that are not motions.
 var commands map[string]func(*Editor, cmd)
@@ -326,15 +332,13 @@ func init() {
 				}
 				n = left
 			}
-			e.join(n, true)
+			e.join(n)
 		},
 		"~":  func(e *Editor, c cmd) { e.tilde(c.n()) },
 		"r":  func(e *Editor, c cmd) { e.replace(c) },
-		"v":  func(e *Editor, _ cmd) { e.startVisual(Visual) },
-		"V":  func(e *Editor, _ cmd) { e.startVisual(VisualLine) },
+		"v":  func(e *Editor, c cmd) { e.startVisual(Visual, c.count) },
+		"V":  func(e *Editor, c cmd) { e.startVisual(VisualLine, c.count) },
 		"gv": func(e *Editor, _ cmd) { e.reselect() },
-		"*":  func(e *Editor, c cmd) { e.star(c, false) },
-		"#":  func(e *Editor, c cmd) { e.star(c, true) },
 
 		"u":     func(e *Editor, c cmd) { e.undo(c.n()) },
 		"<C-r>": func(e *Editor, c cmd) { e.redo(c.n()) },

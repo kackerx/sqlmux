@@ -1,9 +1,6 @@
 package editor
 
-import (
-	"strings"
-	"unicode/utf8"
-)
+import "strings"
 
 // target is where a motion lands and how an operator takes the text up to
 // it. A motion that fails leaves to where the cursor ends up anyway (b
@@ -44,6 +41,7 @@ func init() {
 		"H": screenLine('H'), "M": screenLine('M'), "L": screenLine('L'),
 		"n": func(e *Editor, c cmd, _ string) target { return e.findNext(c, false) },
 		"N": func(e *Editor, c cmd, _ string) target { return e.findNext(c, true) },
+		"*": star(false), "#": star(true),
 		"_": func(e *Editor, c cmd, _ string) target { // the line count-1 down, at its first non-blank
 			n := min(e.cur.Line+c.n()-1, len(e.lines)-1)
 			return target{to: Pos{n, nonBlank(e.lines[n])}, ok: true, linewise: true}
@@ -88,11 +86,13 @@ func vertical(d int) motion {
 	}
 }
 
+// dollar is $: count-1 lines down, the last line at most, failing only on
+// it (cursor_down).
 func dollar(e *Editor, c cmd, _ string) target {
-	n := e.cur.Line + c.n() - 1
-	if n >= len(e.lines) {
+	if c.n() > 1 && e.cur.Line == len(e.lines)-1 {
 		return target{to: e.cur}
 	}
+	n := min(e.cur.Line+c.n()-1, len(e.lines)-1)
 	e.want = wantEnd
 	return target{to: Pos{n, e.coladvance(n, wantEnd)}, ok: true, inclusive: true, keepWant: true}
 }
@@ -113,8 +113,10 @@ func goLine(last bool) motion {
 }
 
 // screenLine is H, M and L (normal.c nv_scroll): lines of the screen.
+// Without an operator a count does not take the cursor off the screen
+// (cursor_correct).
 func screenLine(which byte) motion {
-	return func(e *Editor, c cmd, _ string) target {
+	return func(e *Editor, c cmd, op string) target {
 		h, n := e.rows(), len(e.lines)
 		var l int
 		switch which {
@@ -136,6 +138,14 @@ func screenLine(which byte) motion {
 				}
 			}
 			l += e.top
+		}
+		if op == "" {
+			if bot := e.top + h - 1; l > bot && e.top+h < n {
+				l = bot
+			}
+			if l < e.top {
+				l = e.top
+			}
 		}
 		return target{to: Pos{l, e.coladvance(l, e.curswant())}, ok: true, linewise: true, keepWant: true}
 	}
@@ -182,8 +192,7 @@ func (e *Editor) cls(p Pos, big bool) int {
 	if p.Col >= len(l) {
 		return 0
 	}
-	r, _ := utf8.DecodeRuneInString(l[p.Col:])
-	if c := class(r); c == 0 || !big {
+	if c := classAt(l, p.Col); c == 0 || !big {
 		return c
 	}
 	return 1
@@ -433,39 +442,77 @@ func find(e *Editor, c cmd, _ string) target {
 	return target{to: Pos{e.cur.Line, col}, ok: true, inclusive: fwd}
 }
 
-// percent is %: from the first bracket at or after the cursor on its line
-// to the one matching it.
-// ponytail: brackets inside quotes and comments count too; vim skips
-// quoted ones. Add that if SQL with ')' in strings trips it up.
+// percent is % (search.c findmatchlimit): on the /* or */ of a comment to
+// its other end, else from the first bracket at or after the cursor on its
+// line to the one matching it.
+// ponytail: #if and // comments are not looked for as in nvim; SQL has
+// neither.
 func percent(e *Editor, c cmd, _ string) target {
 	fail := target{to: e.cur}
-	l := e.line()
-	i := strings.IndexAny(l[e.cur.Col:], "()[]{}")
-	if c.count > 0 || i < 0 {
+	if c.count > 0 {
 		return fail
 	}
-	p := Pos{e.cur.Line, e.cur.Col + i}
-	b := l[p.Col]
-	j := strings.IndexByte("([{)]}", b)
-	open, shut, step := b, "([{)]}"[(j+3)%6], e.inc
-	if j >= 3 {
-		step = e.dec
+	l, p := e.line(), e.cur
+	to, ok, on := e.commentEnd(p)
+	if !on {
+		i := strings.IndexAny(l[p.Col:], "()[]{}")
+		if i < 0 {
+			return fail
+		}
+		p.Col += i
+		j := strings.IndexByte("([{)]}", l[p.Col])
+		to, ok = e.findMatch(p, l[p.Col], "([{)]}"[(j+3)%6], j >= 3, true, backslashes(l, p.Col)%2 == 1)
 	}
-	depth := 0
-	for step(&p) != -1 {
-		if l := e.lines[p.Line]; p.Col < len(l) {
-			switch l[p.Col] {
-			case open:
-				depth++
-			case shut:
-				if depth == 0 {
-					return target{to: p, ok: true, inclusive: true}
-				}
-				depth--
+	if !ok {
+		return fail
+	}
+	return target{to: to, ok: true, inclusive: true}
+}
+
+// commentEnd is where % goes from the /* or */ of a C comment at p, ok
+// false when the comment has no other end; on is false when p is not on
+// one. Comments do not nest; a */ on the way back ends the search.
+func (e *Editor) commentEnd(p Pos) (to Pos, ok, on bool) {
+	l := e.lines[p.Line]
+	fwd := false
+	switch {
+	case at(l, p.Col) == '/' && at(l, p.Col+1) == '*':
+		fwd, p.Col = true, p.Col+1
+	case at(l, p.Col) == '/' && at(l, p.Col-1) == '*':
+		p.Col--
+	case at(l, p.Col) == '*' && at(l, p.Col+1) == '/':
+	case at(l, p.Col) == '*' && at(l, p.Col-1) == '/':
+		fwd = true
+	default:
+		return p, false, false
+	}
+	var start Pos
+	found := false
+	if fwd {
+		for e.inc(&p) != -1 {
+			if l := e.lines[p.Line]; at(l, p.Col) == '*' && at(l, p.Col+1) == '/' {
+				return Pos{p.Line, p.Col + 1}, true, true
 			}
 		}
+		return p, false, true
 	}
-	return fail
+	for e.dec(&p) != -1 {
+		l := e.lines[p.Line]
+		switch {
+		case p.Col == 0:
+		case l[p.Col-1] == '/' && at(l, p.Col) == '*' && at(l, p.Col-2) != '*':
+			start, found = Pos{p.Line, p.Col - 1}, true
+		case l[p.Col-1] == '*' && at(l, p.Col) == '/':
+			switch {
+			case found:
+				return start, true, true
+			case at(l, p.Col-2) == '/':
+				return Pos{p.Line, p.Col - 2}, true, true
+			}
+			return p, false, true
+		}
+	}
+	return start, found, true
 }
 
 // para is { and } (textobject.c findpar): to the next empty line; } at the

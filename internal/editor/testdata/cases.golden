@@ -7371,3 +7371,9222 @@ b
 reg: "" ""
 top: 1
 mode: n
+
+## r31 w katakana long vowel
+スーパー █test
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w kanji iteration mark
+人█々は x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w micro sign
+xµy █z
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w trademark
+x ™█. y
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w sun emoji
+x ☀█. y
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w flag then punct
+a 🇨🇳█. b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w hangul jamo
+ㅋㅋabc █d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w fullwidth comma
+中文█，测试
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w emoji run
+😀█😀 x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w check then grin
+✅😀 █x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w subscript
+H█₂O x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w em space
+a █b c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w circled digit
+①█abc x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w katakana middle dot
+カタ・カタ █x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w halfwidth katakana
+ｶﾀabc █x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3w across empty lines
+a b
+
+█c d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2e across empty line
+ab
+
+c█d ef
+reg: "" ""
+top: 1
+mode: n
+
+## r31 b to empty line
+ab
+█
+cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2b over empty line
+█ab
+
+cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 ge to empty line
+ab
+█
+cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2ge over empty line
+a█b
+
+cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w trailing spaces
+abc   
+█def
+reg: "" ""
+top: 1
+mode: n
+
+## r31 e last word trailing spaces
+abc  █ 
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3e
+a b c █d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 E punct
+foo.bar(baz█) qux
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2W across lines
+a.b c.d
+█e.f
+reg: "" ""
+top: 1
+mode: n
+
+## r31 B across empty
+a.b
+█
+c.d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 gE across lines
+a.b c.█d
+e.f
+reg: "" ""
+top: 1
+mode: n
+
+## r31 5w past end
+a b █c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w on last char
+a b█c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 b from first col
+█ab cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 e cjk
+中█文abc
+reg: "" ""
+top: 1
+mode: n
+
+## r31 ge cjk
+ab█c中文
+reg: "" ""
+top: 1
+mode: n
+
+## r31 w combining
+éa █b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 e indented next line
+ab
+   c█d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 ge from indent
+a█b
+  cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 W trailing spaces last line
+ab █ 
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2w ending on empty line
+a b
+█
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 l over combining
+é█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 l over zwj family
+👨‍👩‍👧█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 j after flag
+🇨🇳ab
+ab█cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 j after vs16 emoji
+☺️ab
+ab█cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 j from cjk
+中文
+ab█cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 j k through empty
+abcd
+█
+abcd
+x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 $ through tab lines
+abc
+	x
+abcde█f
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3$
+ab
+cd
+e█f
+gh
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3$ past end
+ab
+█cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 ^ on blank line
+  █ 
+reg: "" ""
+top: 1
+mode: n
+
+## r31 $0j
+abc
+█abc
+reg: "" ""
+top: 1
+mode: n
+
+## r31 G on tab line
+abc
+█	x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 99999j
+a
+b
+█c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 10l
+abcdefghij█klmn
+reg: "" ""
+top: 1
+mode: n
+
+## r31 count esc then j
+a
+█b
+c
+d
+e
+reg: "" ""
+top: 1
+mode: n
+
+## r31 d esc then x
+█bc
+reg: "v" "a"
+top: 1
+mode: n
+
+## r31 k onto tab then j
+	ab
+x█yz
+reg: "" ""
+top: 1
+mode: n
+
+## r31 k onto mid tab
+a	b
+abc█d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 $ then gg
+ab█c
+abcdef
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3h over cjk
+a█中文bc
+reg: "" ""
+top: 1
+mode: n
+
+## r31 j over wide char middle
+a█bcd
+中文
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2f cjk
+a中b█中c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2t then ;
+a.b.█c.d.e
+reg: "" ""
+top: 1
+mode: n
+
+## r31 T then , adjacent
+a.b.c.█d.e
+reg: "" ""
+top: 1
+mode: n
+
+## r31 F then 2;
+a█.b.c.de
+reg: "" ""
+top: 1
+mode: n
+
+## r31 f then ,
+█abca
+reg: "" ""
+top: 1
+mode: n
+
+## r31 ; after failed f
+a█.b.c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2f space
+a b█ c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 t ; on cjk
+a中█b中
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3t fails
+█a.b.c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 % backwards across lines
+█(a
+(b)
+)
+reg: "" ""
+top: 1
+mode: n
+
+## r31 % on comment start
+select /* x *█/ 1
+reg: "" ""
+top: 1
+mode: n
+
+## r31 % on comment end
+select █/* x */ 1
+reg: "" ""
+top: 1
+mode: n
+
+## r31 % none after cursor
+a (b) █c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 % cjk line
+中(文█)
+reg: "" ""
+top: 1
+mode: n
+
+## r31 } over blank-only line
+a
+  
+b
+█
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3{
+a
+█
+b
+
+c
+
+d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 { from first paragraph
+█a
+bc
+reg: "" ""
+top: 1
+mode: n
+
+## r31 } then j
+abc
+
+█abc
+reg: "" ""
+top: 1
+mode: n
+
+## r31 H after scroll
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+█39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31 M after scroll
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+█49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31 L after scroll
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+█60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31 3L after scroll
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+█58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31 5H after scroll
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+█43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31 M at end
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+█89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 80
+mode: n
+
+## r31 M at end short tail
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+█19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+reg: "" ""
+top: 10
+mode: n
+
+## r31 30L short
+█a
+b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 $ then H
+ab█c
+abcdef
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-d from mid screen
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+█21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 12
+mode: n
+
+## r31 C-u from bottom
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+█89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 69
+mode: n
+
+## r31 C-d keeps curswant
+abcdef
+1
+2
+3
+4
+5
+6
+7
+8
+9
+1█0
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+reg: "" ""
+top: 11
+mode: n
+
+## r31 2 C-f
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+█40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 41
+mode: n
+
+## r31 C-b after G
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+█80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 60
+mode: n
+
+## r31 2 C-b after G
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+█60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31 C-f then C-b
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+█21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-d C-d C-u
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+█11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 12
+mode: n
+
+## r31 50zz
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+█49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31 50zb
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+█49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 29
+mode: n
+
+## r31 zt then k
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+█48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 49
+mode: n
+
+## r31 zt then 10k
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+█39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 30
+mode: n
+
+## r31 zt then 9k
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+█40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 41
+mode: n
+
+## r31 zb then 23j
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+█72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 62
+mode: n
+
+## r31 zb then 24j
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+█73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 64
+mode: n
+
+## r31 undo far away
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+█49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31 undo at top from end
+█0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 1
+mode: n
+
+## r31 zt count clamps col
+abcde
+x
+█y
+z
+reg: "" ""
+top: 3
+mode: n
+
+## r31 30 C-d then C-u
+█0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 1
+mode: n
+
+## r31 5 C-u from end
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+█95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 75
+mode: n
+
+## r31 C-d at last line
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+█100
+reg: "" ""
+top: 80
+mode: n
+
+## r31 C-f near end
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+█94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 95
+mode: n
+
+## r31 C-b near top
+0
+1
+2
+3
+4
+5
+6
+7
+8
+█9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-d on 30 lines twice
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+█22
+23
+24
+25
+26
+27
+28
+29
+30
+reg: "" ""
+top: 10
+mode: n
+
+## r31 C-f on 30 lines
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+█20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+reg: "" ""
+top: 21
+mode: n
+
+## r31 o at bottom of screen
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+█x
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 1
+mode: n
+
+## r31 CR at bottom of screen
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+█x
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 2
+mode: n
+
+## r31 3A
+xyababa█b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3a empty
+xx█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 a on cjk
+中█x文
+reg: "" ""
+top: 1
+mode: n
+
+## r31 A esc on cjk
+中█文
+reg: "" ""
+top: 1
+mode: n
+
+## r31 i esc at col 0
+█abc
+reg: "" ""
+top: 1
+mode: n
+
+## r31 count insert with BS
+xacaca█cy
+reg: "" ""
+top: 1
+mode: n
+
+## r31 count insert BS past start
+█cy
+reg: "" ""
+top: 1
+mode: n
+
+## r31 count insert C-w
+foo█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-w then u
+afoo ba█r
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-u then u
+afo█o
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-w then U
+█a
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-w count repeat
+a█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-w then u twice
+█a
+reg: "" ""
+top: 1
+mode: n
+
+## r31 A CR spaces esc
+  foo
+   █ 
+reg: "" ""
+top: 1
+mode: n
+
+## r31 o on blank line
+   
+   █x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 o tab esc
+  foo
+   █ 
+reg: "" ""
+top: 1
+mode: n
+
+## r31 CR x BS esc
+  foo
+ █ 
+reg: "" ""
+top: 1
+mode: n
+
+## r31 BS after CR autoindent
+    foo
+  █x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 BS BS joins after autoindent
+  foo█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-u on autoindent
+  a
+█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-w at start of line joins
+ab█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 Left then BS
+█xb
+reg: "" ""
+top: 1
+mode: n
+
+## r31 Left then C-w
+xfoo█ ar
+reg: "" ""
+top: 1
+mode: n
+
+## r31 Up then type then u
+c█d
+efab
+reg: "" ""
+top: 1
+mode: n
+
+## r31 count insert failed Down
+ababa█bx
+reg: "" ""
+top: 1
+mode: n
+
+## r31 count insert failed Left
+aa█ax
+reg: "" ""
+top: 1
+mode: n
+
+## r31 count insert failed Right
+xaa█a
+reg: "" ""
+top: 1
+mode: n
+
+## r31 o then Up drops indent
+ █ a
+
+  b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 o then Down
+  a
+
+  █xb
+reg: "" ""
+top: 1
+mode: n
+
+## r31 o then Left
+    a
+   █x 
+reg: "" ""
+top: 1
+mode: n
+
+## r31 Tab after real tab
+a	b █x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 BS mixed tab indent
+█	x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-w over tab
+█
+reg: "" ""
+top: 1
+mode: n
+
+## r31 Right then type then u
+ax█y
+reg: "" ""
+top: 1
+mode: n
+
+## r31 insert BS multibyte
+█a
+reg: "" ""
+top: 1
+mode: n
+
+## r31 insert Up over wide
+中█x文字
+abc
+reg: "" ""
+top: 1
+mode: n
+
+## r31 insert Down then BS
+xab
+█d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3o undo
+█a
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 insert CR count undo
+█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 R tab
+  █xcdef
+reg: "" ""
+top: 1
+mode: n
+
+## r31 R tab BS
+█abcdef
+reg: "" ""
+top: 1
+mode: n
+
+## r31 R x tab BS BS
+█abcdef
+reg: "" ""
+top: 1
+mode: n
+
+## r31 R CR BS
+█ayzw
+reg: "" ""
+top: 1
+mode: n
+
+## r31 R arrow then u
+a█bz
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2R with CR
+a
+ba
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 R cjk over ascii
+█中bc
+reg: "" ""
+top: 1
+mode: n
+
+## r31 R count BS
+aa█axxxxxx
+reg: "" ""
+top: 1
+mode: n
+
+## r31 u then j curswant
+abcdef
+he█llo world
+reg: "v" "c"
+top: 1
+mode: n
+
+## r31 C-r then j curswant
+abdef
+he█llo world
+reg: "v" "c"
+top: 1
+mode: n
+
+## r31 U then j curswant
+abcdef
+he█llo world
+reg: "v" "c"
+top: 1
+mode: n
+
+## r31 x empty line then u
+bc
+█
+x
+reg: "v" "a"
+top: 1
+mode: n
+
+## r31 r same char then u
+ab█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 tilde punct then u
+ab█.
+reg: "" ""
+top: 1
+mode: n
+
+## r31 u two lines cursor
+█ab
+cd
+reg: "v" "c"
+top: 1
+mode: n
+
+## r31 u after A on later line
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 C-r cursor
+ab
+█c
+reg: "v" "d"
+top: 1
+mode: n
+
+## r31 u after 2O
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 u after CR in middle
+abc█d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 u after BS join from below
+ab
+█cd
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2u then C-r
+█cd
+reg: "v" "c"
+top: 1
+mode: n
+
+## r31 u after two-line insert
+x
+█y
+z
+reg: "" ""
+top: 1
+mode: n
+
+## r31 U after insert then move
+a█b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 U U u
+█abcd
+reg: "v" "b"
+top: 1
+mode: n
+
+## r31 U after A on two lines
+ax
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 U after insert with arrow
+█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 x J U
+█abc
+reg: "v" "a"
+top: 1
+mode: n
+
+## r31 U then C-r
+█abc
+reg: "v" "a"
+top: 1
+mode: n
+
+## r31 u after R
+█xyz
+q
+reg: "v" "q"
+top: 1
+mode: n
+
+## r31 U after R
+█xyz
+reg: "" ""
+top: 1
+mode: n
+
+## r31 u cursor after I
+  █bar
+reg: "" ""
+top: 1
+mode: n
+
+## r31 u after A multibyte
+a█b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3x multibyte
+a█中
+reg: "v" "文ab"
+top: 1
+mode: n
+
+## r31 x combining
+█x
+reg: "v" "é"
+top: 1
+mode: n
+
+## r31 3X multibyte
+█b
+reg: "v" "a中文"
+top: 1
+mode: n
+
+## r31 5X past start
+█b
+reg: "v" "a"
+top: 1
+mode: n
+
+## r31 r multibyte
+a█中c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3r multibyte
+中中█中d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 r over cjk
+█x文
+reg: "" ""
+top: 1
+mode: n
+
+## r31 2r over cjk
+x█xa
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3 tilde multibyte
+ÉÀ█ẞ
+reg: "" ""
+top: 1
+mode: n
+
+## r31 tilde long s
+S█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 10 tilde
+aB█C
+reg: "" ""
+top: 1
+mode: n
+
+## r31 tilde final sigma
+Σ█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 tilde dotless i
+I█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 tilde titlecase dz
+Ǆ█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31 4J with empty lines
+a█ b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 J leading tabs
+a█ b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 J cjk
+中█ 文
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3J cursor
+a b█ c
+d
+reg: "" ""
+top: 1
+mode: n
+
+## r31 3J near end
+a
+b█ c
+reg: "" ""
+top: 1
+mode: n
+
+## r31 J next only spaces
+█a
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 J current empty
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## r31 x at end then u
+ab█c
+reg: "v" "c"
+top: 1
+mode: n
+
+## r31b count insert failed BS
+aa█ax
+reg: "" ""
+top: 1
+mode: n
+
+## r31b count insert failed C-w
+aa█ax
+reg: "" ""
+top: 1
+mode: n
+
+## r31b count insert failed C-u
+aa█ax
+reg: "" ""
+top: 1
+mode: n
+
+## r31b count insert C-w space
+ax x x█ 
+reg: "" ""
+top: 1
+mode: n
+
+## r31b count insert C-u space
+ax█ 
+reg: "" ""
+top: 1
+mode: n
+
+## r31b count insert Del
+aa█a
+reg: "" ""
+top: 1
+mode: n
+
+## r31b count o failed Left
+a
+x
+█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31b count insert failed Left mid text
+a
+b█bx
+reg: "" ""
+top: 1
+mode: n
+
+## r31b J then j curswant
+abcdef ab
+hello █world
+reg: "" ""
+top: 1
+mode: n
+
+## r31b r then j curswant
+abx
+ab█cdef
+reg: "" ""
+top: 1
+mode: n
+
+## r31b tilde then j curswant
+abC
+ab█cdef
+reg: "" ""
+top: 1
+mode: n
+
+## r31b p then j curswant
+abca
+abc█defgh
+reg: "v" "a"
+top: 1
+mode: n
+
+## r31b x then j curswant
+abc
+ab█cdefgh
+reg: "v" "d"
+top: 1
+mode: n
+
+## r31b C-f 23 lines
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+█21
+22
+23
+reg: "" ""
+top: 21
+mode: n
+
+## r31b C-f 24 lines
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+█21
+22
+23
+24
+reg: "" ""
+top: 21
+mode: n
+
+## r31b C-f 25 lines
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+█21
+22
+23
+24
+25
+reg: "" ""
+top: 21
+mode: n
+
+## r31b C-b from end 25 lines
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+█22
+23
+24
+25
+reg: "" ""
+top: 1
+mode: n
+
+## r31b C-d 23 lines
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+█12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+reg: "" ""
+top: 2
+mode: n
+
+## r31b C-u with top 1
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+█12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+reg: "" ""
+top: 1
+mode: n
+
+## r31b 2 C-f 50 lines
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+█41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+reg: "" ""
+top: 41
+mode: n
+
+## r31b C-f then C-d
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+█32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 32
+mode: n
+
+## r31b Tab BS not in indent
+ab █x
+reg: "" ""
+top: 1
+mode: n
+
+## r31b C-w over typed spaces
+█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31b insert Up Down curswant
+ab
+cdabcdef█x
+reg: "" ""
+top: 1
+mode: n
+
+## r31b R Tab at end
+a █x
+reg: "" ""
+top: 1
+mode: n
+
+## r31b R BS after Tab mid
+█abcdef
+reg: "" ""
+top: 1
+mode: n
+
+## r31b C-w then CR then u
+afo█o
+reg: "" ""
+top: 1
+mode: n
+
+## r31b C-u in middle then Esc u
+xa█b
+reg: "" ""
+top: 1
+mode: n
+
+## r31c R Tab BS mid
+ab█ def
+reg: "" ""
+top: 1
+mode: n
+
+## r31c 30H after scroll
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+█60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31c M one line
+ab█c
+reg: "" ""
+top: 1
+mode: n
+
+## r31c L then j
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+█22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 2
+mode: n
+
+## r31c H then k
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+█38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 39
+mode: n
+
+## r31c 1 C-d
+0
+█1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 2
+mode: n
+
+## r31c C-b at top
+█0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 1
+mode: n
+
+## r31c gE multibyte
+中文 a.█b c
+reg: "" ""
+top: 1
+mode: n
+
+## r31c B then W cjk
+x 中文abc █y
+reg: "" ""
+top: 1
+mode: n
+
+## r31c u then k curswant
+he█llo world
+abcdef
+reg: "v" "c"
+top: 1
+mode: n
+
+## r31d 30L after scroll
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+█39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31d 22H after scroll
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+█60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31d 23H after scroll
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+█60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 40
+mode: n
+
+## r31d 30H at end
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+█100
+reg: "" ""
+top: 80
+mode: n
+
+## r31d 30H from top
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+█21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "" ""
+top: 1
+mode: n
+
+## r: >w charwise cursor
+   █ foo bar
+reg: "" ""
+top: 1
+mode: n
+
+## r: >l cursor
+    f█oo bar
+x
+reg: "" ""
+top: 1
+mode: n
+
+## r: <w charwise cursor
+  fo█o
+reg: "" ""
+top: 1
+mode: n
+
+## r: >} mid line
+   █ abc
+    d
+
+e
+reg: "" ""
+top: 1
+mode: n
+
+## r: v> charwise cursor
+    a█bcd
+reg: "" ""
+top: 1
+mode: n
+
+## r: vj> charwise cursor
+    █abcd
+    ef
+reg: "" ""
+top: 1
+mode: n
+
+## r: 3D past end
+█a
+reg: "v" "bc\nde"
+top: 1
+mode: n
+
+## r: 3$ past end
+abc
+d█e
+reg: "" ""
+top: 1
+mode: n
+
+## r: 3Y past end
+a█bc
+de
+reg: "v" "bc\nde"
+top: 1
+mode: n
+
+## r: 3C past end
+a█x
+reg: "v" "bc\nde"
+top: 1
+mode: n
+
+## r: 2D multibyte end from indent
+█
+reg: "V" "  select\n-- 中文\n"
+top: 1
+mode: n
+
+## r: d2e multibyte end from indent
+█
+reg: "V" "  foo\n中\n"
+top: 1
+mode: n
+
+## r: gUgU
+█ABC DEF
+reg: "" ""
+top: 1
+mode: n
+
+## r: gugu
+█abc def
+reg: "" ""
+top: 1
+mode: n
+
+## r: g~g~
+█AbC
+reg: "" ""
+top: 1
+mode: n
+
+## r: 2gUgU
+A█B
+CD
+ef
+reg: "" ""
+top: 1
+mode: n
+
+## r: v$gc
+█-- a
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r: v$U across
+a█B
+cd
+reg: "" ""
+top: 1
+mode: n
+
+## r: v$y last line
+ab
+c█d
+reg: "v" "d"
+top: 1
+mode: n
+
+## r: v$d last line
+ab
+█c
+reg: "v" "d"
+top: 1
+mode: n
+
+## r: vd empty last line
+a
+█
+reg: "" ""
+top: 1
+mode: n
+
+## r: v$J
+ab█ cd
+ef
+reg: "" ""
+top: 1
+mode: n
+
+## r: v$>
+  a█b
+cd
+reg: "" ""
+top: 1
+mode: n
+
+## r: 2d3w
+█g h
+reg: "v" "a b c d e f "
+top: 1
+mode: n
+
+## r: 2y2j
+█1
+2
+3
+4
+5
+6
+reg: "V" "1\n2\n3\n4\n5\n"
+top: 1
+mode: n
+
+## r: 5yy past end
+a
+█b
+c
+reg: "V" "b\nc\n"
+top: 1
+mode: n
+
+## r: 2cc last line
+a
+█c
+reg: "v" "b"
+top: 1
+mode: n
+
+## r: 3>> last line
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## r: 3gcc near end
+a
+█-- b
+-- c
+reg: "" ""
+top: 1
+mode: n
+
+## r: 5dj near end
+█a
+reg: "V" "b\nc\n"
+top: 1
+mode: n
+
+## r: 3dk near top
+█c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## r: dk first line
+█a
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r: d3G
+a
+█d
+e
+reg: "V" "b\nc\n"
+top: 1
+mode: n
+
+## r: dL
+█a
+reg: "V" "b\nc\n"
+top: 1
+mode: n
+
+## r: cw on multiple blanks
+a█xb
+reg: "v" "   "
+top: 1
+mode: n
+
+## r: c2w from blank
+a█xc d
+reg: "v" " b "
+top: 1
+mode: n
+
+## r: cw last word of text
+a █x
+reg: "v" "bc"
+top: 1
+mode: n
+
+## r: cw on empty line
+a
+█x
+b
+reg: "V" "\n"
+top: 1
+mode: n
+
+## r: cw on punct
+a█xb
+reg: "v" ".,"
+top: 1
+mode: n
+
+## r: cW on last char
+fo█x bar
+reg: "v" "o"
+top: 1
+mode: n
+
+## r: c3w across lines
+a █x e
+reg: "v" "b\nc d"
+top: 1
+mode: n
+
+## r: cw count past end
+a █x
+reg: "v" "b c"
+top: 1
+mode: n
+
+## r: dw count past end
+a█ 
+reg: "v" "b c\nd"
+top: 1
+mode: n
+
+## r: yw count past end
+a █b c
+reg: "v" "b c"
+top: 1
+mode: n
+
+## r: dw on empty line
+a
+█b
+reg: "V" "\n"
+top: 1
+mode: n
+
+## r: dw end of line to indented
+a█ 
+  c
+reg: "v" "b"
+top: 1
+mode: n
+
+## r: db at line start
+█cd
+reg: "V" "ab\n"
+top: 1
+mode: n
+
+## r: dge across line
+a█d
+reg: "v" "b\nc"
+top: 1
+mode: n
+
+## r: de at end of word
+█a
+reg: "v" "b cd"
+top: 1
+mode: n
+
+## r: dE across lines
+a█ 
+reg: "v" "b\n  c.d"
+top: 1
+mode: n
+
+## r: d^ from indent
+ █foo
+reg: "v" " "
+top: 1
+mode: n
+
+## r: d0 at start
+█foo
+reg: "" ""
+top: 1
+mode: n
+
+## r: dTa adjacent
+a█bx
+reg: "" ""
+top: 1
+mode: n
+
+## r: d2fx
+█cx
+reg: "v" "axbx"
+top: 1
+mode: n
+
+## r: d,
+█xc
+reg: "v" "xab"
+top: 1
+mode: n
+
+## r: d% no match
+a█bc
+reg: "" ""
+top: 1
+mode: n
+
+## r: y% from before bracket
+█a(b)c
+reg: "v" "a(b)"
+top: 1
+mode: n
+
+## r: daw before punct
+foo█, baz
+reg: "v" " bar"
+top: 1
+mode: n
+
+## r: daw on blanks
+foo█ baz
+reg: "v" "  bar"
+top: 1
+mode: n
+
+## r: daw trailing blanks at eol
+foo█ 
+reg: "v" "bar  "
+top: 1
+mode: n
+
+## r: daw only word indented
+ █ 
+reg: "v" "foo"
+top: 1
+mode: n
+
+## r: daw last word before next line
+█a
+d
+reg: "v" " bc"
+top: 1
+mode: n
+
+## r: d3iw
+█ c
+reg: "v" "a b"
+top: 1
+mode: n
+
+## r: d3aw across lines
+a █e
+reg: "v" "b\nc d "
+top: 1
+mode: n
+
+## r: yiw punct run
+a█.,b
+reg: "v" ".,"
+top: 1
+mode: n
+
+## r: diw empty line
+a
+█
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r: yiw empty line
+a
+█
+b
+reg: "v" ""
+top: 1
+mode: n
+
+## r: ciw empty line
+a
+█x
+b
+reg: "v" ""
+top: 1
+mode: n
+
+## r: diw single blank
+a█b
+reg: "v" " "
+top: 1
+mode: n
+
+## r: daw single blank
+a█ c
+reg: "v" " b"
+top: 1
+mode: n
+
+## r: diW mixed
+x █ y
+reg: "v" "a.b(c)"
+top: 1
+mode: n
+
+## r: daW at eol
+█x
+reg: "v" " a.b"
+top: 1
+mode: n
+
+## r: caw last word
+a█x
+reg: "v" " bc"
+top: 1
+mode: n
+
+## r: v3iw
+█ c d
+reg: "v" "a b"
+top: 1
+mode: n
+
+## r: vawaw
+█c d
+reg: "v" "a b "
+top: 1
+mode: n
+
+## r: viw o iw
+aa bb█ dd
+reg: "v" " cc"
+top: 1
+mode: n
+
+## r: Viw charwise
+a █ d
+e
+reg: "v" "bc"
+top: 1
+mode: n
+
+## r: vb aw backward
+█az qux
+reg: "v" "foo bar b"
+top: 1
+mode: n
+
+## r: viw on blank run
+a█b
+reg: "v" "   "
+top: 1
+mode: n
+
+## r: vj iw
+a█gh
+reg: "v" "b cd\nef "
+top: 1
+mode: n
+
+## r: 2daw at end fails
+a b █c
+reg: "" ""
+top: 1
+mode: n
+
+## r: diw cjk
+x █abc y
+reg: "v" "中文"
+top: 1
+mode: n
+
+## r: di( paren in single quotes
+f(█)
+reg: "v" "a, ')'"
+top: 1
+mode: n
+
+## r: di( paren in double quotes
+f(█)
+reg: "v" "a, \")\""
+top: 1
+mode: n
+
+## r: di( quote before cursor
+f(a, ')', █b)
+reg: "" ""
+top: 1
+mode: n
+
+## r: di( escaped paren
+f(█)
+reg: "v" "a\\)b, c"
+top: 1
+mode: n
+
+## r: di( unbalanced
+f(█a, (b
+reg: "" ""
+top: 1
+mode: n
+
+## r: di( on open nested
+f(█)
+reg: "v" "(a)"
+top: 1
+mode: n
+
+## r: ci( empty
+f(█x)
+reg: "" ""
+top: 1
+mode: n
+
+## r: da{ multiline
+f█ 
+reg: "v" "{\n  a\n}"
+top: 1
+mode: n
+
+## r: ci{ multiline
+f {
+  █x
+}
+reg: "V" "  a\n  b\n"
+top: 1
+mode: n
+
+## r: yi{ multiline register
+f {
+█  a
+}
+reg: "V" "  a\n"
+top: 1
+mode: n
+
+## r: vi{ multiline
+f {
+█}
+z
+reg: "v" "  a\n"
+top: 1
+mode: n
+
+## r: di( close indented line
+f(
+  █)
+reg: "V" "  a\n"
+top: 1
+mode: n
+
+## r: di( open at eol
+f(
+█)
+reg: "v" "  a"
+top: 1
+mode: n
+
+## r: 3di( too many
+f(a(█b))
+reg: "" ""
+top: 1
+mode: n
+
+## r: di[ nested
+[a, [█], c]
+reg: "v" "b"
+top: 1
+mode: n
+
+## r: da[
+x █ y
+reg: "v" "[a]"
+top: 1
+mode: n
+
+## r: vi( a(
+f(a, g█, c)
+reg: "v" "(b)"
+top: 1
+mode: n
+
+## r: va( on open
+x █ y
+reg: "v" "(a)"
+top: 1
+mode: n
+
+## r: vi( empty fails
+f█(
+reg: "v" ")"
+top: 1
+mode: n
+
+## r: diB alias
+{█}
+reg: "v" "a"
+top: 1
+mode: n
+
+## r: di{ from indent
+  {
+  █}
+reg: "V" "    a\n"
+top: 1
+mode: n
+
+## r: di( forward multiline
+f(
+█)
+reg: "v" " a"
+top: 1
+mode: n
+
+## r: di" between strings
+"a"█"b"
+reg: "v" " "
+top: 1
+mode: n
+
+## r: da" leading white
+x █=
+reg: "v" " \"a\""
+top: 1
+mode: n
+
+## r: da" trailing white
+█b
+reg: "v" "\"a\"  "
+top: 1
+mode: n
+
+## r: di' sql doubled
+x = 'it''█'
+reg: "v" "s"
+top: 1
+mode: n
+
+## r: ci' empty
+x = '█x'
+reg: "" ""
+top: 1
+mode: n
+
+## r: 2di"
+x █ y
+reg: "v" "\"ab\""
+top: 1
+mode: n
+
+## r: di" after last quote
+"a" █b
+reg: "" ""
+top: 1
+mode: n
+
+## r: da' on close quote
+x █y
+reg: "v" "'ab' "
+top: 1
+mode: n
+
+## r: yi" escaped backslash
+s = "a\\" + "█b"
+reg: "v" "b"
+top: 1
+mode: n
+
+## r: vi" twice
+x █ y
+reg: "v" "\"ab\""
+top: 1
+mode: n
+
+## r: va" y
+x █"ab" y
+reg: "v" "\"ab\" "
+top: 1
+mode: n
+
+## r: Vi" charwise
+x "█" y
+z
+reg: "v" "ab"
+top: 1
+mode: n
+
+## r: di" on escaped quote
+"█"
+reg: "v" "a\\\"b"
+top: 1
+mode: n
+
+## r: dap on blank between
+a
+█
+d
+reg: "V" "\n\n\nb\nc\n"
+top: 1
+mode: n
+
+## r: d2ap
+█c
+reg: "V" "a\n\nb\n\n"
+top: 1
+mode: n
+
+## r: y3ip
+█a
+
+b
+
+c
+reg: "V" "a\n\nb\n"
+top: 1
+mode: n
+
+## r: dip whitespace-only separator
+█  
+b
+reg: "V" "a\n"
+top: 1
+mode: n
+
+## r: d} whitespace-only separator
+█
+c
+reg: "V" "a\n  \nb\n"
+top: 1
+mode: n
+
+## r: dip whole buffer
+█
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## r: 3dap too many
+█a
+
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r: cap
+█x
+c
+reg: "V" "a\nb\n\n"
+top: 1
+mode: n
+
+## r: gcap
+█-- a
+-- b
+--
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r: gUap
+█A
+B
+
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r: Vip
+█
+c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## r: Vjip extends
+█
+d
+
+e
+reg: "V" "a\nb\nc\n"
+top: 1
+mode: n
+
+## r: vap on blank
+a
+█
+c
+reg: "V" "\n\nb\n"
+top: 1
+mode: n
+
+## r: v2ip
+█b
+
+c
+reg: "V" "a\n\n"
+top: 1
+mode: n
+
+## r: 3v
+█def
+reg: "v" "abc"
+top: 1
+mode: n
+
+## r: 2V
+█c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## r: vjJ
+a█ b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r: VjU
+█AB
+CD
+ef
+reg: "" ""
+top: 1
+mode: n
+
+## r: vj~
+a█bC
+dEF
+reg: "" ""
+top: 1
+mode: n
+
+## r: Vjc indent
+  █x
+c
+reg: "V" "  a\n  b\n"
+top: 1
+mode: n
+
+## r: Vjx
+█c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## r: vky cursor
+a█b
+cd
+reg: "v" "b\ncd"
+top: 1
+mode: n
+
+## r: v$hy
+█abc
+d
+reg: "v" "abc"
+top: 1
+mode: n
+
+## r: vj$y
+a█b
+cd
+ef
+reg: "v" "b\ncd\n"
+top: 1
+mode: n
+
+## r: vGy
+a
+█bc
+de
+reg: "v" "bc\nd"
+top: 1
+mode: n
+
+## r: vggd
+█a
+reg: "v" "b\ncd"
+top: 1
+mode: n
+
+## r: v%y
+█(a
+b)
+reg: "v" "(a\nb)"
+top: 1
+mode: n
+
+## r: Vjd undo cursor
+a
+█  b
+c
+d
+reg: "V" "  b\nc\n"
+top: 1
+mode: n
+
+## r: vjd undo cursor
+a
+b█c
+d
+reg: "v" "c\nd"
+top: 1
+mode: n
+
+## r: Vjjgc blank middle
+█-- a
+--
+--   b
+reg: "" ""
+top: 1
+mode: n
+
+## r: gcc blank-only line
+█   
+reg: "" ""
+top: 1
+mode: n
+
+## r: gcip already commented
+█a
+  b
+reg: "" ""
+top: 1
+mode: n
+
+## r: gcc only dashes
+█
+reg: "" ""
+top: 1
+mode: n
+
+## r: gc2j with blank
+█a
+
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r: gcc triple dash
+█-
+reg: "" ""
+top: 1
+mode: n
+
+## r: J hash comment
+# a█ # b
+reg: "" ""
+top: 1
+mode: n
+
+## r: J slash comment
+// a█ // b
+reg: "" ""
+top: 1
+mode: n
+
+## r: J dash list
+- a█ - b
+reg: "" ""
+top: 1
+mode: n
+
+## r: J blank-only next
+█a
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r: 2p multiline charwise
+a█ab
+cab
+cb
+cd
+reg: "v" "ab\nc"
+top: 1
+mode: n
+
+## r: xp at end
+ab█c
+reg: "v" "c"
+top: 1
+mode: n
+
+## r: ddp last line
+a
+█b
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## r: Dp
+ab█c
+reg: "v" "bc"
+top: 1
+mode: n
+
+## r: yy3P
+█a
+a
+a
+a
+b
+reg: "V" "a\n"
+top: 1
+mode: n
+
+## r: yiw2P
+a bcb█cbc d
+reg: "v" "bc"
+top: 1
+mode: n
+
+## r: p linewise blank register
+   
+b
+  █ 
+reg: "V" "   \n"
+top: 1
+mode: n
+
+## r: yh at col 0 keeps reg
+█ab
+reg: "v" ""
+top: 1
+mode: n
+
+## r: 3x cjk
+█b
+reg: "v" "中文a"
+top: 1
+mode: n
+
+## r: xp cjk
+文█中
+reg: "v" "中"
+top: 1
+mode: n
+
+## r: 3~ cjk
+中A文█b
+reg: "" ""
+top: 1
+mode: n
+
+## r: X cjk
+█文
+reg: "v" "中"
+top: 1
+mode: n
+
+## r: cc register
+  █x
+b
+reg: "V" "  foo\n"
+top: 1
+mode: n
+
+## r: 2S register
+  █x
+c
+reg: "V" "  a\n  b\n"
+top: 1
+mode: n
+
+## r: ciw undo
+a █bc d
+reg: "v" "bc"
+top: 1
+mode: n
+
+## r: gUiw undo
+a █bc d
+reg: "" ""
+top: 1
+mode: n
+
+## r: yyP undo
+a
+█b
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## r: y} from indent linewise
+  █a
+  b
+
+c
+reg: "V" "  a\n  b\n"
+top: 1
+mode: n
+
+## r: c} from indent
+  █x
+
+c
+reg: "V" "  a\n  b\n"
+top: 1
+mode: n
+
+## r: d{ from line start
+a
+█c
+reg: "V" "\nb\n"
+top: 1
+mode: n
+
+## r: yG cursor
+a
+█bc
+d
+reg: "V" "bc\nd\n"
+top: 1
+mode: n
+
+## r: ygg cursor
+a█b
+cd
+reg: "V" "ab\ncd\n"
+top: 1
+mode: n
+
+## r: >2j
+█  a
+  b
+  c
+d
+reg: "" ""
+top: 1
+mode: n
+
+## r: >> odd indent
+   █  a
+reg: "" ""
+top: 1
+mode: n
+
+## r: << odd indent
+ █a
+reg: "" ""
+top: 1
+mode: n
+
+## r: >iw
+   █ foo
+reg: "" ""
+top: 1
+mode: n
+
+## r: df; to eol
+█a
+reg: "v" "bc;"
+top: 1
+mode: n
+
+## r: d$ on empty line
+a
+█
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r: dl at eol
+█a
+reg: "v" "b"
+top: 1
+mode: n
+
+## r: 3dd keeps column
+g█hij
+reg: "V" "abcd\nbcde\ncdef\n"
+top: 1
+mode: n
+
+## r: Vjd keeps column
+i█jkl
+reg: "V" "abcd\nefgh\n"
+top: 1
+mode: n
+
+## r: V$d
+efg█h
+ij
+reg: "V" "abcd\n"
+top: 1
+mode: n
+
+## r: di" cursor before string
+x a "█" c
+reg: "v" "b"
+top: 1
+mode: n
+
+## r: da" no trailing takes leading
+█x
+reg: "v" "  \"a\""
+top: 1
+mode: n
+
+## r: di' odd quotes after last
+'a' b █'c
+reg: "" ""
+top: 1
+mode: n
+
+## r: vi[ a[ grow
+█
+reg: "v" "[x, [a], y]"
+top: 1
+mode: n
+
+## r: 2di{ multiline
+f {
+█}
+reg: "V" "  g {\n    a\n  }\n"
+top: 1
+mode: n
+
+## r: vjip
+█
+
+d
+reg: "v" "a\nb\nc"
+top: 1
+mode: n
+
+## r: yip on blank count 2
+a
+█
+
+
+b
+c
+reg: "V" "\n\n\nb\nc\n"
+top: 1
+mode: n
+
+## r: vj2>
+█    a
+    b
+reg: "" ""
+top: 1
+mode: n
+
+## r: V<< too far
+█a
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r: vjgc inclusive
+-█- ab
+-- cd
+ef
+reg: "" ""
+top: 1
+mode: n
+
+## r: gcw
+--█ a b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r: gc} adjusted
+█-- a
+-- b
+
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r: gcG
+a
+█-- b
+-- c
+reg: "" ""
+top: 1
+mode: n
+
+## r: gciw
+--█ a b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r: gcc tab indent
+	█-- foo
+reg: "" ""
+top: 1
+mode: n
+
+## r: gcj mixed indent
+	-█-  a
+	-- b
+reg: "" ""
+top: 1
+mode: n
+
+## r: 5cc near end
+a
+█x
+reg: "V" "b\nc\n"
+top: 1
+mode: n
+
+## r: 2S last line
+a
+█
+reg: "v" "b"
+top: 1
+mode: n
+
+## r: C on empty line
+a
+█x
+b
+reg: "v" ""
+top: 1
+mode: n
+
+## r: D on empty line
+a
+█
+b
+reg: "" ""
+top: 1
+mode: n
+
+## r: Y on empty line
+a
+█
+b
+reg: "v" ""
+top: 1
+mode: n
+
+## r: yy on empty line
+a
+█
+b
+reg: "V" "\n"
+top: 1
+mode: n
+
+## r: p empty charwise
+
+a█bc
+reg: "v" ""
+top: 1
+mode: n
+
+## r: ddp only line
+
+█a
+reg: "V" "a\n"
+top: 1
+mode: n
+
+## r: dW across lines
+a█ 
+  d
+reg: "v" "b.c"
+top: 1
+mode: n
+
+## r: yb at line start
+█ab
+cd
+reg: "V" "ab\n"
+top: 1
+mode: n
+
+## r: dG on last line
+█a
+reg: "V" "bc\n"
+top: 1
+mode: n
+
+## r: 2d$ middle
+█a
+ef
+reg: "v" "b\ncd"
+top: 1
+mode: n
+
+## r: c$ at end
+ab█x
+reg: "v" "c"
+top: 1
+mode: n
+
+## r: cl on last char
+ab█x
+reg: "v" "c"
+top: 1
+mode: n
+
+## r: gUl at end
+ab█C
+reg: "" ""
+top: 1
+mode: n
+
+## r: 2g~$
+a█b
+Cd
+eF
+reg: "" ""
+top: 1
+mode: n
+
+## r: gu5j past end
+A
+█b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r: >G
+a
+█  b
+  c
+reg: "" ""
+top: 1
+mode: n
+
+## r: <gg
+█a
+b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r: yL
+a
+█b
+c
+reg: "V" "b\nc\n"
+top: 1
+mode: n
+
+## r: dM
+█c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## r: 5dh
+█cd
+reg: "v" "ab"
+top: 1
+mode: n
+
+## r: d3l
+a█e
+reg: "v" "bcd"
+top: 1
+mode: n
+
+## r: d2;
+a█d
+reg: "v" "xbxcx"
+top: 1
+mode: n
+
+## r: d2tx
+█xe
+reg: "v" "abxcd"
+top: 1
+mode: n
+
+## r: cTx
+xab█c
+reg: "" ""
+top: 1
+mode: n
+
+## r: c%
+█zb
+reg: "v" "(a)"
+top: 1
+mode: n
+
+## r: ce on end of word
+a█x
+reg: "v" "b cd"
+top: 1
+mode: n
+
+## r: cE
+█x c
+reg: "v" "a.b"
+top: 1
+mode: n
+
+## r: cb at line start
+█x
+cd
+reg: "V" "ab\n"
+top: 1
+mode: n
+
+## r: c0
+█xcd
+reg: "v" "ab"
+top: 1
+mode: n
+
+## r: cG
+a
+  █x
+reg: "V" "  b\n  c\n"
+top: 1
+mode: n
+
+## r: cgg
+  █x
+reg: "V" "  a\n  b\nc\n"
+top: 1
+mode: n
+
+## r: vjo k
+█a
+reg: "v" "\nbc\nd"
+top: 1
+mode: n
+
+## r: v$ iw
+█
+reg: "v" "ab cd\nef"
+top: 1
+mode: n
+
+## r: Viwo
+a █ d
+reg: "v" "bc"
+top: 1
+mode: n
+
+## r: Va( charwise
+x █ y
+z
+reg: "v" "(a)"
+top: 1
+mode: n
+
+## r: vx on empty line
+a
+█b
+reg: "v" "\n"
+top: 1
+mode: n
+
+## r: vly past end
+a█b
+reg: "v" "b"
+top: 1
+mode: n
+
+## r: ve across lines
+a █ d
+reg: "v" "b\nc"
+top: 1
+mode: n
+
+## r: Vy P
+a
+█b
+b
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## r: gv after vjd
+a
+█
+fg
+hi
+reg: "v" "e"
+top: 1
+mode: n
+
+## r: Vjy gvd
+█c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## r: J cjk
+中█ 文
+reg: "" ""
+top: 1
+mode: n
+
+## r: vJ cjk count
+a b█ c
+d
+reg: "" ""
+top: 1
+mode: n
+
+## r: V~
+█Ab
+cD
+reg: "" ""
+top: 1
+mode: n
+
+## r: vu cjk
+█中a文
+reg: "" ""
+top: 1
+mode: n
+
+## r: 3r cjk
+中中█中d
+reg: "" ""
+top: 1
+mode: n
+
+## r: r cjk on cjk
+█x文
+reg: "" ""
+top: 1
+mode: n
+
+## r: gcc then gcc
+  █a
+reg: "" ""
+top: 1
+mode: n
+
+## r: gcip mixed commented
+█-- -- a
+-- b
+reg: "" ""
+top: 1
+mode: n
+
+## r: daw punct after space
+a █b
+reg: "v" ", "
+top: 1
+mode: n
+
+## r: diw at eol blank
+fo█o
+reg: "v" "   "
+top: 1
+mode: n
+
+## r: yaw last word eol
+foo█ bar
+reg: "v" " bar"
+top: 1
+mode: n
+
+## r: yiw multibyte
+x █été y
+reg: "v" "été"
+top: 1
+mode: n
+
+## r: dap middle paragraph
+a
+
+█d
+reg: "V" "b\nc\n\n"
+top: 1
+mode: n
+
+## r: 2dip from blank
+a
+█
+c
+reg: "V" "\n\nb\n"
+top: 1
+mode: n
+
+## r: vipip
+█b
+
+c
+reg: "V" "a\n\n"
+top: 1
+mode: n
+
+## r: 3yy past end count
+a
+b
+█c
+reg: "" ""
+top: 1
+mode: n
+
+## r: gv after O above
+x
+a
+█c
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## r: gv after dd above
+█c
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## r: Vkip
+a
+█
+reg: "V" "b\nc\nd\n"
+top: 1
+mode: n
+
+## r: vi( on open visual
+f(█)
+reg: "v" "a, b"
+top: 1
+mode: n
+
+## r: ci( multiline sol
+f(
+  █x
+)
+reg: "V" "  a\n"
+top: 1
+mode: n
+
+## r: >i{
+f {
+  █  a
+}
+reg: "" ""
+top: 1
+mode: n
+
+## r: gUi"
+x "█AB" y
+reg: "" ""
+top: 1
+mode: n
+
+## r: <a(
+(█a
+b)
+reg: "" ""
+top: 1
+mode: n
+
+## r: ya' doubled
+x = 'it'█'s' y
+reg: "v" "'s' "
+top: 1
+mode: n
+
+## r: di( on paren inside quotes
+f(a, '(█)
+reg: "v" "', b"
+top: 1
+mode: n
+
+## r: v2i(
+f(█)
+reg: "v" "a, g(b), c"
+top: 1
+mode: n
+
+## r: di( after closing
+(a) █b
+reg: "" ""
+top: 1
+mode: n
+
+## r: vaw last word leading white
+fo█o
+reg: "v" " bar"
+top: 1
+mode: n
+
+## r: vawo aw
+a █d e
+reg: "v" "b c "
+top: 1
+mode: n
+
+## r: vl3d
+█cdef
+reg: "v" "ab"
+top: 1
+mode: n
+
+## r: vl3y
+█abcdef
+reg: "v" "ab"
+top: 1
+mode: n
+
+## r: vl3~
+█ABcdef
+reg: "" ""
+top: 1
+mode: n
+
+## r: d Esc x
+█bc
+reg: "v" "a"
+top: 1
+mode: n
+
+## r: 2d Esc x
+█bc
+reg: "v" "a"
+top: 1
+mode: n
+
+## r: gU Esc
+█bc
+reg: "v" "a"
+top: 1
+mode: n
+
+## r: dxx
+█bc
+reg: "v" "a"
+top: 1
+mode: n
+
+## r: d2d
+█c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## r: gc2c
+█a
+b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r: 1J
+a█ b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## r: ~ count last char
+a█B
+reg: "" ""
+top: 1
+mode: n
+
+## r: 2yy register
+█a
+b
+c
+reg: "V" "a\nb\n"
+top: 1
+mode: n
+
+## r: 3cc register
+█x
+d
+reg: "V" "a\n b\nc\n"
+top: 1
+mode: n
+
+## r: P charwise col 0
+a█bab cd
+reg: "v" "ab"
+top: 1
+mode: n
+
+## r: ddP last line
+█b
+a
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## r: yy2p last line
+a
+b
+█b
+b
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## r: dd u cursor
+a
+bc
+█d
+reg: "V" "d\n"
+top: 1
+mode: n
+
+## r: >> u cursor
+  a█b
+reg: "" ""
+top: 1
+mode: n
+
+## r: dap u cursor
+x
+█
+ab
+c
+reg: "V" "\nab\nc\n"
+top: 1
+mode: n
+
+## r: Vjd u cursor col
+abc
+█def
+ghi
+reg: "V" "def\nghi\n"
+top: 1
+mode: n
+
+## r: J sql dash comments
+-- a█ -- b
+reg: "" ""
+top: 1
+mode: n
+
+## r: J mysql hash after code
+select 1 # x█ # y
+reg: "" ""
+top: 1
+mode: n
+
+## r: J minus after code
+select a█ - b
+reg: "" ""
+top: 1
+mode: n
+
+## r: vi" extend from outside
+█" y
+reg: "v" "x \"ab"
+top: 1
+mode: n
+
+## r: va' visual backward
+x█ 
+reg: "v" "'ab' y"
+top: 1
+mode: n
+
+## r: yiW cjk punct
+a █中，文 b
+reg: "v" "中，文"
+top: 1
+mode: n
+
+## r: daW multiline
+a █d
+reg: "v" "b\nc "
+top: 1
+mode: n
+
+## r: gUiw cjk mixed
+x █ÉA中 y
+reg: "" ""
+top: 1
+mode: n
+
+## r: vjU cjk
+█É中
+Ab
+reg: "" ""
+top: 1
+mode: n
+
+## r: c2i(
+f(█x)
+reg: "v" "a, g(b), c"
+top: 1
+mode: n
+
+## r: da( nested count visual
+f█ z
+reg: "v" "(a, g(b), c)"
+top: 1
+mode: n
+
+## r: yi( register cursor
+f(█a, b)
+reg: "v" "a, b"
+top: 1
+mode: n
+
+## r: di' cursor on first of two strings
+'█' 'b'
+reg: "v" "a"
+top: 1
+mode: n
+
+## r: yi` backtick
+x `█ab` y
+reg: "v" "ab"
+top: 1
+mode: n
+
+## r: cc on indented then esc
+█
+reg: "V" "    foo\n"
+top: 1
+mode: n
+
+## R / count wraps
+xa y█a
+reg: "" ""
+top: 1
+mode: n
+
+## R / from last char
+select
+█from
+reg: "" ""
+top: 1
+mode: n
+
+## R / at cursor skipped
+xab █a
+reg: "" ""
+top: 1
+mode: n
+
+## R / overlapping
+aa█aa
+reg: "" ""
+top: 1
+mode: n
+
+## R / overlapping from start
+█aaa
+reg: "" ""
+top: 1
+mode: n
+
+## R / dollar from last char
+abc
+d█e
+reg: "" ""
+top: 1
+mode: n
+
+## R / dollar one char line
+a
+b█c
+reg: "" ""
+top: 1
+mode: n
+
+## R / caret from middle
+abc
+█de
+reg: "" ""
+top: 1
+mode: n
+
+## R / caret from start
+abc
+█de
+reg: "" ""
+top: 1
+mode: n
+
+## R / empty line
+a
+█
+b
+reg: "" ""
+top: 1
+mode: n
+
+## R / wrap same line earlier
+x█a yb
+reg: "" ""
+top: 1
+mode: n
+
+## R / wrap multi line
+█sel
+x
+yy
+reg: "" ""
+top: 1
+mode: n
+
+## R / multibyte
+a █名 b 名
+reg: "" ""
+top: 1
+mode: n
+
+## R / multibyte on match
+a 名 b █名
+reg: "" ""
+top: 1
+mode: n
+
+## R ? multibyte
+a █名 b 名
+reg: "" ""
+top: 1
+mode: n
+
+## R ? from start wraps
+xa
+y█a
+reg: "" ""
+top: 1
+mode: n
+
+## R ? count wraps
+a a █a
+reg: "" ""
+top: 1
+mode: n
+
+## R ? at cursor skipped
+█a x a
+reg: "" ""
+top: 1
+mode: n
+
+## R ? then / then n
+x█a ya za wa
+reg: "" ""
+top: 1
+mode: n
+
+## R / then ? then n
+xa ya z█a wa
+reg: "" ""
+top: 1
+mode: n
+
+## R ? empty reuses backward
+xa y█a za
+reg: "" ""
+top: 1
+mode: n
+
+## R ? 2n
+x█a ya za wa
+reg: "" ""
+top: 1
+mode: n
+
+## R / 3N
+xa y█a za wa
+reg: "" ""
+top: 1
+mode: n
+
+## R n count wraps
+x█a ya
+reg: "" ""
+top: 1
+mode: n
+
+## R / smartcase escaped D
+1 █xA ya
+reg: "" ""
+top: 1
+mode: n
+
+## R / smartcase escaped S
+1 █xA ya
+reg: "" ""
+top: 1
+mode: n
+
+## R n keeps smartcase
+from From from █From
+reg: "" ""
+top: 1
+mode: n
+
+## R N smartcase lower
+x FROM █from
+reg: "" ""
+top: 1
+mode: n
+
+## R :s i then n
+x a █A
+reg: "" ""
+top: 1
+mode: n
+
+## R :s smartcase then n
+a x a █A
+reg: "" ""
+top: 1
+mode: n
+
+## R * then n ignores smartcase
+Id x id █ID
+reg: "" ""
+top: 1
+mode: n
+
+## R * then / empty keeps nosmartcase
+Id x id █ID
+reg: "" ""
+top: 1
+mode: n
+
+## R * mid word
+select x █select
+reg: "" ""
+top: 1
+mode: n
+
+## R * underscore word
+t_a t █t_a
+reg: "" ""
+top: 1
+mode: n
+
+## R * whole word
+id idx xid █id
+reg: "" ""
+top: 1
+mode: n
+
+## R # mid word
+█id x id
+reg: "" ""
+top: 1
+mode: n
+
+## R # partial
+idx █id id
+reg: "" ""
+top: 1
+mode: n
+
+## R * punct run middle
+x █--- --
+reg: "" ""
+top: 1
+mode: n
+
+## R * punct run start
+x █--- --
+reg: "" ""
+top: 1
+mode: n
+
+## R * trailing space
+abc █ 
+reg: "" ""
+top: 1
+mode: n
+
+## R * space before word
+a  b a █b
+reg: "" ""
+top: 1
+mode: n
+
+## R * CJK
+名字 x █名字
+reg: "" ""
+top: 1
+mode: n
+
+## R * latin1
+café x █café
+reg: "" ""
+top: 1
+mode: n
+
+## R * word then CJK
+a名 x █a名 a
+reg: "" ""
+top: 1
+mode: n
+
+## R * digits
+42 x █42
+reg: "" ""
+top: 1
+mode: n
+
+## R # count
+█a b a c a
+reg: "" ""
+top: 1
+mode: n
+
+## R * paren
+(id) x █id
+reg: "" ""
+top: 1
+mode: n
+
+## R * upper word
+Select x █select
+reg: "" ""
+top: 1
+mode: n
+
+## R d*
+█id
+reg: "v" "id x "
+top: 1
+mode: n
+
+## R y#
+█id x id
+reg: "v" "id x "
+top: 1
+mode: n
+
+## R d/ to line start
+█from t
+reg: "V" "select id\n"
+top: 1
+mode: n
+
+## R d/ not found
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## R c/ not found
+█select
+reg: "" ""
+top: 1
+mode: n
+
+## R dN
+xa y█a
+reg: "v" "a z"
+top: 1
+mode: n
+
+## R d2/
+█a za
+reg: "v" "xa y"
+top: 1
+mode: n
+
+## R y? cursor
+select █id from
+reg: "v" "id fro"
+top: 1
+mode: n
+
+## R v? d
+select█ 
+reg: "v" "id from"
+top: 1
+mode: n
+
+## R V/ d
+█c
+reg: "V" "a\nb\nt\n"
+top: 1
+mode: n
+
+## R vn d
+█ ya
+reg: "v" "xa"
+top: 1
+mode: n
+
+## R d/ wraps back
+x█b
+reg: "v" "a y"
+top: 1
+mode: n
+
+## R gU/
+█SELECT Id
+reg: "" ""
+top: 1
+mode: n
+
+## R d/ esc
+█select from
+reg: "" ""
+top: 1
+mode: n
+
+## R / C-w punct
+select █fr.om from
+reg: "" ""
+top: 1
+mode: n
+
+## R / Right
+select █from fro
+reg: "" ""
+top: 1
+mode: n
+
+## R / BS mid
+select █from
+reg: "" ""
+top: 1
+mode: n
+
+## R / C-u mid
+select █from
+reg: "" ""
+top: 1
+mode: n
+
+## R / BS at start nonempty
+select █from
+reg: "" ""
+top: 1
+mode: n
+
+## R / C-w empty
+select █from
+reg: "" ""
+top: 1
+mode: n
+
+## R / multibyte BS
+a █名
+reg: "" ""
+top: 1
+mode: n
+
+## R / C-h
+select █from
+reg: "" ""
+top: 1
+mode: n
+
+## R v/ esc
+█elect from
+reg: "v" "s"
+top: 1
+mode: n
+
+## R v/ BS empty
+█elect from
+reg: "v" "s"
+top: 1
+mode: n
+
+## R / trailing slash offset
+a █x b
+reg: "" ""
+top: 1
+mode: n
+
+## R :1 after dollar
+ab█c
+def
+reg: "" ""
+top: 1
+mode: n
+
+## R :2 then j
+abcd
+x
+abc█def
+reg: "" ""
+top: 1
+mode: n
+
+## R :80
+█{1..100}
+reg: "" ""
+top: 1
+mode: n
+
+## R :5 from bottom
+█{1..100}
+reg: "" ""
+top: 1
+mode: n
+
+## R : leading spaces
+a
+b
+█c
+reg: "" ""
+top: 1
+mode: n
+
+## R :% alone
+a
+b
+█c
+reg: "" ""
+top: 1
+mode: n
+
+## R : empty
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## R v : C-u 3
+a
+b
+█c
+d
+reg: "" ""
+top: 1
+mode: n
+
+## R v : esc
+█a
+b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## R count :
+x
+x
+█x
+a
+reg: "" ""
+top: 1
+mode: n
+
+## R :s g adjacent
+█bbb
+reg: "" ""
+top: 1
+mode: n
+
+## R :s a star g
+█xbxc
+reg: "" ""
+top: 1
+mode: n
+
+## R :s caret
+█--   select
+reg: "" ""
+top: 1
+mode: n
+
+## R :%s caret
+-- a
+█-- b
+reg: "" ""
+top: 1
+mode: n
+
+## R :s dot delim escaped
+█axb x
+reg: "" ""
+top: 1
+mode: n
+
+## R :s plus delim
+█bx
+reg: "" ""
+top: 1
+mode: n
+
+## R :s zero group
+█select [id]
+reg: "" ""
+top: 1
+mode: n
+
+## R :s tab repl
+█a	b
+reg: "" ""
+top: 1
+mode: n
+
+## R :s CR repl
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## R :s dollar endcolumn
+█x b c
+reg: "" ""
+top: 1
+mode: n
+
+## R :s then j
+xxxb
+█yyyyyy
+reg: "" ""
+top: 1
+mode: n
+
+## R :s blank line cursor
+ █ 
+reg: "" ""
+top: 1
+mode: n
+
+## R :s gi
+█x x x
+reg: "" ""
+top: 1
+mode: n
+
+## R :s ig
+█x x x
+reg: "" ""
+top: 1
+mode: n
+
+## R :%s u first match
+b
+█xa
+b
+ca
+reg: "" ""
+top: 1
+mode: n
+
+## R :%s u from below
+█xyza
+b
+c
+reg: "" ""
+top: 1
+mode: n
+
+## R :%s u C-r
+█x
+b
+x
+reg: "" ""
+top: 1
+mode: n
+
+## R :s U mid
+█a b c b
+reg: "" ""
+top: 1
+mode: n
+
+## R :s u mid
+█a b c b
+reg: "" ""
+top: 1
+mode: n
+
+## R v partial :s
+xx
+xx
+█xx
+aa
+reg: "" ""
+top: 1
+mode: n
+
+## R V :s last not matching
+x
+█x
+b
+reg: "" ""
+top: 1
+mode: n
+
+## R V :s gv
+█b
+reg: "V" "x\nx\n"
+top: 1
+mode: n
+
+## R :s backslash pattern
+█axb
+reg: "" ""
+top: 1
+mode: n
+
+## R :s backslash repl
+█a\c
+reg: "" ""
+top: 1
+mode: n
+
+## R :s slash repl
+█a/c
+reg: "" ""
+top: 1
+mode: n
+
+## R :s empty repl g
+█bnn
+reg: "" ""
+top: 1
+mode: n
+
+## R :%s no match
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## R ? :s n direction
+x y b █b
+reg: "" ""
+top: 1
+mode: n
+
+## R * :s empty g
+█x idx x
+reg: "" ""
+top: 1
+mode: n
+
+## R :s multibyte g
+█x a x
+reg: "" ""
+top: 1
+mode: n
+
+## R :s double amp
+█aabaa
+reg: "" ""
+top: 1
+mode: n
+
+## R :s semicolon delim
+█xb
+reg: "" ""
+top: 1
+mode: n
+
+## R :s bracket slash
+█axb
+reg: "" ""
+top: 1
+mode: n
+
+## R :2s
+a
+█x
+a
+reg: "" ""
+top: 1
+mode: n
+
+## R :s caret g
+█xaa
+reg: "" ""
+top: 1
+mode: n
+
+## R :s empty no previous
+█abc
+reg: "" ""
+top: 1
+mode: n
+
+## R / far
+█{1..100}
+reg: "" ""
+top: 1
+mode: n
+
+## R ? far
+█{1..100}
+reg: "" ""
+top: 1
+mode: n
+
+## R / wrap far
+█{1..100}
+reg: "" ""
+top: 1
+mode: n
+
+## R :%s far
+█{1..100}
+reg: "" ""
+top: 1
+mode: n
+
+## R / digit class
+a 1 █23
+reg: "" ""
+top: 1
+mode: n
+
+## R / ignorecase multibyte
+x █É
+reg: "" ""
+top: 1
+mode: n
+
+## R / upper multibyte
+é x █É
+reg: "" ""
+top: 1
+mode: n
+
+## R ? then N
+xa ya z█a
+reg: "" ""
+top: 1
+mode: n
+
+## R N after #
+a b █a c a
+reg: "" ""
+top: 1
+mode: n
+
+## R c? 
+select █xm
+reg: "v" "id fro"
+top: 1
+mode: n
+
+## R d2n
+█a za
+reg: "v" "xa y"
+top: 1
+mode: n
+
+## R :%s u indent pin
+█    a
+b
+  a
+reg: "" ""
+top: 1
+mode: n
+
+## R :s u indent after match
+█  xa
+reg: "" ""
+top: 1
+mode: n
+
+## R :s U indent after match
+█  xa
+reg: "" ""
+top: 1
+mode: n
+
+## R :s u col1 match
+█xa
+reg: "" ""
+top: 1
+mode: n
+
+## R :s u cursor right of match
+█xa bc
+reg: "" ""
+top: 1
+mode: n
+
+## R / range class ignorecase
+1 █X y
+reg: "" ""
+top: 1
+mode: n
+
+## R :s x star g
+█-a-b-c
+reg: "" ""
+top: 1
+mode: n
+
+## R :s a star g no a
+█xbxc
+reg: "" ""
+top: 1
+mode: n
+
+## R v : esc right
+abc
+de█f
+ghi
+reg: "" ""
+top: 1
+mode: n
+
+## R v : failed s
+a█b
+cd
+reg: "" ""
+top: 1
+mode: n
+
+## R v back : esc
+ab█c
+def
+reg: "" ""
+top: 1
+mode: n
+
+## R ? dollar
+a█b
+cd
+reg: "" ""
+top: 1
+mode: n
+
+## R / dollar n
+a
+b
+█c
+reg: "" ""
+top: 1
+mode: n
+
+## R :'<,'> no visual
+b
+█a
+reg: "" ""
+top: 1
+mode: n
+
+## R # CJK
+█名字 x 名字
+reg: "" ""
+top: 1
+mode: n
+
+## R :'<,'> no visual line1
+a
+█b
+reg: "" ""
+top: 1
+mode: n
+
+## R :s smartcase escaped D
+█1 x ya
+reg: "" ""
+top: 1
+mode: n
+
+## w4: V cursor on top y
+abcd
+ef█gh
+ijkl
+reg: "V" "efgh\nijkl\n"
+top: 1
+mode: n
+
+## w4: V cursor on top U
+abcd
+EF█GH
+IJKL
+reg: "" ""
+top: 1
+mode: n
+
+## w4: V cursor below y
+█abcd
+efgh
+ijkl
+reg: "V" "abcd\nefgh\n"
+top: 1
+mode: n
+
+## w4: V cursor on top colon esc
+abcd
+ef█gh
+ijkl
+reg: "" ""
+top: 1
+mode: n
+
+## w4: V cursor below colon esc
+█abcd
+efgh
+ijkl
+reg: "" ""
+top: 1
+mode: n
+
+## w4: d* mid word
+i█id
+reg: "v" "d x "
+top: 1
+mode: n
+
+## w4: d30H no clamp
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+█76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+reg: "V" "46\n47\n48\n49\n50\n51\n52\n53\n54\n55\n56\n57\n58\n59\n60\n61\n62\n63\n64\n65\n66\n67\n68\n69\n70\n71\n72\n73\n74\n75\n"
+top: 47
+mode: n
+
+## w4: range comma
+a
+x
+█x
+a
+reg: "" ""
+top: 1
+mode: n
+
+## w4: range dot dollar
+a
+x
+█x
+reg: "" ""
+top: 1
+mode: n
+
+## w4: range offsets
+a
+x
+x
+█x
+a
+reg: "" ""
+top: 1
+mode: n
+
+## w4: range visual end mark
+a
+█x
+a
+reg: "" ""
+top: 1
+mode: n
+
+## w4: % skips quoted paren
+(a, ')', b█)
+reg: "" ""
+top: 1
+mode: n
+
+## w4: % skips double quoted paren
+(a, ")", b█)
+reg: "" ""
+top: 1
+mode: n
+
+## w4: % escaped paren
+(a\)b█)
+reg: "" ""
+top: 1
+mode: n
+
+## w4: cmdline C-w keyword run
+█y
+reg: "" ""
+top: 1
+mode: n
+
+## w4: star punct only line
+-- █x --
+reg: "" ""
+top: 1
+mode: n
+
+## w4: search empty no previous
+█abc
+reg: "" ""
+top: 1
+mode: n
+
+## w4: J marks follow
+█c
+reg: "V" "a b\n"
+top: 1
+mode: n
+
+## w4: gv after P line above
+b
+a
+█c
+reg: "V" "b\n"
+top: 1
+mode: n
+
+## w4: 3v after nothing
+█
+reg: "v" "ab"
+top: 1
+mode: n
+
+## w4: 3$ on last line
+a
+█c
+reg: "v" "b"
+top: 1
+mode: n
+
+## w4: count insert C-w then u
+foo█a
+reg: "" ""
+top: 1
+mode: n
+
+## w4: count insert C-u then u
+a█z
+reg: "" ""
+top: 1
+mode: n

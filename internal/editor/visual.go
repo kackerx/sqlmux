@@ -18,8 +18,23 @@ func (e *Editor) Selection() (from, to Pos, ok bool) {
 	return from, to, true
 }
 
-func (e *Editor) startVisual(m Mode) {
+// startVisual starts VISUAL; a count selects that many characters or
+// lines (nv_visual).
+// ponytail: after an operator on a selection vim's count reselects that
+// many times its size instead; add it if anyone relies on it.
+func (e *Editor) startVisual(m Mode, count int) {
 	e.vstart, e.mode = e.cur, m
+	if count > 1 {
+		move := right
+		if m == VisualLine {
+			move = vertical(1)
+		}
+		t := move(e, cmd{count: count - 1}, "")
+		e.cur = t.to
+		if !t.keepWant {
+			e.want = wantUnset
+		}
+	}
 }
 
 // endVisual leaves VISUAL, keeping the selection for gv.
@@ -53,17 +68,21 @@ func (e *Editor) reselect() {
 
 // selection is the span an operator takes from VISUAL (do_pending_operator):
 // ending on the end of a line takes the line break in, except for the
-// operators on whole lines.
+// operators on whole lines. In V-LINE it starts at column 0, or where the
+// cursor is when that is the upper end.
 func (e *Editor) selection(op string) span {
 	from, to, _ := e.Selection()
 	s := span{start: from, end: to, inclusive: true, visual: true}
 	if e.mode == VisualLine {
-		s.linewise, s.start.Col = true, 0
+		s.linewise = true
+		if v := (Pos{e.vstart.Line, 0}); v.less(e.cur) {
+			s.start = v
+		}
 		return s
 	}
 	if to.Col >= len(e.lines[to.Line]) {
 		s.inclusive = false
-		if op != ">" && op != "<" && op != "J" && to.Line < len(e.lines)-1 {
+		if op != ">" && op != "<" && op != "J" && op != "gc" && to.Line < len(e.lines)-1 {
 			s.end = Pos{to.Line + 1, 0}
 		}
 	}
@@ -72,14 +91,10 @@ func (e *Editor) selection(op string) span {
 
 // visualOp runs an operator on the selection and leaves VISUAL.
 func (e *Editor) visualOp(op string, amount int) {
-	oldWant := e.want
+	want := e.want
 	s := e.selection(op)
 	e.endVisual()
-	e.apply(op, s, amount)
-	if s.linewise && (op == "d" || op == ">" || op == "<") { // 'nostartofline'
-		e.want = oldWant
-		e.cur.Col = e.coladvance(e.cur.Line, oldWant)
-	}
+	e.apply(op, s, amount, want)
 }
 
 var visualCommands map[string]func(*Editor, cmd)

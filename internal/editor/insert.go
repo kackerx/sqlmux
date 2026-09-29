@@ -1,9 +1,6 @@
 package editor
 
-import (
-	"strings"
-	"unicode/utf8"
-)
+import "strings"
 
 // insertion is an INSERT or REPLACE going on (nvim's edit.c).
 type insertion struct {
@@ -39,23 +36,37 @@ func (e *Editor) indentOf(l string) string {
 	return strings.Repeat(" ", vcol(l, nonBlank(l), e.TabWidth))
 }
 
+// insertKey takes a key typed in INSERT or REPLACE. nvim maps C-w and C-u
+// to <C-G>u first: what was typed so far is an undo step of its own.
 func (e *Editor) insertKey(k string) {
+	if k == "<C-w>" || k == "<C-u>" {
+		e.endChange()
+		e.ins.fresh = true
+	}
+	e.editKey(k)
+}
+
+// editKey does what key k does in INSERT or REPLACE, unmapped. The keys
+// that did something are kept for a count to type again (edit.c keeps them
+// in the redo buffer, which is not mapped).
+func (e *Editor) editKey(k string) {
 	in := e.ins
 	e.curswant()
-	if k != "<Esc>" {
-		in.keys = append(in.keys, k)
-	}
+	did := true
 	switch k {
 	case "<Esc>":
 		e.escape()
+		return
 	case "<CR>":
 		e.newline()
 	case "<BS>", "<C-h>":
-		e.backspace(bsChar)
-	case "<C-w>":
-		e.backspace(bsWord)
-	case "<C-u>":
-		e.backspace(bsLine)
+		did = e.backspace(bsChar)
+	case "<C-w>", "<C-u>":
+		mode := bsWord
+		if k == "<C-u>" {
+			mode = bsLine
+		}
+		did = e.backspace(mode)
 	case "<Del>":
 		e.del()
 	case "<Tab>":
@@ -65,9 +76,13 @@ func (e *Editor) insertKey(k string) {
 		e.arrow(k)
 		return
 	default:
-		if t := keyText(k); t != "" {
+		t := keyText(k)
+		if did = t != ""; did {
 			e.typeText(t)
 		}
+	}
+	if did {
+		in.keys = append(in.keys, k)
 	}
 	e.want = wantUnset
 }
@@ -91,11 +106,13 @@ func (e *Editor) typeText(t string) {
 	e.arrived()
 	l, c := e.line(), e.cur.Col
 	if e.mode == Replace {
-		end := c
-		if c < len(l) {
-			end = next(l, c)
-		}
+		// the first character typed replaces one; the rest of a tab's
+		// spaces go in (edit.c ins_tab)
+		end := next(l, c)
 		e.ins.replaced = append(e.ins.replaced, l[c:end])
+		for i := next(t, 0); i < len(t); i = next(t, i) {
+			e.ins.replaced = append(e.ins.replaced, "")
+		}
 		e.setLine(e.cur.Line, l[:c]+t+l[end:])
 	} else {
 		e.setLine(e.cur.Line, l[:c]+t+l[c:])
@@ -132,11 +149,12 @@ const (
 
 // backspace is BS, C-w and C-u (edit.c ins_bs), with backspace=
 // indent,eol,start and 'smarttab': in the indent BS goes back a
-// shiftwidth; C-w and C-u stop where typing started, then go on.
-func (e *Editor) backspace(mode int) {
+// shiftwidth; C-w and C-u stop where typing started, then go on. It is
+// false at the start of the text, where there is nothing to delete.
+func (e *Editor) backspace(mode int) bool {
 	in := e.ins
 	if e.cur.Line == 0 && e.cur.Col == 0 {
-		return
+		return false
 	}
 	e.arrived()
 	if e.cur.Col == 0 { // join with the line above
@@ -148,12 +166,11 @@ func (e *Editor) backspace(mode int) {
 			e.dec(&e.cur)
 		} else {
 			above := e.lines[e.cur.Line-1]
-			e.setLine(e.cur.Line-1, above+e.line())
-			e.deleteLines(e.cur.Line, e.cur.Line+1)
+			e.joinNext(e.cur.Line-1, "", 0)
 			e.cur = Pos{e.cur.Line - 1, len(above)}
 		}
 		in.ai = false
-		return
+		return true
 	}
 	l := e.line()
 	mincol := 0
@@ -168,7 +185,7 @@ func (e *Editor) backspace(mode int) {
 		want -= want % e.TabWidth
 		col, sv := 0, 0 // the start of the blanks before the cursor
 		for i, cv := 0, 0; i < e.cur.Col; i = next(l, i) {
-			if (i == 0 || l[i-1] != ' ' && l[i-1] != '\t') && (l[i] == ' ' || l[i] == '\t') {
+			if (i == 0 || !white(l[i-1])) && white(l[i]) {
 				col, sv = i, cv
 			}
 			cv += width(l, i, cv, e.TabWidth)
@@ -181,21 +198,17 @@ func (e *Editor) backspace(mode int) {
 			e.cur.Col = prev(e.line(), e.cur.Col)
 			e.deleteChar()
 		}
-		if pad := want - sv; pad > 0 {
-			e.setLine(e.cur.Line, e.line()[:e.cur.Col]+strings.Repeat(" ", pad)+e.line()[e.cur.Col:])
-			e.cur.Col += pad
-		}
 	} else {
 		cls := e.cls(e.cur, false)
 		word := false
 		for {
 			e.cur.Col = prev(e.line(), e.cur.Col)
-			r, _ := utf8.DecodeRuneInString(e.line()[e.cur.Col:])
 			prevCls := cls
 			cls = e.cls(e.cur, false)
-			if mode == bsWord && !isSpace(r) {
-				mode, word = bsWordNotSpace, class(r) >= 2
-			} else if mode == bsWordNotSpace && (isSpace(r) || (class(r) >= 2) != word || prevCls != cls) {
+			space := isSpace(rune(e.line()[e.cur.Col]))
+			if mode == bsWord && !space {
+				mode, word = bsWordNotSpace, cls >= 2
+			} else if mode == bsWordNotSpace && (space || (cls >= 2) != word || prevCls != cls) {
 				e.cur.Col = next(e.line(), e.cur.Col)
 				break
 			}
@@ -211,6 +224,7 @@ func (e *Editor) backspace(mode int) {
 	if e.cur.Line == in.start.Line && e.cur.Col < in.start.Col {
 		in.start.Col = e.cur.Col
 	}
+	return true
 }
 
 func isSpace(r rune) bool { return r == ' ' || r >= '\t' && r <= '\r' }
@@ -240,8 +254,7 @@ func (e *Editor) del() {
 	case e.cur.Col < len(l):
 		e.setLine(e.cur.Line, l[:e.cur.Col]+l[next(l, e.cur.Col):])
 	case e.cur.Line < len(e.lines)-1:
-		e.setLine(e.cur.Line, l+e.lines[e.cur.Line+1])
-		e.deleteLines(e.cur.Line+1, e.cur.Line+2)
+		e.joinNext(e.cur.Line, "", 0)
 	}
 	e.ins.ai = false
 }
@@ -291,7 +304,7 @@ func (e *Editor) dropIndent() {
 		if c >= len(l) && c > 0 {
 			c = prev(l, c)
 		}
-		if c >= len(l) || l[c] != ' ' && l[c] != '\t' {
+		if c >= len(l) || !white(l[c]) {
 			break
 		}
 		l = l[:c] + l[c+1:]
@@ -317,7 +330,7 @@ func (e *Editor) escape() {
 				e.newline()
 			}
 			for _, k := range keys {
-				e.insertKey(k)
+				e.editKey(k)
 			}
 		}
 		e.dropIndent()

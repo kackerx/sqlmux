@@ -86,21 +86,9 @@ func (e *Editor) scrollBottom1() {
 			}
 		}
 	}
-	lines := 0
-	switch {
-	case scrolled <= 0:
-	case used > h:
+	lines := max(scrolled, 0) // every line is one row
+	if used > h && scrolled > 0 {
 		lines = used
-	default:
-		i := 0
-		for bl := topline - 1; i < scrolled && bl < botline; {
-			bl++
-			i++
-			lines++
-		}
-		if i < scrolled {
-			lines = 9999
-		}
 	}
 	if lines >= h && lines > 1 {
 		e.halfway(false, true)

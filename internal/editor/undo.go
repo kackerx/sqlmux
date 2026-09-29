@@ -12,8 +12,10 @@ type step struct {
 	cur           Pos // the cursor as the change started (vim's uh_cursor)
 }
 
-// The text changes only through setLine, insertLines and deleteLines,
-// which open a step when none is open.
+// The text changes only through setLine, insertLines, deleteLines and
+// joinNext, which open a step when none is open. The ends of the last
+// VISUAL (gv, '<,'>) follow the lines they are on, as vim's marks do
+// (mark.c mark_adjust, mark_col_adjust).
 
 func (e *Editor) setLine(n int, s string) {
 	e.beginChange()
@@ -25,6 +27,7 @@ func (e *Editor) insertLines(at int, ls ...string) {
 	e.beginChange()
 	e.eff.Changed = true
 	e.lines = slices.Insert(e.lines, at, ls...)
+	e.moveMarks(at, at, len(ls))
 }
 
 // deleteLines deletes lines [from, to); the text keeps one line at least.
@@ -34,6 +37,35 @@ func (e *Editor) deleteLines(from, to int) {
 	e.lines = slices.Delete(e.lines, from, to)
 	if len(e.lines) == 0 {
 		e.lines = []string{""}
+	}
+	e.moveMarks(from, to, 0)
+}
+
+// joinNext puts line n+1 on the end of line n, after sep and without its
+// first skip bytes (ops.c do_join); marks on it go along.
+func (e *Editor) joinNext(n int, sep string, skip int) {
+	head := e.lines[n]
+	for _, p := range e.marks() {
+		if p.Line == n+1 {
+			*p = Pos{n, max(p.Col-skip+len(head)+len(sep), len(head))}
+		}
+	}
+	e.setLine(n, head+sep+e.lines[n+1][skip:])
+	e.deleteLines(n+1, n+2)
+}
+
+func (e *Editor) marks() [2]*Pos { return [2]*Pos{&e.lastVisual.start, &e.lastVisual.end} }
+
+// moveMarks is lines [from, to) replaced by n lines: a mark on them goes
+// to the first, one after them moves along (one_adjust_nodel).
+func (e *Editor) moveMarks(from, to, n int) {
+	for _, p := range e.marks() {
+		switch {
+		case p.Line >= to:
+			p.Line += n - (to - from)
+		case p.Line >= from:
+			p.Line = from
+		}
 	}
 }
 
@@ -45,16 +77,14 @@ func (e *Editor) beginChange() {
 	}
 }
 
-// endChange closes the step being made, if it changed anything.
+// endChange closes the step being made. A command that saved for undo
+// but changed nothing (x on an empty line) is a step too, as in vim.
 func (e *Editor) endChange() {
 	before := e.snap
 	if before == nil {
 		return
 	}
 	e.snap = nil
-	if slices.Equal(before, e.lines) {
-		return
-	}
 	e.done = append(e.done, step{before, slices.Clone(e.lines), e.snapCur})
 	e.undone = nil
 }
@@ -124,11 +154,16 @@ func (e *Editor) redo(n int) {
 // where the change started when that is in the changed lines, else on the
 // first changed line.
 func (e *Editor) restore(text []string, saved Pos) {
-	p, _, newN := diff(e.lines, text)
+	p, oldN, newN := diff(e.lines, text)
 	e.lines = slices.Clone(text)
 	e.eff.Changed = true
+	// ponytail: the marks move with the lines, but vim also puts back the
+	// selection the step saved (uh_visual), which gv then selects; add it if
+	// gv after u is missed.
+	e.moveMarks(p, p+oldN, newN)
 	cur := Pos{Line: p}
-	if top := p; saved.Line+1 >= top && saved.Line+1 <= top+newN+1 {
+	// a step that changed nothing saved the cursor's line
+	if top := p; oldN+newN == 0 || saved.Line+1 >= top && saved.Line+1 <= top+newN+1 {
 		cur = saved
 	}
 	if saved.Line+1 == cur.Line && cur.Line > 0 { // only one line off: where the change started (o)

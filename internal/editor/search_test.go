@@ -32,7 +32,10 @@ func TestSearchErrors(t *testing.T) {
 	for _, c := range []struct{ keys, want string }{
 		{"/zz<CR>", "找不到：zz"},
 		{":s/zz/x/<CR>", "找不到：zz"},
-		{"/a(<CR>", "正则有误：error parsing regexp: missing closing ): `(?i)a(`"},
+		{"/a(<CR>", "正则有误：error parsing regexp: missing closing ): `a(`"},
+		{":s//x/<CR>", "没有上一个模式"},
+		{"n", "没有上一个模式"},
+		{":'<,'>s/a/x/<CR>", "没有选区"},
 		{":w<CR>", ""},
 	} {
 		e := New("select")

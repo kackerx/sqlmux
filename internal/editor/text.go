@@ -2,7 +2,7 @@ package editor
 
 import (
 	"strings"
-	"unicode"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -20,10 +20,22 @@ func next(s string, col int) int {
 	return col + max(len(g), 1)
 }
 
-// prev is the offset of the character before col; 0 at the start.
+// prev is the offset of the character before col; 0 at the start. It
+// walks from the last pair of ASCII bytes before col, a character boundary
+// (a line has no CR LF).
+// ponytail: a long line with no ASCII pair (all Han) walks from its start,
+// O(n) per step; keep a boundary index per line if that shows.
 func prev(s string, col int) int {
-	p := 0
-	for i := 0; i < col && i < len(s); i = next(s, i) {
+	col = min(col, len(s))
+	from := 0
+	for i := col - 1; i > 0; i-- {
+		if s[i] < utf8.RuneSelf && s[i-1] < utf8.RuneSelf {
+			from = i
+			break
+		}
+	}
+	p := from
+	for i := from; i < col; i = next(s, i) {
 		p = i
 	}
 	return p
@@ -39,6 +51,16 @@ func head(s string, col int) int {
 
 // last is the offset of the last character of s; 0 when s is empty.
 func last(s string) int { return prev(s, len(s)) }
+
+// classAt is the class of the character at i in s.
+func classAt(s string, i int) int {
+	r, _ := utf8.DecodeRuneInString(s[i:])
+	return class(r)
+}
+
+// firstNonBlank is where vim's beginline(BL_WHITE | BL_FIX) puts the
+// cursor: the first non-blank, or the last character of a blank line.
+func firstNonBlank(l string) int { return head(l, min(nonBlank(l), last(l))) }
 
 // nonBlank is the offset of the first character that is not a space or a
 // tab; len(s) when there is none.
@@ -63,40 +85,6 @@ func vcol(s string, col, ts int) int {
 		v += width(s, i, v, ts)
 	}
 	return v
-}
-
-// at is the character at col; "" past the end.
-func at(s string, col int) string {
-	return s[col:next(s, col)]
-}
-
-// class is vim's character class for word motions (textobject.c cls,
-// mbyte.c utf_class): 0 blank, 1 punctuation, 2 word characters; scripts
-// that do not separate words with spaces are a class each, so a run of
-// Han is one word.
-func class(r rune) int {
-	switch {
-	case r == ' ' || r == '\t' || r == 0 || r == 0xa0 || r == 0x3000:
-		return 0
-	case r < 0x100: // iskeyword=@,48-57,_,192-255
-		if r == '_' || r >= 192 || r < 0x80 && (unicode.IsLetter(r) || unicode.IsDigit(r)) {
-			return 2
-		}
-		return 1
-	case unicode.Is(unicode.Han, r):
-		return 0x4e00
-	case unicode.Is(unicode.Hiragana, r):
-		return 0x3040
-	case unicode.Is(unicode.Katakana, r):
-		return 0x30a0
-	case unicode.Is(unicode.Hangul, r):
-		return 0xac00
-	case r >= 0x1f000:
-		return 3 // emoji
-	case unicode.IsPunct(r) || unicode.IsSymbol(r) || unicode.IsSpace(r):
-		return 1
-	}
-	return 2
 }
 
 // keyText is what typing key k inserts: the character, a space for

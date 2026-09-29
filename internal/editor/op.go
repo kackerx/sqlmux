@@ -3,7 +3,6 @@ package editor
 import (
 	"strings"
 	"unicode"
-	"unicode/utf8"
 )
 
 // span is the text an operator works on (ops.c oparg_T): from start to
@@ -13,6 +12,7 @@ type span struct {
 	inclusive  bool
 	linewise   bool
 	visual     bool // selected in VISUAL, not reached by a motion
+	adjusted   bool // its end moved back from the start of a line (end_adjusted)
 }
 
 func (s span) lines() int { return s.end.Line - s.start.Line + 1 }
@@ -58,7 +58,7 @@ func (e *Editor) operate(c cmd) {
 		n := min(e.cur.Line+c.n()-1, len(e.lines)-1)
 		t = target{to: Pos{n, e.coladvance(n, e.want)}, ok: true, linewise: true}
 		if c.op != "d" && c.op != "<" && c.op != ">" && c.op != "y" { // the others start at the first non-blank
-			t.to.Col = head(e.lines[n], min(nonBlank(e.lines[n]), last(e.lines[n])))
+			t.to.Col = firstNonBlank(e.lines[n])
 		}
 	case objects[c.name] != nil:
 		start := e.cur
@@ -80,9 +80,8 @@ func (e *Editor) operate(c cmd) {
 	}
 	// An exclusive motion to the start of a line ends at the end of the
 	// line before, and takes whole lines when it starts in the indent.
-	adjusted := false
 	if !s.linewise && !s.inclusive && s.end.Col == 0 && s.lines() > 1 && c.name != "_" {
-		adjusted = true
+		s.adjusted = true
 		s.end.Line--
 		if nonBlank(e.lines[s.start.Line]) >= s.start.Col {
 			s.linewise = true
@@ -90,17 +89,13 @@ func (e *Editor) operate(c cmd) {
 			s.end.Col, s.inclusive = last(l), true
 		}
 	}
-	e.apply(c.op, s, 1)
-	// 'nostartofline': back to the column the command started in
-	if s.linewise && !adjusted && (c.op == "d" || c.op == ">" || c.op == "<") {
-		e.want = oldWant
-		e.cur.Col = e.coladvance(e.cur.Line, oldWant)
-	}
+	e.apply(c.op, s, 1, oldWant)
 }
 
 // apply runs an operator; the cursor goes to the start of the text first.
-// amount is how many shiftwidths > and < shift.
-func (e *Editor) apply(op string, s span, amount int) {
+// amount is how many shiftwidths > and < shift; want is the column j and
+// k aimed for as the command started.
+func (e *Editor) apply(op string, s span, amount, want int) {
 	e.cur, e.want = s.start, wantUnset
 	switch op {
 	case "d":
@@ -111,15 +106,33 @@ func (e *Editor) apply(op string, s span, amount int) {
 		e.change(s)
 	case ">", "<":
 		e.shift(s, op == "<", amount)
+		e.cur.Col = e.coladvance(e.cur.Line, want) // op_shift's beginline(BL_SOL | BL_FIX)
 	case "gu", "gU", "g~":
 		e.setCase(s, op)
 	case "gc":
 		e.comment(s.start.Line, s.end.Line)
 	case "J":
 		if n := max(s.lines(), 2); s.start.Line+n-1 < len(e.lines) {
-			e.join(n, true)
+			e.join(n)
 		}
 	}
+	// 'nostartofline': back to the column the command started in
+	// (do_pending_operator)
+	if s.linewise && !s.adjusted && (op == "d" || op == ">" || op == "<") {
+		e.want = want
+		e.cur.Col = e.coladvance(e.cur.Line, want)
+	}
+}
+
+// endCol is where a charwise s ends on its last line: past the character
+// at s.end when inclusive.
+func (e *Editor) endCol(s span) int {
+	l := e.lines[s.end.Line]
+	end := min(s.end.Col, len(l))
+	if s.inclusive && end < len(l) {
+		end = next(l, end)
+	}
+	return end
 }
 
 // text is what s covers, and its register kind.
@@ -127,13 +140,9 @@ func (e *Editor) text(s span) (string, byte) {
 	if s.linewise {
 		return strings.Join(e.lines[s.start.Line:s.end.Line+1], "\n") + "\n", 'V'
 	}
-	end := s.end.Col
-	if l := e.lines[s.end.Line]; s.inclusive && end < len(l) {
-		end = next(l, end)
-	}
+	end := e.endCol(s)
 	if s.lines() == 1 {
-		l := e.lines[s.start.Line]
-		return l[s.start.Col:min(end, len(l))], 'v'
+		return e.lines[s.start.Line][s.start.Col:end], 'v'
 	}
 	parts := []string{e.lines[s.start.Line][s.start.Col:]}
 	parts = append(parts, e.lines[s.start.Line+1:s.end.Line]...)
@@ -149,15 +158,14 @@ func (e *Editor) yank(s span) {
 // first line's indent of a linewise span, for c.
 func (e *Editor) delete(s span, change bool) {
 	if s.empty() {
+		if len(e.lines) > 1 || e.lines[0] != "" { // vim saves for undo all the same, but not in an empty text
+			e.beginChange()
+		}
 		return
 	}
 	if !s.linewise && s.lines() > 1 && !change && !s.visual {
 		// vi: to the end of a line from the indent is whole lines
-		end := s.end.Col
-		if l := e.lines[s.end.Line]; s.inclusive && end < len(l) {
-			end = next(l, end)
-		}
-		if strings.TrimLeft(e.lines[s.end.Line][end:], " \t") == "" && nonBlank(e.lines[s.start.Line]) >= s.start.Col {
+		if strings.TrimLeft(e.lines[s.end.Line][e.endCol(s):], " \t") == "" && nonBlank(e.lines[s.start.Line]) >= s.start.Col {
 			s.linewise = true
 		}
 	}
@@ -182,14 +190,14 @@ func (e *Editor) delete(s span, change bool) {
 		e.uLine = -1 // no U after dd
 		return
 	}
-	end := s.end.Col
-	if l := e.lines[s.end.Line]; s.inclusive && end < len(l) {
-		end = next(l, end)
-	}
-	first, rest := e.lines[s.start.Line][:s.start.Col], e.lines[s.end.Line][min(end, len(e.lines[s.end.Line])):]
-	e.setLine(s.start.Line, first+rest)
-	if s.lines() > 1 {
-		e.deleteLines(s.start.Line+1, s.end.Line+1)
+	first, rest := e.lines[s.start.Line][:s.start.Col], e.lines[s.end.Line][e.endCol(s):]
+	if s.lines() == 1 {
+		e.setLine(s.start.Line, first+rest)
+	} else { // as op_delete: the lines between go, then the two ends join
+		e.deleteLines(s.start.Line+1, s.end.Line)
+		e.setLine(s.start.Line, first)
+		e.setLine(s.start.Line+1, rest)
+		e.joinNext(s.start.Line, "", 0)
 	}
 	e.cur = s.start
 }
@@ -205,6 +213,7 @@ func (e *Editor) change(s span) {
 // shift moves the lines' indents a shiftwidth (ops.c op_shift, shift_line);
 // empty lines stay.
 func (e *Editor) shift(s span, left bool, amount int) {
+	e.beginChange() // an undo step even when nothing moves, as in vim
 	for n := s.start.Line; n <= s.end.Line; n++ {
 		l := e.lines[n]
 		if l == "" {
@@ -220,11 +229,11 @@ func (e *Editor) shift(s span, left bool, amount int) {
 			e.setLine(n, nl)
 		}
 	}
-	e.cur = Pos{s.start.Line, e.coladvance(s.start.Line, e.want)}
 }
 
 // setCase is gu, gU and g~ (ops.c op_tilde).
 func (e *Editor) setCase(s span, op string) {
+	e.beginChange()
 	for n := s.start.Line; n <= s.end.Line; n++ {
 		l := e.lines[n]
 		from, to := 0, len(l)
@@ -233,10 +242,7 @@ func (e *Editor) setCase(s span, op string) {
 				from = s.start.Col
 			}
 			if n == s.end.Line {
-				to = min(s.end.Col, len(l))
-				if s.inclusive && to < len(l) {
-					to = next(l, to)
-				}
+				to = e.endCol(s)
 			}
 		}
 		if nl := l[:from] + convertCase(l[from:to], op) + l[to:]; nl != l {
@@ -250,10 +256,10 @@ func convertCase(s, op string) string {
 		switch {
 		case op == "gu":
 			return unicode.ToLower(r)
-		case op == "gU":
-			return unicode.ToUpper(r)
-		case unicode.IsUpper(r):
+		case op != "gU" && unicode.IsUpper(r):
 			return unicode.ToLower(r)
+		case r == 'ß': // nvim's utf8proc has it, Go's simple case mapping not
+			return 'ẞ'
 		}
 		return unicode.ToUpper(r)
 	}, s)
@@ -266,10 +272,12 @@ const commentLeft = "-- "
 // that all start with -- lose it; otherwise every line gets -- at the
 // smallest indent, blank lines just "--".
 func (e *Editor) comment(from, to int) {
+	e.beginChange()
+	lead := func(l string) int { return len(l) - len(strings.TrimLeft(l, " \t\n\v\f\r")) } // Lua's %s*
 	indent, commented := "", true
 	width := -1
 	for _, l := range e.lines[from : to+1] {
-		n := len(l) - len(strings.TrimLeft(l, " \t\n\v\f\r"))
+		n := lead(l)
 		if n == len(l) {
 			continue
 		}
@@ -282,7 +290,7 @@ func (e *Editor) comment(from, to int) {
 		nl := l
 		switch {
 		case commented:
-			n := len(l) - len(strings.TrimLeft(l, " \t\n\v\f\r"))
+			n := lead(l)
 			rest, ok := strings.CutPrefix(l[n:], commentLeft)
 			if !ok {
 				rest, ok = strings.CutPrefix(l[n:], strings.TrimSpace(commentLeft))
@@ -307,22 +315,18 @@ func (e *Editor) comment(from, to int) {
 // the start of each joined line go, and one space is put between unless
 // the line ends in a space already, the next starts with ')', or either is
 // empty. The cursor goes where the last line was joined.
-func (e *Editor) join(count int, space bool) {
-	n := e.cur.Line
-	out, col := e.lines[n], 0
-	for _, l := range e.lines[n+1 : n+count] {
-		if space {
-			l = strings.TrimLeft(l, " \t")
-		}
+func (e *Editor) join(count int) {
+	n, col := e.cur.Line, 0
+	for range count - 1 {
+		out, l := e.lines[n], e.lines[n+1]
+		skip := len(l) - len(strings.TrimLeft(l, " \t"))
 		sep := ""
-		if last, _ := utf8.DecodeLastRuneInString(out); space && l != "" && l[0] != ')' && out != "" && last != '\t' && last != ' ' {
+		if skip < len(l) && l[skip] != ')' && out != "" && !white(out[len(out)-1]) {
 			sep = " "
 		}
 		col = len(out)
-		out += sep + l
+		e.joinNext(n, sep, skip)
 	}
-	e.setLine(n, out)
-	e.deleteLines(n+1, n+count)
 	e.cur.Col = col
 }
 
@@ -375,6 +379,7 @@ func (e *Editor) tilde(count int) {
 	if l == "" {
 		return
 	}
+	e.beginChange()
 	from := e.cur.Col
 	to := from
 	for ; count > 0 && to < len(l); count-- {

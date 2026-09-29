@@ -186,7 +186,7 @@ func nvim(t *testing.T, path string, c nvimCase) string {
 		text = append(text, "'"+strings.ReplaceAll(l, "'", "''")+"'")
 	}
 	script := fmt.Sprintf(`set expandtab tabstop=2 shiftwidth=2 nowrap ignorecase smartcase
-set commentstring=--\ %%s
+set commentstring=--\ %%s formatoptions-=j
 set lines=24 columns=80
 set undolevels=-1
 call setline(1, [%s])
@@ -200,7 +200,7 @@ qa!
 	if err := os.WriteFile(path+".vim", []byte(script), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := exec.Command("nvim", "--headless", "--clean", "-S", path+".vim").CombinedOutput(); err != nil {
+	if out, err := exec.Command("nvim", "--headless", "--clean", "--cmd", "set noloadplugins", "-S", path+".vim").CombinedOutput(); err != nil {
 		t.Fatalf("%s: nvim: %v\n%s", c.title, err, out)
 	}
 	data, err := os.ReadFile(path + ".out")

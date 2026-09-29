@@ -30,14 +30,24 @@ func (e *Editor) CmdLine() (prompt, text string, pos int, ok bool) {
 	return e.cl.prompt, e.cl.text, e.cl.pos, true
 }
 
+// openCmdline opens the / ? or : line. : in VISUAL is an operator in vim:
+// the cursor goes to the start of the selection, the line to '<,'>; a
+// count before : is that many lines from the cursor's (nv_colon).
 func (e *Editor) openCmdline(prompt string, c cmd) {
 	back := Normal
-	if e.visual() && prompt != ":" {
-		back = e.mode
-	}
-	if e.visual() && prompt == ":" {
+	switch {
+	case prompt != ":":
+		if e.visual() {
+			back = e.mode
+		}
+	case e.visual():
+		s := e.selection(":")
 		e.endVisual()
-		c.arg = "'<,'>"
+		e.cur, c.arg = s.start, "'<,'>"
+	case c.count > 1:
+		c.arg = ".,.+" + strconv.Itoa(c.count-1)
+	case c.count == 1:
+		c.arg = "."
 	}
 	e.cl = &cmdline{prompt: prompt, text: c.arg, pos: len(c.arg), c: c, back: back}
 	e.mode = Command
@@ -65,13 +75,20 @@ func (e *Editor) cmdKey(k string) {
 			q := prev(t, p)
 			cl.text, cl.pos = t[:q]+t[p:], q
 		}
-	case "<C-w>":
-		q := p
-		for q > 0 && t[q-1] == ' ' {
-			q--
+	case "<C-w>": // the blanks before the cursor and a run of one class (ex_getln.c)
+		if p == 0 {
+			return
 		}
-		for q > 0 && t[q-1] != ' ' {
+		q := prev(t, p)
+		for q > 0 && isSpace(rune(t[q])) {
 			q = prev(t, q)
+		}
+		c := classAt(t, q)
+		for q > 0 && classAt(t, q) == c {
+			q = prev(t, q)
+		}
+		if classAt(t, q) != c {
+			q = next(t, q)
 		}
 		cl.text, cl.pos = t[:q]+t[p:], q
 	case "<C-u>":
@@ -91,36 +108,86 @@ func (e *Editor) closeCmdline() {
 	e.mode, e.cl = e.cl.back, nil
 }
 
-// search is what n and N repeat: the pattern and how it was searched.
+// search is what n and N repeat: the pattern, whether it ignores case (by
+// 'smartcase' when it was typed, always for * and #) and its direction.
 type search struct {
 	pattern   string
-	ignore    bool // ignore case
+	ignore    bool
 	backwards bool
 }
 
-// compile makes the pattern's regexp; smart is 'smartcase': a pattern with
-// an upper case letter matches case.
-func compile(pattern string, ignore, smart bool) (*regexp.Regexp, error) {
-	if smart && strings.IndexFunc(pattern, unicode.IsUpper) >= 0 {
-		ignore = false
+const noPattern = "没有上一个模式" // vim's E35
+
+// hasUpper is whether a pattern has an upper case letter for 'smartcase';
+// what a backslash escapes does not count: \D is not (search.c
+// pat_has_uppercase).
+func hasUpper(p string) bool {
+	for i := 0; i < len(p); {
+		r, n := utf8.DecodeRuneInString(p[i:])
+		switch {
+		case r == '\\' && i+2 < len(p) && (p[i+1] == '_' || p[i+1] == '%'):
+			i += 3
+		case r == '\\':
+			i += 2
+		case unicode.ToLower(r) != r:
+			return true
+		default:
+			i += n
+		}
 	}
-	if ignore {
-		pattern = "(?i)" + pattern
-	}
-	return regexp.Compile(pattern)
+	return false
 }
 
-// searchCmd runs / or ? with what cl holds: an empty pattern is the last
-// one.
-func (e *Editor) searchCmd(cl *cmdline) {
-	s := search{pattern: cl.text, ignore: true, backwards: cl.prompt == "?"}
-	if s.pattern == "" {
-		s.pattern, s.ignore = e.lastSearch.pattern, e.lastSearch.ignore
-	} else if strings.IndexFunc(s.pattern, unicode.IsUpper) >= 0 {
-		s.ignore = false
+// matcher is a pattern compiled: RE2, and vim's \< and \> at its ends,
+// which RE2 has not (* and # put them there).
+type matcher struct {
+	re       *regexp.Regexp
+	bow, eow bool
+}
+
+func compile(pattern string, ignore bool) (matcher, error) {
+	var m matcher
+	pattern, m.bow = strings.CutPrefix(pattern, `\<`)
+	pattern, m.eow = strings.CutSuffix(pattern, `\>`)
+	re, err := regexp.Compile(pattern) // first without (?i), for the error
+	if err == nil && ignore {
+		re, err = regexp.Compile("(?i)" + pattern)
 	}
+	m.re = re
+	return m, err
+}
+
+// find is m's matches in l, as FindAllStringSubmatchIndex gives them. \<
+// and \> are where the character class changes to or from a word class
+// (regexp_bt.c BOW, EOW).
+func (m matcher) find(l string) [][]int {
+	all := m.re.FindAllStringSubmatchIndex(l, -1)
+	ms := all[:0]
+	for _, x := range all {
+		a, b := x[0], x[1]
+		if m.bow && (a >= len(l) || classAt(l, a) < 2 || a > 0 && classAt(l, prev(l, a)) == classAt(l, a)) {
+			continue
+		}
+		if m.eow && (b == 0 || classAt(l, prev(l, b)) < 2 || b < len(l) && classAt(l, b) == classAt(l, prev(l, b))) {
+			continue
+		}
+		ms = append(ms, x)
+	}
+	return ms
+}
+
+// searchCmd runs / or ? with what cl holds: the pattern ends at a / (or
+// ?) not escaped, and what follows, vim's search offset, is not done. An
+// empty pattern is the last one.
+func (e *Editor) searchCmd(cl *cmdline) {
+	pattern, _ := splitPattern(cl.text, cl.prompt[0])
+	s := search{pattern: pattern, ignore: !hasUpper(pattern), backwards: cl.prompt == "?"}
 	if s.pattern == "" {
-		return
+		if e.lastSearch.pattern == "" {
+			e.eff.Error = noPattern
+			return
+		}
+		s.pattern, s.ignore = e.lastSearch.pattern, e.lastSearch.ignore
 	}
 	e.lastSearch = s
 	c := cl.c
@@ -134,21 +201,25 @@ func (e *Editor) searchCmd(cl *cmdline) {
 
 // findNext is n and N (reverse): the last search again, count times.
 func (e *Editor) findNext(c cmd, reverse bool) target {
+	return e.searchNext(e.cur, c.n(), e.lastSearch.backwards != reverse)
+}
+
+// searchNext looks for the last search from p, count times.
+func (e *Editor) searchNext(p Pos, count int, back bool) target {
 	s := e.lastSearch
 	fail := target{to: e.cur}
 	if s.pattern == "" {
+		e.eff.Error = noPattern
 		return fail
 	}
-	re, err := compile(s.pattern, s.ignore, false)
+	m, err := compile(s.pattern, s.ignore)
 	if err != nil {
 		e.eff.Error = "正则有误：" + err.Error()
 		return fail
 	}
-	back := s.backwards != reverse
-	p := e.cur
-	for n := c.n(); n > 0; n-- {
+	for ; count > 0; count-- {
 		var ok bool
-		if p, ok = e.searchFrom(re, p, back); !ok {
+		if p, ok = e.searchFrom(m, p, back); !ok {
 			e.eff.Error = "找不到：" + s.pattern
 			return fail
 		}
@@ -156,9 +227,10 @@ func (e *Editor) findNext(c cmd, reverse bool) target {
 	return target{to: p, ok: true}
 }
 
-// searchFrom finds the next match of re after p (before it, back),
-// wrapping around the end of the text.
-func (e *Editor) searchFrom(re *regexp.Regexp, p Pos, back bool) (Pos, bool) {
+// searchFrom finds the next match of m after p (before it, back),
+// wrapping around the end of the text. A match at the end of a line (/$)
+// counts as on its last character (search.c searchit).
+func (e *Editor) searchFrom(m matcher, p Pos, back bool) (Pos, bool) {
 	n := len(e.lines)
 	for i := 0; i <= n; i++ {
 		line := p.Line + i
@@ -166,6 +238,7 @@ func (e *Editor) searchFrom(re *regexp.Regexp, p Pos, back bool) (Pos, bool) {
 			line = p.Line - i
 		}
 		line = (line%n + n) % n
+		l := e.lines[line]
 		// on the cursor's line only past the cursor, and back on it after
 		// going all the way round only up to it
 		ok := func(col int) bool {
@@ -181,85 +254,72 @@ func (e *Editor) searchFrom(re *regexp.Regexp, p Pos, back bool) (Pos, bool) {
 			}
 			return true
 		}
-		ms := re.FindAllStringIndex(e.lines[line], -1)
-		if back {
-			for j := len(ms) - 1; j >= 0; j-- {
-				if ok(ms[j][0]) {
-					return Pos{line, ms[j][0]}, true
-				}
+		ms := m.find(l)
+		for j := range ms {
+			if back {
+				j = len(ms) - 1 - j
 			}
-			continue
-		}
-		for _, m := range ms {
-			if ok(m[0]) {
-				return Pos{line, m[0]}, true
+			col := ms[j][0]
+			if col >= len(l) {
+				col = last(l)
+			}
+			if ok(col) {
+				return Pos{line, col}, true
 			}
 		}
 	}
 	return p, false
 }
 
-// star is * and # (normal.c nv_ident): the keyword under or after the
-// cursor as a whole word, else the run of non-blanks there; case is
-// ignored, not smart.
-func (e *Editor) star(c cmd, back bool) {
-	l := e.line()
-	i := e.cur.Col
-	keyword := func(j int) bool { r, _ := utf8.DecodeRuneInString(l[j:]); return class(r) >= 2 }
-	for i < len(l) && !keyword(i) {
-		i = next(l, i)
-	}
-	var start, end int
-	if i < len(l) {
-		start, end = i, i
-		for start > 0 && keyword(prev(l, start)) {
+// star is * and # (normal.c nv_ident, find_ident_at_pos): the keyword
+// under or after the cursor as a whole word, else the run of non-blanks
+// there, searched from its start; case is ignored, not smart. A keyword is
+// a run of one word class, so 名字 in a名字 is not one.
+func star(back bool) motion {
+	return func(e *Editor, c cmd, _ string) target {
+		l := e.line()
+		start := e.cur.Col
+		for start < len(l) && classAt(l, start) < 2 {
+			start = next(l, start)
+		}
+		word := start < len(l)
+		if !word { // any non-blank
+			start = e.cur.Col
+			for start < len(l) && classAt(l, start) == 0 {
+				start = next(l, start)
+			}
+		}
+		if start >= len(l) {
+			return target{to: e.cur}
+		}
+		cls := classAt(l, start)
+		for start > 0 && classAt(l, prev(l, start)) == cls {
 			start = prev(l, start)
 		}
-		for end < len(l) && keyword(end) {
+		end := start
+		for end < len(l) && (word && classAt(l, end) == cls || !word && classAt(l, end) != 0) {
 			end = next(l, end)
 		}
-	} else {
-		start = e.cur.Col
-		for start < len(l) && white(l[start]) {
-			start++
+		pattern := regexp.QuoteMeta(l[start:end])
+		if classAt(l, start) >= 2 {
+			pattern = `\<` + pattern
 		}
-		end = start
-		for end < len(l) && !white(l[end]) {
-			end = next(l, end)
+		if classAt(l, prev(l, end)) >= 2 {
+			pattern += `\>`
 		}
+		e.lastSearch = search{pattern: pattern, ignore: true, backwards: back}
+		return e.searchNext(Pos{e.cur.Line, start}, c.n(), back)
 	}
-	if start == end {
-		return
-	}
-	pattern := regexp.QuoteMeta(l[start:end])
-	if i < len(l) {
-		pattern = `\b` + pattern + `\b`
-	}
-	e.lastSearch = search{pattern: pattern, ignore: true, backwards: back}
-	e.cur.Col = start
-	e.run(cmd{count: c.count, name: "n"})
 }
 
 // ex runs a : line: {n} goes to line n and s substitutes; the rest is the
 // console's (:w, :q), handed on as Effect.Ex.
 func (e *Editor) ex(line string) {
 	line = strings.TrimSpace(line)
-	from, to := e.cur.Line, e.cur.Line
-	rest := line
+	from, to, rest, err := e.lineRange(line)
 	switch {
-	case strings.HasPrefix(line, "%"):
-		from, to, rest = 0, len(e.lines)-1, line[1:]
-	case strings.HasPrefix(line, "'<,'>"):
-		v := e.lastVisual
-		from, to, rest = min(v.start.Line, v.end.Line), max(v.start.Line, v.end.Line), line[5:]
-	default:
-		if n := len(line) - len(strings.TrimLeft(line, "0123456789")); n > 0 {
-			l, _ := strconv.Atoi(line[:n])
-			from, to, rest = l-1, l-1, line[n:]
-		}
-	}
-	from, to = max(min(from, len(e.lines)-1), 0), max(min(to, len(e.lines)-1), 0)
-	switch {
+	case err != "":
+		e.eff.Error = err
 	case rest == "" && line != "":
 		e.cur.Line = to
 		e.cur.Col = e.coladvance(to, e.want)
@@ -271,80 +331,195 @@ func (e *Editor) ex(line string) {
 	}
 }
 
+// lineRange reads the lines a : command is for (ex_docmd.c
+// parse_cmd_range): % or one or two addresses split by a comma, each ., $,
+// a number, '< or '>, with +n or -n after; the cursor's line when none.
+// err is what went wrong.
+func (e *Editor) lineRange(s string) (from, to int, rest, err string) {
+	if r, ok := strings.CutPrefix(s, "%"); ok {
+		return 0, len(e.lines) - 1, r, ""
+	}
+	from, to = e.cur.Line, e.cur.Line
+	for i := 0; i < 2; i++ {
+		n, r, ok := e.address(s)
+		if !ok {
+			return 0, 0, "", "没有选区" // vim's E20: '< and '> not set
+		}
+		if r == s {
+			break
+		}
+		if s = r; i == 0 {
+			from = n
+		}
+		to = n
+		if s, ok = strings.CutPrefix(s, ","); !ok {
+			break
+		}
+	}
+	from, to = max(min(from, len(e.lines)-1), 0), max(min(to, len(e.lines)-1), 0)
+	return min(from, to), max(from, to), s, ""
+}
+
+// address reads one line address off s; rest is s when there is none. ok
+// is false for '< or '> with no VISUAL yet.
+func (e *Editor) address(s string) (n int, rest string, ok bool) {
+	number := func(s string) (int, string) {
+		d := len(s) - len(strings.TrimLeft(s, "0123456789"))
+		v, _ := strconv.Atoi(s[:d])
+		return v, s[d:]
+	}
+	v := e.lastVisual
+	switch {
+	case s == "":
+		return 0, s, true
+	case s[0] == '.':
+		n, s = e.cur.Line, s[1:]
+	case s[0] == '$':
+		n, s = len(e.lines)-1, s[1:]
+	case strings.HasPrefix(s, "'<"), strings.HasPrefix(s, "'>"):
+		if v.mode == Normal {
+			return 0, s, false
+		}
+		n = min(v.start.Line, v.end.Line)
+		if s[1] == '>' {
+			n = max(v.start.Line, v.end.Line)
+		}
+		s = s[2:]
+	case s[0] >= '0' && s[0] <= '9':
+		n, s = number(s)
+		n--
+	case s[0] == '+' || s[0] == '-':
+		n = e.cur.Line
+	default:
+		return 0, s, true
+	}
+	for len(s) > 0 && (s[0] == '+' || s[0] == '-') {
+		sign := 1 - 2*strings.IndexByte("+-", s[0])
+		d, r := number(s[1:])
+		if r == s[1:] {
+			d = 1
+		}
+		n, s = n+sign*d, r
+	}
+	return n, s, true
+}
+
 // substitute is :s/pattern/replacement/flags over lines from to to: g for
-// every match on a line, i to ignore case; & and \1 to \9 in the
-// replacement as in vim. The cursor ends on the last line changed.
+// every match on a line, i to ignore case; & \1 to \9, \t and \r (a line
+// break) in the replacement as in vim. The cursor ends on the last line
+// changed; u and U come back to the start of the first (ex_cmds.c do_sub).
 func (e *Editor) substitute(from, to int, arg string) {
-	delim := arg[:1]
-	pattern, rest := splitDelim(arg[1:], delim)
-	repl, flags := splitDelim(rest, delim)
-	ignore, smart := true, true
+	delim := arg[0]
+	pattern, rest := splitPattern(arg[1:], delim)
+	repl, flags := splitReplacement(rest, delim)
+	ignore := !hasUpper(pattern)
 	if pattern == "" {
-		pattern, ignore, smart = e.lastSearch.pattern, e.lastSearch.ignore, false
+		if e.lastSearch.pattern == "" {
+			e.eff.Error = noPattern
+			return
+		}
+		pattern, ignore = e.lastSearch.pattern, e.lastSearch.ignore
 	}
-	if strings.Contains(flags, "i") {
-		ignore, smart = true, false
-	}
-	re, err := compile(pattern, ignore, smart)
+	e.lastSearch = search{pattern: pattern, ignore: ignore, backwards: e.lastSearch.backwards}
+	m, err := compile(pattern, ignore || strings.Contains(flags, "i"))
 	if err != nil {
 		e.eff.Error = "正则有误：" + err.Error()
 		return
 	}
-	e.lastSearch = search{pattern: pattern, ignore: ignore && !(smart && strings.IndexFunc(pattern, unicode.IsUpper) >= 0)}
 	template := replacement(repl)
 	all, changed := strings.Contains(flags, "g"), -1
 	for n := from; n <= to; n++ {
 		l := e.lines[n]
+		ms := m.find(l)
+		if len(ms) > 1 && ms[len(ms)-1][0] == len(l) && ms[len(ms)-1][1] == len(l) {
+			ms = ms[:len(ms)-1] // no empty match at the end after another (:s/a*/x/g)
+		}
+		if len(ms) == 0 {
+			continue
+		}
+		if !all {
+			ms = ms[:1]
+		}
 		var b []byte
-		done, last := false, 0
-		for _, m := range re.FindAllStringSubmatchIndex(l, -1) {
-			if done && !all {
-				break
-			}
-			b = append(b, l[last:m[0]]...)
-			b = re.ExpandString(b, template, l, m)
-			last, done = m[1], true
+		last := 0
+		for _, x := range ms {
+			b = append(b, l[last:x[0]]...)
+			b = m.re.ExpandString(b, template, l, x)
+			last = x[1]
 		}
-		if done {
-			if changed < 0 { // undo and U come back to the first match (ex_cmds.c do_sub)
-				e.cur = Pos{n, re.FindStringIndex(l)[0]}
-				e.saveLine(n, l, e.cur)
-			}
-			e.setLine(n, string(b)+l[last:])
-			changed = n
+		if changed < 0 {
+			e.cur = Pos{n, 0}
+			e.saveLine(n, l, e.cur)
 		}
+		parts := strings.Split(string(b)+l[last:], "\n") // \r broke the line
+		e.setLine(n, parts[0])
+		e.insertLines(n+1, parts[1:]...)
+		n, to = n+len(parts)-1, to+len(parts)-1
+		changed = n
 	}
 	if changed < 0 {
 		e.eff.Error = "找不到：" + pattern
 		return
 	}
-	e.cur = Pos{changed, head(e.lines[changed], min(nonBlank(e.lines[changed]), last(e.lines[changed])))}
+	e.cur = Pos{changed, firstNonBlank(e.lines[changed])}
+	e.want = wantUnset
 	e.endChange() // U keeps the first line, whatever the lines after did
 }
 
-// splitDelim cuts s at the first delim not after a backslash; \delim
-// stands for delim itself.
-func splitDelim(s, delim string) (before, after string) {
-	var b strings.Builder
+// splitPattern cuts s where a pattern delimited by delim ends (regexp.c
+// skip_regexp): at the first delim not escaped nor in […]. A backslash
+// stays: to RE2 \/ is / as it is to vim.
+func splitPattern(s string, delim byte) (pattern, rest string) {
 	for i := 0; i < len(s); i++ {
-		switch {
-		case s[i] == '\\' && i+1 < len(s) && s[i+1:i+2] == delim:
-			b.WriteString(delim)
+		switch s[i] {
+		case delim:
+			return s[:i], s[i+1:]
+		case '\\':
 			i++
-		case s[i] == '\\' && i+1 < len(s):
-			b.WriteString(s[i : i+2])
-			i++
-		case s[i:i+1] == delim:
-			return b.String(), s[i+1:]
-		default:
-			b.WriteByte(s[i])
+		case '[': // skip_anyof
+			j := i + 1
+			if j < len(s) && s[j] == '^' {
+				j++
+			}
+			if j < len(s) && (s[j] == ']' || s[j] == '-') {
+				j++
+			}
+			for j < len(s) && s[j] != ']' {
+				switch {
+				case s[j] == '\\':
+					j++
+				case strings.HasPrefix(s[j:], "[:"):
+					if k := strings.Index(s[j:], ":]"); k > 0 {
+						j += k + 1
+					}
+				}
+				j++
+			}
+			if j >= len(s) {
+				return s, ""
+			}
+			i = j
 		}
 	}
-	return b.String(), ""
+	return s, ""
+}
+
+// splitReplacement cuts s at the first delim not after a backslash.
+func splitReplacement(s string, delim byte) (repl, rest string) {
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case delim:
+			return s[:i], s[i+1:]
+		case '\\':
+			i++
+		}
+	}
+	return s, ""
 }
 
 // replacement turns vim's replacement into regexp.Expand's template: & is
-// the match, \1 a group, \& and \\ the characters themselves.
+// the match, \1 a group, \t a tab, \r a line break, \& and \\ the
+// characters themselves.
 func replacement(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {
@@ -355,9 +530,14 @@ func replacement(s string) string {
 			b.WriteString("$$")
 		case c == '\\' && i+1 < len(s):
 			i++
-			if d := s[i]; d >= '0' && d <= '9' {
+			switch d := s[i]; {
+			case d >= '0' && d <= '9':
 				b.WriteString("${" + string(d) + "}")
-			} else {
+			case d == 't':
+				b.WriteByte('\t')
+			case d == 'r':
+				b.WriteByte('\n')
+			default:
 				b.WriteByte(d)
 			}
 		default:

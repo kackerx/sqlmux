@@ -2725,3 +2725,3504 @@ a
 :%s/a/b/<CR>U
 █a
 a
+
+## r31 w katakana long vowel
+w
+█スーパー test
+
+## r31 w kanji iteration mark
+w
+█人々は x
+
+## r31 w micro sign
+w
+█xµy z
+
+## r31 w trademark
+ww
+█x ™. y
+
+## r31 w sun emoji
+ww
+█x ☀. y
+
+## r31 w flag then punct
+ww
+█a 🇨🇳. b
+
+## r31 w hangul jamo
+w
+█ㅋㅋabc d
+
+## r31 w fullwidth comma
+w
+█中文，测试
+
+## r31 w emoji run
+e
+█😀😀 x
+
+## r31 w check then grin
+w
+█✅😀 x
+
+## r31 w subscript
+w
+█H₂O x
+
+## r31 w em space
+w
+█a b c
+
+## r31 w circled digit
+w
+█①abc x
+
+## r31 w katakana middle dot
+w
+█カタ・カタ x
+
+## r31 w halfwidth katakana
+w
+█ｶﾀabc x
+
+## r31 3w across empty lines
+3w
+█a b
+
+c d
+
+## r31 2e across empty line
+2e
+█ab
+
+cd ef
+
+## r31 b to empty line
+b
+ab
+
+█cd
+
+## r31 2b over empty line
+2b
+ab
+
+█cd
+
+## r31 ge to empty line
+ge
+ab
+
+█cd
+
+## r31 2ge over empty line
+2ge
+ab
+
+█cd
+
+## r31 w trailing spaces
+w
+a█bc   
+def
+
+## r31 e last word trailing spaces
+e
+ab█c   
+
+## r31 3e
+3e
+█a b c d
+
+## r31 E punct
+E
+█foo.bar(baz) qux
+
+## r31 2W across lines
+2W
+█a.b c.d
+e.f
+
+## r31 B across empty
+B
+a.b
+
+█c.d
+
+## r31 gE across lines
+gE
+a.b c.d
+█e.f
+
+## r31 5w past end
+5w
+█a b c
+
+## r31 w on last char
+w
+a b█c
+
+## r31 b from first col
+b
+█ab cd
+
+## r31 e cjk
+e
+█中文abc
+
+## r31 ge cjk
+ge
+abc中█文
+
+## r31 w combining
+w
+█éa b
+
+## r31 e indented next line
+e
+a█b
+   cd
+
+## r31 ge from indent
+ge
+ab
+  █cd
+
+## r31 W trailing spaces last line
+W
+a█b  
+
+## r31 2w ending on empty line
+2w
+█a b
+
+c
+
+## r31 l over combining
+l
+█éx
+
+## r31 l over zwj family
+l
+█👨‍👩‍👧x
+
+## r31 j after flag
+j
+🇨🇳█ab
+abcd
+
+## r31 j after vs16 emoji
+j
+☺️█ab
+abcd
+
+## r31 j from cjk
+j
+中█文
+abcd
+
+## r31 j k through empty
+jjk
+ab█cd
+
+abcd
+x
+
+## r31 $ through tab lines
+$jj
+█abc
+	x
+abcdef
+
+## r31 3$
+3$
+█ab
+cd
+ef
+gh
+
+## r31 3$ past end
+3$
+ab
+█cd
+
+## r31 ^ on blank line
+^
+█   
+
+## r31 $0j
+$0j
+█abc
+abc
+
+## r31 G on tab line
+G
+a█bc
+	x
+
+## r31 99999j
+99999j
+█a
+b
+c
+
+## r31 10l
+10l
+█abcdefghijklmn
+
+## r31 count esc then j
+3<Esc>j
+█a
+b
+c
+d
+e
+
+## r31 d esc then x
+d<Esc>x
+█abc
+
+## r31 k onto tab then j
+kj
+	ab
+x█yz
+
+## r31 k onto mid tab
+kj
+a	b
+abc█d
+
+## r31 $ then gg
+$gg
+abc
+█abcdef
+
+## r31 3h over cjk
+3h
+a中文b█c
+
+## r31 j over wide char middle
+jk
+a█bcd
+中文
+
+## r31 2f cjk
+2f中
+█a中b中c
+
+## r31 2t then ;
+2t.;
+█a.b.c.d.e
+
+## r31 T then , adjacent
+T.,
+a.b.█c.d.e
+
+## r31 F then 2;
+F.2;
+a.b.c.d█e
+
+## r31 f then ,
+fa,
+█abca
+
+## r31 ; after failed f
+f.fz;
+█a.b.c
+
+## r31 2f space
+2f<Space>
+█a b c
+
+## r31 t ; on cjk
+t中;
+█a中b中
+
+## r31 3t fails
+3t.
+█a.b.c
+
+## r31 % backwards across lines
+%
+(a
+(b)
+█)
+
+## r31 % on comment start
+%
+select █/* x */ 1
+
+## r31 % on comment end
+%
+select /* x *█/ 1
+
+## r31 % none after cursor
+%
+a (b) █c
+
+## r31 % cjk line
+%
+█中(文)
+
+## r31 } over blank-only line
+}
+█a
+  
+b
+
+c
+
+## r31 3{
+3{
+a
+
+b
+
+c
+
+█d
+
+## r31 { from first paragraph
+{
+a
+b█c
+
+## r31 } then j
+}j
+ab█c
+
+abc
+
+## r31 H after scroll
+50GH
+█0
+{1..100}
+
+## r31 M after scroll
+50GM
+█0
+{1..100}
+
+## r31 L after scroll
+50GL
+█0
+{1..100}
+
+## r31 3L after scroll
+50G3L
+█0
+{1..100}
+
+## r31 5H after scroll
+50G5H
+█0
+{1..100}
+
+## r31 M at end
+GM
+█0
+{1..100}
+
+## r31 M at end short tail
+GM
+█0
+{1..30}
+
+## r31 30L short
+30L
+█a
+b
+c
+
+## r31 $ then H
+$jH
+█abc
+abcdef
+
+## r31 C-d from mid screen
+10j<C-d>
+█0
+{1..100}
+
+## r31 C-u from bottom
+G<C-u>
+█0
+{1..100}
+
+## r31 C-d keeps curswant
+$<C-d>k
+█abcdef
+{1..60}
+
+## r31 2 C-f
+2<C-f>
+█0
+{1..100}
+
+## r31 C-b after G
+G<C-b>
+█0
+{1..100}
+
+## r31 2 C-b after G
+G2<C-b>
+█0
+{1..100}
+
+## r31 C-f then C-b
+<C-f><C-b>
+█0
+{1..100}
+
+## r31 C-d C-d C-u
+<C-d><C-d><C-u>
+█0
+{1..100}
+
+## r31 50zz
+50zz
+█0
+{1..100}
+
+## r31 50zb
+50zb
+█0
+{1..100}
+
+## r31 zt then k
+50Gztk
+█0
+{1..100}
+
+## r31 zt then 10k
+50Gzt10k
+█0
+{1..100}
+
+## r31 zt then 9k
+50Gzt9k
+█0
+{1..100}
+
+## r31 zb then 23j
+50Gzb23j
+█0
+{1..100}
+
+## r31 zb then 24j
+50Gzb24j
+█0
+{1..100}
+
+## r31 undo far away
+50Gix<Esc>Gu
+█0
+{1..100}
+
+## r31 undo at top from end
+ix<Esc>Gu
+█0
+{1..100}
+
+## r31 zt count clamps col
+3zt
+abcd█e
+x
+y
+z
+
+## r31 30 C-d then C-u
+30<C-d><C-u>
+█0
+{1..100}
+
+## r31 5 C-u from end
+G5<C-u>
+█0
+{1..100}
+
+## r31 C-d at last line
+G<C-d>
+█0
+{1..100}
+
+## r31 C-f near end
+85G<C-f>
+█0
+{1..100}
+
+## r31 C-b near top
+10G<C-b>
+█0
+{1..100}
+
+## r31 C-d on 30 lines twice
+<C-d><C-d>
+█0
+{1..30}
+
+## r31 C-f on 30 lines
+<C-f>
+█0
+{1..30}
+
+## r31 o at bottom of screen
+21Gox<Esc>
+█0
+{1..100}
+
+## r31 CR at bottom of screen
+22GA<CR>x<Esc>
+█0
+{1..100}
+
+## r31 3A
+3Aab<Esc>
+x█y
+
+## r31 3a empty
+3ax<Esc>
+█
+
+## r31 a on cjk
+ax<Esc>
+█中文
+
+## r31 A esc on cjk
+A<Esc>
+█中文
+
+## r31 i esc at col 0
+i<Esc>
+█abc
+
+## r31 count insert with BS
+3iab<BS>c<Esc>
+x█y
+
+## r31 count insert BS past start
+3iab<BS><BS><BS>c<Esc>
+x█y
+
+## r31 count insert C-w
+2Aab<C-w>x<Esc>
+█foo
+
+## r31 C-w then u
+Afoo bar<C-w>x<Esc>u
+█a
+
+## r31 C-u then u
+Afoo<C-u>x<Esc>u
+█a
+
+## r31 C-w then U
+Afoo bar<C-w><Esc>U
+█a
+
+## r31 C-w count repeat
+3Afoo<C-w>x<Esc>
+█a
+
+## r31 C-w then u twice
+Afoo bar<C-w>x<Esc>uu
+█a
+
+## r31 A CR spaces esc
+A<CR><Space><Space><Esc>
+  █foo
+
+## r31 o on blank line
+ox<Esc>
+█   
+
+## r31 o tab esc
+o<Tab><Esc>
+█  foo
+
+## r31 CR x BS esc
+A<CR>x<BS><Esc>
+█  foo
+
+## r31 BS after CR autoindent
+A<CR><BS>x<Esc>
+█    foo
+
+## r31 BS BS joins after autoindent
+A<CR><BS><BS>x<Esc>
+█  foo
+
+## r31 C-u on autoindent
+ofoo<C-u><C-u>x<Esc>
+█  a
+
+## r31 C-w at start of line joins
+A<CR><C-w>x<Esc>
+█ab
+
+## r31 Left then BS
+Aab<Left><BS><Esc>
+█x
+
+## r31 Left then C-w
+Afoo bar<Left><Left><C-w><Esc>
+█x
+
+## r31 Up then type then u
+Aab<Up>x<Esc>u
+cd
+█ef
+
+## r31 count insert failed Down
+3ia<Down>b<Esc>
+█x
+
+## r31 count insert failed Left
+3i<Left>a<Esc>
+█x
+
+## r31 count insert failed Right
+3A<Right>a<Esc>
+█x
+
+## r31 o then Up drops indent
+o<Up><Esc>
+  █a
+  b
+
+## r31 o then Down
+o<Down>x<Esc>
+  █a
+  b
+
+## r31 o then Left
+o<Left>x<Esc>
+    █a
+
+## r31 Tab after real tab
+A<Tab>x<Esc>
+█a	b
+
+## r31 BS mixed tab indent
+i<BS><Esc>
+	  █x
+
+## r31 C-w over tab
+A<C-w><Esc>
+█ab	
+
+## r31 Right then type then u
+ia<Right>b<Esc>u
+█xy
+
+## r31 insert BS multibyte
+A<BS><Esc>
+█a中
+
+## r31 insert Up over wide
+A<Up>x<Esc>
+中文字
+█abc
+
+## r31 insert Down then BS
+ix<Down><BS><Esc>
+█ab
+cd
+
+## r31 3o undo
+3ox<Esc>u
+█a
+b
+
+## r31 insert CR count undo
+2ia<CR><Esc>u
+█x
+
+## r31 R tab
+R<Tab>x<Esc>
+█abcdef
+
+## r31 R tab BS
+R<Tab><BS><Esc>
+█abcdef
+
+## r31 R x tab BS BS
+Rx<Tab><BS><BS><Esc>
+█abcdef
+
+## r31 R CR BS
+Rab<CR>c<BS><BS><BS><Esc>
+█xyzw
+
+## r31 R arrow then u
+Rab<Left>c<Esc>u
+█xyz
+
+## r31 2R with CR
+2Ra<CR>b<Esc>
+█xyzw
+
+## r31 R cjk over ascii
+R中文<BS><Esc>
+█abc
+
+## r31 R count BS
+3Rab<BS><Esc>
+█xxxxxxxxx
+
+## r31 u then j curswant
+xj$uj
+ab█cdef
+hello world
+
+## r31 C-r then j curswant
+xj$u$<C-r>j
+ab█cdef
+hello world
+
+## r31 U then j curswant
+xj$Uj
+ab█cdef
+hello world
+
+## r31 x empty line then u
+xjxu
+█abc
+
+x
+
+## r31 r same char then u
+rx0u
+ab█x
+
+## r31 tilde punct then u
+~0u
+ab█.
+
+## r31 u two lines cursor
+xjxuu
+█ab
+cd
+
+## r31 u after A on later line
+jA foo<Esc>ggu
+█a
+b
+
+## r31 C-r cursor
+jxxu<C-r>
+ab
+cd█e
+
+## r31 u after 2O
+2Ofoo<Esc>u
+a
+█b
+
+## r31 u after CR in middle
+a<CR><Esc>u
+ab█cd
+
+## r31 u after BS join from below
+jI<BS><Esc>u
+ab
+█cd
+
+## r31 2u then C-r
+xxx2u<C-r>
+█abcd
+
+## r31 u after two-line insert
+Oa<CR>b<Esc>Gu
+x
+█y
+z
+
+## r31 U after insert then move
+Afoo<Esc>0U
+█ab
+
+## r31 U U u
+xxUUu
+█abcd
+
+## r31 U after A on two lines
+Ax<Esc>jAy<Esc>U
+█a
+b
+
+## r31 U after insert with arrow
+Aab<Left>c<Esc>U
+█x
+
+## r31 x J U
+xJU
+█abc
+d
+
+## r31 U then C-r
+xUu<C-r>
+█abc
+
+## r31 u after R
+Rab<Esc>jxuu
+█xyz
+q
+
+## r31 U after R
+Rab<Esc>U
+█xyz
+
+## r31 u cursor after I
+Ifoo<Esc>$u
+  █bar
+
+## r31 u after A multibyte
+A中<Esc>0u
+█ab
+
+## r31 3x multibyte
+3x
+a中█文ab
+
+## r31 x combining
+x
+█éx
+
+## r31 3X multibyte
+3X
+a中文█b
+
+## r31 5X past start
+5X
+ab█
+
+## r31 r multibyte
+r中
+a█bc
+
+## r31 3r multibyte
+3r中
+█abcd
+
+## r31 r over cjk
+rx
+█中文
+
+## r31 2r over cjk
+2rx
+█中文a
+
+## r31 3 tilde multibyte
+3~
+█éàß
+
+## r31 tilde long s
+~
+█ſx
+
+## r31 10 tilde
+10~
+a█bc
+
+## r31 tilde final sigma
+~
+█ςx
+
+## r31 tilde dotless i
+~
+█ıx
+
+## r31 tilde titlecase dz
+~
+█ǅx
+
+## r31 4J with empty lines
+4J
+█a
+
+
+b
+
+## r31 J leading tabs
+J
+█a
+		b
+
+## r31 J cjk
+J
+█中
+文
+
+## r31 3J cursor
+3J
+█a
+b
+c
+d
+
+## r31 3J near end
+3J
+a
+█b
+c
+
+## r31 J next only spaces
+J
+█a
+   
+b
+
+## r31 J current empty
+J
+█
+  b
+
+## r31 x at end then u
+$xu
+█abc
+
+## r31b count insert failed BS
+3i<BS>a<Esc>
+█x
+
+## r31b count insert failed C-w
+3i<C-w>a<Esc>
+█x
+
+## r31b count insert failed C-u
+3i<C-u>a<Esc>
+█x
+
+## r31b count insert C-w space
+3Aab<C-w>x<Space><Esc>
+█a
+
+## r31b count insert C-u space
+3Aab<C-u>x<Space><Esc>
+█a
+
+## r31b count insert Del
+3i<Del>a<Esc>
+█xy
+
+## r31b count o failed Left
+2o<Left>x<Esc>
+█a
+
+## r31b count insert failed Left mid text
+2i<Left>b<Esc>
+a
+█x
+
+## r31b J then j curswant
+$Jj
+█abcdef
+ab
+hello world
+
+## r31b r then j curswant
+$rxj
+█abc
+abcdef
+
+## r31b tilde then j curswant
+$~j
+█abc
+abcdef
+
+## r31b p then j curswant
+yl$pj
+█abc
+abcdefgh
+
+## r31b x then j curswant
+$xj
+█abcd
+abcdefgh
+
+## r31b C-f 23 lines
+<C-f>
+█1
+{2..23}
+
+## r31b C-f 24 lines
+<C-f>
+█1
+{2..24}
+
+## r31b C-f 25 lines
+<C-f>
+█1
+{2..25}
+
+## r31b C-b from end 25 lines
+G<C-b>
+█1
+{2..25}
+
+## r31b C-d 23 lines
+<C-d>
+█1
+{2..23}
+
+## r31b C-u with top 1
+23G<C-u>
+█1
+{2..40}
+
+## r31b 2 C-f 50 lines
+2<C-f>
+█1
+{2..50}
+
+## r31b C-f then C-d
+<C-f><C-d>
+█1
+{2..100}
+
+## r31b Tab BS not in indent
+A<Tab><BS>x<Esc>
+█ab
+
+## r31b C-w over typed spaces
+A  <C-w><C-w>x<Esc>
+█ab
+
+## r31b insert Up Down curswant
+Aabcdef<Up><Down>x<Esc>
+ab
+█cd
+
+## r31b R Tab at end
+A<Esc>R<Tab>x<Esc>
+█ab
+
+## r31b R BS after Tab mid
+lR<Tab>y<BS><BS><Esc>
+█abcdef
+
+## r31b C-w then CR then u
+Afoo<C-w>x<CR>y<Esc>u
+█a
+
+## r31b C-u in middle then Esc u
+Aab<C-u><Esc>u
+█x
+
+## r31c R Tab BS mid
+llR<Tab><BS><Esc>
+█abcdef
+
+## r31c 30H after scroll
+50G30H
+█0
+{1..100}
+
+## r31c M one line
+M
+ab█c
+
+## r31c L then j
+Lj
+█0
+{1..100}
+
+## r31c H then k
+50GHk
+█0
+{1..100}
+
+## r31c 1 C-d
+1<C-d>
+█0
+{1..100}
+
+## r31c C-b at top
+gg<C-b>
+█0
+{1..100}
+
+## r31c gE multibyte
+gE
+中文 a.b █c
+
+## r31c B then W cjk
+BW
+x 中文abc █y
+
+## r31c u then k curswant
+jx$uk
+hello world
+ab█cdef
+
+## r31d 30L after scroll
+50G30L
+█0
+{1..100}
+
+## r31d 22H after scroll
+50G22H
+█0
+{1..100}
+
+## r31d 23H after scroll
+50G23H
+█0
+{1..100}
+
+## r31d 30H at end
+G30H
+█0
+{1..100}
+
+## r31d 30H from top
+30H
+█0
+{1..100}
+
+## r: >w charwise cursor
+>w
+  f█oo bar
+
+## r: >l cursor
+>l
+  foo█ bar
+x
+
+## r: <w charwise cursor
+<w
+    fo█o
+
+## r: >} mid line
+>}
+  a█bc
+  d
+
+e
+
+## r: v> charwise cursor
+vl>
+  ab█cd
+
+## r: vj> charwise cursor
+vj>
+  ab█cd
+  ef
+
+## r: 3D past end
+3D
+a█bc
+de
+
+## r: 3$ past end
+3$
+a█bc
+de
+
+## r: 3Y past end
+3Y
+a█bc
+de
+
+## r: 3C past end
+3Cx<Esc>
+a█bc
+de
+
+## r: 2D multibyte end from indent
+2D
+  █select
+-- 中文
+
+## r: d2e multibyte end from indent
+d2e
+  █foo
+中
+
+## r: gUgU
+gUgU
+a█bc def
+
+## r: gugu
+gugu
+A█BC DEF
+
+## r: g~g~
+g~g~
+a█Bc
+
+## r: 2gUgU
+2gUgU
+a█b
+cd
+ef
+
+## r: v$gc
+v$gc
+█a
+b
+
+## r: v$U across
+v$U
+a█b
+cd
+
+## r: v$y last line
+v$y
+ab
+c█d
+
+## r: v$d last line
+v$d
+ab
+c█d
+
+## r: vd empty last line
+vd
+a
+█
+
+## r: v$J
+v$J
+a█b
+cd
+ef
+
+## r: v$>
+v$>
+a█b
+cd
+
+## r: 2d3w
+2d3w
+█a b c d e f g h
+
+## r: 2y2j
+2y2j
+█1
+2
+3
+4
+5
+6
+
+## r: 5yy past end
+5yy
+a
+█b
+c
+
+## r: 2cc last line
+2ccx<Esc>
+a
+█bc
+
+## r: 3>> last line
+3>>
+a
+█b
+
+## r: 3gcc near end
+3gcc
+a
+█b
+c
+
+## r: 5dj near end
+5dj
+a
+█b
+c
+
+## r: 3dk near top
+3dk
+a
+█b
+c
+
+## r: dk first line
+dk
+█a
+b
+
+## r: d3G
+d3G
+a
+█b
+c
+d
+e
+
+## r: dL
+dL
+a
+█b
+c
+
+## r: cw on multiple blanks
+cwx<Esc>
+a█   b
+
+## r: c2w from blank
+c2wx<Esc>
+a█ b c d
+
+## r: cw last word of text
+cwx<Esc>
+a █bc
+
+## r: cw on empty line
+cwx<Esc>
+a
+█
+b
+
+## r: cw on punct
+cwx<Esc>
+a█.,b
+
+## r: cW on last char
+cWx<Esc>
+fo█o bar
+
+## r: c3w across lines
+c3wx<Esc>
+a █b
+c d e
+
+## r: cw count past end
+c9wx<Esc>
+a █b c
+
+## r: dw count past end
+d9w
+a █b c
+d
+
+## r: yw count past end
+y9w
+a █b c
+
+## r: dw on empty line
+dw
+a
+█
+b
+
+## r: dw end of line to indented
+dw
+a █b
+  c
+
+## r: db at line start
+db
+ab
+█cd
+
+## r: dge across line
+dge
+ab
+█cd
+
+## r: de at end of word
+de
+a█b cd
+
+## r: dE across lines
+dE
+a █b
+  c.d
+
+## r: d^ from indent
+d^
+ █ foo
+
+## r: d0 at start
+d0
+█foo
+
+## r: dTa adjacent
+dTa
+a█bx
+
+## r: d2fx
+d2fx
+█axbxcx
+
+## r: d,
+fxd,
+xa█bxc
+
+## r: d% no match
+d%
+a█bc
+
+## r: y% from before bracket
+y%
+█a(b)c
+
+## r: daw before punct
+daw
+foo █bar, baz
+
+## r: daw on blanks
+daw
+foo█  bar baz
+
+## r: daw trailing blanks at eol
+daw
+foo █bar  
+
+## r: daw only word indented
+daw
+  █foo
+
+## r: daw last word before next line
+daw
+a █bc
+d
+
+## r: d3iw
+d3iw
+█a b c
+
+## r: d3aw across lines
+d3aw
+a █b
+c d e
+
+## r: yiw punct run
+yiw
+a█.,b
+
+## r: diw empty line
+diw
+a
+█
+b
+
+## r: yiw empty line
+yiw
+a
+█
+b
+
+## r: ciw empty line
+ciwx<Esc>
+a
+█
+b
+
+## r: diw single blank
+diw
+a█ b
+
+## r: daw single blank
+daw
+a█ b c
+
+## r: diW mixed
+diW
+x a.█b(c) y
+
+## r: daW at eol
+daW
+x a.█b
+
+## r: caw last word
+cawx<Esc>
+a b█c
+
+## r: v3iw
+v3iwd
+█a b c d
+
+## r: vawaw
+vawawd
+█a b c d
+
+## r: viw o iw
+viwoiwd
+aa bb █cc dd
+
+## r: Viw charwise
+Viwd
+a █bc d
+e
+
+## r: vb aw backward
+vbawd
+foo bar █baz qux
+
+## r: viw on blank run
+viwd
+a█   b
+
+## r: vj iw
+vjiwd
+a█b cd
+ef gh
+
+## r: 2daw at end fails
+2daw
+a b █c
+
+## r: diw cjk
+diw
+x █中文abc y
+
+## r: di( paren in single quotes
+di(
+f(█a, ')')
+
+## r: di( paren in double quotes
+di(
+f(█a, ")")
+
+## r: di( quote before cursor
+di(
+f(a, ')', █b)
+
+## r: di( escaped paren
+di(
+f(a\)b, █c)
+
+## r: di( unbalanced
+di(
+f(█a, (b
+
+## r: di( on open nested
+di(
+f█((a))
+
+## r: ci( empty
+ci(x<Esc>
+f█()
+
+## r: da{ multiline
+da{
+f {
+  █a
+}
+
+## r: ci{ multiline
+ci{x<Esc>
+f {
+  █a
+  b
+}
+
+## r: yi{ multiline register
+yi{
+f {
+  █a
+}
+
+## r: vi{ multiline
+vi{d
+f {
+  █a
+}
+z
+
+## r: di( close indented line
+di(
+f(
+  █a
+  )
+
+## r: di( open at eol
+di(
+f(
+  █a)
+
+## r: 3di( too many
+3di(
+f(a(█b))
+
+## r: di[ nested
+di[
+[a, [█b], c]
+
+## r: da[
+da[
+x [█a] y
+
+## r: vi( a(
+vi(a(d
+f(a, g(█b), c)
+
+## r: va( on open
+va(d
+x █(a) y
+
+## r: vi( empty fails
+vi(d
+f(█)
+
+## r: diB alias
+diB
+{█a}
+
+## r: di{ from indent
+di{
+█  {
+    a
+  }
+
+## r: di( forward multiline
+di(
+█f(
+ a)
+
+## r: di" between strings
+di"
+"a"█ "b"
+
+## r: da" leading white
+da"
+x = █"a"
+
+## r: da" trailing white
+da"
+█"a"  b
+
+## r: di' sql doubled
+di'
+x = 'it''█s'
+
+## r: ci' empty
+ci'x<Esc>
+x = █''
+
+## r: 2di"
+2di"
+x "█ab" y
+
+## r: di" after last quote
+di"
+"a" █b
+
+## r: da' on close quote
+da'
+x 'ab█' y
+
+## r: yi" escaped backslash
+yi"
+s = "a\\" + █"b"
+
+## r: vi" twice
+vi"i"d
+x "a█b" y
+
+## r: va" y
+va"y
+x "a█b" y
+
+## r: Vi" charwise
+Vi"d
+x "a█b" y
+z
+
+## r: di" on escaped quote
+di"
+"a\█"b"
+
+## r: dap on blank between
+dap
+a
+
+█
+
+b
+c
+
+d
+
+## r: d2ap
+d2ap
+█a
+
+b
+
+c
+
+## r: y3ip
+y3ip
+█a
+
+b
+
+c
+
+## r: dip whitespace-only separator
+dip
+█a
+  
+b
+
+## r: d} whitespace-only separator
+d}
+█a
+  
+b
+
+c
+
+## r: dip whole buffer
+dip
+█a
+b
+
+## r: 3dap too many
+3dap
+█a
+
+b
+
+## r: cap
+capx<Esc>
+█a
+b
+
+c
+
+## r: gcap
+gcap
+█a
+b
+
+c
+
+## r: gUap
+gUap
+█a
+b
+
+c
+
+## r: Vip
+Vipd
+a
+█b
+
+c
+
+## r: Vjip extends
+Vjipd
+█a
+b
+c
+
+d
+
+e
+
+## r: vap on blank
+vapd
+a
+█
+
+b
+
+c
+
+## r: v2ip
+v2ipd
+█a
+
+b
+
+c
+
+## r: 3v
+3vd
+█abcdef
+
+## r: 2V
+2Vd
+█a
+b
+c
+
+## r: vjJ
+vjJ
+█a
+b
+c
+
+## r: VjU
+VjU
+█ab
+cd
+ef
+
+## r: vj~
+vj~
+a█Bc
+DeF
+
+## r: Vjc indent
+Vjcx<Esc>
+  █a
+  b
+c
+
+## r: Vjx
+Vjx
+█a
+b
+c
+
+## r: vky cursor
+vky
+ab
+c█d
+
+## r: v$hy
+v$hy
+█abc
+d
+
+## r: vj$y
+vj$y
+a█b
+cd
+ef
+
+## r: vGy
+vGy
+a
+█bc
+de
+
+## r: vggd
+vggd
+ab
+c█d
+
+## r: v%y
+v%y
+█(a
+b)
+
+## r: Vjd undo cursor
+Vjdu
+a
+  █b
+c
+d
+
+## r: vjd undo cursor
+vjdu
+a
+b█c
+d
+
+## r: Vjjgc blank middle
+Vjjgc
+█a
+
+  b
+
+## r: gcc blank-only line
+gcc
+█   
+
+## r: gcip already commented
+gcip
+█-- a
+  -- b
+
+## r: gcc only dashes
+gcc
+█--
+
+## r: gc2j with blank
+gc2j
+█-- a
+
+-- b
+
+## r: gcc triple dash
+gcc
+█---
+
+## r: J hash comment
+J
+█# a
+# b
+
+## r: J slash comment
+J
+█// a
+// b
+
+## r: J dash list
+J
+█- a
+- b
+
+## r: J blank-only next
+J
+█a
+   
+b
+
+## r: 2p multiline charwise
+vjy2p
+█ab
+cd
+
+## r: xp at end
+xp
+ab█c
+
+## r: ddp last line
+ddp
+a
+█b
+
+## r: Dp
+Dp
+a█bc
+
+## r: yy3P
+yy3P
+█a
+b
+
+## r: yiw2P
+yiw2P
+a █bc d
+
+## r: p linewise blank register
+yyjp
+█   
+b
+
+## r: yh at col 0 keeps reg
+yyyh
+█ab
+
+## r: 3x cjk
+3x
+█中文ab
+
+## r: xp cjk
+xp
+█中文
+
+## r: 3~ cjk
+3~
+█中a文b
+
+## r: X cjk
+X
+中█文
+
+## r: cc register
+ccx<Esc>
+  █foo
+b
+
+## r: 2S register
+2Sx<Esc>
+  █a
+  b
+c
+
+## r: ciw undo
+ciwxy<Esc>u
+a █bc d
+
+## r: gUiw undo
+gUiwu
+a b█c d
+
+## r: yyP undo
+yyPu
+a
+█b
+
+## r: y} from indent linewise
+y}
+  █a
+  b
+
+c
+
+## r: c} from indent
+c}x<Esc>
+  █a
+  b
+
+c
+
+## r: d{ from line start
+d{
+a
+
+b
+█c
+
+## r: yG cursor
+yG
+a
+█bc
+d
+
+## r: ygg cursor
+ygg
+ab
+c█d
+
+## r: >2j
+>2j
+█a
+b
+c
+d
+
+## r: >> odd indent
+>>
+   █a
+
+## r: << odd indent
+<<
+   █a
+
+## r: >iw
+>iw
+  f█oo
+
+## r: df; to eol
+df;
+a█bc;
+
+## r: d$ on empty line
+d$
+a
+█
+b
+
+## r: dl at eol
+dl
+a█b
+
+## r: 3dd keeps column
+3dd
+a█bcd
+bcde
+cdef
+ghij
+
+## r: Vjd keeps column
+Vjd
+a█bcd
+efgh
+ijkl
+
+## r: V$d
+V$d
+a█bcd
+efgh
+ij
+
+## r: di" cursor before string
+di"
+x █a "b" c
+
+## r: da" no trailing takes leading
+da"
+x  █"a"
+
+## r: di' odd quotes after last
+di'
+'a' b █'c
+
+## r: vi[ a[ grow
+va[a[d
+[x, [█a], y]
+
+## r: 2di{ multiline
+2di{
+f {
+  g {
+    █a
+  }
+}
+
+## r: vjip
+vjipd
+█a
+b
+c
+
+d
+
+## r: yip on blank count 2
+y2ip
+a
+
+█
+
+b
+c
+
+## r: vj2>
+vj2>
+█a
+b
+
+## r: V<< too far
+Vj<
+ █a
+b
+
+## r: vjgc inclusive
+vjgc
+a█b
+cd
+ef
+
+## r: gcw
+gcw
+a █b
+c
+
+## r: gc} adjusted
+gc}
+█a
+b
+
+c
+
+## r: gcG
+gcG
+a
+█b
+c
+
+## r: gciw
+gciw
+a █b
+c
+
+## r: gcc tab indent
+gcc
+	█foo
+
+## r: gcj mixed indent
+gcj
+  █a
+	b
+
+## r: 5cc near end
+5ccx<Esc>
+a
+█b
+c
+
+## r: 2S last line
+2Sx<Esc>
+a
+█b
+
+## r: C on empty line
+Cx<Esc>
+a
+█
+b
+
+## r: D on empty line
+D
+a
+█
+b
+
+## r: Y on empty line
+Y
+a
+█
+b
+
+## r: yy on empty line
+yy
+a
+█
+b
+
+## r: p empty charwise
+y$jlp
+█
+abc
+
+## r: ddp only line
+ddp
+█a
+
+## r: dW across lines
+dW
+a █b.c
+  d
+
+## r: yb at line start
+yb
+ab
+█cd
+
+## r: dG on last line
+dG
+a
+b█c
+
+## r: 2d$ middle
+2d$
+a█b
+cd
+ef
+
+## r: c$ at end
+c$x<Esc>
+ab█c
+
+## r: cl on last char
+clx<Esc>
+ab█c
+
+## r: gUl at end
+gUl
+ab█c
+
+## r: 2g~$
+2g~$
+a█B
+cD
+eF
+
+## r: gu5j past end
+gu5j
+A
+█B
+C
+
+## r: >G
+>G
+a
+█b
+c
+
+## r: <gg
+<gg
+  a
+  █b
+c
+
+## r: yL
+yL
+a
+█b
+c
+
+## r: dM
+dM
+█a
+b
+c
+
+## r: 5dh
+5dh
+ab█cd
+
+## r: d3l
+d3l
+a█bcde
+
+## r: d2;
+fxd2;
+█axbxcxd
+
+## r: d2tx
+d2tx
+█abxcdxe
+
+## r: cTx
+cTyz<Esc>
+xab█c
+
+## r: c%
+c%z<Esc>
+█(a)b
+
+## r: ce on end of word
+cex<Esc>
+a█b cd
+
+## r: cE
+cEx<Esc>
+█a.b c
+
+## r: cb at line start
+cbx<Esc>
+ab
+█cd
+
+## r: c0
+c0x<Esc>
+ab█cd
+
+## r: cG
+cGx<Esc>
+a
+  █b
+  c
+
+## r: cgg
+cggx<Esc>
+  a
+  b
+█c
+
+## r: vjo k
+vjokd
+a
+b█c
+d
+
+## r: v$ iw
+v$iwd
+█ab cd
+ef
+
+## r: Viwo
+Viwod
+a █bc d
+
+## r: Va( charwise
+Va(d
+x (█a) y
+z
+
+## r: vx on empty line
+vx
+a
+█
+b
+
+## r: vly past end
+vlly
+a█b
+
+## r: ve across lines
+vend
+a █b
+c d
+
+## r: Vy P
+VyP
+a
+█b
+
+## r: gv after vjd
+vjd<Esc>gvd
+a
+█bc
+de
+fg
+hi
+
+## r: Vjy gvd
+Vjy<Esc>gvd
+█a
+b
+c
+
+## r: J cjk
+J
+█中
+文
+
+## r: vJ cjk count
+Vjj3J
+█a
+b
+c
+d
+
+## r: V~
+V~
+█aB
+cD
+
+## r: vu cjk
+v$u
+█中A文
+
+## r: 3r cjk
+3r中
+█abcd
+
+## r: r cjk on cjk
+rx
+█中文
+
+## r: gcc then gcc
+gccgcc
+  █a
+
+## r: gcip mixed commented
+gcip
+█-- a
+b
+
+## r: daw punct after space
+daw
+a █, b
+
+## r: diw at eol blank
+diw
+foo █  
+
+## r: yaw last word eol
+yaw
+foo █bar
+
+## r: yiw multibyte
+yiw
+x é█té y
+
+## r: dap middle paragraph
+dap
+a
+
+█b
+c
+
+d
+
+## r: 2dip from blank
+2dip
+a
+█
+
+b
+
+c
+
+## r: vipip
+vipipd
+█a
+
+b
+
+c
+
+## r: 3yy past end count
+3yyP
+a
+b
+█c
+
+## r: gv after O above
+Vy<Esc>ggOx<Esc>jjgvd
+a
+█b
+c
+
+## r: gv after dd above
+jVy<Esc>kddgvd
+█a
+b
+c
+
+## r: Vkip
+Vkipd
+a
+
+b
+c
+█d
+
+## r: vi( on open visual
+vi(d
+f█(a, b)
+
+## r: ci( multiline sol
+ci(x<Esc>
+f(
+  █a
+)
+
+## r: >i{
+>i{
+f {
+  █a
+}
+
+## r: gUi"
+gUi"
+x "a█b" y
+
+## r: <a(
+<a(
+  (█a
+  b)
+
+## r: ya' doubled
+ya'
+x = 'it''█s' y
+
+## r: di( on paren inside quotes
+di(
+f(a, '█(', b)
+
+## r: v2i(
+v2i(d
+f(a, g(█b), c)
+
+## r: di( after closing
+di(
+(a) █b
+
+## r: vaw last word leading white
+vawd
+foo █bar
+
+## r: vawo aw
+vawoawd
+a b █c d e
+
+## r: vl3d
+vl3d
+█abcdef
+
+## r: vl3y
+vl3y
+█abcdef
+
+## r: vl3~
+vl3~
+█abcdef
+
+## r: d Esc x
+d<Esc>x
+█abc
+
+## r: 2d Esc x
+2d<Esc>x
+█abc
+
+## r: gU Esc
+gU<Esc>x
+█abc
+
+## r: dxx
+dxx
+█abc
+
+## r: d2d
+d2d
+█a
+b
+c
+
+## r: gc2c
+gc2c
+█a
+b
+c
+
+## r: 1J
+1J
+█a
+b
+c
+
+## r: ~ count last char
+5~
+a█b
+
+## r: 2yy register
+2yy
+█a
+b
+c
+
+## r: 3cc register
+3ccx<Esc>
+█a
+ b
+c
+d
+
+## r: P charwise col 0
+yiwP
+█ab cd
+
+## r: ddP last line
+ddP
+a
+█b
+
+## r: yy2p last line
+yy2p
+a
+█b
+
+## r: dd u cursor
+jddu
+a
+b█c
+d
+
+## r: >> u cursor
+>>u
+  a█b
+
+## r: dap u cursor
+dapu
+x
+
+a█b
+c
+
+## r: Vjd u cursor col
+lVjdu
+abc
+█def
+ghi
+
+## r: J sql dash comments
+J
+█-- a
+-- b
+
+## r: J mysql hash after code
+J
+█select 1 # x
+# y
+
+## r: J minus after code
+J
+█select a
+- b
+
+## r: vi" extend from outside
+vlli"d
+█x "ab" y
+
+## r: va' visual backward
+vhhha'd
+x 'ab' █y
+
+## r: yiW cjk punct
+yiW
+a █中，文 b
+
+## r: daW multiline
+2daW
+a █b
+c d
+
+## r: gUiw cjk mixed
+gUiw
+x █éa中 y
+
+## r: vjU cjk
+vjU
+█é中
+ab
+
+## r: c2i(
+c2i(x<Esc>
+f(a, g(█b), c)
+
+## r: da( nested count visual
+va(a(d
+f(a, g(█b), c) z
+
+## r: yi( register cursor
+yi(
+f(a, █b)
+
+## r: di' cursor on first of two strings
+di'
+█'a' 'b'
+
+## r: yi` backtick
+yi`
+x `a█b` y
+
+## r: cc on indented then esc
+cc<Esc>
+    █foo
+
+## R / count wraps
+3/a<CR>
+x█a ya
+
+## R / from last char
+/f<CR>
+selec█t
+from
+
+## R / at cursor skipped
+/a<CR>
+x█ab a
+
+## R / overlapping
+/aa<CR>
+a█aaa
+
+## R / overlapping from start
+/aa<CR>
+█aaa
+
+## R / dollar from last char
+/$<CR>
+ab█c
+de
+
+## R / dollar one char line
+/$<CR>
+█a
+bc
+
+## R / caret from middle
+/^<CR>
+ab█c
+de
+
+## R / caret from start
+/^<CR>
+█abc
+de
+
+## R / empty line
+/^$<CR>
+█a
+
+b
+
+## R / wrap same line earlier
+/a<CR>
+xa y█b
+
+## R / wrap multi line
+/s<CR>
+sel
+x
+y█y
+
+## R / multibyte
+/名<CR>
+█a 名 b 名
+
+## R / multibyte on match
+/名<CR>
+a █名 b 名
+
+## R ? multibyte
+?名<CR>
+a 名 b █名
+
+## R ? from start wraps
+?a<CR>
+█xa
+ya
+
+## R ? count wraps
+3?a<CR>
+a a █a
+
+## R ? at cursor skipped
+?a<CR>
+a x █a
+
+## R ? then / then n
+?a<CR>/a<CR>n
+xa ya za wa█
+
+## R / then ? then n
+/a<CR>?a<CR>n
+█xa ya za wa
+
+## R ? empty reuses backward
+/a<CR>?<CR>n
+█xa ya za
+
+## R ? 2n
+?a<CR>2n
+xa ya za wa█
+
+## R / 3N
+/a<CR>3N
+█xa ya za wa
+
+## R n count wraps
+/a<CR>4n
+█xa ya
+
+## R / smartcase escaped D
+/\Da<CR>
+█1 xA ya
+
+## R / smartcase escaped S
+/\Sa<CR>
+█1 xA ya
+
+## R n keeps smartcase
+/From<CR>n
+█from From from From
+
+## R N smartcase lower
+/from<CR>N
+█x FROM from
+
+## R :s i then n
+:s/A/x/i<CR>n
+█A a A
+
+## R :s smartcase then n
+:s/A/x/<CR>n
+█a A a A
+
+## R * then n ignores smartcase
+*n
+█Id x id ID
+
+## R * then / empty keeps nosmartcase
+*/<CR>
+█Id x id ID
+
+## R * mid word
+*
+se█lect x select
+
+## R * underscore word
+*
+█t_a t t_a
+
+## R * whole word
+*
+█id idx xid id
+
+## R # mid word
+#
+id x i█d
+
+## R # partial
+#
+idx id █id
+
+## R * punct run middle
+*
+x --█- --
+
+## R * punct run start
+*
+x █--- --
+
+## R * trailing space
+*
+abc █ 
+
+## R * space before word
+*
+a █ b a b
+
+## R * CJK
+*
+█名字 x 名字
+
+## R * latin1
+*
+█café x café
+
+## R * word then CJK
+*
+█a名 x a名 a
+
+## R * digits
+*
+█42 x 42
+
+## R # count
+2#
+a b a c █a
+
+## R * paren
+*
+█(id) x id
+
+## R * upper word
+*
+█Select x select
+
+## R d*
+d*
+█id x id
+
+## R y#
+y#
+id x █id
+
+## R d/ to line start
+d/from<CR>
+█select id
+from t
+
+## R d/ not found
+d/zz<CR>
+█select
+
+## R c/ not found
+c/zz<CR>
+█select
+
+## R dN
+/a<CR>$dN
+█xa ya za
+
+## R d2/
+d2/a<CR>
+█xa ya za
+
+## R y? cursor
+y?id<CR>
+select id fro█m
+
+## R v? d
+v?id<CR>d
+select id fro█m
+
+## R V/ d
+V/t<CR>d
+█a
+b
+t
+c
+
+## R vn d
+/a<CR>0vnd
+█xa ya
+
+## R d/ wraps back
+d/a<CR>
+xa y█b
+
+## R gU/
+gU/d<CR>
+█select id
+
+## R d/ esc
+d/fr<Esc>
+█select from
+
+## R / C-w punct
+/fr.x<C-w>om<CR>
+█select fr.om from
+
+## R / Right
+/fo<Left><Left><Right>r<CR>
+█select from fro
+
+## R / BS mid
+/frxom<Left><Left><BS><CR>
+█select from
+
+## R / C-u mid
+/xxfrom<Left><Left><Left><Left><C-u><CR>
+█select from
+
+## R / BS at start nonempty
+/from<Left><Left><Left><Left><BS><CR>
+█select from
+
+## R / C-w empty
+/<C-w>from<CR>
+█select from
+
+## R / multibyte BS
+/名x<BS><CR>
+█a 名
+
+## R / C-h
+/fx<C-h>rom<CR>
+█select from
+
+## R v/ esc
+v/fr<Esc>d
+█select from
+
+## R v/ BS empty
+v/<BS>d
+█select from
+
+## R / trailing slash offset
+/x/<CR>
+█a x b
+
+## R :1 after dollar
+$:1<CR>
+abc
+de█f
+
+## R :2 then j
+:2<CR>j
+abc█d
+x
+abcdef
+
+## R :80
+:80<CR>
+█{1..100}
+
+## R :5 from bottom
+G:5<CR>
+█{1..100}
+
+## R : leading spaces
+:  3<CR>
+█a
+b
+c
+
+## R :% alone
+:%<CR>
+█a
+b
+c
+
+## R : empty
+:<CR>
+a
+█b
+
+## R v : C-u 3
+vj:<C-u>3<CR>
+█a
+b
+c
+d
+
+## R v : esc
+vj:<Esc>
+█a
+b
+c
+
+## R count :
+3:s/a/x/<CR>
+█a
+a
+a
+a
+
+## R :s g adjacent
+:s/a/b/g<CR>
+█aaa
+
+## R :s a star g
+:s/a*/x/g<CR>
+█baaac
+
+## R :s caret
+:s/^/-- /<CR>
+█  select
+
+## R :%s caret
+:%s/^/-- /<CR>
+a
+█b
+
+## R :s dot delim escaped
+:s.a\.b.x.<CR>
+█axb a.b
+
+## R :s plus delim
+:s+a+x+<CR>
+█ba
+
+## R :s zero group
+:s/id/[\0]/<CR>
+█select id
+
+## R :s tab repl
+:s/ /\t/<CR>
+█a b
+
+## R :s CR repl
+:s/ /\r/<CR>
+█a b
+
+## R :s dollar endcolumn
+$:s/a/x/<CR>
+█a b c
+
+## R :s then j
+:s/a/b/<CR>j
+xxx█a
+yyyyyy
+
+## R :s blank line cursor
+:s/x//<CR>
+  █x
+
+## R :s gi
+:s/A/x/gi<CR>
+█a A a
+
+## R :s ig
+:s/A/x/ig<CR>
+█a A a
+
+## R :%s u first match
+:%s/a/x/<CR>u
+b
+x█a
+b
+ca
+
+## R :%s u from below
+:%s/a/q/<CR>u
+xyza
+b
+█c
+
+## R :%s u C-r
+:%s/a/x/<CR>u<C-r>
+a
+b
+█a
+
+## R :s U mid
+:s/b/x/g<CR>U
+a b █c b
+
+## R :s u mid
+:s/b/x/g<CR>u
+a b █c b
+
+## R v partial :s
+vjj<Esc>gg:'<,'>s/a/x/g<CR>
+a█a
+aa
+aa
+aa
+
+## R V :s last not matching
+Vjj:s/a/x/<CR>
+█a
+a
+b
+
+## R V :s gv
+Vj:s/a/x/<CR>gvd
+█a
+a
+b
+
+## R :s backslash pattern
+:s/\\/x/<CR>
+█a\b
+
+## R :s backslash repl
+:s/b/\\/<CR>
+█abc
+
+## R :s slash repl
+:s/b/\//<CR>
+█abc
+
+## R :s empty repl g
+:s/a//g<CR>
+█banana
+
+## R :%s no match
+:%s/zz/x/<CR>
+a
+█b
+
+## R ? :s n direction
+?x<CR>:s/b/y/<CR>n
+x b █b b
+
+## R * :s empty g
+*:s//x/g<CR>
+█id idx id
+
+## R :s multibyte g
+:s/名/x/g<CR>
+█名 a 名
+
+## R :s double amp
+:s/a/&&/g<CR>
+█aba
+
+## R :s semicolon delim
+:s;a;b;<CR>
+█xa
+
+## R :s bracket slash
+:s/[/]/x/<CR>
+█a/b
+
+## R :2s
+:2s/a/x/<CR>
+█a
+a
+a
+
+## R :s caret g
+:s/^a/x/g<CR>
+█aaa
+
+## R :s empty no previous
+:s//x/<CR>
+█abc
+
+## R / far
+/80<CR>
+█{1..100}
+
+## R ? far
+G?20<CR>
+█{1..100}
+
+## R / wrap far
+G/5<CR>
+█{1..100}
+
+## R :%s far
+:%s/9/x/<CR>
+█{1..100}
+
+## R / digit class
+/\d\d<CR>
+█a 1 23
+
+## R / ignorecase multibyte
+/é<CR>
+█x É
+
+## R / upper multibyte
+/É<CR>
+█é x É
+
+## R ? then N
+?a<CR>N
+xa ya █za
+
+## R N after #
+#N
+a b █a c a
+
+## R c? 
+c?id<CR>x<Esc>
+select id fro█m
+
+## R d2n
+/a<CR>0d2n
+█xa ya za
+
+## R :%s u indent pin
+:%s/a/x/<CR>u
+    a
+b
+  █a
+
+## R :s u indent after match
+:s/a/y/<CR>u
+  x█a
+
+## R :s U indent after match
+:s/a/y/<CR>U
+  x█a
+
+## R :s u col1 match
+:s/a/y/<CR>u
+█xa
+
+## R :s u cursor right of match
+:s/a/y/<CR>u
+xa b█c
+
+## R / range class ignorecase
+/[a-z]<CR>
+█1 X y
+
+## R :s x star g
+:s/x*/-/g<CR>
+█abc
+
+## R :s a star g no a
+:s/a*/x/g<CR>
+█bc
+
+## R v : esc right
+lvjl:<Esc>
+abc
+d█ef
+ghi
+
+## R v : failed s
+vj:s/zz/x/<CR>
+a█b
+cd
+
+## R v back : esc
+jlvk:<Esc>
+abc
+d█ef
+
+## R ? dollar
+?$<CR>
+ab
+█cd
+
+## R / dollar n
+/$<CR>n
+█a
+b
+c
+
+## R :'<,'> no visual
+:'<,'>s/a/x/<CR>
+b
+█a
+
+## R # CJK
+#
+名字 x █名字
+
+## R :'<,'> no visual line1
+:'<,'>s/a/x/<CR>
+a
+█b
+
+## R :s smartcase escaped D
+:s/\Da/x/<CR>
+█1 xA ya
+
+## w4: V cursor on top y
+jllVky
+abcd
+█efgh
+ijkl
+
+## w4: V cursor on top U
+jllVkU
+abcd
+█efgh
+ijkl
+
+## w4: V cursor below y
+llVjy
+█abcd
+efgh
+ijkl
+
+## w4: V cursor on top colon esc
+jllVk:<Esc>
+abcd
+█efgh
+ijkl
+
+## w4: V cursor below colon esc
+llVj:<Esc>
+█abcd
+efgh
+ijkl
+
+## w4: d* mid word
+d*
+i█d x id
+
+## w4: d30H no clamp
+50Gzt3kd30H
+█0
+{1..100}
+
+## w4: range comma
+:2,3s/a/x/<CR>
+█a
+a
+a
+a
+
+## w4: range dot dollar
+:.,$s/a/x/<CR>
+a
+█a
+a
+
+## w4: range offsets
+:.-1,.+1s/a/x/<CR>
+a
+a
+█a
+a
+a
+
+## w4: range visual end mark
+Vj<Esc>G:'>s/a/x/<CR>
+█a
+a
+a
+
+## w4: % skips quoted paren
+%
+█(a, ')', b)
+
+## w4: % skips double quoted paren
+%
+█(a, ")", b)
+
+## w4: % escaped paren
+%
+█(a\)b)
+
+## w4: cmdline C-w keyword run
+:s/ab.cd<C-w>x/y/<CR>
+█ab.x
+
+## w4: star punct only line
+*
+█-- x --
+
+## w4: search empty no previous
+/<CR>
+█abc
+
+## w4: J marks follow
+Vj<Esc>ggJgvd
+█a
+  b
+c
+
+## w4: gv after P line above
+jVy<Esc>kPgvd
+█a
+b
+c
+
+## w4: 3v after nothing
+3vd
+█ab
+
+## w4: 3$ on last line
+3$x
+a
+█bc
+
+## w4: count insert C-w then u
+3ifoo<C-w>x<Esc>u
+█a
+
+## w4: count insert C-u then u
+2ia<C-u>b<Esc>u
+█z
