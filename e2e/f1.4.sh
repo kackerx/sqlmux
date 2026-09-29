@@ -56,7 +56,7 @@ e2e_click 100 2; sleep 0.3
 check "点击 WHERE 那一行：开始输入" eval 'mode_is INSERT && [[ $(bar) == *"-- editing WHERE --"* ]]'
 key Escape
 where "stauts = 1"
-check "写错的条件：内容区第一行是 error 色的数据库错误，不画表格，不显示行,列" eval 'l=$(e2e_text 35 159 4); [[ $l == *"stauts"*"does not exist"* && -z $(grid_y) && -z $(pos) ]] && style_has 36 4 fg=$ERROR || { echo "  row 4: $l"; false; }'
+check "写错的条件：错误栏是 error 色的 [42703]（F3.20），表格照旧画着上一次的数据" eval 'errbar_is 1 "[42703] column \"stauts\" does not exist ×" && style_has 36 $(errbar_y 1) fg=$ERROR && [[ -n $(grid_y) && $(val status 1) == done ]] && pos_is 1,1'
 key /
 check "报错后查询条仍可编辑" eval 'mode_is INSERT && [[ $(where_in) == "stauts = 1" ]]'
 key Escape
@@ -171,7 +171,7 @@ check "t_big（估计 110 万行，没有 WHERE）：显示 ~1.1m 行、PAGE 1/~
 check "用估计值时不发计数：Meta 最后一条是取数" eval '[[ $(psql_n "select query from pg_stat_activity where application_name = '"'$APP'"' order by query_start desc limit 1") == "select * from \"public\".\"t_big\""* ]]'
 where "id < 10"
 check "带 WHERE 时照常精确计数（9 行）" eval '[[ $(cnt) == 9 ]]'
-open_table t_order
+open_table t_order; key 0   # F3.18 起 t_big 开在新 tab：这里切回原来的 t_order（F1.6），光标照旧在它原来的列
 
 # ---- 悬停行、点击行号（§7.6，G-06 / G-04）
 key 3 l

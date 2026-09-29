@@ -23,7 +23,7 @@ start; open_table t_order; wait_for 8 settled
 edit; typ sta; key Escape
 check "esc 第一次：只关补全列表，仍在输入" eval '[[ -z $(boxN 1) ]] && mode_is INSERT && [[ $(where_in) == sta ]]'
 key Enter; wait_for 8 settled
-check "列表关了之后 ↵：执行查询" eval 'mode_is NORMAL && e2e_text 35 159 4 | grep -q "column \"sta\" does not exist"'
+check "列表关了之后 ↵：执行查询（错误栏报 sta 不是列，F3.20）" eval 'mode_is NORMAL && [[ $(errbar 1 | head -1) == *"column \"sta\" does not exist"* ]]'
 edit; typ sta; key Escape; key Escape
 check "esc 第二次：退出输入，输入框恢复成生效的条件" eval 'mode_is NORMAL && [[ $(where_in) == sta ]]'   # 生效的就是刚才执行过的 sta
 

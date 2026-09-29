@@ -39,7 +39,9 @@ e2e_click "$ox" 3; sleep 0.3
 check "点 chip 的列名部分：打开下拉框，排序不变" eval '[[ -n $(dd) ]] && [[ $(qb) == *"ORDER id $ASC "* ]]'
 key Escape
 
-# ---- 三个图标按钮画成 " <图标> "：悬停整个按钮亮，命中区覆盖整个按钮
+# ---- 图标按钮画成 " <图标> "：悬停整个按钮亮，命中区覆盖整个按钮
+# F3.23 起工具按钮有三组七个，70 列的 ① 放不下（整组让位）：先关掉 console，让 ① 占满侧栏右边
+solo
 rx=$(at "$REFRESH"); tx=$(at "$TRANSPOSE")
 e2e_move $((rx - 1)) 3; sleep 0.3
 check "指针在刷新按钮左边的空格上：整个按钮（3 列）亮" eval 'lit $((rx - 1)) && lit $rx && lit $((rx + 1)) && ! lit $((rx + 2))'
@@ -60,21 +62,18 @@ check "在下拉框选 occurred_at：同样 order by \"occurred_at\" desc, \"id\
 open_table t_log; wait_for 8 settled
 check "t_log：ORDER —，查询条上没有方向图标" eval '[[ $(qb) == *"ORDER —"* && $(qb) != *"$ASC"* && $(qb) != *"$DESC"* ]] || { echo "  $(qb)"; false; }'
 
-# ---- chip 被截断时，方向按钮连同图标一起不画，截剩的列名只属于 chip（fdd2b79）
+# ---- 放不下的 chip 整个让位，不画半截（F3.23，§7.8「第二行放不下时谁让位」；原来截断的 chip 上的命中区见 fdd2b79）
 start -x 70 -y 24 -C "$D/own"; open_table t_event; wait_for 8 settled; two_panes
 g=($(e2e_panes | awk '$1 == 1 { print $2, $3, $4, $5 }')); last=$((g[0] + g[2] - 2))
-check "70 列、两个 pane：① 的 ORDER chip 被截断，没有方向图标" eval '[[ $(e2e_text ${g[0]} $((last + 1)) 3) != *"$ASC"* ]] || { echo "  $(e2e_text ${g[0]} $((last + 1)) 3)"; false; }'
-e2e_move "$last" 3; sleep 0.3
-check "指针在截剩的最后一格：亮的是整个 chip" eval 'lit $last && lit $(at ORDER)'
-e2e_click "$last" 3; sleep 0.3
-check "点这一格：打开下拉框，不翻转方向" eval '[[ -n $(dd) ]]'
-key Escape
+check "70 列、三个 pane：① 只有 10 列，连 ORDER chip 也让位，第二行是空的" eval '[[ -z $(e2e_text $((g[0] + 1)) $last 3 | tr -d " ") ]] || { echo "  $(e2e_text ${g[0]} $((last + 1)) 3)"; false; }'
+e2e_move "$last" 3; sleep 0.3; e2e_click "$last" 3; sleep 0.3
+check "点那一行：没有命中区，不开下拉框" eval '[[ -z $(dd) ]] && ! lit $last'
 
 # ---- 主题的 [icon] 给 save、refresh、transpose、sort_asc 写 fg 后生效（§7.7）
 mkdir -p "$D/themed/themes"; cp "$D/own/connections.toml" "$D/themed/"
 printf 'theme = "x"\n' >"$D/themed/config.toml"
 printf '[icon]\nsave = { fg = "#010203" }\nrefresh = { fg = "#040506" }\ntranspose = { fg = "#070809" }\nsort_asc = { fg = "#0a0b0c" }\n' >"$D/themed/themes/x.toml"
-start -C "$D/themed"; open_table t_order; wait_for 8 settled
+SOLO=1 start -C "$D/themed"; open_table t_order; wait_for 8 settled
 check "[icon] 的 fg：save / refresh / transpose / sort_asc 各用各的颜色" eval 'style_has $(at "$SAVE") 3 fg=#010203 && style_has $(at "$REFRESH") 3 fg=#040506 && style_has $(at "$TRANSPOSE") 3 fg=#070809 && style_has $(at "$ASC") 3 fg=#0a0b0c'
 
 e2e_done

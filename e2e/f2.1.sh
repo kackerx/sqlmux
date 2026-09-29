@@ -29,22 +29,23 @@ start -C "$D/own"; open_table t_order; wait_for 8 settled
 orig=$(psql "$E2E_DB" -At -c "select amount from t_order where id = 1")
 
 # ---- 进入编辑：↵；输入替换全选的内容；esc 提交；修改样式、保存按钮上的计数
-# 用 amount（不可空、没有默认值、不是枚举 / 布尔）：它没有 F2.3 的选项浮层，只看 F2.1 的输入框
+# 用 amount（不可空、没有默认值、不是枚举 / 布尔）：它没有 F2.3 的选项浮层，只看 F2.1 的输入框。
+# numeric(10,2) 有 F3.21 的前置校验：输入合法的数（12.34、23.45），不合法的写法在 f3.21.sh
 key 3 l; key Enter
 check "↵ 进入编辑：状态栏 -- editing amount --，INSERT" editing amount
-typ zz; key Escape
-check "输入 zz、esc 提交：回到 NORMAL，光标不动，格子是 zz" eval 'mode_is NORMAL && pos_is 1,4 && [[ $(cell amount 1) == zz ]]'
+typ 12.34; key Escape
+check "输入 12.34、esc 提交：回到 NORMAL，光标不动，格子是 12.34" eval 'mode_is NORMAL && pos_is 1,4 && [[ $(cell amount 1) == 12.34 ]]'
 check "修改过的格：warn 字、点状下划线（SGR 4:4）" marked amount 1
 check "保存按钮显示修改数 1" eval '[[ $(saves) == 1 ]] || { echo "  $(qb)"; false; }'
 key Enter; typ "$orig"; key Escape
 check "改回原值：修改删掉，样式消失，保存按钮上没有计数" eval '[[ $(cell amount 1) == "$orig" && -z $(saves) ]] && ! marked amount 1'
 
 # ---- 翻页、改 WHERE 都保留修改
-key Enter; typ zz; key Escape
+key Enter; typ 12.34; key Escape
 key ']'; wait_for 8 settled; key '['; wait_for 8 settled
-check "翻到第 2 页再回来：修改还在，仍是修改样式，计数 1" eval '[[ $(cell amount 1) == zz && $(saves) == 1 ]] && marked amount 1'
+check "翻到第 2 页再回来：修改还在，仍是修改样式，计数 1" eval '[[ $(cell amount 1) == 12.34 && $(saves) == 1 ]] && marked amount 1'
 key /; clear_in; typ "id < 3"; key Enter; wait_for 8 settled
-check "改 WHERE 之后这一行还在页里：照样标记" eval 'qb_has "PAGE 1/1" && [[ $(cell amount 1) == zz ]] && marked amount 1'
+check "改 WHERE 之后这一行还在页里：照样标记" eval 'qb_has "PAGE 1/1" && [[ $(cell amount 1) == 12.34 ]] && marked amount 1'
 key /; clear_in; key Enter; wait_for 8 settled
 
 # ---- 其他进入方式：i、双击；转置视图下编辑光标所在的格
@@ -59,9 +60,9 @@ check "转置视图下 ↵：编辑光标所在的格（状态栏是列名）" e
 key Escape; key T
 
 # ---- 提交：点击别处（先提交，再把光标移过去，不进入编辑）、全局键、滚轮
-key g g; key 0; key 3 l; key j; key Enter; typ yy
+key g g; key 0; key 3 l; key j; key Enter; typ 23.45
 e2e_click "$(col_x amount)" "$(row_y 5)"; sleep 0.4
-check "编辑中点击别的格：先提交（yy 记下），光标移到 5,4，不进入编辑" eval 'mode_is NORMAL && pos_is 5,4 && [[ $(cell amount 2) == yy && $(saves) == 2 ]]'
+check "编辑中点击别的格：先提交（23.45 记下），光标移到 5,4，不进入编辑" eval 'mode_is NORMAL && pos_is 5,4 && [[ $(cell amount 2) == 23.45 && $(saves) == 2 ]]'
 key Enter; typ 7.77; key C-p
 check "编辑中按全局键 C-p：先提交，再打开命令面板" eval 'is_open && [[ $(saves) == 3 ]]'
 key Escape

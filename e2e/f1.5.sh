@@ -35,7 +35,7 @@ check "前缀为空（刚敲了空格）：不弹" eval '[[ -z $(pop) ]]'
 typ n
 check "列名一组在前（note），关键字在后（not、null），注释「关键字」；首字符必须是 n（F1.14：没有 amount、is null）" eval 'i=$(items | cut -d"|" -f1); [[ $(tr "\n" , <<<"$i") == "note text,not 关键字,null 关键字," ]] || { echo "  $(tr "\n" , <<<"$i")"; false; }'
 clear_in; typ stat; key Escape; key Enter; wait_for 8 settled
-check "esc 关掉列表之后 ↵ 直接执行查询（stat 不是列：报错）" eval 'mode_is NORMAL && [[ $(e2e_text 35 159 4) == *"stat"*"does not exist"* ]]'
+check "esc 关掉列表之后 ↵ 直接执行查询（stat 不是列：错误栏报错，F3.20）" eval 'mode_is NORMAL && [[ $(errbar 1 | head -1) == *"column \"stat\" does not exist"* ]]'
 
 # ---- 补全：取值模式（枚举、布尔；§9.7）
 edit; typ "status = "
