@@ -22,7 +22,7 @@
 │        Views (0)            │ │                                                                                                                             │
 │ ▾  工作区                   │ │                                                                                                                             │
 │   ▾  data                   │ │                                                                                                                             │
-│     ▾ ①                      │ │                                                                                                                             │
+│     ▾   pane-1               │ │                                                                                                                             │
 │          t_order  status =… │ │                                                                                                                             │
 │          t_order            │ │                                                                                                                             │
 │                              │ │                                                                                                                             │

@@ -80,7 +80,7 @@ func TestTreeNodes(t *testing.T) {
 	if !slices.Equal(got[:6], want) {
 		t.Fatalf("top:\n%s", strings.Join(got[:6], "\n"))
 	}
-	if tail := strings.Join(got[18:], "|"); tail != "    ▸ Views (2)|▾ 工作区|  ▾ data|      |    ▾ |        console_1" { // a pane is its ①, no type (§5)
+	if tail := strings.Join(got[18:], "|"); tail != "    ▸ Views (2)|▾ 工作区|  ▾ data|      pane-1|    ▾ pane-2|        console_1" { // a pane is pane-<n>, no type (§7.8)
 		t.Errorf("tail %q", tail)
 	}
 	ns, _ := a.treeNodes()
@@ -269,7 +269,8 @@ func TestTreeColumnOpens(t *testing.T) {
 }
 
 // The workspace lists this window's panes and their tabs, the one ↵ on a
-// table lands on in focus color; ↵ on a tab switches to it (§7.8).
+// table lands on in focus color; ↵ on a pane opens or closes it, on a tab
+// switches to it (§7.8).
 func TestTreeWorkspace(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	data := a.focused()
@@ -277,7 +278,7 @@ func TestTreeWorkspace(t *testing.T) {
 	dataOf(data).shown.applied = "id > 1"
 	a.win().focus(0)
 	workspace := func() string { return treeTexts(a)[strings.Index(treeTexts(a), "▾ 工作区"):] }
-	if ws := workspace(); ws != "▾ 工作区\n  ▾ data\n    ▾ \n        t_user\n        t_sku\n    ▾ \n        console_1" {
+	if ws := workspace(); ws != "▾ 工作区\n  ▾ data\n    ▾ pane-1\n        t_user\n        t_sku\n    ▾ pane-2\n        console_1" {
 		t.Fatalf("workspace:\n%s", ws)
 	}
 	ns, _ := a.treeNodes()
@@ -286,8 +287,14 @@ func TestTreeWorkspace(t *testing.T) {
 			t.Errorf("%s: current %v aside %q", n.Text, n.Current, n.Aside)
 		}
 	}
-	treeTo(t, a, "t_user")
-	feed(t, a, "k") // the pane node
+	treeTo(t, a, "pane-1")
+	if feed(t, a, "<CR>"); a.win().Focus != 0 || !strings.Contains(workspace(), "▸ pane-1\n    ▾ pane-2") {
+		t.Fatalf("↵ on a pane closes it, the focus stays: %d\n%s", a.win().Focus, workspace())
+	}
+	pane := slices.IndexFunc(func() []node { ns, _ := a.treeNodes(); return ns }(), func(n node) bool { return n.Text == "pane-1" })
+	if click(a, find(t, a, ui.Target{Kind: ui.KindNode, Pane: 0, I: pane}).Min); a.win().Focus != 0 || !strings.Contains(workspace(), "▾ pane-1") {
+		t.Fatalf("a click on it opens it again, the focus stays: %d", a.win().Focus)
+	}
 	feed(t, a, "j<CR>")
 	if a.win().Focus != data.ID || data.Cur != 0 {
 		t.Fatalf("↵ on t_user: focus %d cur %d", a.win().Focus, data.Cur)

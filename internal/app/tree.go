@@ -225,9 +225,9 @@ func (a *App) treeNodes() (ns []node, matches int) {
 		if !add(node{id: wid, kind: nodeWindow, win: wi, TreeNode: ui.TreeNode{Depth: 1, Branch: len(leaves) > 0, Open: a.opened(wid, true), Icon: ic.Window, IconFg: th.Info, Text: w.Name}}) {
 			continue
 		}
-		for n, p := range leaves { // numbered by ⟨n⟩: the sidebar is 0; no type, the tabs have theirs (§5)
+		for n, p := range leaves { // pane-<n> by ⟨n⟩: the sidebar is 0; no icon, the tabs have theirs (§7.8)
 			pid := fmt.Sprintf("%s/pane:%d", wid, p.ID)
-			if !add(node{id: pid, kind: nodePane, win: wi, pane: p, TreeNode: ui.TreeNode{Depth: 2, Branch: len(p.Tabs) > 0, Open: a.opened(pid, true), Icon: ui.Icon{Text: ic.Number(n + 1)}}}) {
+			if !add(node{id: pid, kind: nodePane, win: wi, pane: p, TreeNode: ui.TreeNode{Depth: 2, Branch: len(p.Tabs) > 0, Open: a.opened(pid, true), Icon: ui.Icon{Text: " "}, Text: fmt.Sprintf("pane-%d", n+1)}}) {
 				continue
 			}
 			for i, tb := range p.Tabs {
@@ -381,8 +381,8 @@ func (a *App) treeCollapse() tea.Cmd {
 }
 
 // treeOpen is ↵ (and t, newTab) on the cursor's node (§7.8): a table opens,
-// a column opens its table on that column, a pane or tab of this window is
-// switched to; the rest open and close. t only opens tables.
+// a column opens its table on that column, a tab of this window is
+// switched to; the rest, panes too, open and close. t only opens tables.
 func (a *App) treeOpen(newTab bool) tea.Cmd {
 	n, ok := a.treeNode()
 	switch {
@@ -394,11 +394,9 @@ func (a *App) treeOpen(newTab bool) tea.Cmd {
 		cmd := a.openTable(n.table, false)
 		a.gotoColumn(n.table, n.column)
 		return cmd
-	case n.kind == nodePane && n.win == a.sess.Active:
-		a.showPane(n.pane.ID)
 	case n.kind == nodeTab && n.win == a.sess.Active:
 		a.showTab(tabAt{p: n.pane, i: n.tab})
-	case n.kind != nodePane && n.kind != nodeTab: // a window's switch waits for M5
+	case n.kind != nodeTab: // a window's switch waits for M5, as another's tabs
 		return a.treeFold(n, !n.Open)
 	}
 	return nil
