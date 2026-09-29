@@ -800,7 +800,12 @@ catalog 按 session 缓存。console 执行 DDL 后（由 §9.3 的判定得知�
   - 命令面板里也有对应的「Switch schema…」命令。
 - **默认值**：新建的 console，默认使用 schema 树当前所在的 schema；之后两者互不影响。
 - **执行方式**：同一个 session 的所有 console 共用 `Main` 连接，所以每次执行前比较一下（session 记下 `Main` 当前的 search_path，初始为建连时读到的值；一次执行里有 SET / RESET / DISCARD 语句时把记下的值作废，下次一定重新 SET。代价是用户在 console 里自己 `set search_path` 只持续到这次执行结束，以下拉框为准）：如果连接当前的 `search_path` 与这个 console 选择的 schema 不一致，先执行 `SET search_path TO <所选 schema>, <建连时的原始 search_path>`。
-  - 原始路径在建连时用 `SHOW search_path` 读取，接在后面，这样装在 `public` 等 schema 里的扩展函数仍然能找到。
+  - 原始路径在建连时用 `SHOW search_path` 读取，接在后面，这样装在 `public` 等 schema 里的扩展函数仍然能找到。设置时用 `set_config('search_path', $1, false)` 带参数的写法，不把原始值拼进 SQL：服务器上设了 `search_path = ''`，或者 DSN 里写了 `$user,public` 时，拼接会报语法错（快速 SQL 已经这样写）。
+  - **只在事务外记住 search_path**（M3 审查时在真 PG 上复现）：
+    - `Main` 处在出错的事务里时（pgconn 的 TxStatus 为 `E`），跳过 SET 直接执行，并清掉记下的值。否则 SET 本身报 25P02，按「SET 失败时后面的语句不执行」，用户的 `rollback` 永远执行不到，session 卡死到重启。
+    - 一次执行结束时连接还在事务里（TxStatus 不是 `I`），不记这次的 SET，下次一定重新 SET。否则事务里做的 SET 被用户的 `rollback` 撤掉之后，记下的值还当它在，下一次悄悄按别的 schema 查表。
+  - **schema 被删掉之后**：PG 接受不存在的 schema，SET 照样成功，只是找表时跳过它。catalog 重新加载后，选中的 schema 已经不存在的 console 退回树当前的 schema，不弹提示，同树退回 `current_schema()` 的做法。
+  - 已知上限：用 `select set_config('search_path', …)` 改 search_path 不会让记下的值作废（首词是 select），代码里用 `ponytail:` 标出。
 - **影响范围**：console 的补全以它自己选择的 schema 为准。表格查询始终带 schema 前缀，不受影响。
 
 MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session，所以 MySQL 的 console 不显示这个下拉框。
