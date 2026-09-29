@@ -292,7 +292,7 @@ func TestConsoleExternal(t *testing.T) {
 // completed again as they come; CTE names among the tables; C-n with
 // nothing typed. ↵ takes one as typing it would, part of the INSERT's undo
 // step, and is a newline when that changes nothing; esc closes the list
-// first; a character not of a name closes it.
+// and leaves INSERT, as nvim-cmp; a character not of a name closes it.
 func TestConsoleCompletion(t *testing.T) {
 	a, c := inConsole(t, "")
 	table, cols, _ := ordersTable(0)
@@ -338,10 +338,10 @@ func TestConsoleCompletion(t *testing.T) {
 		t.Fatalf("C-n: %+v", c.comp)
 	}
 	feed(t, a, "<Esc>")
-	if c.comp != nil || c.ed.Mode() != editor.Insert {
+	if c.comp != nil || c.ed.Mode() != editor.Normal {
 		t.Fatalf("esc: list %+v in %v", c.comp, c.ed.Mode())
 	}
-	feed(t, a, "t_o;")
+	feed(t, a, "At_o;")
 	if c.comp != nil {
 		t.Error("; closes it")
 	}

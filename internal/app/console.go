@@ -100,14 +100,11 @@ func (a *App) consoleView(p *Pane, t *consoleTab) (ui.Console, uv.Rectangle) {
 
 // consoleKey gives key k to the editor of console t, in pane p. With the
 // candidates up, ↵ takes the selected one, and is the editor's when that
-// changes nothing; esc closes them first (§9.7). In INSERT a character
-// typed completes; C-n does with nothing typed.
+// changes nothing; esc closes them and leaves INSERT, as nvim-cmp (§9.7).
+// In INSERT a character typed completes; C-n does with nothing typed.
 func (a *App) consoleKey(p *Pane, t *consoleTab, k keymap.Key) tea.Cmd {
 	a.consoleView(p, t)
 	switch {
-	case t.comp != nil && k == keymap.Esc:
-		t.comp, t.wait = nil, nil
-		return nil
 	case t.comp != nil && k == "<CR>":
 		if ok, cmd := a.consoleAccept(t); ok {
 			return cmd
