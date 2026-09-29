@@ -164,7 +164,7 @@
 - [ ] 引导页：内容区中间两行按钮 ` <table 图标> 打开表 ` 和 ` <console 图标> 新建 console `，后面跟 `dim` 色的键位，悬停 `select` 底。`[keys.landing]`：`t` → `tab.table`「打开表」，`c` → `console.new`「新建 console」，另加 `:`、`;`（§6.8）。
 - [ ] `+` 新开一个引导 tab 并切过去；M1 的 `newTabIn` 标记删掉。
 - [ ] 「打开表」：打开面板的表范围，选中的表总是开在这个引导 tab 里，替换它，不去找已经打开的同一张表。从树或面板正常打开表时，目标 pane 的当前 tab 是引导 tab，也替换它。
-- [ ] 「新建 console」：在引导 tab 上就地换成 console；从面板执行 `console.new` 时，在焦点所在的普通 pane 新开 console tab，焦点在树上时用 openTarget 选出的 pane。
+- [ ] 「新建 console」：目标 pane 的当前 tab 是引导 tab 时就地换成 console（`c`、点击、面板都一样）；否则在焦点所在的普通 pane 新开 console tab，焦点在树上时用 openTarget 选出的 pane。打开表同理：当前 tab 是引导 tab 时，`↵`、`t`、`C-t` 都替换它（§5）。
 - [ ] openTarget 的「data pane」改成「普通 pane」（不含结果区）；焦点不在普通 pane 上时优先取最近聚焦过、当前 tab 不是 console 的 pane；当前 tab 是 console 时新开 tab（§5）。
 - [ ] 引导 tab 名为「新 tab」，不画图标，ascii 下也不写类型词；没有 tab 的 pane 标题只有 `⟨n⟩`；引导页和空 pane 的 tab 栏不显示键位提示。`x` / `:q` 关引导 tab 不确认。
 - [ ] `:wq` 在表 tab 上先保存、成功后才关闭（§11「文件」）。
