@@ -121,7 +121,9 @@
 
 **开发**
 - [ ] 默认布局（§5）：⟨1⟩ 是空 pane（F3.7 起显示引导页），⟨2⟩ 是 console_1，宽度 5:4，初始焦点在 ⟨1⟩。
-- [ ] 文件、自动保存、`:w` / `C-s` / `:q`（§11「文件」）。配置加 `tab_width`。
+- [ ] 文件、自动保存、`:w` / `C-s` / `:q` / `:wq`（§11「文件」）。自动保存的去抖用 `tea.Tick` 加序号；写入失败 toast「保存失败：<err>」。配置加 `tab_width`。
+- [ ] 连接名用作目录名，config 里校验连接名：不允许 `/`、`\\`、以 `.` 开头（§14）。
+- [ ] 横向滚动照 nvim 默认的 `sidescroll=1`、`sidescrolloff=0`；编辑器加 `SetWidth(n)`、`Left()`；差分结果在 leftcol 不为 0 时加一行 `left: N`，补几条长行的用例。
 - [ ] 绘制（`ui/console.go`）：每行 `▶`（1 列，`focus` 色；上次执行出错的语句为 `error` 色，缓冲区一有改动就清掉）+ 行号（宽 max(3, 位数)，右对齐，`dim` 色，光标行用 `fg`）+ 1 个空格 + 文本。NORMAL 下光标所在语句的范围用 `row` 底，VISUAL 选区用 `select` 底。
 - [ ] 高亮：关键字 `keyword`，数字 `number`，字符串 `sql_string`，注释 `comment`，标识符后面紧跟 `(` 的用 `func`，其余 `fg`（§7.3）。
 - [ ] 光标用终端光标：NORMAL / VISUAL 为块，INSERT 为竖线，REPLACE 为下划线。
@@ -129,7 +131,7 @@
 - [ ] `/`、`?`、`:` 的输入行在内容区最后一行（§11「命令行」）。`:`、`;` 从 `[keys.normal]` 挪到 `[keys.grid]`、`[keys.tree]`（`[keys.landing]` 在 F3.7），console 里交给编辑器（§6.8）。
 - [ ] 编辑器在等后续按键时跳过 keymap（§6.4）。
 - [ ] 鼠标：单击定位光标（INSERT 下仍是 INSERT，VISUAL 下回到 NORMAL）；在文本区拖动从按下处进入字符 VISUAL；滚轮每格 3 行，最多滚到最后一行在顶部，光标夹回视图内；单击 ▶ 执行那一条语句（`console.run <行>`，F3.8 接上）。
-- [ ] 粘贴：NORMAL 和 INSERT 下插在光标处、模式不变；VISUAL 下先退出选区再插；整段算一个撤销步；CRLF 换成 LF；粘贴不弹补全。
+- [ ] 粘贴照 nvim 的 `vim.paste`：NORMAL 下贴在光标后面（同 `p`），贴完光标停在最后一个贴进去的字符上；INSERT 下插在光标处；VISUAL 下用粘贴内容替换选区；模式不变；整段算一个撤销步；CRLF 换成 LF；粘贴不弹补全。
 - [ ] 「在 $EDITOR 中编辑」：Action `console.external`，默认不绑键；依次取 `$VISUAL`、`$EDITOR`、`vi`，用 `sh -c` 执行；先写盘，再用 `tea.ExecProcess` 打开，回来后重新载入，算一个撤销步。
 - [ ] 支持 `[map.console.normal]`、`[map.console.visual]`。
 - [ ] 代码里写死的 `doraemon.public ▾` 去掉，F3.11 再画真实的按钮。
@@ -140,8 +142,9 @@
   - 拖动能选中文本；`f<Space>x` 删掉的是空格后面的字符，不会关掉 pane；
   - console 里 `;` 重复 f/t，`:` 打开编辑器的命令行，`:3` 跳到第 3 行；
   - 文件保存到隔离后的 `XDG_DATA_HOME` 下，权限 0600；重启后 console_1 还是上次的内容；
-  - 在 NORMAL 下粘贴，内容作为文本插入；
-  - 状态栏的模式、VISUAL 附加信息、showcmd 正确。
+  - 在 NORMAL 下粘贴，内容作为文本贴在光标后面，不会被当作命令执行；
+  - 状态栏的模式、VISUAL 附加信息、showcmd 正确；
+  - 连接名里带 `/` 时启动报错。
 - [ ] golden：console 的高亮、gutter、语句范围、VISUAL 选区、命令行。
 - [ ] 补回 M0 里因 F1.1 去掉假 console 而删掉的 e2e（tester 在 F1.1 结论里列出），和 schema 下拉框无关的部分：
   - f0.2：data:console = 5:4；console 未聚焦的边框 / 标题色；`▶ run ↵` 的样式与各宽度下的退让；no_wasted_room；

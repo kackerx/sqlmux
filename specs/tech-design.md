@@ -1111,7 +1111,7 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 **其他要求**：
 
 - **撤销的粒度**：一条 NORMAL 命令，或一次完整的 INSERT，算一个撤销步骤。实现上保存整份快照；缓冲区是 `[]string`，几 MB 以上的文件会变慢，SQL 文件一般遇不到。
-- **粘贴**：支持 bracketed paste，粘贴内容一律作为文本插入。否则在 NORMAL 下粘贴，会把文本当作命令执行，可能误删内容。
+- **粘贴**：支持 bracketed paste，粘贴内容一律作为文本插入。否则在 NORMAL 下粘贴，会把文本当作命令执行，可能误删内容。位置照 nvim 的 `vim.paste`：NORMAL 下贴在光标后面（同 `p`），INSERT 下插在光标处，VISUAL 下替换选区。
 - **键位映射**：按 §6.6 配置。`[map.console.normal]` 和 `[map.console.visual]` 只对 console 生效，例如 `L = "5l"`。用户映射会覆盖编辑器内置的同名 vim 键（如 `J` 合并行），与 nvim 的 `nnoremap` 行为一致。
 
 **完整 vim 的出口**：命令面板中的「Edit in $EDITOR」命令，通过 `tea.ExecProcess` 暂停 TUI，用外部编辑器打开当前文件，退出后重新载入。默认不绑定键位。
@@ -1278,7 +1278,7 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 | `~/.local/share/sqlmux/consoles/` | 由应用写入 | console 的 SQL 文件 |
 
 - 连接定义单独放一个文件，是因为应用改写 TOML 时会丢掉注释，所以不能去改用户手写的 config.toml。
-- `name`、`engine`、`dsn` 必填。`engine` 在 M1 只接受 `postgres`，其他值报错「目前只支持 postgres」。
+- `name`、`engine`、`dsn` 必填。`name` 会用作 console 文件的目录名（§11），所以不允许含 `/`、`\`，也不能以 `.` 开头，否则启动报错。`engine` 在 M1 只接受 `postgres`，其他值报错「目前只支持 postgres」。
 - **启动时找不到连接**：没有 `connections.toml`、文件里没有连接，或者 `sqlmux <名字>` 找不到这个名字时，在终端打印错误就退出（退出码 1），不进入界面。错误里写明配置文件的路径；名字找不到时列出已有的连接名。连接失败（比如密码错误）也一样，打印驱动返回的错误后退出；pgconn 逐个地址尝试时会打出多行（标题一行，每个地址一行），照样输出，不压成一行。在界面里新建连接（S-03）要到 M5。
 - **state.json**（M1 F1.5 起）：路径 `$XDG_STATE_HOME/sqlmux/state.json`，读写都在 `config` 包里。
   - 内容：`recent` 是面板的最近使用，记成 `{"kind": "table", "id": "public.t_order"}`，kind 为 window / pane / table / command；`tables` 的键是 `"<连接名>/<schema>.<表>"`（不同连接可能有同名表），每张表下存 history 和 favorites。
