@@ -127,21 +127,25 @@ type Session struct {
 	cols       map[tableID]db.Columns
 	Windows    []*Window
 	Active     int
-	RunSeq     int // the last run's number, #42 on its result tabs (§11)
+	RunSeq     int    // the last run's number, #42 on its result tabs (§11)
+	warning    string // console_1's file could not be read: a toast on start (§11)
 }
 
 func (a *App) win() *Window { return a.sess.Windows[a.sess.Active] }
 
 // newSession is a session's default workspace (§5): one window, data, with
 // the sidebar, a pane with no tab and console_1 beside it at 5 : 4 (§7.8),
-// which has what its file kept (§11).
-func newSession(name, addr string, main, meta *db.Worker) (*Session, error) {
-	cons, err := openConsole(name, 1)
-	if err != nil {
-		return nil, err
-	}
+// which has what its file kept (§11). A file that cannot be read leaves
+// that pane with no tab too: opened empty, the autosave would write over it.
+func newSession(name, addr string, main, meta *db.Worker) *Session {
+	s := &Session{Name: name, Addr: addr, Main: main, Meta: meta, cols: map[tableID]db.Columns{}}
 	data := &Pane{ID: 1, Prev: -1}
-	console := &Pane{ID: 2, Tabs: []Tab{{Name: "console_1", Console: cons}}, Prev: -1}
+	console := &Pane{ID: 2, Prev: -1}
+	if cons, err := openConsole(name, 1); err != nil {
+		s.warning = err.Error()
+	} else {
+		console.Tabs = []Tab{{Name: "console_1", Console: cons}}
+	}
 	w := &Window{
 		Name:     "data",
 		TreeOpen: true,
@@ -150,7 +154,8 @@ func newSession(name, addr string, main, meta *db.Worker) (*Session, error) {
 		lastID:   2,
 	}
 	w.focus(1)
-	return &Session{Name: name, Addr: addr, Main: main, Meta: meta, cols: map[tableID]db.Columns{}, Windows: []*Window{w}}, nil
+	s.Windows = []*Window{w}
+	return s
 }
 
 // Open connects a session's Main and then its Meta (§8.2).
@@ -168,12 +173,7 @@ func Open(ctx context.Context, c config.Connection) (*Session, error) {
 		main.Close()
 		return nil, err
 	}
-	s, err := newSession(c.Name, main.Addr, db.NewWorker(main), db.NewWorker(meta))
-	if err != nil {
-		main.Close()
-		meta.Close()
-	}
-	return s, err
+	return newSession(c.Name, main.Addr, db.NewWorker(main), db.NewWorker(meta)), nil
 }
 
 func (s *Session) Close() {
@@ -186,11 +186,9 @@ func (s *Session) Close() {
 // tab of the window that has t is switched to, or, with several, picked
 // from the palette; with none, t's first page is fetched in place of the
 // target's current tab, unless that is a console or has changes not saved.
+// A landing tab is always replaced (§5「引导页」).
 func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 	p := a.openTarget()
-	if p == nil {
-		return nil
-	}
 	if !newTab {
 		switch open := a.tabsOf(t); len(open) {
 		case 0:
@@ -205,7 +203,7 @@ func (a *App) openTable(t db.Table, newTab bool) tea.Cmd {
 	cur := p.tab()
 	// never over SQL the user wrote, nor over changes not saved (§5, §12)
 	newTab = newTab || cur != nil && (cur.Console != nil || cur.Data != nil && len(cur.Data.edits) > 0)
-	return a.openTableIn(p, t, !newTab)
+	return a.openTableIn(p, t, !newTab || cur.landing())
 }
 
 // openTableIn opens table t in pane p, over its current tab or in a new
@@ -270,31 +268,16 @@ func (a *App) cycleTab(d, count int) {
 // newTab is tab.new, a tab bar's +: a landing tab after the last one,
 // which it becomes, in the focused pane (§5「引导页」).
 func (a *App) newTab() {
-	p := a.normalPane()
-	if p == nil {
-		return
-	}
+	p := a.openTarget()
 	a.showPane(p.ID)
 	putTab(p, landing(), false)
 }
 
-// normalPane is the focused pane, or openTarget's while the tree or the
-// result area has the focus.
-func (a *App) normalPane() *Pane {
-	if p := a.focused(); p != a.win().Tree && p != a.win().Result {
-		return p
-	}
-	return a.openTarget()
-}
-
 // newConsole is console.new (§5, §11): console_n, n the least not open in
 // the session, with what its file keeps, in place of a landing tab or in a
-// new tab of normalPane.
+// new tab of openTarget's pane.
 func (a *App) newConsole() tea.Cmd {
-	p := a.normalPane()
-	if p == nil {
-		return nil
-	}
+	p := a.openTarget()
 	n := 1
 	for a.consoleOpen(config.ConsolePath(a.sess.Name, n)) {
 		n++
@@ -336,7 +319,7 @@ func (a *App) paneShowing(t *dataTab) *Pane {
 // closeTab closes pane p's current tab (:q). Closing the last tab closes
 // the pane too, except the sidebar and the window's only pane.
 func (a *App) closeTab(p *Pane) {
-	if p == a.win().Tree || len(p.Tabs) == 0 {
+	if p == a.win().Tree || len(p.Tabs) == 0 || p == a.win().Result && resultOf(p).run == nil { // the log stays (§11)
 		return
 	}
 	closed := p.Cur
@@ -365,6 +348,11 @@ func (a *App) removePane(id int) {
 		return
 	}
 	if res := win.Result; res != nil && id == res.ID {
+		for _, tb := range res.Tabs { // what a run going on took the place of goes too
+			if r := tb.Result.run; r != nil {
+				r.prev = nil
+			}
+		}
 		win.resultRatio, win.Result = win.Root.Ratio, nil // it is the root's lower half
 	}
 	if root, heir := win.Root.remove(id); root != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"sqlmux/internal/db"
+	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 )
 
@@ -68,6 +69,23 @@ func deliver(a *App, cmd tea.Cmd) {
 	case runDone:
 		a.Update(m)
 	}
+}
+
+// runOf is the runDone cmd would deliver, not delivered.
+func runOf(t *testing.T, cmd tea.Cmd) runDone {
+	t.Helper()
+	switch m := cmd().(type) {
+	case tea.BatchMsg:
+		for _, c := range m {
+			if done, ok := c().(runDone); ok {
+				return done
+			}
+		}
+	case runDone:
+		return m
+	}
+	t.Fatal("no run")
+	return runDone{}
 }
 
 // inRun is inConsole with Main answering from d and the console holding text.
@@ -158,6 +176,9 @@ func TestRunFails(t *testing.T) {
 	if c.failed != 2 {
 		t.Errorf("red ▶ on line %d, want 2", c.failed)
 	}
+	if press(t, a, "gg<CR>"); c.failed != -1 { // the next run starts with none
+		t.Errorf("red ▶ on line %d after select 1 ran", c.failed)
+	}
 	a.consoleDid(c, c.ed.Load("select pg_sleep(9);"))
 	press(t, a, "<CR>")
 	if a.toast != "查询已取消" || c.failed != -1 || !strings.HasSuffix(logText(a), "已取消") {
@@ -188,13 +209,7 @@ func TestRunDDLAndBusy(t *testing.T) {
 	if _, again := a.Update(teaKey("<CR>")); again != nil {
 		t.Error("a second ↵ while it runs")
 	}
-	var done runDone
-	for _, m := range cmd().(tea.BatchMsg) {
-		if r, ok := m().(runDone); ok {
-			done = r
-		}
-	}
-	if _, cmd := a.Update(done); cmd == nil || len(a.sess.cols) != 0 || a.busy != 0 {
+	if _, cmd := a.Update(runOf(t, cmd)); cmd == nil || len(a.sess.cols) != 0 || a.busy != 0 {
 		t.Errorf("after create table: the catalog loads again, the columns go: %v", a.sess.cols)
 	}
 }
@@ -224,8 +239,70 @@ func TestResultKeys(t *testing.T) {
 		t.Fatalf("x: %v", tabNames(res))
 	}
 	press(t, a, "q")
-	if tabNames(res) != "日志" {
-		t.Error("q closed the log")
+	if a.run("tab.close", 0); tabNames(res) != "日志" {
+		t.Error("q or tab.close (:q) closed the log")
+	}
+}
+
+// ↵ runs the statement under the cursor; a click on a ▶ the one starting
+// on its line, the cursor staying; VISUAL what it selects, to the end of
+// the last character or the line break (§11「执行」).
+func TestRunWhat(t *testing.T) {
+	d := &execDB{}
+	a, c := inRun(t, d, "select '中', 2;\nselect 3;\nselect 4;")
+	deliver(a, a.run("console.run 3", 0))
+	if len(d.ran) != 1 || d.ran[0] != "select 4\nLIMIT 1001" || c.ed.Cursor() != (editor.Pos{}) {
+		t.Fatalf("▶ 3: ran %q, cursor %v", d.ran, c.ed.Cursor())
+	}
+	for _, k := range []struct{ keys, span string }{
+		{"f'v", "'"},
+		{"f'vl", "'中"},                       // a character, not a byte
+		{"wv$", "'中', 2;\n"},                 // with the line break
+		{"$vj", ";\nselect 3;\n"},            // $ aims j at the end: the line break too
+		{"jlV", "select 3;"},                 // whole lines
+		{"jl<C-v>j", "select 3;\nselect 4;"}, // a block by its whole lines
+	} {
+		press(t, a, "<Esc>gg0"+k.keys)
+		if text, from, to := consoleSpan(c, ""); text[from:to] != k.span || c.ed.Mode() != editor.Normal {
+			t.Errorf("%s: %q, mode %v", k.keys, text[from:to], c.ed.Mode())
+		}
+	}
+	d.ran = nil
+	if press(t, a, "gg0wvj<CR>"); strings.Join(d.ran, ";") != "'中', 2;select 3\nLIMIT 1001" || c.ed.Cursor() != (editor.Pos{Line: 1, Col: 7}) {
+		t.Errorf("v then ↵: ran %q, cursor %v", d.ran, c.ed.Cursor())
+	}
+}
+
+// 重跑 runs the tab's SQL, which the console's text may no longer be: no
+// ▶ goes red then (§11).
+func TestRerunAfterEdit(t *testing.T) {
+	nope := &pgconn.PgError{Severity: "ERROR", Message: "relation \"nope\" does not exist"}
+	d := &execDB{res: map[string]db.Result{"select 1": rows(1)}, fail: map[string]error{"select * from nope": nope}}
+	for _, edited := range []string{"x", "select 5;\nselect 6;\nselect 1;\nselect * from nope;"} {
+		a, c := inRun(t, d, "select 1;\nselect * from nope;")
+		press(t, a, "ggVG<CR>")
+		a.consoleDid(c, c.ed.Load(edited))
+		res := a.win().Result
+		a.win().focus(res.ID)
+		selectTab(res, 1)
+		if press(t, a, "R"); c.failed != -1 || !strings.HasSuffix(logText(a), "does not exist") {
+			t.Errorf("%q: red ▶ %d, log %q", edited, c.failed, logText(a))
+		}
+	}
+}
+
+// The result area closed while a run goes on takes the tabs it took the
+// place of along: back with no result set, the run brings none back (§11).
+func TestResultAreaClosedWhileRunning(t *testing.T) {
+	d := &execDB{res: map[string]db.Result{"select 1": rows(1), "update t set a = 1": {Tag: "UPDATE 3"}}}
+	a, c := inRun(t, d, "select 1")
+	press(t, a, "<CR>")
+	a.consoleDid(c, c.ed.Load("update t set a = 1"))
+	_, cmd := a.Update(teaKey("<CR>"))
+	win := a.win()
+	a.removePane(win.Result.ID)
+	if a.Update(runOf(t, cmd)); tabNames(win.Result) != "日志" {
+		t.Errorf("tabs %v", tabNames(win.Result))
 	}
 }
 
@@ -258,8 +335,9 @@ func TestResultAreaCloses(t *testing.T) {
 }
 
 // The result area's title as the window narrows: the words go first,
-// then export, transpose, pin, rerun; close stays longest (§11「工具行」).
-// Then the log tab, with an error in it.
+// then export, transpose, pin, rerun, strictly; close stays longest
+// (§11「工具行」). Then a run's placeholder, and the log tab with an error
+// in it.
 func TestGoldenResult(t *testing.T) {
 	d := &execDB{res: map[string]db.Result{"select 1": rows(3)}, fail: map[string]error{"select x": &pgconn.PgError{Severity: "ERROR", Message: "column \"x\" does not exist"}}}
 	clock = func() time.Time { return time.Date(2026, 9, 29, 14, 5, 12, 0, time.Local) }
@@ -275,8 +353,11 @@ func TestGoldenResult(t *testing.T) {
 		titles = append(titles, ansi.Cut(strings.Split(a.render().String(), "\n")[r.Min.Y], r.Min.X, r.Max.X))
 	}
 	a, c := inRun(t, d, "select 1;\nselect x;")
-	press(t, a, "<CR>")
+	_, cmd := a.Update(teaKey("<CR>"))
+	r := a.layout()[a.win().Result.ID]
+	running := strings.Split(a.render().String(), "\n")[r.Min.Y+1]
+	a.Update(runOf(t, cmd))
 	a.consoleDid(c, c.ed.Feed("j"))
 	press(t, a, "<CR>")
-	golden.RequireEqual(t, strings.Join(titles, "\n")+"\n\n"+a.render().String())
+	golden.RequireEqual(t, strings.Join(titles, "\n")+"\n\n"+ansi.Cut(running, r.Min.X, r.Max.X)+"\n\n"+a.render().String())
 }

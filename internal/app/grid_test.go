@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"sqlmux/internal/db"
@@ -65,6 +66,27 @@ func TestGoldenTable160x45(t *testing.T) {
 	a := wide(160, 45)
 	loadOrders(t, a, 60)
 	golden.RequireEqual(t, a.render().String())
+}
+
+// In the default layout ① is some 70 columns: the query bar's count gives
+// way first; a save's note goes before the buttons and then the chips,
+// from the right, and cut in its middle past that (§7.8「查询条」).
+func TestGoldenQueryBarNarrow(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 60)
+	r := a.layout()[a.focused().ID]
+	row := func() string { return ansi.Cut(strings.Split(a.render().String(), "\n")[r.Min.Y+2], r.Min.X, r.Max.X) }
+	rows := []string{row()}
+	for _, n := range []ui.Note{
+		{Head: "已保存 1 行 · 3ms"},
+		{Head: "id = 1：", Mid: `invalid input syntax for type numeric: "abc"`, Tail: "，已回滚", Fg: a.theme.Error},
+		{Head: "id = 1：", Mid: strings.Repeat("x", 80), Tail: "，已回滚", Fg: a.theme.Error},
+		{},
+	} {
+		tab.note = n
+		rows = append(rows, row())
+	}
+	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")
 }
 
 func TestGoldenTableTransposed160x45(t *testing.T) {

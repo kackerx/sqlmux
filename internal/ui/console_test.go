@@ -76,6 +76,7 @@ func TestGoldenConsole(t *testing.T) {
 		{"visual", Console{Lines: sql, Cursor: TextPos{2, 9}, CursorCol: 9, Sel: Sel{Mode: SelChars, From: TextPos{1, 7}, To: TextPos{2, 9}}}, 40, 7},
 		{"vline", Console{Lines: sql, Cursor: TextPos{2, 0}, Sel: Sel{Mode: SelLines, From: TextPos{1, 0}, To: TextPos{2, 0}}}, 40, 7},
 		{"vblock", Console{Lines: []string{"a\tbc", "abcdef", "ab"}, Cursor: TextPos{2, 2}, CursorCol: 2, Sel: Sel{Mode: SelBlock, From: TextPos{0, 1}, To: TextPos{2, 2}, Left: 1, Right: 2}}, 20, 3},
+		{"vblock over part of a tab", Console{Lines: []string{"\tbc", "abcdef"}, Cursor: TextPos{1, 1}, CursorCol: 1, Sel: Sel{Mode: SelBlock, From: TextPos{0, 0}, To: TextPos{1, 1}, Left: 1, Right: 1}}, 20, 2},
 		{"cmdline", Console{Lines: sql, Prompt: ":", Text: "%s/a/b", Pos: 6}, 40, 7},
 		{"search", Console{Lines: sql, Prompt: "/", Text: "count", Pos: 5}, 40, 7},
 		{"failed", Console{Lines: sql, Cursor: TextPos{5, 0}, Normal: true, Failed: 5}, 40, 7},

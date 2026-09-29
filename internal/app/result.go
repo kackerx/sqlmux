@@ -38,7 +38,7 @@ type run struct {
 	name  string // the console's tab name as it ran: console_1
 	sql   string // what ran, for 重跑
 	base  int    // where sql is in the console's text, for the red ▶
-	ver   int    // the console's version as it ran: a ▶ goes red only on the text that ran
+	ver   int    // the console's version base is of: a ▶ goes red only while the text is still that
 	seq   int    // Session.RunSeq: #42
 	start time.Time
 	win   *Window
@@ -95,7 +95,7 @@ func (a *App) consoleRun(arg string) tea.Cmd {
 	if from < 0 {
 		return nil
 	}
-	return a.runSQL(t, p.Object(), text[from:to], from)
+	return a.runSQL(t, p.Object(), text[from:to], from, t.ver)
 }
 
 // consoleSpan is what ↵ and gq take of console t (§9.5, §11): the
@@ -144,18 +144,19 @@ func consoleSpan(t *consoleTab, arg string) (text string, from, to int) {
 	return text, from, to
 }
 
-// runSQL runs sql of console t, named name, which is at base in its text:
-// in Main, a statement at a time, each committing on its own, stopping at
-// the first that fails (§11). Reads get a LIMIT a row past max_rows, to
-// tell there are more. The result area shows a placeholder meanwhile.
-func (a *App) runSQL(t *consoleTab, name, sql string, base int) tea.Cmd {
+// runSQL runs sql of console t, named name, which is at base in its text
+// at version ver: in Main, a statement at a time, each committing on its
+// own, stopping at the first that fails (§11). Reads get a LIMIT a row
+// past max_rows, to tell there are more. The result area shows a
+// placeholder meanwhile; the console's red ▶ goes until this run fails.
+func (a *App) runSQL(t *consoleTab, name, sql string, base, ver int) tea.Cmd {
 	stmts := sqlkit.Statements(sql, sqlkit.PG)
 	if len(stmts) == 0 || t.running != nil {
 		return nil
 	}
 	a.sess.RunSeq++
-	r := &run{from: t, name: name, sql: sql, base: base, ver: t.ver, seq: a.sess.RunSeq, start: time.Now(), win: a.win(), stmts: stmts}
-	t.running = r
+	r := &run{from: t, name: name, sql: sql, base: base, ver: ver, seq: a.sess.RunSeq, start: time.Now(), win: a.win(), stmts: stmts}
+	t.running, t.failed = r, -1
 	p := a.resultPane(r.win)
 	at, old := a.placeRun(r, []Tab{{Name: r.label(1), Result: &resultTab{run: r}}})
 	r.prev = old
@@ -299,7 +300,7 @@ func (a *App) rerun() tea.Cmd {
 		return nil
 	}
 	r := rt.run
-	return a.runSQL(r.from, r.name, r.sql, r.base)
+	return a.runSQL(r.from, r.name, r.sql, r.base, r.ver) // base holds only while the text is still r.ver
 }
 
 // exportResult writes the result tab to <console>-<n>.csv in the current

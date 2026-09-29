@@ -41,6 +41,14 @@ type Button struct {
 	Count  int // shown after the icon when not 0: save's changed cells (Q-05)
 }
 
+// tail is what follows the icon: a blank, or the count between blanks.
+func (b Button) tail() string {
+	if b.Count > 0 {
+		return " " + strconv.Itoa(b.Count) + " "
+	}
+	return " "
+}
+
 // QueryBar is the two rows above a data pane's table (§7.8「查询条」):
 // WHERE and its input, then the chips, the buttons (Q-05) and what the last
 // query returned.
@@ -110,7 +118,8 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 		return cursor
 	}
 	y := r.Min.Y + 1
-	for i, cr := range q.chipRects(r) {
+	chips, buttons := q.shown(r)
+	for i, cr := range q.chipRects(r)[:chips] {
 		c := q.Chips[i]
 		chip := uv.Style{Fg: th.Fg, Bg: th.Sep}
 		var icon uv.Rectangle // its own button: lit on its own, the rest of the chip without it (§7.8)
@@ -135,16 +144,10 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 			f.Text(x+Width(c.Icon.Text), y, cr.Max.X, " ", uv.Style{Bg: ist.Bg})
 		}
 	}
-	x = r.Min.X + 1
-	if rects := q.chipRects(r); len(rects) > 0 {
-		x = rects[len(rects)-1].Max.X + 2
-	}
-	for _, b := range q.Buttons { // " <icon> ", a column apart, lit whole under the pointer (§7.8)
+	x = q.end(r, chips, 0)
+	for _, b := range q.Buttons[:buttons] { // " <icon> ", a column apart, lit whole under the pointer (§7.8)
 		st := uv.Style{Fg: th.Info, Bg: th.PaneBg}
-		tail := " "
-		if b.Count > 0 {
-			tail = " " + strconv.Itoa(b.Count) + " "
-		}
+		tail := b.tail()
 		w := min(Width(b.Icon.Text)+1+len(tail), max(r.Max.X-1-x, 0))
 		if b.Action != "" && f.Region(uv.Rect(x, y, w, 1), Target{Kind: KindHint, Pane: q.Pane, Action: b.Action}) {
 			st.Bg = th.Select
@@ -168,6 +171,38 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 		f.Text(rx, y, r.Max.X-1, right, st)
 	}
 	return cursor
+}
+
+// shown is how many chips and buttons show: all, but for a note that does
+// not fit, which goes before them: the buttons give way from the right,
+// then the chips (§7.8「查询条」). The count in Right just is not shown.
+func (q QueryBar) shown(r uv.Rectangle) (chips, buttons int) {
+	chips, buttons = len(q.Chips), len(q.Buttons)
+	need := Width(q.Note.Head + q.Note.Mid + q.Note.Tail)
+	for q.Note != (Note{}) && chips+buttons > 0 && q.end(r, chips, buttons)+need >= r.Max.X-1 {
+		if buttons > 0 {
+			buttons--
+		} else {
+			chips--
+		}
+	}
+	return chips, buttons
+}
+
+// end is where the first chips and buttons end on the second row: what is
+// right of them starts after it.
+func (q QueryBar) end(r uv.Rectangle, chips, buttons int) int {
+	x := r.Min.X + 1
+	for _, c := range q.Chips[:chips] {
+		x += Width(c.text()) + 1
+	}
+	if chips > 0 {
+		x++ // two columns after the last chip
+	}
+	for _, b := range q.Buttons[:buttons] {
+		x += Width(b.Icon.Text) + 2 + len(b.tail()) // and a column apart
+	}
+	return x
 }
 
 // Note is how a save went (§10.3): Mid, a database's error, is cut to fit

@@ -2,6 +2,7 @@ package app
 
 import (
 	"cmp"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -31,7 +32,7 @@ func openConsole(conn string, n int) (*consoleTab, error) {
 	path := config.ConsolePath(conn, n)
 	text, err := config.ReadConsole(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("读取失败：%w", err)
 	}
 	return &consoleTab{ed: editor.New(text), path: path, failed: -1}, nil
 }

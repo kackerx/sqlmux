@@ -15,6 +15,8 @@ func writeConfig(t *testing.T, toml string) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("XDG_DATA_HOME", t.TempDir()) // open() reads the consoles there
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	os.MkdirAll(filepath.Join(dir, "sqlmux"), 0o755)
 	if err := os.WriteFile(filepath.Join(dir, "sqlmux", "config.toml"), []byte(toml), 0o644); err != nil {
 		t.Fatal(err)

@@ -87,7 +87,7 @@ func (c Console) Draw(f *Frame, r uv.Rectangle) uv.Position {
 	cur := c.Cursor
 	from, to := -1, -1 // the statement under the cursor, by lines
 	if i := sqlkit.StmtAt(text, stmts, starts[cur.Line]+cur.Col); i >= 0 && c.Normal {
-		from, to = lineOf(stmts[i].Start), lineOf(stmts[i].End)
+		from, to = lineOf(stmts[i].Lead), lineOf(stmts[i].End) // with the comment lines above it (§9.2)
 	}
 	colors := c.colors(th, text)
 	ta, width := c.TextArea(r), c.gutter()-2
@@ -149,6 +149,12 @@ func (c Console) drawLine(f *Frame, ta uv.Rectangle, row, n int, fg []color.Colo
 		switch {
 		case l[i] == '\t' || v < c.Left && v+w > c.Left: // a tab, or a character cut by the left edge: blanks
 			for k := max(v, c.Left); k < v+w; k++ {
+				if c.Sel.Mode == SelBlock { // a block colors only the columns it covers
+					st.Bg = bg
+					if c.selected(n, i, k, 1) {
+						st.Bg = th.Select
+					}
+				}
 				put(k, " ", st)
 			}
 		case v >= c.Left:

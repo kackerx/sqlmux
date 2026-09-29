@@ -1,6 +1,6 @@
  |   1 -- the users                       |
  |.ddd.cccccccccccc.......................|
- |                                        |
+ |     rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr|
  |▶  2 select id, count(*) from t_user    |
  |>ddd.kkkkkk.....fffff....kkkk...........|
  |     rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr|

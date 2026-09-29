@@ -80,7 +80,7 @@ func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, 
 		theme: cfg.Theme, icons: cfg.Icons, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, resultHeight: cfg.ResultHeight,
 		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess,
-		mouse: uv.Pos(-1, -1), warning: warning, state: st,
+		mouse: uv.Pos(-1, -1), warning: strings.Trim(warning+"；"+sess.warning, "；"), state: st,
 	}
 }
 
@@ -194,7 +194,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // press handles one key, typed or clicked (a which-key item).
-func (a *App) press(k keymap.Key) tea.Cmd {
+func (a *App) press(k keymap.Key) tea.Cmd { return a.feed(k, true) }
+
+// feed is press with user maps on or off: a mapping's right-hand side comes
+// back from the resolver to go in here key by key, maps off (noremap), each
+// meeting the editor as it then is (§6.6).
+func (a *App) feed(k keymap.Key, maps bool) tea.Cmd {
 	if a.paneNumbers {
 		a.jumpToPane(k)
 		return nil
@@ -207,7 +212,7 @@ func (a *App) press(k keymap.Key) tea.Cmd {
 		}
 		return a.consoleKey(a.focused(), t, k)
 	}
-	out, wait := a.res.Feed(a.context(), k)
+	out, wait := a.res.Feed(a.context(), k, maps)
 	cmd := a.dispatch(out)
 	seq := a.res.Seq()
 	switch {
@@ -382,6 +387,9 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 		if r.Action != "" {
 			cmds = append(cmds, a.run(r.Action, r.Count))
 			continue
+		}
+		for _, k := range r.Map {
+			cmds = append(cmds, a.feed(k, false))
 		}
 		for _, k := range r.Keys { // unbound keys go to the input that has them
 			switch t := a.typingTab(); {

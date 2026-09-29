@@ -11,6 +11,7 @@ import (
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/editor"
+	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
 
@@ -60,9 +61,20 @@ func TestConsoleKeys(t *testing.T) {
 	}
 }
 
-// The user's maps for the console apply there, over the editor's own keys.
+// The user's maps for the console apply there, over the editor's own keys;
+// the right-hand side goes in as typed, meeting the editor as it then is
+// (§6.6): after i, a space is typed, no leader.
 func TestConsoleMaps(t *testing.T) {
-	a, c := inConsole(t, "tab_width = 4\n[map.console.normal]\nL = \"5l\"\n[map.console.visual]\nH = \"2h\"\n")
+	a, c := inConsole(t, "tab_width = 4\n[map.console.normal]\nL = \"5l\"\nQ = \"iselect x<Esc>\"\nX = \"f<Space>\"\n[map.console.visual]\nH = \"2h\"\n")
+	feed(t, a, "Q")
+	if text(c) != "select x" || c.ed.Mode() != editor.Normal || len(a.win().Root.Leaves()) != 2 {
+		t.Fatalf("Q = iselect x<Esc>: %q in %v, panes %d", text(c), c.ed.Mode(), len(a.win().Root.Leaves()))
+	}
+	feed(t, a, "0Xxx")
+	if text(c) != "select" || len(a.win().Root.Leaves()) != 2 {
+		t.Fatalf("X = f<Space>, x, x: %q, panes %d", text(c), len(a.win().Root.Leaves()))
+	}
+	feed(t, a, "dd")
 	feed(t, a, "iabcdefgh<Esc>0L")
 	if c.ed.Cursor().Col != 5 {
 		t.Errorf("L = 5l: col %d", c.ed.Cursor().Col)
@@ -108,9 +120,24 @@ func TestConsoleFile(t *testing.T) {
 	if data, _ := os.ReadFile(c.path); string(data) != "select 1; -- one\n2\n" || len(a.win().Root.Leaves()) != 1 {
 		t.Fatalf(":wq: %q, panes %d", data, len(a.win().Root.Leaves()))
 	}
-	s, err := newSession("doraemon", "", nil, nil)
-	if err != nil || text(consoleOf(s.Windows[0].Root.B.Pane)) != "select 1; -- one\n2" {
-		t.Fatalf("a new session: %v", err)
+	if s := newSession("doraemon", "", nil, nil); text(consoleOf(s.Windows[0].Root.B.Pane)) != "select 1; -- one\n2" || s.warning != "" {
+		t.Fatalf("a new session: %q", s.warning)
+	}
+}
+
+// A console file that cannot be read is not opened, empty or not: a toast
+// says so and the rest starts (§11).
+func TestConsoleUnreadable(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	os.MkdirAll(config.ConsolePath("doraemon", 1), 0o700) // a directory where the file goes
+	s := newSession("doraemon", "", nil, nil)
+	if p := s.Windows[0].Root.B.Pane; len(p.Tabs) != 0 || !strings.HasPrefix(s.warning, "读取失败：") {
+		t.Fatalf("tabs %v, warning %q", p.Tabs, s.warning)
+	}
+	c := config.Default()
+	keys, _ := keymap.New(c)
+	if a := New(c, keys, s, &config.State{}, "careful"); a.warning != "careful；"+s.warning {
+		t.Errorf("warning %q", a.warning)
 	}
 }
 

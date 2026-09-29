@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"slices"
@@ -129,28 +128,13 @@ func (a *App) quickView(q *quickSQL) *ui.PaletteResult {
 }
 
 // copyQuick puts the result on the clipboard over OSC 52 as CSV (F-04):
-// the header and the rows shown, NULL as nothing, as lazysql's
-// helpers/csv.go writes it.
+// the header and the rows shown.
 func (a *App) copyQuick() tea.Cmd {
 	q := a.palette.quick
 	if q == nil || q.res.Cols == nil {
 		return nil
 	}
-	var b strings.Builder
-	w := csv.NewWriter(&b)
-	rec := make([]string, len(q.res.Cols))
-	for i, c := range q.res.Cols {
-		rec[i] = c.Name
-	}
-	w.Write(rec)
-	for _, row := range q.res.Rows {
-		for i, v := range row {
-			rec[i] = v.S // "" when NULL
-		}
-		w.Write(rec)
-	}
-	w.Flush()
-	return tea.SetClipboard(b.String())
+	return tea.SetClipboard(csvOf(q.res))
 }
 
 // completeSQL finds the candidates for the word being typed in the quick

@@ -185,7 +185,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	switch rt := resultOf(p); {
 	case rt != nil:
 		if rt.run != nil && rt.run.done {
-			b.Hints = a.resultHints(rt)
+			b.Hints, b.StrictHints = a.resultHints(rt), true
 		}
 		tabHints = bound(
 			ui.Hint{Key: a.hints("grid", "", "grid.left", "grid.down", "grid.up", "grid.right")},
@@ -338,8 +338,8 @@ func (a *App) tabIcon(t *Tab) (ui.Icon, string) {
 }
 
 // resultHints are the result area's title (§11「工具行」): what the result
-// is, then its buttons, which make room in the order close, rerun, pin,
-// transpose, export, and the words last.
+// is, then its buttons, which stay in the order close, rerun, pin,
+// transpose, export, the words last, strictly.
 func (a *App) resultHints(rt *resultTab) []ui.Hint {
 	ic := a.icons
 	button := func(i ui.Icon, action string, prio int) ui.Hint {

@@ -115,6 +115,7 @@ type Result struct {
 	Action string // bound action, with args
 	Count  int    // count typed before it; 0 when none
 	Keys   []Key  // keys no binding claimed, for the focused widget (count digits included)
+	Map    []Key  // a user mapping's right-hand side, a count typed before it first: feed each as typed, maps off
 }
 
 // Resolver turns key presses into actions: counts, sequences, timeouts and
@@ -129,12 +130,13 @@ type Resolver struct {
 
 func NewResolver(m *Map) *Resolver { return &Resolver{m: m} }
 
-// Feed consumes one key press. wait reports an ambiguous pending sequence:
-// the caller should call Timeout(seq) after Map.Timeout unless another key
-// comes first.
-func (r *Resolver) Feed(c Context, k Key) (out []Result, wait bool) {
+// Feed consumes one key press; maps is false for the keys of a mapping's
+// right-hand side, which are not remapped (noremap). wait reports an
+// ambiguous pending sequence: the caller should call Timeout(seq) after
+// Map.Timeout unless another key comes first.
+func (r *Resolver) Feed(c Context, k Key, maps bool) (out []Result, wait bool) {
 	r.seq++
-	r.feed(c, k, r.m.trie(c, true), &out)
+	r.feed(c, k, r.m.trie(c, maps), &out)
 	return out, r.node != nil && r.node.bound
 }
 
@@ -211,12 +213,10 @@ func (r *Resolver) fire(c Context, out *[]Result) {
 		*out = append(*out, Result{Action: n.action, Count: cnt})
 		return
 	}
-	// noremap: the right-hand side runs against the bindings without user
-	// maps; a count typed before the mapping goes in front, as in vim.
-	base := r.m.trie(c, false)
-	for _, k := range append(digits(count), r.m.expand(n.rhs)...) {
-		r.feed(c, k, base, out)
-	}
+	// The right-hand side goes back to be fed key by key, each in the
+	// context it then meets (i makes the next keys INSERT's), as vim's
+	// typeahead; a count typed before the mapping goes in front.
+	*out = append(*out, Result{Map: append(digits(count), r.m.expand(n.rhs)...)})
 }
 
 func digits(s string) []Key {

@@ -127,7 +127,7 @@ func init() {
 			}
 		})},
 		"result.close": {Title: "关闭结果", Run: do(func(a *App, _ Args) {
-			if p := a.focused(); p == a.win().Result && resultOf(p).run != nil { // the log stays
+			if p := a.focused(); p == a.win().Result {
 				a.closeTab(p)
 			}
 		})},

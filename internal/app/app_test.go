@@ -44,10 +44,7 @@ func (noDB) Close() error                                                { retur
 // testSession is the default workspace over a catalog of 14 tables in
 // public and one in agentable, with no database behind it.
 func testSession() *Session {
-	s, err := newSession("doraemon", "pg@localhost:5432", db.NewWorker(noDB{}), db.NewWorker(noDB{}))
-	if err != nil {
-		panic(err)
-	}
+	s := newSession("doraemon", "pg@localhost:5432", db.NewWorker(noDB{}), db.NewWorker(noDB{}))
 	s.Schema, s.Schemas, s.home = "public", []string{"agentable", "public"}, "public"
 	s.Tables = []db.Table{{Schema: "agentable", Name: "planner", Rows: 3}}
 	for _, t := range []struct {
@@ -506,6 +503,20 @@ func TestLandingTab(t *testing.T) {
 	plus()
 	if feed(t, a, "x"); tabNames(left) != "t_user t_user t_sku console_2" || a.confirm != nil {
 		t.Errorf("x on a landing tab: tabs %v", tabNames(left))
+	}
+}
+
+// The tree's t (C-t, a middle click) opens a table over the target's
+// landing tab too, not beside it (§5「引导页」).
+func TestTreeTabOverLanding(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	left := a.focused()
+	feed(t, a, "<C-p>@t_user<CR>")
+	a.run("tab.new", 0)
+	a.win().focus(0)
+	treeTo(t, a, "t_sku")
+	if feed(t, a, "t"); tabNames(left) != "t_user t_sku" || left.Cur != 1 {
+		t.Fatalf("tabs %v cur %d", tabNames(left), left.Cur)
 	}
 }
 

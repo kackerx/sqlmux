@@ -35,16 +35,29 @@ var (
 	input   = Context{Focus: []string{"input"}, Mode: Insert}
 )
 
-// press feeds a vim-notation string and flattens what came out.
+// press feeds a vim-notation string and flattens what came out, feeding a
+// mapping's right-hand side back without maps, as the app does.
 func press(t *testing.T, r *Resolver, c Context, s string) (out []Result, wait bool) {
 	t.Helper()
 	ks, err := Parse(s)
 	if err != nil {
 		t.Fatal(err)
 	}
+	var feed func(k Key, maps bool)
+	feed = func(k Key, maps bool) {
+		res, w := r.Feed(c, k, maps)
+		wait = w
+		for _, x := range res {
+			if x.Map == nil {
+				out = append(out, x)
+			}
+			for _, k := range x.Map {
+				feed(k, false)
+			}
+		}
+	}
 	for _, k := range ks {
-		res, w := r.Feed(c, k)
-		out, wait = append(out, res...), w
+		feed(k, true)
 	}
 	return out, wait
 }

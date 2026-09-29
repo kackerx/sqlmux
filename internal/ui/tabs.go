@@ -44,10 +44,10 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		x = f.Text(x, y, r.Max.X, n+mark+" ", st)
 		f.Region(uv.Rect(start, y, x-start, 1), Target{Kind: KindTab, Pane: t.Pane, I: i})
 	}
-	if len(t.Names) > 0 {
-		x = f.Text(x, y, r.Max.X, "│", uv.Style{Fg: th.Sep, Bg: th.Bg})
-	}
 	if !t.NoNew {
+		if len(t.Names) > 0 {
+			x = f.Text(x, y, r.Max.X, "│", uv.Style{Fg: th.Sep, Bg: th.Bg})
+		}
 		plus := base
 		if f.Region(uv.Rect(x, y, min(3, r.Max.X-x), 1), Target{Kind: KindHint, Pane: t.Pane, Action: "tab.new"}) {
 			plus.Bg = th.Select

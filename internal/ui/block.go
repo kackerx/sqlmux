@@ -49,6 +49,9 @@ type Block struct {
 	// schema is its switch and the only place it shows (§7.8).
 	ObjectFirst bool
 	Hints       []Hint // in drawing order
+	// StrictHints drops hints strictly by priority: none after the first
+	// that does not fit, however narrow (the result area's buttons, §11).
+	StrictHints bool
 	Focused     bool
 	Pane        int
 	// TitleAction makes the drawn title a button (the sidebar's schema, §7.8).
@@ -162,6 +165,8 @@ func (b Block) placeHints(free int) ([]Hint, int) {
 		// +1: the space between the title and the first hint.
 		if w := 1 + Width(b.Hints[i].titleText()); 1+used+w <= free {
 			keep[i], used = true, used+w
+		} else if b.StrictHints {
+			break
 		}
 	}
 	var hints []Hint

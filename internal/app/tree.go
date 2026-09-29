@@ -133,8 +133,8 @@ func (a *App) treeNodes() (ns []node, matches int) {
 	open := func(id string, def bool) bool { return filtering || a.opened(id, def) }
 	var current tableID // the table ↵ lands on, and its tab (§7.8)
 	target := a.openTarget()
-	if target != nil && dataOf(target) != nil {
-		current = idOf(dataOf(target).table)
+	if t := dataOf(target); t != nil {
+		current = idOf(t.table)
 	}
 	add := func(n node) bool {
 		ns = append(ns, n)
@@ -226,6 +226,8 @@ func (a *App) treeNodes() (ns []node, matches int) {
 			}
 			for i, tb := range p.Tabs {
 				icon, _ := a.tabIcon(&p.Tabs[i])
+				// a blank for a landing tab's: its name in line with the others'
+				icon.Text = cmp.Or(icon.Text, " ")
 				fg := th.Info // a console's
 				if tb.Data != nil {
 					fg = th.Func
