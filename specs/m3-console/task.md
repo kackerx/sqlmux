@@ -1,6 +1,6 @@
 # M3 console 与结果区 · 任务清单
 
-- **状态**：F3.1–F3.11 全部 passed，完整回归在 fedc81d 上全绿（1104 项 e2e），等用户与 M2 一起验收。
+- **状态**：F3.1–F3.11 全部 passed，完整回归在 fedc81d 上全绿（1104 项 e2e）。用户验收 M2 / M3 时提了 13 条意见（2026-09-29），能现在做的整理成改进项 F3.12–F3.24；多连接 session、console 的事务控件排进 M5。改进项全部通过后，M2、M3 一起验收。
 - **目标**：
   - vim 编辑器写 SQL；
   - 执行语句，结果显示在底部结果区；
@@ -16,14 +16,16 @@
   - MySQL 的连接和 console：M5。M3 只做 sqlkit 这一层的方言（词法、格式化的 golden）。
   - 用户在 console 里 `begin` 之后不提交：M5 的 manual 事务模式时处理（§11 已知上限）。
 - **完成标准**：
-  - F3.1–F3.11 全部 passed；
+  - F3.1–F3.24 全部 passed；
   - 编辑器的差分测试与 nvim 的结果完全一致；
   - 用户验收通过后，打 tag `m3`（`m2` 同时打）。
 - **审查节点**：
   1. F3.3 之后：F3.1–F3.3，编辑器（除块选择），纯逻辑，有 nvim 差分兜底（已通过）；
   2. F3.5 之后：F3.4–F3.5，块选择与 sqlkit（已通过）；
   3. F3.8 之后：F3.6–F3.8，console tab、混放与引导页、执行与结果区（已通过）；
-  4. F3.11 之后：F3.9–F3.11，格式化、补全、schema 下拉（已通过）。
+  4. F3.11 之后：F3.9–F3.11，格式化、补全、schema 下拉（已通过）；
+  5. F3.17 之后：F3.12–F3.17，输入与按键类的改进；
+  6. F3.24 之后：F3.18–F3.24，表格与目录树的改进。
 - **M1 / M2 的 e2e**：默认布局加入 console 后，⟨1⟩ 的宽度从占满变成 5/9，M1 / M2 脚本里依赖 data pane 宽度、`C-l` 焦点的地方可能失效。tester 在 `lib.sh` 里加一个开头先关掉 ⟨2⟩ 的辅助函数，不逐条改断言。
 
 任务文件的格式和状态约定见 [`../plan.md`](../plan.md)。
@@ -278,3 +280,167 @@
   - 两个 console 分别选择不同的 schema，交替执行，结果都正确；
   - console 里自己 `set search_path` 后，下一次执行照下拉框的选择重新设置。
 - [x] 补回 f0.2 里和 schema 下拉框有关的 e2e：160 与 200 宽的 console 标题（对象名 + `<库名>.<schema> ▾` + `▶ run ↵`）；各宽度下下拉框按钮的退让顺序（`▶ run` > 下拉框 > `↵`）。
+
+---
+
+以下为 M2 / M3 用户验收的改进项（2026-09-29）。用户的 13 条意见里，第 11 条（console 的事务模式与提交 / 回滚）和第 12 条（一个 session 多个连接）排进 M5，见 m5-workspace/task.md 开头。
+
+## F3.12 补全按词首匹配 · 状态：todo
+
+- **依赖**：F3.10
+- **涉及**：`internal/app`（补全的候选过滤）
+
+**开发**
+- [ ] 取代 F1.14 的「首字符相同」：输入的第一个字符落在候选的词首就算匹配（开头，或 `_ . - $` 之后，或小写到大写的切换处），其余照 fzf（§9.7）。WHERE、快速 SQL、console 共用。
+
+**验收**
+- [ ] 单测：`evt` → `mt_event`、`tord` → `t_order`、`ev` → `t_event` 匹配；`x` 不匹配 `max`、`exists`。
+- [ ] e2e：快速 SQL 输入 `select * from evt` 出现 `mt_event`（或 seed 里对应的表）。
+
+## F3.13 自动配对括号与引号 · 状态：todo
+
+- **依赖**：F3.6
+- **涉及**：`internal/editor`（INSERT 下的配对）、`internal/ui`（Input）、`internal/config`（`autopairs`）
+
+**开发**
+- [ ] 按 §7.9「自动配对」：console 的 INSERT、WHERE 输入框、快速 SQL；配对条件、跳过右括号、退格成对删除；配置 `autopairs`。
+- [ ] 编辑器里做成一个选项，nvim 差分测试的生成器和比对都关掉它。
+
+**验收**
+- [ ] 单测覆盖配对、不配对（`don't`、光标后是字母）、跳过、成对删除。
+- [ ] e2e：WHERE 输入 `status = '` 后得到 `status = '█'`，接着输入 `done'` 得到 `status = 'done'█`；console 里输入 `count(` 得到 `count(█)`，一次 `u` 撤掉这次 INSERT 的全部内容；`autopairs = false` 时不配对。
+
+## F3.14 输入框删词 · 状态：todo
+
+- **依赖**：F3.6
+- **涉及**：`internal/ui`（Input）、`internal/editor`（INSERT 和命令行的 `M-BS`）
+
+**开发**
+- [ ] 所有单行输入框加 `C-w`、`C-u`，所有能输入文字的地方把 `M-BS` 当作 `C-w`（§7.9「删词」）。
+
+**验收**
+- [ ] 单测：`C-w` 的词划分和 vim INSERT 下一致（`select foo.bar|` → `select foo.`、`a  |` → 空）。
+- [ ] e2e：WHERE、面板、单元格编辑、console INSERT、console 的 `:` 命令行里，`C-w` 和 `M-BS` 都能删掉前一个词；`C-u` 删到行首。
+
+## F3.15 选项浮层用 Tab 选择 · 状态：todo
+
+- **依赖**：F2.3、F2.4
+- **涉及**：`internal/app`（options、segments 作用域）、`internal/keymap/default.toml`
+
+**开发**
+- [ ] 按 §10.2「键盘」：非时间列的选项浮层是作用域 `options`，`Tab` / `S-Tab` / `C-n` / `C-p` / `↑` / `↓` 移动并绕回；时间列的浮层是作用域 `segments`，`Tab` / `S-Tab` 切段、`↑` / `↓` 加减、`C-n` / `C-p` 在选项行里移动。`cell` 里只剩编辑文字的键。
+
+**验收**
+- [ ] e2e：paid 列编辑时 `Tab` 选中 true、再 `Tab` 到 false、`S-Tab` 回来，`↵` 应用；created_at 列 `Tab` 仍是切段。
+
+## F3.16 VISUAL 选区颜色 · 状态：todo
+
+- **依赖**：F3.6
+- **涉及**：`internal/ui`（主题 token、console、Input）
+
+**开发**
+- [ ] 新增主题 token `visual`（默认 #2d3f76），console 的三种 VISUAL 选区和输入框的「全选」都用它（§7.3）。
+
+**验收**
+- [ ] golden：console 的 VISUAL 选区用 `visual` 色；主题里写 `visual` 后生效。
+- [ ] 通过后决策者在用户的 ristretto 主题里加 `visual = "#6c6a6d"`（与当前行同色，用户要求）。
+
+## F3.17 `?` 键位帮助 · 状态：todo
+
+- **依赖**：F3.6
+- **涉及**：`internal/app`（which-key 浮层）、`internal/keymap/default.toml`
+
+**开发**
+- [ ] 按 §6.5「键位帮助」：`?` 在表格、树、引导页、结果区打开当前上下文的全部键位（作用域 `keyhelp`），前缀成组、按下往下一层，`esc` 关闭；`<leader>?` 在哪里都能打开，console 里用它。
+- [ ] 键位多的时候浮层能滚动，细节开工时由 worker 提议。
+
+**验收**
+- [ ] e2e：在表格里按 `?` 列出 `hjkl`、`go`、`gl` 等和它们的名字，包括用户配置里加的键；按 `g` 进入 `g…` 这一层；console 里 `<leader>?` 能打开，`?` 仍是反向搜索。
+
+## F3.18 从树和面板打开表一律新开 tab · 状态：todo
+
+- **依赖**：F3.7
+- **涉及**：`internal/app`（openTable、openTarget）
+
+**开发**
+- [ ] 按 §12「表」和 §7.8「打开已有的表」：`↵` 在表已经开着时切过去（多个时列出选择），没开就在目标 pane 新开 tab，不替换当前的表 tab 或 console tab；`C-t` 总是新开；引导 tab 照旧被替换。
+
+**验收**
+- [ ] e2e：焦点在 ① 的表 tab 上时，从树按 `↵` 打开另一张表，① 多了一个 tab，原来的表 tab 还在；焦点在 console 上时同样新开。
+
+## F3.19 工作区的 pane 节点 · 状态：todo
+
+- **依赖**：F1.12
+- **涉及**：`internal/app`（workspace）
+
+**开发**
+- [ ] 按 §7.8「工作区节点」：pane 节点显示 `pane-<n>`；在 pane 节点上 `↵` / 单击是展开折叠，在 tab 节点上才聚焦过去。
+
+**验收**
+- [ ] e2e：单击 pane 节点只展开 / 折叠，焦点不动；单击 tab 节点，焦点到对应的 pane 和 tab。
+
+## F3.20 错误栏 · 状态：todo
+
+- **依赖**：F3.8
+- **涉及**：`internal/ui`（错误栏）、`internal/app`（表格的取数与保存、console 执行）
+
+**开发**
+- [ ] 按 §7.8「错误栏」：表格的取数 / WHERE 报错、保存失败、console 的执行报错都显示在出错 pane 的底部；`×` 和 NORMAL 下的 `esc` 关闭（`pane.error.close`）；同类操作下一次成功时自动消失。
+- [ ] 表格出错时照旧画着上一次的数据（§7.6）；查询条右侧只留成功的提示。
+- [ ] console 里 NORMAL 下有错误栏时 `esc` 关它，VISUAL 下 `esc` 照旧退出 VISUAL。
+
+**验收**
+- [ ] e2e：WHERE 写错，表格下方出现错误栏，表格还是原来的数据，`esc` 关掉；保存失败，错误栏显示「id = …：…，已回滚」，修好再保存后自动消失；console 执行出错，console 下方出现错误栏，带 SQLSTATE 和位置。
+- [ ] golden：错误栏（含 DETAIL / HINT 多行、截短）。
+
+## F3.21 字段的前置校验 · 状态：todo
+
+- **依赖**：F2.3、F2.4
+- **涉及**：`internal/app`（单元格编辑）、`internal/ui`（输入框的波浪线、提示框）
+
+**开发**
+- [ ] 按 §10.7：各类型的检查、提示文字、波浪下划线、提示框的位置；不合法时 `↵` 与点击别处不提交，`esc` 放弃这次输入。
+
+**验收**
+- [ ] 单测覆盖表里每一类的合法与不合法写法，包括整数范围、`now`、带花括号的 UUID。
+- [ ] e2e：amount 列输入 `10d`，出现「不是有效的数字」、`↵` 不提交；改成 `10` 后 `↵` 提交；`esc` 回到原值。
+
+## F3.22 撤回一格的修改、改动行号标黄 · 状态：todo
+
+- **依赖**：F2.1
+- **涉及**：`internal/app`（grid.revert）、`internal/ui`（行号颜色）、`internal/keymap/default.toml`
+
+**开发**
+- [ ] `[keys.grid]` 加 `r` → `grid.revert`（§10.1）。
+- [ ] 有修改的行号用 `warn` 色，保存失败的那一行 `error` 色优先。
+
+**验收**
+- [ ] e2e：改两格后在其中一格上按 `r`，只有这一格恢复；有修改的行号是黄色，全部撤回后恢复。
+
+## F3.23 查询条的工具按钮与自动刷新 · 状态：todo
+
+- **依赖**：F3.20
+- **涉及**：`internal/ui`（querybar）、`internal/app`（自动刷新、停止）
+
+**开发**
+- [ ] 按 §7.8「工具按钮」：三组七个按钮的顺序、底框、默认颜色、放不下时整组舍去；新图标 `row_add`、`row_delete`、`auto_refresh`、`stop`（§7.7），颜色都能在 `[icon]` 里覆盖。
+- [ ] 自动刷新：下拉框选间隔，触发条件和有修改时暂停（§7.8「自动刷新」）。
+- [ ] 停止：这个 tab 有请求在跑时可点，等同 `C-c`。
+- [ ] `+` / `−` 按钮在 F3.24 接上，这里先画出来、不可点。
+
+**验收**
+- [ ] golden：工具按钮在几种宽度下的样子（含自动刷新开着、有请求在跑）。
+- [ ] e2e：开 2s 自动刷新后，另一条连接改了数据，2s 内表格跟着变；有未保存的修改时不刷新；慢查询时点停止能取消。
+
+## F3.24 新增与删除行 · 状态：todo
+
+- **依赖**：F3.22、F3.23
+- **涉及**：`internal/app`（dataTab 的新行与删除标记）、`internal/db/postgres`（DELETE / INSERT 生成）、`internal/ui`（行号 `+` `−`、删除线）、`internal/keymap/default.toml`
+
+**开发**
+- [ ] 按 §10.6：`o` / `+` 新增行，`dd` / `−` 标删除，`r` 与再按 `dd` 的撤回规则；`[keys.grid]` 加 `o` → `grid.row.add`、`dd` → `grid.row.delete`。
+- [ ] 保存：同一个事务里 DELETE → UPDATE → INSERT，每条恰好 1 行；计数规则；先看 lazysql 的 `ExecutePendingChanges`，提交说明里写明。
+
+**验收**
+- [ ] 集成测试（自建库）：新增一行只填部分列，其余取默认值；一格都不填时 `DEFAULT VALUES`；删除一行；同一次保存里新增、修改、删除混在一起；其中一条失败时整体回滚。
+- [ ] e2e：`o` 新增一行、填两格、`C-s` 后重新加载能看到这一行；`dd` 标删除、再按 `dd` 取消；标删除后保存，这一行没了。
