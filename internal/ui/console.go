@@ -35,6 +35,7 @@ type Console struct {
 	Failed       int // the first line of the statement whose last run failed: its ▶ in error; -1 for none
 	Pane         int
 	Names        SQLNames // the tables and columns among the text's names, for their colors; nil for none
+	Yank         Sel      // what a yank took, flashing (F3.32)
 }
 
 // TextPos is a line and a byte offset into it, both from 0.
@@ -144,7 +145,10 @@ func (c Console) drawLine(f *Frame, ta uv.Rectangle, row, n int, fg []color.Colo
 			w = c.TabWidth - v%c.TabWidth
 		}
 		st := uv.Style{Fg: fg[i], Bg: bg}
-		if c.selected(n, i, v, w) {
+		switch {
+		case c.Yank.has(n, i, v, w):
+			st = uv.Style{Fg: th.Bg, Bg: th.Yank}
+		case c.Sel.has(n, i, v, w):
 			st.Bg = th.Visual
 		}
 		switch {
@@ -152,7 +156,7 @@ func (c Console) drawLine(f *Frame, ta uv.Rectangle, row, n int, fg []color.Colo
 			for k := max(v, c.Left); k < v+w; k++ {
 				if c.Sel.Mode == SelBlock { // a block colors only the columns it covers
 					st.Bg = bg
-					if c.selected(n, i, k, 1) {
+					if c.Sel.has(n, i, k, 1) {
 						st.Bg = th.Visual
 					}
 				}
@@ -163,15 +167,14 @@ func (c Console) drawLine(f *Frame, ta uv.Rectangle, row, n int, fg []color.Colo
 		}
 		v, i = v+w, i+len(gr)
 	}
-	if c.Sel.Mode != SelBlock && c.selected(n, len(l), v, 1) { // the line break is in the selection
+	if c.Sel.Mode != SelBlock && c.Sel.has(n, len(l), v, 1) { // the line break is in the selection
 		put(v, " ", uv.Style{Fg: th.Fg, Bg: th.Visual})
 	}
 }
 
-// selected reports whether the character at col of line n, drawn at
-// display columns [v, v+w), is in the selection.
-func (c Console) selected(n, col, v, w int) bool {
-	s := c.Sel
+// has reports whether the character at col of line n, drawn at display
+// columns [v, v+w), is in s.
+func (s Sel) has(n, col, v, w int) bool {
 	switch s.Mode {
 	case SelNone:
 		return false

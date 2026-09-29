@@ -417,7 +417,16 @@ func (a *App) grid(p *Pane, t *dataTab) ui.Grid {
 	if t.cell != nil {
 		g.Edit, g.EditMenu, g.EditBad = &t.cell.in, len(t.options()) > 0, t.cellHint() != ""
 	}
+	g.Yank = a.gridFlash(p)
 	return g
+}
+
+// gridFlash is what a yank flashes of pane p's grid, if anything.
+func (a *App) gridFlash(p *Pane) *[2]int {
+	if f := a.flash; f != nil && f.pane == p.ID && f.text.Mode == ui.SelNone {
+		return &f.cell
+	}
+	return nil
 }
 
 // sortedBy is an ORDER as text: "id ↑", "amount ↓".
@@ -599,7 +608,7 @@ func (a *App) gridOf(p *Pane) (s *gridState, g ui.Grid, area uv.Rectangle, ok bo
 func (a *App) resultGrid(p *Pane, t *resultTab) ui.Grid {
 	g := ui.Grid{
 		Rows: t.page.Rows, Row: t.row, Col: t.col, Top: t.top, Left: t.left, Transpose: t.transpose,
-		Focused: a.win().Focus == p.ID, Key: a.icons.Key, Pane: p.ID,
+		Focused: a.win().Focus == p.ID, Key: a.icons.Key, Pane: p.ID, Yank: a.gridFlash(p),
 	}
 	for _, c := range t.page.Cols {
 		g.Cols = append(g.Cols, ui.GridCol{Name: c.Name, Type: colType(c.Type)})

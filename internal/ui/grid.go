@@ -59,6 +59,8 @@ type Grid struct {
 	// struck through. Nums numbers the rest when added ones sit among them.
 	Added, Deleted map[int]bool
 	Nums           []int
+
+	Yank *[2]int // the record and field a yank flashes, field -1 for all of it (F3.32)
 }
 
 // maxColWidth caps a column's wish (§7.6).
@@ -392,6 +394,10 @@ func (g Grid) Draw(f *Frame, area uv.Rectangle) uv.Position {
 				if g.Focused {
 					st.Bg = th.Cursor
 				}
+				f.Fill(cell, uv.Style{Bg: st.Bg})
+			}
+			if yk := g.Yank; yk != nil && rec == yk[0] && (yk[1] < 0 || field == yk[1]) {
+				st.Fg, st.Bg = th.Bg, th.Yank
 				f.Fill(cell, uv.Style{Bg: st.Bg})
 			}
 			if g.Row >= 0 {

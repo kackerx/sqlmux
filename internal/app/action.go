@@ -246,6 +246,9 @@ func init() {
 		"grid.edit":         {Title: "编辑单元格", Run: func(a *App, _ Args) tea.Cmd { return a.editCell(nil) }},
 		"grid.revert":       {Title: "撤回这一格的修改", Run: do(func(a *App, _ Args) { a.revertCell() })},
 		"grid.row.add":      {Title: "新增一行", Run: func(a *App, _ Args) tea.Cmd { return a.addRow() }},
+		"grid.yank":         {Title: "复制单元格", Run: func(a *App, _ Args) tea.Cmd { return a.yankGrid(false) }},
+		"grid.yank.row":     {Title: "复制整行", Run: func(a *App, _ Args) tea.Cmd { return a.yankGrid(true) }},
+		"grid.paste":        {Title: "粘贴成新行", Run: func(a *App, _ Args) tea.Cmd { return a.pasteRow() }},
 		"grid.row.delete":   {Title: "标记 / 取消删除这一行", Run: func(a *App, _ Args) tea.Cmd { return a.deleteRow() }},
 		"result.toggle":     {Title: "显示 / 隐藏结果区", Run: do(func(a *App, _ Args) { a.toggleResult() })},
 		"grid.refresh.auto": {Title: "自动刷新", Run: do(func(a *App, _ Args) { a.openDrop(dropAuto) })},
@@ -331,7 +334,7 @@ func init() {
 		"session.list": "session 列表", "session.new": "新建连接",
 		"window.new": "新建 window", "window.rename": "重命名 window", "window.close": "关闭 window",
 		"window.next": "下一个 window", "window.prev": "上一个 window", "window.last": "上次用的 window",
-		"grid.yank": "复制单元格", "grid.yank.insert": "复制为 INSERT",
+		"grid.yank.insert": "复制为 INSERT",
 	} {
 		actions[id] = Action{Title: title}
 	}

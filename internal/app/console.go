@@ -87,6 +87,9 @@ func (a *App) consoleView(p *Pane, t *consoleTab) (ui.Console, uv.Rectangle) {
 		Failed: t.failed, Pane: p.ID,
 	}
 	c.Names, _ = a.sqlNames(strings.Join(c.Lines, "\n"), cmp.Or(t.schema, a.sess.Schema), nil)
+	if f := a.flash; f != nil && f.pane == p.ID {
+		c.Yank = f.text
+	}
 	c.Prompt, c.Text, c.Pos, _ = ed.CmdLine()
 	if from, to, ok := ed.Selection(); ok {
 		c.Sel = ui.Sel{Mode: ui.SelChars, From: ui.TextPos(from), To: ui.TextPos(to)}
@@ -177,6 +180,9 @@ func (a *App) consoleDid(t *consoleTab, eff editor.Effect) tea.Cmd {
 	var cmds []tea.Cmd
 	if eff.Yanked {
 		cmds = append(cmds, tea.SetClipboard(t.ed.Register()))
+	}
+	if eff.Yank != nil {
+		cmds = append(cmds, a.flashYank(yankFlash{pane: a.focused().ID, text: yankSel(*eff.Yank)}))
 	}
 	if eff.Error != "" {
 		cmds = append(cmds, a.showToast(eff.Error, toastTTL))

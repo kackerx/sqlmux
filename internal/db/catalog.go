@@ -17,7 +17,7 @@ type Column struct {
 	Name    string
 	Type    string // as the server formats it: "bigint", "numeric(10,2)", "order_status"
 	NotNull bool
-	Default string   // the default's expression; "" when there is none
+	Default string   // the default's expression, an identity column's how it is generated; "" when there is none
 	Enum    []string // the labels in their sort order, when the type is an enum
 }
 

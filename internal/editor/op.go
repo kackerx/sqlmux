@@ -164,6 +164,7 @@ func (e *Editor) text(s span) (string, byte) {
 
 func (e *Editor) yank(s span) {
 	e.setReg(e.text(s))
+	e.eff.Yank = &Yank{From: s.start, To: Pos{s.end.Line, e.endCol(s)}, Linewise: s.linewise}
 }
 
 // delete deletes s into the register (ops.c op_delete); change keeps the

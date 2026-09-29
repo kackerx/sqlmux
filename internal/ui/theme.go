@@ -30,6 +30,7 @@ type Theme struct {
 	Match                    color.Color // fuzzy-matched characters' foreground, on the row's own background
 
 	SQLTable, SQLColumn, SQLOperator color.Color // SQL's names the catalog knows, and its operators (§7.3)
+	Yank                             color.Color // a yank's flash, bg text on it (§7.3)
 }
 
 var TokyonightStorm = &Theme{
@@ -50,6 +51,7 @@ var TokyonightStorm = &Theme{
 	Match: c("#ff9e64"),
 
 	SQLTable: c("#2ac3de"), SQLColumn: c("#73daca"), SQLOperator: c("#89ddff"),
+	Yank: c("#e0af68"),
 }
 
 // Themes are the built-in themes by name.
@@ -141,5 +143,6 @@ func (th *Theme) tokens() map[string]*color.Color {
 		"match": &th.Match,
 
 		"sql_table": &th.SQLTable, "sql_column": &th.SQLColumn, "sql_operator": &th.SQLOperator,
+		"yank": &th.Yank,
 	}
 }

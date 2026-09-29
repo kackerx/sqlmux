@@ -173,6 +173,7 @@ func (e *Editor) blockOp(op string, b block, c cmd) {
 		e.blockDelete(b, false)
 	case "y":
 		e.blockYank(b)
+		e.eff.Yank = &Yank{From: Pos{b.top, 0}, To: Pos{b.bot, 0}, Block: true, Left: b.left, Right: b.right}
 	case "c":
 		e.blockChange(b)
 	case "I", "A":

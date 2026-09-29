@@ -43,6 +43,16 @@ type Effect struct {
 	Ex      string      // a : command the editor does not run itself (:w, :q)
 	Error   string      // what went wrong, for a toast: 找不到：foo
 	Format  *FormatSpan // gq asked to lay out this text, which the console does (§9.5)
+	Yank    *Yank       // what a yank took, not a delete: the console flashes it (F3.32)
+}
+
+// Yank is what a yank took, as vim's TextYankPost has it: From to To, To
+// not in, charwise; their whole lines, Linewise; display columns Left to
+// Right, both in, of their lines, Block.
+type Yank struct {
+	From, To        Pos
+	Linewise, Block bool
+	Left, Right     int
 }
 
 // FormatSpan is the text gq covers: From to To, To not in. Selected is a

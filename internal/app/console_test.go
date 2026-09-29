@@ -181,7 +181,7 @@ func TestConsolePasteAndYank(t *testing.T) {
 		t.Fatal("y alone yanks nothing")
 	}
 	_, cmd = a.Update(teaKey("y"))
-	if cmd == nil || cmd() != tea.SetClipboard("xb\n")() {
+	if !clipped(cmd, "xb\n") {
 		t.Error("yy does not reach the clipboard")
 	}
 }

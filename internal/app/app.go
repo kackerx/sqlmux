@@ -45,6 +45,10 @@ type App struct {
 
 	state *config.State // kept between runs (§14)
 
+	rowCopy  *copiedRow // the row yy took, for p (§10.6)
+	flash    *yankFlash // a yank flashing (F3.32)
+	flashSeq int
+
 	toast     string
 	toastSeq  int
 	quitToast int    // toastSeq of the "press C-c again" toast
@@ -150,6 +154,10 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case toastExpired:
 		if msg.seq == a.toastSeq {
 			a.toast = ""
+		}
+	case flashDone:
+		if a.flash != nil && msg.seq == a.flash.seq {
+			a.flash = nil
 		}
 	case tea.KeyPressMsg:
 		return a, a.press(keymap.FromTea(msg.Key()))
