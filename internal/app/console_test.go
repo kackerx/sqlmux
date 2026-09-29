@@ -167,8 +167,9 @@ func TestConsoleSaveFails(t *testing.T) {
 	}
 }
 
-// A paste is text in every mode, never keys (§11); a yank goes to the
-// clipboard.
+// A paste is text in every mode, never keys (§11); a yank into "+ goes to
+// the clipboard, a plain one not; "+p asks the terminal for it and puts
+// what comes back (F3.38).
 func TestConsolePasteAndYank(t *testing.T) {
 	a, c := inConsole(t, "")
 	feed(t, a, "iab<Esc>0")
@@ -176,13 +177,17 @@ func TestConsolePasteAndYank(t *testing.T) {
 	if text(c) != "add\nxb" || c.ed.Mode() != editor.Normal {
 		t.Fatalf("pasted in NORMAL: %q %v", text(c), c.ed.Mode())
 	}
-	_, cmd := a.Update(teaKey("y"))
-	if cmd != nil {
-		t.Fatal("y alone yanks nothing")
+	if clipped(keys(t, a, "yy"), "xb\n") {
+		t.Error("yy reaches the clipboard")
 	}
-	_, cmd = a.Update(teaKey("y"))
-	if !clipped(cmd, "xb\n") {
-		t.Error("yy does not reach the clipboard")
+	if !clipped(keys(t, a, `"+yy`), "xb\n") {
+		t.Error(`"+yy does not reach the clipboard`)
+	}
+	if cmd := keys(t, a, `"+p`); cmd == nil || text(c) != "add\nxb" {
+		t.Fatalf(`"+p before the clipboard comes: %q`, text(c))
+	}
+	if a.Update(tea.ClipboardMsg{Content: "clip"}); text(c) != "add\nxclipb" {
+		t.Errorf(`"+p: %q`, text(c))
 	}
 }
 

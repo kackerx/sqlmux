@@ -3,6 +3,7 @@ package app
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -46,6 +47,7 @@ type App struct {
 	state *config.State // kept between runs (§14)
 
 	rowCopy  *copiedRow // the row yy took, for p (§10.6)
+	clipWait *clipWait  // a "+p waiting for the clipboard (F3.38)
 	flash    *yankFlash // a yank flashing (F3.32)
 	flashSeq int
 
@@ -158,6 +160,11 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case flashDone:
 		if a.flash != nil && msg.seq == a.flash.seq {
 			a.flash = nil
+		}
+	case tea.ClipboardMsg: // what a "+p asked for (F3.38)
+		if w := a.clipWait; w != nil && slices.Contains(a.sess.consoles(), w.t) {
+			a.clipWait = nil
+			return a, a.consoleDid(w.t, w.t.ed.PutClip(msg.Content, w.put))
 		}
 	case tea.KeyPressMsg:
 		return a, a.press(keymap.FromTea(msg.Key()))

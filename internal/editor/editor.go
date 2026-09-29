@@ -39,7 +39,8 @@ func (m Mode) String() string {
 // Effect is what a key did that the console acts on.
 type Effect struct {
 	Changed bool        // the text changed: save it, drop the failed ▶ (§11)
-	Yanked  bool        // the register changed: the clipboard gets it (§11)
+	Clip    *string     // what "+ (or "*) took: the system clipboard gets it (F3.38)
+	Paste   *ClipPut    // a "+p waiting for the system clipboard: PutClip it (F3.38)
 	Ex      string      // a : command the editor does not run itself (:w, :q)
 	Error   string      // what went wrong, for a toast: 找不到：foo
 	Format  *FormatSpan // gq asked to lay out this text, which the console does (§9.5)
@@ -89,6 +90,8 @@ type Editor struct {
 	keys []string   // the NORMAL or VISUAL command typed so far
 	ins  *insertion // the INSERT or REPLACE going on
 	reg  register
+
+	yanked bool // the command running put text in reg
 
 	vstart     Pos // where VISUAL started: the other end of the selection
 	lastVisual visualArea
@@ -162,14 +165,18 @@ func (e *Editor) Feed(k string) Effect {
 	return e.eff
 }
 
-// cmd is one NORMAL command: [count] operator [count] motion, or [count]
-// command.
+// cmd is one NORMAL command: [count] ["x] [count] operator [count]
+// motion, or [count] ["x] [count] command.
 type cmd struct {
 	count int    // 0 when none was typed
+	reg   string // the register "x names: "+ for the system clipboard, "" for the unnamed (§11)
 	op    string // the operator waiting for the motion: "d", "gU"
 	name  string // the motion, text object or command: "w", "iw", "gg", "f"
 	arg   string // the character f, t, r take
 }
+
+// ClipPut is a "+p or "+P waiting for the system clipboard's text.
+type ClipPut struct{ c cmd }
 
 func (c cmd) n() int { return max(c.count, 1) }
 
@@ -189,9 +196,33 @@ func (e *Editor) normal() {
 	}
 	e.keys = nil
 	if st == complete {
+		e.yanked = false
 		e.run(c)
+		if c.reg == "+" && e.yanked { // the unnamed register too, as vim's
+			clip := e.reg.text
+			e.eff.Clip = &clip
+		}
 	}
 	e.settle()
+}
+
+// PutClip is the put p asked the clipboard for, text what it holds: put as
+// a register charwise, or linewise when it ends in a newline, as vim takes
+// the clipboard; the unnamed register stays as it was.
+func (e *Editor) PutClip(text string, p ClipPut) Effect {
+	e.eff = Effect{}
+	kept := e.reg
+	kind := byte('v')
+	if strings.HasSuffix(text, "\n") {
+		kind = 'V'
+	}
+	e.reg = register{text: text, kind: kind}
+	p.c.reg = ""
+	e.run(p.c)
+	e.reg = kept
+	e.settle()
+	e.scrollToCursor()
+	return e.eff
 }
 
 // settle ends a command back in NORMAL or VISUAL: its change is one undo
@@ -210,6 +241,20 @@ var withArg = map[string]bool{"f": true, "F": true, "t": true, "T": true, "r": t
 // parse reads keys as vim's NORMAL and VISUAL modes do.
 func parse(keys []string, visual bool) (c cmd, st status) {
 	c.count, keys = count(keys)
+	if len(keys) > 0 && keys[0] == `"` { // a register: "+ and "* alone, the clipboard (§11)
+		if len(keys) == 1 {
+			return c, waiting
+		}
+		if keys[1] != "+" && keys[1] != "*" {
+			return c, invalid
+		}
+		c.reg = "+"
+		n, rest := count(keys[2:])
+		if n > 0 {
+			c.count = max(c.count, 1) * n
+		}
+		keys = rest
+	}
 	if c.name, c.arg, keys, st = word(keys, visual); st != complete {
 		return c, st
 	}
@@ -291,7 +336,11 @@ func count(keys []string) (int, []string) {
 }
 
 func (e *Editor) run(c cmd) {
-	e.curswant() // vim settles it before each command (update_topline_cursor)
+	e.curswant()                                                                       // vim settles it before each command (update_topline_cursor)
+	if c.reg == "+" && c.op == "" && (c.name == "p" || c.name == "P") && !e.visual() { // the text comes later: PutClip
+		e.eff.Paste = &ClipPut{c}
+		return
+	}
 	if c.name == "/" || c.name == "?" || c.name == ":" && c.op == "" {
 		e.openCmdline(c.name, c)
 		return

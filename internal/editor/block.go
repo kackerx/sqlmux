@@ -202,7 +202,7 @@ func (e *Editor) blockYank(b block) {
 		w--
 	}
 	e.reg = register{text: strings.Join(ls, "\n"), kind: blockKind, width: w}
-	e.eff.Yanked = true
+	e.yanked = true
 }
 
 // blockDelete yanks the block and deletes it (ops.c op_delete); of a tab

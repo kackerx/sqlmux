@@ -37,6 +37,15 @@ type consoleTab struct {
 	wait  *compWait
 }
 
+// clipWait is a console's "+p waiting for the terminal's clipboard (F3.38).
+// ponytail: OSC 52 is asked, which tmux answers with set-clipboard on and
+// many terminals don't: then nothing is put; ask pbpaste or wl-paste too
+// if that bites
+type clipWait struct {
+	t   *consoleTab
+	put editor.ClipPut
+}
+
 // compWait is where a console last completed, C-n's or not.
 type compWait struct {
 	at     editor.Pos
@@ -171,15 +180,19 @@ type autosave struct {
 // autosaveDelay is how long after the last change a console is written (§11).
 var autosaveDelay = time.Second
 
-// consoleDid acts on what the editor did: the clipboard gets what was
-// yanked, a change drops the red ▶ and is written a second after the last
-// one, a : command it left runs here. The candidate list closes; typing
-// on opens it again (consoleKey).
+// consoleDid acts on what the editor did: the clipboard gets what "+
+// took, or is asked for what "+p puts (F3.38), a change drops the red ▶
+// and is written a second after the last one, a : command it left runs
+// here. The candidate list closes; typing on opens it again (consoleKey).
 func (a *App) consoleDid(t *consoleTab, eff editor.Effect) tea.Cmd {
 	t.comp = nil
 	var cmds []tea.Cmd
-	if eff.Yanked {
-		cmds = append(cmds, tea.SetClipboard(t.ed.Register()))
+	if eff.Clip != nil {
+		cmds = append(cmds, tea.SetClipboard(*eff.Clip))
+	}
+	if eff.Paste != nil { // the terminal answers with a ClipboardMsg, or never
+		a.clipWait = &clipWait{t, *eff.Paste}
+		cmds = append(cmds, tea.ReadClipboard)
 	}
 	if eff.Yank != nil {
 		cmds = append(cmds, a.flashYank(yankFlash{pane: a.focused().ID, text: yankSel(*eff.Yank)}))

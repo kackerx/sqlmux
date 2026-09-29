@@ -16,10 +16,11 @@ func clipped(cmd tea.Cmd, want string) bool {
 	if cmd == nil {
 		return false
 	}
-	if m, ok := cmd().(tea.BatchMsg); ok {
+	msg := cmd() // once: a Tick's fires once
+	if m, ok := msg.(tea.BatchMsg); ok {
 		return slices.ContainsFunc(m, func(c tea.Cmd) bool { return clipped(c, want) })
 	}
-	return cmd() == tea.SetClipboard(want)()
+	return msg == tea.SetClipboard(want)()
 }
 
 // keys presses keys and is the Cmd the last one returned.

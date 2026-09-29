@@ -37,13 +37,9 @@ type register struct {
 	width int
 }
 
-// Register is the unnamed register's text, what a yank or a delete put in
-// it: the clipboard gets it too (§11).
-func (e *Editor) Register() string { return e.reg.text }
-
 func (e *Editor) setReg(text string, kind byte) {
 	e.reg = register{text: text, kind: kind}
-	e.eff.Yanked = true
+	e.yanked = true
 }
 
 // operate runs operator c.op over the text c's motion or text object
