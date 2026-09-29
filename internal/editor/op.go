@@ -11,8 +11,9 @@ type span struct {
 	start, end Pos
 	inclusive  bool
 	linewise   bool
-	visual     bool // selected in VISUAL, not reached by a motion
-	adjusted   bool // its end moved back from the start of a line (end_adjusted)
+	visual     bool   // selected in VISUAL, not reached by a motion
+	adjusted   bool   // its end moved back from the start of a line (end_adjusted)
+	blk        *block // a VISUAL BLOCK
 }
 
 func (s span) lines() int { return s.end.Line - s.start.Line + 1 }
@@ -29,10 +30,11 @@ var shorthands = map[string][2]string{
 }
 
 // register is the unnamed register: its text and whether it is charwise
-// ('v') or linewise ('V').
+// ('v'), linewise ('V') or a block (blockKind, width columns wide).
 type register struct {
-	text string
-	kind byte
+	text  string
+	kind  byte
+	width int
 }
 
 // Register is the unnamed register's text, what a yank or a delete put in
@@ -40,7 +42,7 @@ type register struct {
 func (e *Editor) Register() string { return e.reg.text }
 
 func (e *Editor) setReg(text string, kind byte) {
-	e.reg = register{text, kind}
+	e.reg = register{text: text, kind: kind}
 	e.eff.Yanked = true
 }
 
@@ -336,7 +338,11 @@ func (e *Editor) join(count int) {
 // the cursor's line, the cursor on the first line's first non-blank.
 func (e *Editor) put(after bool, count int) {
 	r := e.reg
-	if r.kind == 0 {
+	switch r.kind {
+	case 0:
+		return
+	case blockKind:
+		e.putBlock(after, count)
 		return
 	}
 	if r.kind == 'V' {

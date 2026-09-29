@@ -4,14 +4,15 @@ import "strings"
 
 // insertion is an INSERT or REPLACE going on (nvim's edit.c).
 type insertion struct {
-	cmd      string   // what started it: "i", "o", "R"...
-	count    int      // 3ix<Esc> types x three times
-	keys     []string // what was typed, for the count
-	start    Pos      // where typing started: C-w and C-u stop there (Insstart_orig)
-	fresh    bool     // nothing typed yet, or not since an arrow key: the next change saves the line for U
-	arrowed  bool     // an arrow key moved the cursor: no count, and a new undo step
-	ai       bool     // the line's indent came from autoindent and nothing is typed after it (did_ai)
-	replaced []string // REPLACE: what each character typed replaced, "" for one added
+	cmd      string     // what started it: "i", "o", "R"...
+	count    int        // 3ix<Esc> types x three times
+	keys     []string   // what was typed, for the count
+	start    Pos        // where typing started: C-w and C-u stop there (Insstart_orig)
+	fresh    bool       // nothing typed yet, or not since an arrow key: the next change saves the line for U
+	arrowed  bool       // an arrow key moved the cursor: no count, and a new undo step
+	ai       bool       // the line's indent came from autoindent and nothing is typed after it (did_ai)
+	replaced []string   // REPLACE: what each character typed replaced, "" for one added
+	block    *blockEdit // a VISUAL BLOCK I, A or c
 }
 
 func (e *Editor) startInsert(m Mode, c cmd) {
@@ -340,5 +341,8 @@ func (e *Editor) escape() {
 		e.cur.Col = prev(e.line(), e.cur.Col)
 	}
 	e.want = wantUnset
+	if in.block != nil {
+		e.blockDone(in.block)
+	}
 	e.endChange()
 }

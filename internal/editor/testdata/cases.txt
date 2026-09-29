@@ -6226,3 +6226,511 @@ a
 ## w4: count insert C-u then u
 2ia<C-u>b<Esc>u
 █z
+
+## blk: C-v j d
+<C-v>jld
+a█bcd
+efgh
+ijkl
+
+## blk: C-v x
+<C-v>jx
+a█bcd
+efgh
+
+## blk: C-v y reg
+<C-v>jly
+a█bcd
+efgh
+ijkl
+
+## blk: C-v y then p
+<C-v>jly$p
+a█bcd
+efgh
+ijkl
+
+## blk: C-v y then P
+<C-v>jlyjP
+a█bcd
+efgh
+ijkl
+
+## blk: C-v y then p past end
+<C-v>jlyGp
+a█bcd
+efgh
+ij
+
+## blk: C-v y then 3p
+<C-v>jly03p
+a█bcd
+efgh
+
+## blk: p on short line
+<C-v>jlyjj$p
+a█bcd
+efgh
+x
+y
+
+## blk: I
+<C-v>jIX<Esc>
+a█bcd
+efgh
+ijkl
+
+## blk: I short line skipped
+<C-v>jjIX<Esc>
+ab█cd
+e
+ijkl
+
+## blk: A
+<C-v>jlAX<Esc>
+a█bcd
+efgh
+
+## blk: A short line padded
+<C-v>jjlAX<Esc>
+a█bcd
+e
+ijkl
+
+## blk: $A
+<C-v>j$AX<Esc>
+a█bcd
+e
+ijkl
+
+## blk: $A three lines
+<C-v>jj$AX<Esc>
+█ab
+abcdef
+a
+
+## blk: I count
+<C-v>j2IX<Esc>
+a█bcd
+efgh
+
+## blk: c
+<C-v>jlcXY<Esc>
+a█bcd
+efgh
+ijkl
+
+## blk: c short line
+<C-v>jjlcX<Esc>
+a█bcd
+e
+ijkl
+
+## blk: c then u
+<C-v>jlcX<Esc>u
+a█bcd
+efgh
+
+## blk: I then u
+<C-v>jIX<Esc>u
+a█bcd
+efgh
+
+## blk: r
+<C-v>jlrx
+a█bcd
+efgh
+
+## blk: r short line
+<C-v>jjlrx
+a█bcd
+e
+ijkl
+
+## blk: tilde
+<C-v>jl~
+a█bcd
+efgh
+
+## blk: u
+<C-v>jlu
+A█BCD
+EFGH
+
+## blk: U
+<C-v>jlU
+a█bcd
+efgh
+
+## blk: >
+<C-v>j>
+a█bcd
+efgh
+
+## blk: > count
+<C-v>j2>
+a█bcd
+efgh
+
+## blk: <
+<C-v>j<
+a█    bcd
+e    fgh
+
+## blk: < partial blanks
+<C-v>j<
+a█ bcd
+e fgh
+
+## blk: gc
+<C-v>jgc
+a█bcd
+efgh
+
+## blk: o
+<C-v>jlo
+a█bcd
+efgh
+
+## blk: O
+<C-v>jlO
+a█bcd
+efgh
+
+## blk: O then d
+<C-v>jlOd
+a█bcd
+efgh
+
+## blk: $ d
+<C-v>j$d
+a█bcd
+ef
+ijkl
+
+## blk: $ y
+<C-v>j$y
+a█bcd
+ef
+ijkl
+
+## blk: tab start d
+<C-v>jd
+a█	bc
+abcde
+
+## blk: tab middle d
+l<C-v>jld
+█abcdef
+a	bc
+
+## blk: tab I
+l<C-v>jIX<Esc>
+█abcdef
+a	bc
+
+## blk: tab A
+l<C-v>jAX<Esc>
+█abcdef
+a	bc
+
+## blk: tab y
+l<C-v>jly
+█abcdef
+a	bc
+
+## blk: tab r
+l<C-v>jlrx
+█abcdef
+a	bc
+
+## blk: tab >
+l<C-v>j>
+█abcdef
+a	bc
+
+## blk: tab <
+<C-v>j<
+x█	bc
+y	de
+
+## blk: wide d
+l<C-v>jd
+█abcd
+名字
+
+## blk: wide I
+l<C-v>jIX<Esc>
+█abcd
+名字
+
+## blk: wide A
+l<C-v>jAX<Esc>
+█abcd
+名字
+
+## blk: wide y
+l<C-v>jy
+█abcd
+名字
+
+## blk: wide r
+<C-v>jlr名
+█abcd
+efgh
+
+## blk: wide c
+l<C-v>jcX<Esc>
+█abcd
+名字
+
+## blk: p over tab
+<C-v>jy$jjp
+█ab
+cd
+x	y
+x	y
+
+## blk: gv
+<C-v>jl<Esc>gvd
+a█bcd
+efgh
+
+## blk: count C-v
+3<C-v>d
+█abcdef
+
+## blk: v to C-v
+vj<C-v>d
+a█bcd
+efgh
+
+## blk: C-v to v
+<C-v>jvd
+a█bcd
+efgh
+
+## blk: C-v C-v ends
+<C-v>j<C-v>x
+a█bcd
+efgh
+
+## blk: C-q
+<C-q>jd
+a█bcd
+efgh
+
+## blk: colon
+<C-v>jl:s/./x/<CR>
+a█bcd
+efgh
+
+## blk: colon esc cursor
+j$<C-v>kh:<Esc>
+abcd
+█efgh
+
+## blk: j keeps column
+<C-v>jjd
+abcd█e
+ab
+abcdef
+
+## blk: cursor bottom left
+jl<C-v>khd
+abcd
+e█fgh
+
+## blk: up and left y
+j$<C-v>khy
+abcd
+█efgh
+
+## blk: cut tab d
+l<C-v>jjd
+█abcd
+	efg
+abcd
+
+## blk: cut wide d
+l<C-v>jjd
+█abcd
+名字x
+abcd
+
+## blk: cut tab y
+l<C-v>jjy
+█abcd
+	efg
+abcd
+
+## blk: cut wide y
+l<C-v>jjy
+█abcd
+名字x
+abcd
+
+## blk: cut tab IX
+l<C-v>jjIX<Esc>
+█abcd
+	efg
+abcd
+
+## blk: cut wide IX
+l<C-v>jjIX<Esc>
+█abcd
+名字x
+abcd
+
+## blk: cut tab AX
+l<C-v>jjAX<Esc>
+█abcd
+	efg
+abcd
+
+## blk: cut wide AX
+l<C-v>jjAX<Esc>
+█abcd
+名字x
+abcd
+
+## blk: cut tab cX
+l<C-v>jjcX<Esc>
+█abcd
+	efg
+abcd
+
+## blk: cut wide cX
+l<C-v>jjcX<Esc>
+█abcd
+名字x
+abcd
+
+## blk: cut tab rx
+l<C-v>jjrx
+█abcd
+	efg
+abcd
+
+## blk: cut wide rx
+l<C-v>jjrx
+█abcd
+名字x
+abcd
+
+## blk: cut tab >
+l<C-v>jj>
+█abcd
+	efg
+abcd
+
+## blk: cut wide >
+l<C-v>jj>
+█abcd
+名字x
+abcd
+
+## blk: cut tab <
+l<C-v>jj<
+█abcd
+	efg
+abcd
+
+## blk: cut wide <
+l<C-v>jj<
+█abcd
+名字x
+abcd
+
+## blk: cut tab ~
+l<C-v>jj~
+█abcd
+	efg
+abcd
+
+## blk: cut wide ~
+l<C-v>jj~
+█abcd
+名字x
+abcd
+
+## blk: cut tab lydollarp
+l<C-v>jjly$p
+█abcd
+	efg
+abcd
+
+## blk: cut wide lydollarp
+l<C-v>jjly$p
+█abcd
+名字x
+abcd
+
+## blk: cut tab lyP
+l<C-v>jjlyP
+█abcd
+	efg
+abcd
+
+## blk: cut wide lyP
+l<C-v>jjlyP
+█abcd
+名字x
+abcd
+
+## blk: cut tab right d
+ll<C-v>jjd
+█abcd
+a	bc
+abcd
+
+## blk: cut tab right A
+ll<C-v>jjAX<Esc>
+█abcd
+a	bc
+abcd
+
+## blk: cut tab right y
+ll<C-v>jjy
+█abcd
+a	bc
+abcd
+
+## blk: cut wide right A
+ll<C-v>jjAX<Esc>
+█abcd
+a名字
+abcd
+
+## blk: cut wide right d
+ll<C-v>jjd
+█abcd
+a名字
+abcd
+
+## blk: p into tab
+<C-v>jy$jjp
+█ab
+cd
+x		y
+x		y
+
+## blk: P into tab middle
+<C-v>jyjj$hP
+█ab
+cd
+x		y
+x		y
+
+## blk: p into wide
+<C-v>jyjjlp
+█ab
+cd
+x名字
+x名字
+
+## blk: A two short lines
+<C-v>jjllAX<Esc>
+a█bcdef
+ab
+a

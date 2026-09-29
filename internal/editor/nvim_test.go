@@ -131,10 +131,14 @@ func run(t *testing.T, c nvimCase) string {
 		e.Feed(k)
 	}
 	kind := ""
-	if e.reg.kind != 0 {
+	switch e.reg.kind {
+	case 0:
+	case blockKind:
+		kind = string(rune(blockKind)) + strconv.Itoa(e.reg.width)
+	default:
 		kind = string(e.reg.kind)
 	}
-	return result(e.lines, e.cur, kind, e.reg.text, e.top, map[Mode]string{Normal: "n", Insert: "i", Replace: "R", Visual: "v", VisualLine: "V", Command: "c"}[e.mode])
+	return result(e.lines, e.cur, kind, e.reg.text, e.top, map[Mode]string{Normal: "n", Insert: "i", Replace: "R", Visual: "v", VisualLine: "V", VisualBlock: "\x16", Command: "c"}[e.mode])
 }
 
 func readGolden(t *testing.T) map[string]string {

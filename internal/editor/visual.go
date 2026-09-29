@@ -3,10 +3,13 @@ package editor
 // VISUAL and VISUAL LINE (§11): motions and text objects move the cursor
 // end of the selection, operators work on it.
 
-func (e *Editor) visual() bool { return e.mode == Visual || e.mode == VisualLine }
+func (e *Editor) visual() bool {
+	return e.mode == Visual || e.mode == VisualLine || e.mode == VisualBlock
+}
 
 // Selection is what VISUAL has selected, from one end to the other in text
-// order, both ends in; whole lines in V-LINE. ok is false outside VISUAL.
+// order, both ends in; whole lines in V-LINE, and in V-BLOCK the columns
+// Block tells. ok is false outside VISUAL.
 func (e *Editor) Selection() (from, to Pos, ok bool) {
 	if !e.visual() {
 		return Pos{}, Pos{}, false
@@ -71,6 +74,10 @@ func (e *Editor) reselect() {
 // operators on whole lines. In V-LINE it starts at column 0, or where the
 // cursor is when that is the upper end.
 func (e *Editor) selection(op string) span {
+	if e.mode == VisualBlock {
+		b := e.opBlock()
+		return span{start: b.start, end: b.end, visual: true, blk: &b}
+	}
 	from, to, _ := e.Selection()
 	s := span{start: from, end: to, inclusive: true, visual: true}
 	if e.mode == VisualLine {
@@ -90,11 +97,16 @@ func (e *Editor) selection(op string) span {
 }
 
 // visualOp runs an operator on the selection and leaves VISUAL.
-func (e *Editor) visualOp(op string, amount int) {
+func (e *Editor) visualOp(op string, c cmd) {
 	want := e.want
 	s := e.selection(op)
 	e.endVisual()
-	e.apply(op, s, amount, want)
+	if s.blk != nil {
+		e.cur, e.want = s.start, wantUnset
+		e.blockOp(op, *s.blk, c)
+		return
+	}
+	e.apply(op, s, c.n(), want)
 }
 
 var visualCommands map[string]func(*Editor, cmd)
@@ -110,7 +122,7 @@ func init() {
 		}
 	}
 	op := func(name string) func(*Editor, cmd) {
-		return func(e *Editor, c cmd) { e.visualOp(name, c.n()) }
+		return func(e *Editor, c cmd) { e.visualOp(name, c) }
 	}
 	swap := func(e *Editor, _ cmd) {
 		e.vstart, e.cur = e.cur, e.vstart
@@ -120,15 +132,35 @@ func init() {
 		"<Esc>": func(e *Editor, _ cmd) { e.endVisual() },
 		"v":     switchTo(Visual),
 		"V":     switchTo(VisualLine),
+		"<C-v>": switchTo(VisualBlock),
+		"<C-q>": switchTo(VisualBlock),
 		"o":     swap,
-		"O":     swap,
-		"gv":    func(e *Editor, _ cmd) { e.reselect() },
-		"d":     op("d"), "x": op("d"),
+		"O": func(e *Editor, c cmd) {
+			if e.mode == VisualBlock {
+				e.swapCorners()
+			} else {
+				swap(e, c)
+			}
+		},
+		"gv": func(e *Editor, _ cmd) { e.reselect() },
+		"d":  op("d"), "x": op("d"),
 		"c": op("c"), "s": op("c"),
 		"y": op("y"),
 		">": op(">"), "<": op("<"),
 		"u": op("gu"), "U": op("gU"), "~": op("g~"),
 		"J":  op("J"),
 		"gc": op("gc"),
+		"I":  op("I"), "A": op("A"), "r": op("r"),
 	}
 }
+
+// inBlock are the VISUAL commands V-BLOCK has (§11); blockOnly are those
+// only it has.
+var (
+	inBlock = map[string]bool{
+		"<Esc>": true, "v": true, "V": true, "<C-v>": true, "<C-q>": true, "o": true, "O": true, "gv": true,
+		"d": true, "x": true, "c": true, "y": true, ">": true, "<": true, "u": true, "U": true, "~": true,
+		"gc": true, "I": true, "A": true, "r": true,
+	}
+	blockOnly = map[string]bool{"I": true, "A": true, "r": true}
+)

@@ -28,11 +28,12 @@ const (
 	Visual
 	VisualLine
 	Command // the / ? or : line is open
+	VisualBlock
 )
 
 // String is the name the status bar shows (§7.8).
 func (m Mode) String() string {
-	return [...]string{"NORMAL", "INSERT", "REPLACE", "VISUAL", "V-LINE", "COMMAND"}[m]
+	return [...]string{"NORMAL", "INSERT", "REPLACE", "VISUAL", "V-LINE", "COMMAND", "V-BLOCK"}[m]
 }
 
 // Effect is what a key did that the console acts on.
@@ -265,10 +266,16 @@ func (e *Editor) run(c cmd) {
 	}
 	if e.visual() {
 		if f := visualCommands[c.name]; f != nil {
-			f(e, c)
+			ok := !blockOnly[c.name]
+			if e.mode == VisualBlock {
+				ok = inBlock[c.name]
+			}
+			if ok {
+				f(e, c)
+			}
 			return
 		}
-		if o := objects[c.name]; o != nil {
+		if o := objects[c.name]; o != nil && e.mode != VisualBlock {
 			start, vstart := e.cur, e.vstart
 			if _, ok := o(e, c.n(), c.name[0] == 'a'); !ok {
 				e.cur, e.vstart = start, vstart
@@ -334,11 +341,13 @@ func init() {
 			}
 			e.join(n)
 		},
-		"~":  func(e *Editor, c cmd) { e.tilde(c.n()) },
-		"r":  func(e *Editor, c cmd) { e.replace(c) },
-		"v":  func(e *Editor, c cmd) { e.startVisual(Visual, c.count) },
-		"V":  func(e *Editor, c cmd) { e.startVisual(VisualLine, c.count) },
-		"gv": func(e *Editor, _ cmd) { e.reselect() },
+		"~":     func(e *Editor, c cmd) { e.tilde(c.n()) },
+		"r":     func(e *Editor, c cmd) { e.replace(c) },
+		"v":     func(e *Editor, c cmd) { e.startVisual(Visual, c.count) },
+		"V":     func(e *Editor, c cmd) { e.startVisual(VisualLine, c.count) },
+		"<C-v>": func(e *Editor, c cmd) { e.startVisual(VisualBlock, c.count) },
+		"<C-q>": func(e *Editor, c cmd) { e.startVisual(VisualBlock, c.count) }, // as in nvim: where the terminal takes C-v
+		"gv":    func(e *Editor, _ cmd) { e.reselect() },
 
 		"u":     func(e *Editor, c cmd) { e.undo(c.n()) },
 		"<C-r>": func(e *Editor, c cmd) { e.redo(c.n()) },

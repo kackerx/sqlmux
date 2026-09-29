@@ -16590,3 +16590,693 @@ a█z
 reg: "" ""
 top: 1
 mode: n
+
+## blk: C-v j d
+a█d
+eh
+ijkl
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: C-v x
+a█cd
+egh
+reg: "\x161" "b\nf"
+top: 1
+mode: n
+
+## blk: C-v y reg
+a█bcd
+efgh
+ijkl
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: C-v y then p
+abcd█bc
+efghfg
+ijkl
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: C-v y then P
+abcd
+e█bcfgh
+ifgjkl
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: C-v y then p past end
+abcd
+efgh
+ij█bc
+  fg
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: C-v y then 3p
+a█bcbcbcbcd
+efgfgfgfgh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: p on short line
+abcd
+efgh
+x█bc
+yfg
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: I
+a█Xbcd
+eXfgh
+ijkl
+reg: "" ""
+top: 1
+mode: n
+
+## blk: I short line skipped
+ab█Xcd
+e
+ijXkl
+reg: "" ""
+top: 1
+mode: n
+
+## blk: A
+a█bcXd
+efgXh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: A short line padded
+a█bcXd
+e  X
+ijkXl
+reg: "" ""
+top: 1
+mode: n
+
+## blk: $A
+a█bcdX
+eX
+ijkl
+reg: "" ""
+top: 1
+mode: n
+
+## blk: $A three lines
+█abX
+abcdefX
+aX
+reg: "" ""
+top: 1
+mode: n
+
+## blk: I count
+a█XXbcd
+eXXfgh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: c
+aX█Yd
+eXYh
+ijkl
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: c short line
+a█Xd
+eX
+iXl
+reg: "\x162" "bc\n\njk"
+top: 1
+mode: n
+
+## blk: c then u
+a█bcd
+efgh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: I then u
+a█bcd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: r
+a█xxd
+exxh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: r short line
+a█xxd
+e
+ixxl
+reg: "" ""
+top: 1
+mode: n
+
+## blk: tilde
+a█BCd
+eFGh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: u
+A█bcD
+EfgH
+reg: "" ""
+top: 1
+mode: n
+
+## blk: U
+a█BCd
+eFGh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: >
+a█  bcd
+e  fgh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: > count
+a█    bcd
+e    fgh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: <
+a█  bcd
+e  fgh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: < partial blanks
+a█bcd
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: gc
+-█- abcd
+-- efgh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: o
+a█bcd
+efgh
+reg: "" ""
+top: 1
+mode: 
+
+## blk: O
+abcd
+e█fgh
+reg: "" ""
+top: 1
+mode: 
+
+## blk: O then d
+a█d
+eh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: $ d
+█a
+e
+ijkl
+reg: "\x163" "bcd\nf"
+top: 1
+mode: n
+
+## blk: $ y
+a█bcd
+ef
+ijkl
+reg: "\x163" "bcd\nf"
+top: 1
+mode: n
+
+## blk: tab start d
+a█bc
+acde
+reg: "\x161" "\t\nb"
+top: 1
+mode: n
+
+## blk: tab middle d
+a█def
+ac
+reg: "\x162" "bc\n\tb"
+top: 1
+mode: n
+
+## blk: tab I
+a█Xbcdef
+aX	bc
+reg: "" ""
+top: 1
+mode: n
+
+## blk: tab A
+a█bXcdef
+a	Xbc
+reg: "" ""
+top: 1
+mode: n
+
+## blk: tab y
+a█bcdef
+a	bc
+reg: "\x162" "bc\n\tb"
+top: 1
+mode: n
+
+## blk: tab r
+a█xxdef
+axxc
+reg: "" ""
+top: 1
+mode: n
+
+## blk: tab >
+a█  bcdef
+a   bc
+reg: "" ""
+top: 1
+mode: n
+
+## blk: tab <
+x█bc
+yde
+reg: "" ""
+top: 1
+mode: n
+
+## blk: wide d
+█cd
+字
+reg: "\x162" "ab\n名"
+top: 1
+mode: n
+
+## blk: wide I
+█Xabcd
+X名字
+reg: "" ""
+top: 1
+mode: n
+
+## blk: wide A
+█abXcd
+名X字
+reg: "" ""
+top: 1
+mode: n
+
+## blk: wide y
+█abcd
+名字
+reg: "\x162" "ab\n名"
+top: 1
+mode: n
+
+## blk: wide r
+█名cd
+名gh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: wide c
+█Xcd
+X字
+reg: "\x162" "ab\n名"
+top: 1
+mode: n
+
+## blk: p over tab
+ab
+cd
+x	y█a
+x	yc
+reg: "\x161" "a\nc"
+top: 1
+mode: n
+
+## blk: gv
+a█d
+eh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: count C-v
+█def
+reg: "\x163" "abc"
+top: 1
+mode: n
+
+## blk: v to C-v
+a█cd
+egh
+reg: "\x161" "b\nf"
+top: 1
+mode: n
+
+## blk: C-v to v
+a█gh
+reg: "v" "bcd\nef"
+top: 1
+mode: n
+
+## blk: C-v C-v ends
+abcd
+e█gh
+reg: "v" "f"
+top: 1
+mode: n
+
+## blk: C-q
+a█cd
+egh
+reg: "\x161" "b\nf"
+top: 1
+mode: n
+
+## blk: colon
+xbcd
+█xfgh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: colon esc cursor
+abc█d
+efgh
+reg: "" ""
+top: 1
+mode: n
+
+## blk: j keeps column
+abc█d
+ab
+abcdf
+reg: "\x161" "e\n \ne"
+top: 1
+mode: n
+
+## blk: cursor bottom left
+a█d
+eh
+reg: "\x162" "bc\nfg"
+top: 1
+mode: n
+
+## blk: up and left y
+abc█d
+efgh
+reg: "\x161" "d\nh"
+top: 1
+mode: n
+
+## blk: cut tab d
+a█cd
+ efg
+acd
+reg: "\x161" "b\n \nb"
+top: 1
+mode: n
+
+## blk: cut wide d
+a█cd
+ 字x
+acd
+reg: "\x161" "b\n \nb"
+top: 1
+mode: n
+
+## blk: cut tab y
+a█bcd
+	efg
+abcd
+reg: "\x161" "b\n \nb"
+top: 1
+mode: n
+
+## blk: cut wide y
+a█bcd
+名字x
+abcd
+reg: "\x161" "b\n \nb"
+top: 1
+mode: n
+
+## blk: cut tab IX
+a█Xbcd
+ X efg
+aXbcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut wide IX
+a█Xbcd
+ X名字x
+aXbcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut tab AX
+a█bXcd
+	Xefg
+abXcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut wide AX
+a█bXcd
+名X字x
+abXcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut tab cX
+a█Xcd
+ Xefg
+aXcd
+reg: "\x161" "b\n \nb"
+top: 1
+mode: n
+
+## blk: cut wide cX
+a█Xcd
+ X字x
+aXcd
+reg: "\x161" "b\n \nb"
+top: 1
+mode: n
+
+## blk: cut tab rx
+a█xcd
+ xefg
+axcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut wide rx
+a█xcd
+ x字x
+axcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut tab >
+a█  bcd
+    efg
+a  bcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut wide >
+a█  bcd
+  名字x
+a  bcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut tab <
+a█bcd
+ efg
+abcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut wide <
+a█bcd
+ 字x
+abcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut tab ~
+a█Bcd
+	efg
+aBcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut wide ~
+a█Bcd
+名字x
+aBcd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut tab lydollarp
+abcd█bc
+	ef eg
+abcdbc
+reg: "\x162" "bc\n e\nbc"
+top: 1
+mode: n
+
+## blk: cut wide lydollarp
+abcd█bc
+名字  x
+abcdbc
+reg: "\x162" "bc\n  \nbc"
+top: 1
+mode: n
+
+## blk: cut tab lyP
+a█bcbcd
+  e efg
+abcbcd
+reg: "\x162" "bc\n e\nbc"
+top: 1
+mode: n
+
+## blk: cut wide lyP
+a█bcbcd
+   名字x
+abcbcd
+reg: "\x162" "bc\n  \nbc"
+top: 1
+mode: n
+
+## blk: cut tab right d
+ab█d
+a	c
+abd
+reg: "\x161" "c\nb\nc"
+top: 1
+mode: n
+
+## blk: cut tab right A
+ab█cXd
+a	bXc
+abcXd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut tab right y
+ab█cd
+a	bc
+abcd
+reg: "\x161" "c\nb\nc"
+top: 1
+mode: n
+
+## blk: cut wide right A
+ab█cXd
+a名X字
+abcXd
+reg: "" ""
+top: 1
+mode: n
+
+## blk: cut wide right d
+ab█d
+a 字
+abd
+reg: "\x161" "c\n \nc"
+top: 1
+mode: n
+
+## blk: p into tab
+ab
+cd
+x		y█a
+x		yc
+reg: "\x161" "a\nc"
+top: 1
+mode: n
+
+## blk: P into tab middle
+ab
+cd
+x	█a	y
+x	c	y
+reg: "\x161" "a\nc"
+top: 1
+mode: n
+
+## blk: p into wide
+ab
+cd
+x名█a字
+x名c字
+reg: "\x161" "a\nc"
+top: 1
+mode: n
+
+## blk: A two short lines
+a█bXcdef
+abX
+a X
+reg: "" ""
+top: 1
+mode: n
