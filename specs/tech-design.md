@@ -1140,7 +1140,7 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 | 类型 | 允许的写法 | 提示 |
 |---|---|---|
 | smallint / integer / bigint | 可带正负号的整数，在该类型的范围内；照 PG 17 也认前后空格、`0x1F`、`1_000` | 「不是有效的整数」「超出 int4 的范围」 |
-| numeric / real / double precision | 小数、科学计数法、`NaN`、`Infinity`、`-Infinity`；照 PG 17 也认 `inf`、`1_000.5`、`0x10` | 「不是有效的数字」 |
+| numeric / real / double precision | 小数、科学计数法、`NaN`、`Infinity`、`-Infinity`；照 PG 17 也认 `inf`、`1_000.5`、`0x10`（real / double 也认）。带精度的 numeric(p,s)：按 s 位四舍五入之后整数部分不超过 p−s 位，不接受 Infinity；小数位多了 PG 会自动舍入，不算错。real / double 检查各自的范围 | 「不是有效的数字」「超出 numeric(10,2) 的范围」「超出 float8 的范围」「超出 float4 的范围」 |
 | boolean | PG 认的写法：`t f true false yes no on off 1 0` 及其唯一前缀（`tr`、`ye`、`of`），不分大小写，可带前后空格 | 「不是有效的布尔值」 |
 | date / time / timestamp 系列 | ISO 写法（比 §10.2 分段宽，分段仍只认 PG 的输出格式）：日期 `YYYY-M-D`，可带 ` BC`；时间 `H:MM[:SS[.f]]`，允许 `24:00:00`；timestamp / timestamptz 是日期，后面可以跟空格或 `T` 加时间，再可以跟时区 `±HH[:MM]` 或 `Z`（timestamp 带时区也放行，PG 会忽略它）。或者该类型认的特殊词：time 只有 `now` `allballs`；date / timestamp 有 `now` `today` `tomorrow` `yesterday` `infinity` `-infinity` `epoch`。PG 还认的其他写法（`2026/09/20`、月份名）会被挡住，是已知上限 | 「不是有效的日期 / 时间」 |
 | uuid | 32 个十六进制字符，可带连字符（任意每 4 位一个）或成对的花括号 | 「不是有效的 UUID」 |
@@ -1149,7 +1149,7 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 
 - 不合法时：输入框的文字加 `error` 色的波浪下划线（SGR 4:3，终端不支持时退化为普通下划线），下方弹出一个小框显示提示；有选项浮层时上下叠放，提示框紧贴输入框，选项浮层接在它外侧。各类型的写法以 PG 17 的输入函数为准，集成测试逐条拿 `select '<写法>'::<类型>` 核对。
 - 不合法时 `↵`、点击别处、滚轮、`C-p`、`C-s`、换焦点的键都不提交，留在编辑里；`esc`（或 `C-c`）放弃这一次输入，回到进入编辑之前的值，这一格原来就改过的回到改过的值。这是 §10.1「esc 提交」的例外：带着一个明知不合法的值退出，保存时只会整批回滚。
-- 空文字不检查（进入时原值是 NULL 的格，什么都不改就退出，本来就不算修改）。NULL / DEFAULT 通过选项设置，不受影响。
+- 文字和进入编辑时一样（没改过）就不检查：本来就不算修改，也免得 PG 自己输出的值被拦住。改过的文字照常检查，包括清空：把非空的数字格清空，PG 会报 22P02，所以提示「不是有效的数字」，要写 NULL 请用选项。NULL / DEFAULT 通过选项设置，不受影响（M3 F3.21 reviewer 实测）。
 
 ## 11. Console 与 result
 
