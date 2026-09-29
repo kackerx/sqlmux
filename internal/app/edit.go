@@ -458,11 +458,14 @@ func (a *App) addRow() tea.Cmd {
 	}
 	// added keeps the order they show in, (page, after), a save's too:
 	// right after the cursor's, or before those added under its row before
-	at := slices.IndexFunc(t.added, func(o *newRow) bool { return cmp.Or(cmp.Compare(o.page, r.page), cmp.Compare(o.after, r.after)) >= 0 })
+	// ponytail: at the last page's end the rows of pages before it, a LIMIT
+	// cut since, show after this page's though they sort before; sort by
+	// where shownRows puts them if 新增的第 N 行 is ever read off there
+	at := len(t.added)
 	if ok && sr.add != nil {
 		at = slices.Index(t.added, sr.add) + 1
-	} else if at < 0 {
-		at = len(t.added)
+	} else if i := slices.IndexFunc(t.added, func(o *newRow) bool { return cmp.Or(cmp.Compare(o.page, r.page), cmp.Compare(o.after, r.after)) >= 0 }); i >= 0 {
+		at = i
 	}
 	t.added = slices.Insert(t.added, at, r)
 	t.note, t.failed = ui.Note{}, nil

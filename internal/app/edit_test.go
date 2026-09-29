@@ -900,10 +900,12 @@ func TestRowAddDelete(t *testing.T) {
 		t.Fatalf("again: cursor %d, added %+v", tab.row, tab.added)
 	}
 	saved := ui.Note{Head: "已保存 1 行 · 3ms"} // till the next change (§10.3)
-	if tab.note = saved; feed(t, a, "dd") != false || len(tab.added) != 1 || tab.note != (ui.Note{}) {
+	tab.note = saved
+	if feed(t, a, "dd"); len(tab.added) != 1 || tab.note != (ui.Note{}) {
 		t.Fatal("dd on a row added takes it out")
 	}
-	if tab.note = saved; feed(t, a, "r") != false || len(tab.added) != 0 || tab.note != (ui.Note{}) { // the first one, with done in it, under the cursor now
+	tab.note = saved
+	if feed(t, a, "r"); len(tab.added) != 0 || tab.note != (ui.Note{}) { // the first one, with done in it, under the cursor now
 		t.Fatal("r on a row added takes it out")
 	}
 	feed(t, a, "gg")
@@ -913,11 +915,13 @@ func TestRowAddDelete(t *testing.T) {
 	if feed(t, a, "li"); tab.cell != nil {
 		t.Fatal("a row marked is not edited")
 	}
-	if tab.note = saved; feed(t, a, "dd") != false || len(tab.deleted) != 0 || tab.note != (ui.Note{}) {
+	tab.note = saved
+	if feed(t, a, "dd"); len(tab.deleted) != 0 || tab.note != (ui.Note{}) {
 		t.Fatal("dd again unmarks")
 	}
 	feed(t, a, "dd")
-	if tab.note = saved; feed(t, a, "r") != false || len(tab.deleted) != 0 || tab.note != (ui.Note{}) {
+	tab.note = saved
+	if feed(t, a, "r"); len(tab.deleted) != 0 || tab.note != (ui.Note{}) {
 		t.Fatal("r unmarks")
 	}
 	tab.cols.PK = nil

@@ -194,7 +194,7 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 			t.where = ui.Input{Text: t.applied, Pos: len(t.applied)}
 		}
 		return a.showToast("查询已取消", toastTTL)
-	case m.err != nil: // under the rows shown, which stay; the request is there to be fixed, the count owed
+	case m.err != nil: // under the rows shown, which stay; its WHERE is there to be fixed (backToShown), the count owed
 		// ponytail: no 位置 line, the SQL being ours, not the WHERE typed;
 		// map Position into the WHERE if it is ever wanted
 		t.bar = newErrorBar("fetch", postgres.ServerErrorOf(m.err), "", "")
