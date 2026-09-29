@@ -328,6 +328,7 @@ H = "0"
   - 单键和以它开头的序列同时存在（如 `g` 和 `gt`），会产生超时歧义，给出警告。
 
   启动时用浮层列出冲突；`sqlmux keys --check` 发现冲突时以非零状态码退出。
+- **标题**：每个有默认键的 Action 都要有标题（含输入框、浮层里的，如 `where.history`、`keyhelp.close`），键位帮助、面板、导出都用它；单测检查 `default.toml` 里每个绑定的 Action 都有标题（M3 F3.17 reviewer 发现）。
 - **提示**：`keymap.Hint(actionID, scope)` 返回当前生效的第一个键位的显示形式。界面上所有的键位文字都通过它读取，不写死；未绑定的 Action 不显示提示。
 - **导出**：`sqlmux keys` 输出当前生效的键位表（markdown），加 `--format toml` 输出可以分享的配置片段。
   - toml 片段要能原样放进 `config.toml` 当作完整的键位参考（M1 用户反馈）：按作用域分节，每节前一行注释写明这个作用域什么时候生效（§6.4）；每行后面注释 Action 的标题；有标题但没有绑定键的 Action，以注释行 `# "" = "<action>"  # <标题>` 列在所属作用域下，作用域按 id 前缀对应（`grid.` → grid，`tree.` → tree，`console.` → console，`result.` → result，其余 → normal）；末尾附一段注释掉的 `[map.<上下文>.<模式>]` 示例（§6.6）。
