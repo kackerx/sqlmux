@@ -168,10 +168,10 @@ Tab 的种类：
 - 除结果区外，pane 不再分 data / console 类型。pane 的标题图标、右侧提示（`▶ run`、schema 下拉）、按键作用域都跟着当前 tab 的类型走；tab 栏每个 tab 前面画类型图标。`Pane.Kind` 只剩「普通 / 结果区」之分，M0 修剪时说的那几张按 PaneKind 下标的并行表随之删掉。
 - 结果区照旧是独立的 pane，只放结果 tab；console 的执行结果不论 console 在哪个 pane，都进底部结果区（§11）。
 - 打开表时当前 tab 是 console：`↵` 不替换它，改为在这个 pane 新开一个 tab。console 里是用户写的 SQL，不能被一张表顶掉。
-- 焦点不在普通 pane 上（比如在树上）时，目标 pane 取最近聚焦过、而且当前 tab 不是 console 的那个；所有普通 pane 的当前 tab 都是 console 时，才在最近聚焦过的那个里新开 tab。否则默认布局里从 ② console 回到树打开表，表会开成 ② 的第二个 tab，① 空着（M3 F3.7 定）。
+- 焦点不在普通 pane 上（比如在树上）时，目标 pane 取最近聚焦过的普通 pane，console 所在的 pane 也算（F3.37 用户定，取代 F3.7 的「跳过当前 tab 是 console 的 pane」：焦点在 console 时打开的表就开在这个 pane）。
 - 快速 SQL 的 `C-e`（在 console 中打开）在目标 pane 新开一个 console tab。
 - 目录树的工作区里，pane 节点不再标类型，tab 节点按各自的类型显示图标。
-- **引导页**：没有 tab 的 pane、点 `+` 新开的 tab、分割出来的新 pane，都显示同一个引导页，不再是空白。目标 pane 的当前 tab 是引导 tab 时，打开表（`↵`、`t`、`C-t`、中键都一样）和新建 console（`c`、点击、面板都一样）都替换它，不另开 tab：引导 tab 只是「新 tab」的占位。内容区中间两个按钮：「打开表」打开命令面板的表范围，选中的表开在这里；「新建 console」直接在这里开一个 console。按钮可点击，旁边的键位文字从 keymap 读。它取代 M1 里「`+` 聚焦树的过滤框」的做法：面板的表范围能跨 schema 模糊搜，更适合挑表。
+- **引导页**：没有 tab 的 pane、点 `+` 新开的 tab、分割出来的新 pane，都显示同一个引导页，不再是空白。目标 pane 的当前 tab 是引导 tab 时，打开表（`↵`、`t`、`C-t`、中键都一样）和新建 console（`c`、点击、面板都一样）都替换它，不另开 tab：引导 tab 只是「新 tab」的占位。例外（F3.37）：这个 pane 里已经开着这张表时，切到那个 tab 并关掉引导 tab。内容区中间两个按钮：「打开表」打开命令面板的表范围，选中的表开在这里；「新建 console」直接在这里开一个 console。按钮可点击，旁边的键位文字从 keymap 读。它取代 M1 里「`+` 聚焦树的过滤框」的做法：面板的表范围能跨 schema 模糊搜，更适合挑表。
 
 默认 window 的布局：
 
@@ -366,11 +366,11 @@ H = "0"
 | NORMAL | `<leader>?` | 键位帮助，哪里都能用 | 新增（M2/M3 验收） |
 | result | `P` · `q` | 固定当前结果 tab · 关闭当前结果 tab | P / q（原为固定 / 关闭 pane） |
 | schema 树 | `j` `k` `gg` `G` | 移动，支持次数前缀，与表格一致 | j/k |
-| schema 树 | `↵` · `t` · `/` · `R` · `l` · `h` | 打开（表）或展开 / 折叠（其他节点）· 在新 tab 打开 · 过滤 · 刷新 · 展开 · 折叠或到父节点（§7.8） | ↵ / C-↵ / / ；R、l、h 为新增 |
+| schema 树 | `↵` · `t` · `/` · `R` · `l` · `h` | 打开（表）或展开 / 折叠（其他节点）· 打开（F3.37 起和 `↵` 相同）· 过滤 · 刷新 · 展开 · 折叠或到父节点（§7.8） | ↵ / C-↵ / / ；R、l、h 为新增 |
 | console | `↵`（NORMAL / VISUAL） | 执行光标所在语句 · 执行选区 | ⌥↵ |
 | console | `gq{移动}` · `gqq` | 格式化移动碰到的语句 · 当前语句；VISUAL 下格式化选区。`gq` 是编辑器的操作符，不在 `[keys.console]` 里 | 同 |
 | console | `gs` | 打开 schema 下拉框（仅 PG，§8.6） | 新增 |
-| 命令面板 | `C-t` | 表在新 tab 打开；快速 SQL 的结果送到 result pane | C-↵ |
+| 命令面板 | `C-t` | 打开表（F3.37 起和 `↵` 相同）；快速 SQL 的结果送到 result pane | C-↵ |
 | 快速 SQL | `C-y` · `C-e` | 复制为 CSV · 在 console 中打开（写语句也走这条路） | C-y / C-e；取消 C-S-↵ |
 | 单元格编辑 | 见 §10.2 | 时间分段调整、选项选择 | 新增 |
 | 各浮层 | 见下表 | 各浮层内的移动与选择 | 同 PRD |
@@ -395,7 +395,7 @@ console 里的 `x` 是 vim 的删除字符，所以 console 的 tab 用 `:q` 关
 | WHERE 历史 / 收藏下拉（`where`） | `C-r` · `C-n` / `Tab` / `↓` · `C-p` / `S-Tab` / `↑` · `↵` · `C-f` · `esc` | 打开 · 下一项 · 上一项（到头绕回）· 应用 · 收藏或取消收藏 · 关闭 | Q-02 |
 | COLS 下拉（`cols`） | `/` · `j` / `k` · `space` · `a` · `A` · `esc` | 聚焦过滤框 · 移动 · 勾选 · 全选 · 全不选 · 先清空过滤，再按一次关闭。打开时焦点在列表上，PRD 写的「打开时焦点在过滤框」与这些键冲突，按这里做（§18） | Q-04 |
 | session 列表（`sessions`） | `j` / `k` · `l` / `h` · `↵` · `n` · `x` · `$` · `esc` | 移动 · 展开 / 收起 · attach · 新建连接 · 关闭 · 重命名 · 关闭列表 | S-03 |
-| 命令面板（`palette`） | `↑` / `↓` 或 `C-n` / `C-p` · `Tab` / `S-Tab` · `↵` · `C-t` · `C-y` · `C-e` · `esc` | 移动 · 切换范围 · 执行 · 在新 tab 打开 / 把结果送到结果区 · 复制 CSV · 在 console 中打开 · 关闭 | K-01~K-04、F-04 |
+| 命令面板（`palette`） | `↑` / `↓` 或 `C-n` / `C-p` · `Tab` / `S-Tab` · `↵` · `C-t` · `C-y` · `C-e` · `esc` | 移动 · 切换范围 · 执行 · 打开表（同 `↵`）/ 把结果送到结果区 · 复制 CSV · 在 console 中打开 · 关闭 | K-01~K-04、F-04 |
 | 通用下拉（`dropdown`）：schema、ORDER、LIMIT | `C-n` / `C-p` / `↑` / `↓` · `↵` · `esc` | 移动 · 选中 · 关闭。输入直接进过滤框，所以不用 j/k。Action 为 `dropdown.up/down/select/close` | §8.6 |
 | 补全列表（`complete`） | `Tab` / `C-n` / `↓` · `S-Tab` / `C-p` / `↑` | 下一项 · 上一项，到头绕回；弹出时第一项已选中。`↵`（接受，文字不变时照常执行）和 `esc`（第一次关列表）由输入框处理，不在这个作用域里 | §9.7 |
 | 确认框（`confirm`） | `y` / `↵` · `n` / `esc` | 确认 · 取消；`C-c` 等同 `esc`；两个按钮都能点击 | §10.5 |
@@ -570,8 +570,8 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
 - `text` 换字形，`fg` 换颜色，两者都可以只写一个。没写的沿用 `icons` 选的那一套（nerd / ascii），`icons = "ascii"` 时覆盖照样生效。
 - 写了 `fg` 的图标在任何位置都用这个颜色；没写时跟随所在位置的颜色，比如标题聚焦时是 `focus` 色。
 - **图标后面留 1 个空格再接文字**（M1 用户反馈）：树、面板的搜索行与候选、pane 标题、侧栏标题、状态栏、查询条都一样。Nerd Font 图标按 1 列计算（§7.1），但不少终端和字体把它画得比 1 列宽，溢出到后一格，紧挨着文字时看起来贴在一起，悬停底色也只盖住半个。留一格空白正好接住溢出的部分。
-- 默认颜色：`save`、`refresh`、`transpose` 用 `info` 色，`sort_asc` / `sort_desc` 用 `warn` 色；都可以在 `[icon]` 里用 `fg` 覆盖。
-- 可以覆盖的图标：`schema`、`table`、`data`、`console`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`，以及命令面板用的 `command`（nf-fa-bolt，U+F0E7，ascii 为 `:`）和 `window`（nf-fa-window_restore，U+F2D2，ascii 为 `[]`）；查询条的 `save`（U+F0C7，ascii `[S]`）、`refresh`（U+F021，ascii `[R]`）、`transpose`（U+F0EC，ascii `[T]`）、`sort_asc`（nf-fa-sort_amount_asc，U+F160，ascii `↑`）、`sort_desc`（nf-fa-sort_amount_desc，U+F161，ascii `↓`）；树的 `view`（nf-fa-eye，U+F06E，ascii `v`）、`column`（nf-cod-symbol_field，U+EB5F，ascii `-`）；查询条新增的 `row_add`（nf-fa-plus，U+F067，ascii `+`）、`row_delete`（nf-fa-minus，U+F068，ascii `-`）、`auto_refresh`（nf-fa-clock_o，U+F017，ascii `@`）、`stop`（nf-fa-stop，U+F04D，ascii `#`）；结果区的 `result`（nf-fa-list_alt，U+F022，ascii `=`）、`pin`（nf-oct-pin，U+F435，ascii `*`）、`export`（nf-fa-download，U+F019，ascii `>`）、`close`（nf-fa-times，U+F00D，ascii `x`）。M3 起去掉 `data`：表 tab 在 pane 标题、tab 栏、树的工作区、面板的 pane 行里一律用 `table` 图标，console tab 用 `console`，引导 tab 不画图标。以后新增的图标（如 `mysql`、视图）也按名字加入。名字写错时启动报错。
+- 默认颜色：`save`、`refresh`、`transpose` 用 `info` 色，`sort_asc` / `sort_desc` 和 WHERE 历史下拉里的 `star` 用 `warn` 色（收藏和历史只靠图标区分，黄星一眼能认出）；都可以在 `[icon]` 里用 `fg` 覆盖。
+- 可以覆盖的图标：`schema`、`table`、`data`、`console`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`，以及命令面板用的 `command`（nf-fa-bolt，U+F0E7，ascii 为 `:`）和 `window`（nf-fa-window_restore，U+F2D2，ascii 为 `[]`）；查询条的 `save`（U+F0C7，ascii `[S]`）、`refresh`（U+F021，ascii `[R]`）、`transpose`（U+F0EC，ascii `[T]`）、`sort_asc`（nf-fa-sort_amount_asc，U+F160，ascii `↑`）、`sort_desc`（nf-fa-sort_amount_desc，U+F161，ascii `↓`）；树的 `view`（nf-fa-eye，U+F06E，ascii `v`）、`column`（nf-cod-symbol_field，U+EB5F，ascii `-`）；查询条新增的 `row_add`（nf-fa-plus，U+F067，ascii `+`）、`row_delete`（nf-fa-minus，U+F068，ascii `-`）、`auto_refresh`（nf-fa-clock_o，U+F017，ascii `@`）、`stop`（nf-fa-stop，U+F04D，ascii `#`）；结果区的 `result`（nf-fa-list_alt，U+F022，ascii `=`）、`pin`（nf-oct-pin，U+F435，ascii `*`）、`export`（nf-fa-download，U+F019，ascii `>`）、`close`（nf-fa-times，U+F00D，ascii `x`）、日志 tab 的 `log`（nf-fa-file_text_o，U+F0F6，ascii `L`）；WHERE 历史下拉的 `star`（nf-fa-star，U+F005，ascii `*`）、`history`（nf-fa-history，U+F1DA，ascii `h`）。M3 起去掉 `data`：表 tab 在 pane 标题、tab 栏、树的工作区、面板的 pane 行里一律用 `table` 图标，console tab 用 `console`，引导 tab 不画图标。以后新增的图标（如 `mysql`、视图）也按名字加入。名字写错时启动报错。
 
 ### 7.8 默认尺寸与样式（取自设计稿）
 
@@ -622,8 +622,8 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
       - 光标行和「当前打开的表」分开画：光标行在树聚焦时 `select` 底，失焦时 `row` 底，与表格的 cursor / cursor_blur 同理；悬停行 `row` 底，不移动光标。「当前打开的表」指 `↵` 会打开到的那个 data pane（§12 的规则）当前 tab 里的表，它的表节点图标和名字用 `focus` 色；工作区里，同一个 pane 的当前 tab 节点也用 `focus` 色。两处高亮说的是同一件事，焦点在树上时也有提示。
       - 光标移出可视区域时列表跟着滚；滚轮只滚视图，光标被夹回视图内（与 nvim 相同）。
     - 一条分隔线；
-    - 提示行，复用 tab 栏 / 面板底栏的 `hintRow`：`j/k move · ↵ open · t tab`，全部 `dim` 色，` · ` 分隔，每一项都能点击（§7.4），放不下的项整项不显示。
-  - **按键**：`j` / `k` / `gg` / `G` 在所有可见节点间移动，支持次数前缀。`l` 展开，已展开时移到第一个子节点；`h` 折叠，已折叠或是叶子时移到父节点（nvim-tree、neo-tree 的习惯）。`↵`：表 / 视图节点打开表（§7.8「打开已有的表」）；列节点打开所属的表，并把光标移到这一列；工作区的 tab 节点切过去并聚焦，pane 节点展开或折叠（window 节点在 M1 只有一个，只展开、折叠，M5 再做切换）；其余节点展开或折叠。列节点打开已有的 tab 时，光标移到这一列；这一列被 COLS 隐藏了的话，光标不动，也不取消隐藏。叶子节点上按 `l` 不做事。`t`：表 / 视图节点在新 tab 打开，其他节点上无效。`/` 过滤，`R` 刷新。树里不再用 `gs`。
+    - 提示行，复用 tab 栏 / 面板底栏的 `hintRow`：`j/k move · ↵ open`（F3.37 起去掉 `t tab`），全部 `dim` 色，` · ` 分隔，每一项都能点击（§7.4），放不下的项整项不显示。
+  - **按键**：`j` / `k` / `gg` / `G` 在所有可见节点间移动，支持次数前缀。`l` 展开，已展开时移到第一个子节点；`h` 折叠，已折叠或是叶子时移到父节点（nvim-tree、neo-tree 的习惯）。`↵`：表 / 视图节点打开表（§7.8「打开已有的表」）；列节点打开所属的表，并把光标移到这一列；工作区的 tab 节点切过去并聚焦，pane 节点展开或折叠（window 节点在 M1 只有一个，只展开、折叠，M5 再做切换）；其余节点展开或折叠。列节点打开已有的 tab 时，光标移到这一列；这一列被 COLS 隐藏了的话，光标不动，也不取消隐藏。叶子节点上按 `l` 不做事。`t`：表 / 视图节点上和 `↵` 相同（F3.37 起），其他节点上无效；Action `tree.open.tab`、`palette.open.tab` 的标题都叫「打开」。`/` 过滤，`R` 刷新。树里不再用 `gs`。
   - **鼠标**：单击 `▸` / `▾` 或分组、schema、session 节点，展开或折叠；单击表 / 视图 / 列节点与 `↵` 相同，中键与 `t` 相同；单击工作区的 tab 节点切过去，单击 pane 节点展开或折叠；和点树上别的节点一样，焦点到树上，不会跳到那个 pane。
   - **树当前的 schema**（快速 SQL 的 search_path、面板表范围的排序、补全的表名都用它）：光标所在节点所属的 schema；光标不在任何 schema 下（在 session 节点或工作区里）时沿用上一次的值；初始为 `current_schema()`，为 NULL 时取第一个 schema。
   - **从树里打开表**（`↵` / `t` / 单击 / 中键）后，焦点移到 data pane，与命令面板一致（§12「打开表就是为了接着看数据」），也与 nvim-tree 的 `<CR>` 一致。要连续浏览几张表时按 `C-h` 回到树。
@@ -708,7 +708,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
 
 ### 7.9 文本输入：删词与自动配对（M2/M3 验收时定）
 
-- **删词**：所有单行输入框（WHERE、面板、树的过滤框、COLS、PAGE、单元格编辑、编辑器的 `:` / `/` 命令行）都支持 `C-w` 删掉光标前的一个词、`C-u` 删到行首；词的划分同 vim INSERT 下的 `C-w`（先跳过空白，再删一串关键字字符或一串其他非空白字符）。console 的 INSERT 本来就有。
+- **删词**：所有单行输入框（面板、树的过滤框、COLS、PAGE、单元格编辑、编辑器的 `:` / `/` 命令行；WHERE 在 F3.39 起同 console 的 INSERT，`C-u` / `C-w` 照 nvim 先删到这次 INSERT 的起点，再按一次才删到行首）都支持 `C-w` 删掉光标前的一个词、`C-u` 删到行首；词的划分同 vim INSERT 下的 `C-w`（先跳过空白，再删一串关键字字符或一串其他非空白字符）。console 的 INSERT 本来就有。
 - **`M-BS`（Option / Alt + 退格）当作 `C-w`**：在上面这些地方和 console 的 INSERT 里都一样，用户在 nvim 里就是这样映射的，也是 macOS 文本框的习惯。它是编辑文字的内建行为，不写进 `default.toml`，所以「默认键位不用 Alt」（§6.2）的检查不受影响；终端不发这个键时，`C-w` 照样能用。console 的 NORMAL / VISUAL 下 `M-BS` 不做事。
 - **自动配对**：在 console 的 INSERT、WHERE 输入框、快速 SQL 里，输入 `(`、`[`、`{`、`'`、`"`、`` ` `` 时补上另一半，光标停在中间，如 `order = '█'`。
   - 只在光标后面是行尾、空白或右括号时才配对；引号还要求光标前面不是字母数字或同一个引号，免得 `don't`、`''` 这类被弄乱。
@@ -968,7 +968,7 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
   - 这样取代了 F1.9 的「弱高亮 / 强高亮」：F1.9 实测的三个问题里，`as x` 被换成 `max` 靠首字符过滤解决，`null`、`agent` 被替换靠「文字不变就执行」解决；而用户看到第一项已经选中、第一次按 `Tab` 却停在原地，会以为焦点跑回了输入框（M1 用户反馈）。
   - 已知的代价：输入的是某个候选的前缀，比如别名 `as ma`，`↵` 会补成 `max`，要执行得先 `esc`。
 - 快速 SQL 的面板里，`Tab` / `S-Tab` 在列表开着时移动候选，关着时照常切换范围。
-- `esc`：WHERE 输入框和快速 SQL（没有 vim 模式的单行输入框）里，第一次关闭候选列表，第二次才退出输入，与 COLS 下拉「先清空，再关闭」的规则一致。console 里照 nvim-cmp 的做法，`esc` 关掉列表的同时退出 INSERT：console 里几乎每敲一个标识符都会弹出列表，「打完一个词按 esc」是 vim 用户最常见的动作，分两步会让后面的 `k`、`0` 都被当成文字打进去（M3 F3.10 实测）。
+- `esc`：快速 SQL（没有 vim 模式的单行输入框）里，第一次关闭候选列表，第二次才退出输入（WHERE 在 F3.39 起同 console：一次 `esc` 关列表并回 NORMAL），与 COLS 下拉「先清空，再关闭」的规则一致。console 里照 nvim-cmp 的做法，`esc` 关掉列表的同时退出 INSERT：console 里几乎每敲一个标识符都会弹出列表，「打完一个词按 esc」是 vim 用户最常见的动作，分两步会让后面的 `k`、`0` 都被当成文字打进去（M3 F3.10 实测）。
 - 鼠标：悬停即移动选择，点击即接受。
 
 **WHERE 补全的细节**（M1 F1.5；上下文判断放在 `sqlkit.WhereContext(text, pos)`。M3 起它和 `CompletionContext` 建在同一个扫描器上，但仍是两个函数：WHERE 的「取值模式」是 WHERE 独有的，合并后重复的只剩几行）：
@@ -981,9 +981,9 @@ MySQL 的 schema 就是 database，按 PRD，切换 database 会新建 session�
 
 **WHERE 的 `C-r` 历史 / 收藏下拉**：也按当前输入模糊过滤，体验与 shell 里 fzf 的 CTRL-R 相同。
 
-- **打开**：在 WHERE 输入框里按 `C-r`（Action `where.history`，绑在 `[keys.input]`，只在 WHERE 输入框里有效果），或点击 WHERE 行右端的 `▾`（§7.8）。
+- **打开**：在 WHERE 输入框的 INSERT 下按 `C-r`（Action `where.history`，绑在 `[keys.input]`，只在 WHERE 输入框里有效果）、NORMAL 下按 `/`（F3.39，`[keys.wherenormal]`），或点击 WHERE 行右端的 `▾`（§7.8）。
 - **过滤**：不另设过滤框，直接用 WHERE 输入框里的文字做 fzf 过滤，边输入边过滤。
-- **列表**：收藏在前、历史在后，组内按时间从新到旧；每项前面画图标 `star` / `history`，不画组标题（F3.31）。打开时列出全部，不按输入框里已有的文字过滤，开始输入后才过滤。右侧说明：收藏项显示附带的 ORDER / LIMIT，跟默认值不同时才显示（`status ↓ · 500`）；历史项显示时间（`09-24 14:05`）。
+- **列表**：收藏在前、历史在后，组内按时间从新到旧；每项前面画图标 `star` / `history`，不画组标题（F3.31）；`icons = "ascii"` 时也不画，`*` / `h` 和右侧的说明已经能区分。打开时列出全部，不按输入框里已有的文字过滤，开始输入后才过滤。右侧说明：收藏项显示附带的 ORDER / LIMIT，跟默认值不同时才显示（`status ↓ · 500`）；历史项显示时间（`09-24 14:05`）。
 - **按键**（`[keys.where]`，Action `where.up/down/apply/star/close`）：`C-n` / `Tab` / `↓` 下一项，`C-p` / `S-Tab` / `↑` 上一项，到头绕回（F3.31）；`↵` 应用，把 WHERE、ORDER、LIMIT 都换成这一项的，从第 1 页开始执行；`C-f` 收藏 / 取消收藏；`esc` 关闭，输入框里的文字保留。
 - **历史的规则**：每次 `↵` 执行一条非空的 WHERE，就连同当时的 ORDER / LIMIT 记一条；内容相同的去重并挪到最前面；每张表最多 100 条（F3.31，原为 50），满了丢最旧的。快速 SQL 的历史仍是 50 条。收藏不限数量。
 
@@ -1177,7 +1177,7 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 | 撤销 | `u` 撤销、`C-r` 重做、`U` 撤销当前行上的全部修改，与 nvim 一致。想把 `U` 当成重做（Helix 的习惯），映射一行 `U = "<C-r>"` 即可 |
 | 命令行 | `:{n}` 跳到第 n 行；`:s` 与 `:%s` 替换，支持选区范围 `'<,'>` 和标志 `g i`，替换串中的 `\1`、`&` 按 vim 的写法；`:w`、`:q`。`/`、`?`、`:` 的输入行画在 console 内容区的最后一行（tab 栏上方），模式显示为 COMMAND；VISUAL 下按 `:` 预填 `'<,'>`。`{n}` 和 `s` 由编辑器执行，其余交给 app 按面板的 ex 别名（q、qa、w）执行，都不认识时 toast「不支持的命令：xxx」。搜索找不到时 toast「找不到：<pat>」（对应 nvim 的 E486），正则编译失败时 toast「正则有误：<err>」，错误里不带内部加的 `(?i)` 前缀；没有上一个模式时（`n`、`/<CR>`、`:s//x/`）toast「没有上一个模式」（E35）；从没进过 VISUAL 就用 `'<,'>` 时 toast「没有选区」（E20）；`:s` 的范围超出文本（行号 < 1、大于最后一行，或 `'<` / `'>` 指向的行已被删掉）时 toast「范围无效」（E16），一行都不改，不夹到文本以内。只有行号的 `:{n}` 超过最后一行时夹到最后一行、不报错，是负数时报「范围无效」、光标不动。细节照 nvim（M3 审查时定）：`/x/` 里没转义的 `/` 结束模式，后面的 search offset 忽略、不支持（SQL 里的除号 `/a/b` 也按此处理）；`3:` 这类带次数的冒号换成 `:.,.+2`；替换文字支持 `&`、`\1`、`\t`（Tab）、`\r`（断行），单独的 `~`（上一次的替换文字）不支持 |
 | INSERT 下 | Backspace、`C-w`、`C-u`（照 nvim 的默认映射 `<C-G>u<C-W>` / `<C-G>u<C-U>`，先断开撤销步）、方向键；`↵` 换行并保持上一行的缩进；Tab 按 `tab_width` 插入空格。模糊补全见 §9.7：输入时自动弹出，也可以用 `C-n` 手动唤起（`C-p` 在列表没开时是全局的命令面板） |
-| 寄存器 | 无名寄存器（带字符 / 行 / 块类型）只留在程序里；F3.38 起只有 `"+` / `"*` 读写系统剪贴板（同 vim 默认的 `clipboard=`，原来每次 yank、删除都写系统剪贴板）：读写照 nvim 的 clipboard provider（用户问「为什么 nvim 里可以复制」后定）：依次找 `pbcopy` / `pbpaste`（macOS）、`wl-copy` / `wl-paste`、`xclip`、`xsel`，找到就直接调它，不经过终端，所以 tmux 的 `set-clipboard` 设成什么都不影响；都没有时（比如 SSH 到没有图形界面的机器）才用 OSC 52 写、OSC 52 查询读，终端不回应就什么都不做。工具找到了但执行失败时也退回 OSC 52，不提示。`wl-*` 要 `WAYLAND_DISPLAY`、`xclip` / `xsel` 要 `DISPLAY` 有值；参数照 nvim，但去掉 `-quiet` / `--nodetach`（一次性调用，工具自己 fork 常驻进程拿着 selection）。程序里所有写读系统剪贴板的地方（表格 `yy` / `yl`、快速 SQL 的 `C-y`、`"+` 寄存器）都走这一处。`"+P`、VISUAL 下的 `"+y` / `"+d` / `"+x` 照 vim 的规则；VISUAL 下的 `"+p` 不做，因为 VISUAL 的 `p` 本身就不做（见下面「不做」）。其他具名寄存器（如 `"ayy`）整条命令不执行。表格没有寄存器，`yy` / `yl` 照旧直接写系统剪贴板 |
+| 寄存器 | 无名寄存器（带字符 / 行 / 块类型）只留在程序里；F3.38 起只有 `"+` / `"*` 读写系统剪贴板（同 vim 默认的 `clipboard=`，原来每次 yank、删除都写系统剪贴板）：读写的思路同 nvim 的 clipboard provider，先本地工具、再 OSC 52（用户问「为什么 nvim 里可以复制」后定；顺序不完全同 nvim，两个工具都装了才有差别）：依次找 `pbcopy` / `pbpaste`（macOS）、`wl-copy` / `wl-paste`、`xclip`、`xsel`，找到就直接调它，不经过终端，所以 tmux 的 `set-clipboard` 设成什么都不影响；都没有时（比如 SSH 到没有图形界面的机器）才用 OSC 52 写、OSC 52 查询读，终端不回应就什么都不做。工具找到了但执行失败时也退回 OSC 52，不提示。`wl-*` 要 `WAYLAND_DISPLAY`、`xclip` / `xsel` 要 `DISPLAY` 有值；参数照 nvim，但去掉 `-quiet` / `--nodetach`（一次性调用，工具自己 fork 常驻进程拿着 selection）。程序里所有写读系统剪贴板的地方（表格 `yy` / `yl`、快速 SQL 的 `C-y`、`"+` 寄存器）都走这一处。`"+P`、VISUAL 下的 `"+y` / `"+d` / `"+x` 照 vim 的规则；VISUAL 下的 `"+p` 不做，因为 VISUAL 的 `p` 本身就不做（见下面「不做」）。其他具名寄存器（如 `"ayy`）整条命令不执行。表格没有寄存器，`yy` / `yl` 照旧直接写系统剪贴板 |
 
 **寄存器**：除了无名寄存器，只做系统剪贴板 `"+` / `"*`（F3.38，用户要复制到系统剪贴板），读写方式和表格的复制相同；复制时被复制的范围闪一下 `yank` 色（F3.32）。
 
@@ -1297,7 +1297,7 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
   - 底栏：左边是移动和关闭的键位提示（从 keymap 读取），右边是 `↵ <按回车的效果>`。
 - **列对齐**：每一行的「所在位置」都从同一列开始。名称列的宽度取当前候选里最宽的名称，上限为面板宽度的 40%，超过上限的名称截短，末尾加 `…`。键位和类型标签照旧靠右。没有「所在位置」列的列表（SQL 历史）不受 40% 限制，名称占满整行，放不下再截短。
 - **光标**：用终端自己的光标，放在输入位置上，输入法的候选框也会跟着它。
-- **开关类命令**（M0）：`tree.toggle`（侧栏展开时为 ON）、`pane.zoom`（缩放中为 ON）。
+- **开关类命令**（M0）：`tree.toggle`（侧栏展开时为 ON）、`pane.zoom`（缩放中为 ON）、`result.toggle`（结果区显示着为 ON，F3.28）。
 - **匹配**：使用 fzf 的算法，并支持它的扩展语法（§9.7），匹配到的字符用 `match` 色的前景标出，不加底色（§7.3）。
   - 输入为空时，先列最近用过的（不分种类）；其余按范围标签的顺序：window、pane（按 ⟨n⟩）→ 表 → 命令（按 action id）。
   - 表范围列出所有非系统 schema 的表，所在位置显示 `session.schema`，这样树停在 `public` 时也能搜到 `agentable.agent`。顺序：树当前所在 schema 的表在前（按树的顺序），其余按 schema 名、表名排。
