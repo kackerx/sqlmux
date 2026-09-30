@@ -80,7 +80,7 @@
 
 **开发**
 - [ ] `%` 范围除了 window、pane，每个打开着的 tab 也是一项（表、console、结果 tab），图标照 tab 的类型，名称是 tab 名，所在位置是完整的层级 `play › 0: data › pane-1`，和工作区节点的叫法一致（`pane-<n>`）；`↵` 切到这个 tab 并聚焦它的 pane（§12）。
-- [ ] pane 项的所在位置也改成 `play › 0: data`，window 项是 `play`；类型标签「Tab」。
+- [ ] pane 项的所在位置也改成 `play › 0: data`，window 项是 `play`；类型标签「Tab」。「所有」范围也列 tab（所有 = 除 SQL 历史外的全部种类）。M5 之前别的 window 的 tab 上 `↵` 不做事，同 window 项。
 - [ ] 细节（worker 提议，已定）：输入为空时排在最近用过的之后，照树的工作区顺序：window → 它的 pane（按 ⟨n⟩），每个 pane 后面紧跟它的 tab，然后是表、命令。列所有 window 的 tab，pane 项照旧只列当前 window 的；在别的 window 的 tab 上 `↵` 先切 window，再选中 tab、聚焦 pane。结果区的 tab、引导 tab 也列，和树一致（引导 tab 名「新 tab」，图标留空）。tab 项不记进「最近用过」：pane id 和 tab 位置每次启动都变，存不住，用 `ponytail:` 标出。
 
 **验收**
