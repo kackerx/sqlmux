@@ -126,14 +126,14 @@ func (a *App) quickView(q *quickSQL) *ui.PaletteResult {
 	return r
 }
 
-// copyQuick puts the result on the clipboard over OSC 52 as CSV (F-04):
+// copyQuick puts the result on the clipboard as CSV (F-04):
 // the header and the rows shown.
 func (a *App) copyQuick() tea.Cmd {
 	q := a.palette.quick
 	if q == nil || q.res.Cols == nil {
 		return nil
 	}
-	return tea.SetClipboard(csvOf(q.res))
+	return clipCopy(csvOf(q.res))
 }
 
 // completeSQL finds the candidates for the quick SQL's cursor (§12「补全」),

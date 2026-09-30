@@ -1,6 +1,7 @@
 package app
 
 import (
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -95,5 +96,27 @@ func TestYankFlashConsole(t *testing.T) {
 	a.Update(flashDone{a.flashSeq})
 	if keys(t, a, "dd"); a.flash != nil {
 		t.Error("dd flashes")
+	}
+}
+
+// The clipboard is the first tool on PATH with its display set, OSC 52
+// when there is none or it fails (F3.38).
+func TestClipTools(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "clip")
+	clipTools = []clipTool{
+		{"", []string{"sqlmux-no-such-copy"}, []string{"sqlmux-no-such-paste"}},
+		{"SQLMUX_NO_SUCH_DISPLAY", []string{"true"}, []string{"true"}},
+		{"", []string{"sh", "-c", "cat > " + f}, []string{"cat", f}},
+	}
+	defer func() { clipTools = nil }()
+	if msg := clipCopy("a\tb\n")(); msg != nil {
+		t.Errorf("copied with a tool, and %v", msg)
+	}
+	if msg := clipPaste(); msg != (tea.ClipboardMsg{Content: "a\tb\n", Selection: 'c'}) {
+		t.Errorf("pasted %#v", msg)
+	}
+	clipTools[2] = clipTool{"", []string{"false"}, []string{"false"}}
+	if clipCopy("x")() != tea.SetClipboard("x")() || clipPaste() != tea.ReadClipboard() {
+		t.Error("a failing tool is not OSC 52")
 	}
 }

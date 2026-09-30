@@ -37,10 +37,7 @@ type consoleTab struct {
 	wait  *compWait
 }
 
-// clipWait is a console's "+p waiting for the terminal's clipboard (F3.38).
-// ponytail: OSC 52 is asked, which tmux answers with set-clipboard on and
-// many terminals don't: then nothing is put; ask pbpaste or wl-paste too
-// if that bites
+// clipWait is a console's "+p waiting for the system clipboard (F3.38).
 type clipWait struct {
 	t   *consoleTab
 	put editor.ClipPut
@@ -188,11 +185,11 @@ func (a *App) consoleDid(t *consoleTab, eff editor.Effect) tea.Cmd {
 	t.comp = nil
 	var cmds []tea.Cmd
 	if eff.Clip != nil {
-		cmds = append(cmds, tea.SetClipboard(*eff.Clip))
+		cmds = append(cmds, clipCopy(*eff.Clip))
 	}
-	if eff.Paste != nil { // the terminal answers with a ClipboardMsg, or never
+	if eff.Paste != nil {
 		a.clipWait = &clipWait{t, *eff.Paste}
-		cmds = append(cmds, tea.ReadClipboard)
+		cmds = append(cmds, clipPaste)
 	}
 	if eff.Yank != nil {
 		cmds = append(cmds, a.flashYank(yankFlash{pane: a.focused().ID, text: yankSel(*eff.Yank)}))

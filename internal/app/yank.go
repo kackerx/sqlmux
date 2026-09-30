@@ -2,6 +2,8 @@ package app
 
 import (
 	"encoding/csv"
+	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"time"
@@ -100,7 +102,7 @@ func (a *App) yankGrid(row bool) tea.Cmd {
 	if !row {
 		flash.cell[1], text = gs.col, cells[gs.col]
 	}
-	return tea.Batch(tea.SetClipboard(text), a.flashYank(flash))
+	return tea.Batch(clipCopy(text), a.flashYank(flash))
 }
 
 // tsv is one row of tab separated values, quoted where a value needs it
@@ -151,4 +153,63 @@ func yankSel(y editor.Yank) ui.Sel {
 		s.To.Col-- // To is not in: what starts before it is
 	}
 	return s
+}
+
+// clipTools are the system clipboard's commands in the order nvim's
+// clipboard provider looks for them (runtime/autoload/provider/clipboard.vim,
+// v0.12.4): the first on PATH, with its display set for Wayland's and
+// X11's, is used, so a tmux dropping OSC 52 doesn't matter; with none the
+// terminal is asked over OSC 52 (F3.38, §11). nvim's xclip -quiet and
+// xsel --nodetach keep the process it waits on as the selection's owner;
+// without them the tools fork one off and exit.
+var clipTools = []clipTool{
+	{"", []string{"pbcopy"}, []string{"pbpaste"}},
+	{"WAYLAND_DISPLAY", []string{"wl-copy", "--type", "text/plain"}, []string{"wl-paste", "--no-newline"}},
+	{"DISPLAY", []string{"xclip", "-i", "-selection", "clipboard"}, []string{"xclip", "-o", "-selection", "clipboard"}},
+	{"DISPLAY", []string{"xsel", "-i", "-b"}, []string{"xsel", "-o", "-b"}},
+}
+
+type clipTool struct {
+	env         string // what must be set for it: its display
+	copy, paste []string
+}
+
+// clipCmd is the tool copying to the clipboard, or pasting from it, nil
+// for OSC 52.
+func clipCmd(paste bool) *exec.Cmd {
+	for _, t := range clipTools {
+		argv := t.copy
+		if paste {
+			argv = t.paste
+		}
+		if _, err := exec.LookPath(argv[0]); err == nil && (t.env == "" || os.Getenv(t.env) != "") {
+			return exec.Command(argv[0], argv[1:]...)
+		}
+	}
+	return nil
+}
+
+// clipCopy puts text on the system clipboard, over OSC 52 when no tool
+// is there or it fails.
+func clipCopy(text string) tea.Cmd {
+	return func() tea.Msg {
+		if c := clipCmd(false); c != nil {
+			c.Stdin = strings.NewReader(text) // no pipe out: the forked owner would hold Run up
+			if c.Run() == nil {
+				return nil
+			}
+		}
+		return tea.SetClipboard(text)()
+	}
+}
+
+// clipPaste asks for what the system clipboard holds: it comes as a
+// ClipboardMsg, from the tool or else the terminal, or never.
+func clipPaste() tea.Msg {
+	if c := clipCmd(true); c != nil {
+		if out, err := c.Output(); err == nil {
+			return tea.ClipboardMsg{Content: string(out), Selection: 'c'}
+		}
+	}
+	return tea.ReadClipboard()
 }
