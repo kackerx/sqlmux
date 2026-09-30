@@ -1321,7 +1321,7 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
   - **结果区**：标题行 `100+ 行 · 12ms · 只读`，右侧是可点击的 `C-y CSV`（键位从 keymap 读）；执行中行数处显示 `…`，保留上次结果；没有结果集的语句显示命令标签（如 `SET`）。报错显示在结果区第一行（`error` 色），同 data pane。表格只显示、不带光标，滚轮纵向滚动、Shift + 滚轮横向，不加键盘滚动（焦点在输入框）。
   - **历史**：执行过的都记，不论成败；去重后挪到最前，最多 50 条，按连接存在 state.json。「所有」范围不列 SQL 历史，M1 只在 SQL 范围列。已修改的判断按全文比较（去掉 `;` 前缀）。
   - **`C-y`**：CSV 为表头加显示的行（最多 100 行），NULL 写空串（同 lazysql `helpers/csv.go`），写系统剪贴板走和 `"+` 寄存器同一处（§11「寄存器」：先 pbcopy 等本地工具，找不到才 OSC 52）；没有结果时不做事，复制后不加 toast。
-  - **写语句（F-05）**：判为写的语句不执行（只拦首词是 SQL 关键字、且判为写的；首词不是关键字的，比如打错的 `selec 1`，照旧发给数据库，在只读事务里报语法错误，M4 全量 e2e 发现），结果区显示 `warn` 色的「写语句不在这里执行 · C-e 在 console 中打开」，键位文字从 keymap 读。在 console 里由用户自己按下执行，这一步就是确认，不再需要 C-S-↵。M1–M3 还没接读写判定，写语句由只读事务拒绝，显示数据库返回的错误；M4 起改为这里的做法。
+  - **写语句（F-05）**：判为写的语句不执行（只拦首词是 SQL 关键字、且判为写的；首词不是关键字的，比如打错的 `selec 1`，照旧发给数据库，在只读事务里报语法错误，M4 全量 e2e 发现。关键字表要包含 PG 全部语句的首词，因为只读事务兜不住其中几条：reviewer 在 PG 17 上实测 `copy … to '<文件>'` / `to program`、`reindex`、`cluster`、`load`、`checkpoint` 在 `begin read only` 里都能执行），结果区显示 `warn` 色的「写语句不在这里执行 · C-e 在 console 中打开」，键位文字从 keymap 读。在 console 里由用户自己按下执行，这一步就是确认，不再需要 C-S-↵。M1–M3 还没接读写判定，写语句由只读事务拒绝，显示数据库返回的错误；M4 起改为这里的做法。
   - **`C-t` 送到结果区**（M4）：把结果作为固定的结果 tab 放进结果区，tab 名 `quick #n`（n 取 session 的执行序号），日志记一行 `quick  <首行>  N 行`；在这个 tab 上重跑（`R`），在 `Meta` 的只读事务里重新执行，search_path 用树当前的 schema，结果原地替换、`#n` 和导出名不变（不同于 console 的固定 tab 另开新 tab：quick 没有要续的那一组）；导出文件名 `quick-42.csv`；面板不关。
   - **`C-e` 在 console 中打开**（M4）：在打开表的目标 pane（§12 的规则）里按 `console.new` 的规则新开 console（取最小的 console_n，当前是引导 tab 就原地替换）；文件已有内容时把这条 SQL 追加到末尾、前面空一行，光标落在 SQL 第一行；关掉面板、聚焦这个 console。新 console 的 schema 取树当前的，与快速 SQL 执行时用的一致。
   - **错误**：语法错误显示红色提示。
@@ -1338,7 +1338,7 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
     - 其他不影响只读的 SET（如 `search_path`、`statement_timeout`）放行。
   - **数据库层**：连接建立后执行 PG 的 `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`，或 MySQL 的 `SET SESSION TRANSACTION READ ONLY`，兜住判定漏掉的情况（例如会写数据的函数）。
   - 只读是为了防止误操作，不是权限边界。真正需要限制权限时，应使用只读的数据库账号。这一点要写进用户文档。
-- **快速 SQL**：只读由数据库事务保证，即使一条会写数据的 select 被判为读，也写不进去。
+- **快速 SQL**：只读由数据库事务保证，即使一条会写数据的 select 被判为读，也写不进去。但只读事务挡不住 `copy … to` 文件 / program、`reindex`、`cluster`、`load`、`checkpoint` 这类语句（M4 审查时实测），所以这些首词在应用层判为写、拦下（§12「写语句」）。
 - **凭据**：
   - `connections.toml` 支持 `password_cmd`（例如 macOS 的 `security` 命令、`pass`）、`password_env`；PG 还会被 pgconn 自动读取 `~/.pgpass`。
   - 也允许直接写明文 `password`。但如果此时文件对同组或其他用户可读（`mode & 0o044 != 0`），进入界面后用 toast 警告 3 秒（§7.8），例如「connections.toml 里有明文密码，且其他用户可读，建议 chmod 600」。不打到 stderr，因为 alt screen 会把它盖住。DSN 里写的密码（`postgres://u:p@…`）不检查。
