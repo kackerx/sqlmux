@@ -1,6 +1,6 @@
 # M3 console 与结果区 · 任务清单
 
-- **状态**：第二轮改进 F3.25–F3.39 todo（2026-09-30），通过后直接开工 M4，M2、M3、M4 一起验收。F3.1–F3.24 全部 passed，M3 完整回归在 9a795c4 上全绿（50 个脚本 1314 项 e2e，e2e 2702236），等用户与 M2 一起验收；F3.1–F3.11 完整回归在 e8f8e8c 上全绿（1104 项 e2e）。用户验收 M2 / M3 时提了 13 条意见（2026-09-29），能现在做的整理成改进项 F3.12–F3.24；多连接 session、console 的事务控件排进 M5。改进项全部通过后，M2、M3 一起验收。
+- **状态**：F3.1–F3.39 全部 passed；第二轮完整回归在 23dca1d 上全绿（59 个脚本 1454 项 e2e，e2e d64aeb1）。M4 接着开工，M2、M3、M4 一起验收。F3.1–F3.24 全部 passed，M3 完整回归在 9a795c4 上全绿（50 个脚本 1314 项 e2e，e2e 2702236），等用户与 M2 一起验收；F3.1–F3.11 完整回归在 e8f8e8c 上全绿（1104 项 e2e）。用户验收 M2 / M3 时提了 13 条意见（2026-09-29），能现在做的整理成改进项 F3.12–F3.24；多连接 session、console 的事务控件排进 M5。改进项全部通过后，M2、M3 一起验收。
 - **目标**：
   - vim 编辑器写 SQL；
   - 执行语句，结果显示在底部结果区；
@@ -26,7 +26,7 @@
   4. F3.11 之后：F3.9–F3.11，格式化、补全、schema 下拉（已通过）；
   5. F3.17 之后：F3.12–F3.17，输入与按键类的改进（已通过）；
   6. F3.24 之后：F3.18–F3.24，表格与目录树的改进（已通过）；
-  7. F3.39 之后：F3.25–F3.39，第二轮改进，一个节点（用户要求拉长审查节点）。
+  7. F3.39 之后：F3.25–F3.39，第二轮改进，一个节点（用户要求拉长审查节点）（已通过）。
 - **M1 / M2 的 e2e**：默认布局加入 console 后，⟨1⟩ 的宽度从占满变成 5/9，M1 / M2 脚本里依赖 data pane 宽度、`C-l` 焦点的地方可能失效。tester 在 `lib.sh` 里加一个开头先关掉 ⟨2⟩ 的辅助函数，不逐条改断言。
 
 任务文件的格式和状态约定见 [`../plan.md`](../plan.md)。
@@ -355,7 +355,7 @@
 
 **验收**
 - [x] golden：console 的 VISUAL 选区用 `visual` 色；主题里写 `visual` 后生效。
-- [ ] 通过后决策者在用户的 ristretto 主题里加 `visual = "#6c6a6d"`（与当前行同色，用户要求）。等验收版本重建时再加：用户手上的旧版本不认这个 token，加了会启动报错。
+- [x] 通过后决策者在用户的 ristretto 主题里加 `visual = "#6c6a6d"`（与当前行同色，用户要求）。已在验收版本重建时加上（2026-09-29）。
 
 ## F3.17 `?` 键位帮助 · 状态：passed（d0d1d2b；e2e e42b702）
 
@@ -496,183 +496,183 @@
 
 以下为第二轮改进（2026-09-30，用户试用 F3.12–F3.24 后提出）。用户决定：这一轮通过后不停下来验收，直接开工 M4，M2、M3、M4 一起验收；审查节点拉长，这一轮只有一个节点。命令面板里 tab 的层级显示排进 M4 F4.3。
 
-## F3.25 console 里的 `?` 打开键位帮助 · 状态：todo
+## F3.25 console 里的 `?` 打开键位帮助 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F3.17
 - **涉及**：`internal/keymap/default.toml`
 
 **开发**
-- [ ] `?` 改绑在 `[keys.normal]`，去掉 grid / tree / landing 里各自的 `?`：所有 pane 的 NORMAL 下都打开键位帮助，console 的 NORMAL 下不再是 vim 的反向搜索（用户：不用反向搜索，`/` 照旧），VISUAL 下和 `d?` 这类操作符后面的 `?` 仍交给 vim；`<leader>?` 照旧（§6.5、§6.8）。帮助面板里 `?` 归在 `[keys.normal]` 组下。
+- [x] `?` 改绑在 `[keys.normal]`，去掉 grid / tree / landing 里各自的 `?`：所有 pane 的 NORMAL 下都打开键位帮助，console 的 NORMAL 下不再是 vim 的反向搜索（用户：不用反向搜索，`/` 照旧），VISUAL 下和 `d?` 这类操作符后面的 `?` 仍交给 vim；`<leader>?` 照旧（§6.5、§6.8）。帮助面板里 `?` 归在 `[keys.normal]` 组下。
 
 **验收**
-- [ ] e2e：console 的 NORMAL 下按 `?` 打开键位帮助；INSERT 下 `?` 照常输入。
+- [x] e2e：console 的 NORMAL 下按 `?` 打开键位帮助；INSERT 下 `?` 照常输入。
 
-## F3.26 工具按钮重新分组 · 状态：todo
+## F3.26 工具按钮重新分组 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F3.23
 - **涉及**：`internal/ui`（querybar）
 
 **开发**
-- [ ] 按 §7.8「工具按钮」：四组 `+ −` ｜ 保存 刷新 ｜ 自动刷新 停止 ｜ 转置；一组共用一块 `sep` 底，组内按钮之间不再各留底色的空隙，转置不画底色；悬停时只亮那一个按钮。让位顺序：统计 → 转置 → 自动刷新 / 停止 → `+ −` → 保存 / 刷新 → COLS、PAGE、LIMIT、ORDER。
+- [x] 按 §7.8「工具按钮」：四组 `+ −` ｜ 保存 刷新 ｜ 自动刷新 停止 ｜ 转置；一组共用一块 `sep` 底，组内按钮之间不再各留底色的空隙，转置不画底色；悬停时只亮那一个按钮。让位顺序：统计 → 转置 → 自动刷新 / 停止 → `+ −` → 保存 / 刷新 → COLS、PAGE、LIMIT、ORDER。
 
 **验收**
-- [ ] golden：几种宽度下的四组按钮，含悬停、自动刷新开着、有请求在跑。
+- [x] golden：几种宽度下的四组按钮，含悬停、自动刷新开着、有请求在跑。
 
-## F3.27 SQL 的表名、列名、运算符高亮 · 状态：todo
+## F3.27 SQL 的表名、列名、运算符高亮 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F3.5、F3.6
 - **涉及**：`internal/ui`（主题 token、console、WHERE 输入框）、`internal/app`（catalog 查名字）
 
 **开发**
-- [ ] 新增主题 token `sql_table`、`sql_column`、`sql_operator`（§7.3）。console 和 WHERE 输入框共用一套高亮：关键字（含 `and` `or` `in` `is` `null`）、字符串、数字、注释、运算符（`=` `<>` `!=` `<` `>` `<=` `>=` `||` `::` 等）、表名、列名。WHERE 输入框原来不高亮，聚焦与否都画。
-- [ ] 表名、列名只按词法加 catalog 缓存判断，不做语法分析：标识符和缓存里某张表同名就是表名，和当前语句引用到的表（WHERE 里是当前表）的某一列同名就是列名；别名、CTE 名不着色，用 `ponytail:` 标出。列还没取回时不着色，取回后下一帧就有。
-- [ ] 细节（worker 提议，已定）：表名算会话里所有 schema 的表，`s.t` 只给 `t` 着色；列名只算这条语句引用到的表（按 `CompletionContext` 找，WHERE 用当前表）的列，引用到的表列没缓存时发一次和补全相同的取列请求，每张表一次；不加引号的不分大小写，带引号的按原样；既是表名又是列名时按表名；sqlkit 的运算符 token 全部用 `sql_operator`，含 `select *` 的 `*`。
+- [x] 新增主题 token `sql_table`、`sql_column`、`sql_operator`（§7.3）。console 和 WHERE 输入框共用一套高亮：关键字（含 `and` `or` `in` `is` `null`）、字符串、数字、注释、运算符（`=` `<>` `!=` `<` `>` `<=` `>=` `||` `::` 等）、表名、列名。WHERE 输入框原来不高亮，聚焦与否都画。
+- [x] 表名、列名只按词法加 catalog 缓存判断，不做语法分析：标识符和缓存里某张表同名就是表名，和当前语句引用到的表（WHERE 里是当前表）的某一列同名就是列名；别名、CTE 名不着色，用 `ponytail:` 标出。列还没取回时不着色，取回后下一帧就有。
+- [x] 细节（worker 提议，已定）：表名算会话里所有 schema 的表，`s.t` 只给 `t` 着色；列名只算这条语句引用到的表（按 `CompletionContext` 找，WHERE 用当前表）的列，引用到的表列没缓存时发一次和补全相同的取列请求，每张表一次；不加引号的不分大小写，带引号的按原样；既是表名又是列名时按表名；sqlkit 的运算符 token 全部用 `sql_operator`，含 `select *` 的 `*`。
 
 **验收**
-- [ ] golden：console 里 `select * from t_order where user_id = 'df'` 和 WHERE 里 `user_id = '2' and status = 'running'` 各部分的颜色；主题里写这三个 token 后生效。
+- [x] golden：console 里 `select * from t_order where user_id = 'df'` 和 WHERE 里 `user_id = '2' and status = 'running'` 各部分的颜色；主题里写这三个 token 后生效。
 
-## F3.28 `SPC r` 显示 / 隐藏结果区 · 状态：todo
+## F3.28 `SPC r` 显示 / 隐藏结果区 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F3.8
 - **涉及**：`internal/app`（结果区）、`internal/keymap/default.toml`
 
 **开发**
-- [ ] Action `result.toggle`「显示 / 隐藏结果区」，`[keys.normal]` 绑 `<Leader>r`，在面板里是开关类命令（ON / OFF，执行后面板不关，同 `tree.toggle`）：隐藏时结果 tab 都保留，再按一次原样回来；隐藏着再执行 SQL 时自动显示；还没有结果区时不做事。焦点在结果区时隐藏，焦点回到上一个聚焦的 pane。
-- [ ] 隐藏时结果区从布局里拿掉，pane 和 tab 保留，工作区和面板都当它不存在；隐藏中还在跑的 SQL 跑完照常放进 tab，结果区仍隐藏，只有新的一次执行才让它出来；被 zoom 的正是结果区时先取消 zoom；隐藏状态不持久化（M6 布局文件再说）。
+- [x] Action `result.toggle`「显示 / 隐藏结果区」，`[keys.normal]` 绑 `<Leader>r`，在面板里是开关类命令（ON / OFF，执行后面板不关，同 `tree.toggle`）：隐藏时结果 tab 都保留，再按一次原样回来；隐藏着再执行 SQL 时自动显示；还没有结果区时不做事。焦点在结果区时隐藏，焦点回到上一个聚焦的 pane。
+- [x] 隐藏时结果区从布局里拿掉，pane 和 tab 保留，工作区和面板都当它不存在；隐藏中还在跑的 SQL 跑完照常放进 tab，结果区仍隐藏，只有新的一次执行才让它出来；被 zoom 的正是结果区时先取消 zoom；隐藏状态不持久化（M6 布局文件再说）。
 
 **验收**
-- [ ] e2e：执行一条 SQL 后 `SPC r` 结果区消失、console 变高，再按回来且结果 tab 还在；隐藏时再执行，结果区自动出现。
+- [x] e2e：执行一条 SQL 后 `SPC r` 结果区消失、console 变高，再按回来且结果 tab 还在；隐藏时再执行，结果区自动出现。
 
-## F3.29 `SPC b` 展开树时定位到当前 tab · 状态：todo
+## F3.29 `SPC b` 展开树时定位到当前 tab · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F1.12、F3.19
 - **涉及**：`internal/app`（tree.toggle）
 
 **开发**
-- [ ] `SPC b` 把树展开时，焦点移到树上，光标落在当前 tab 对应的节点（同 nvim-tree 的 find_file）：表 tab 是 schema 下的表节点，沿途折叠着的父节点展开；console、引导 tab 是工作区里的 tab 节点。收起树时照旧。
-- [ ] 定位的是焦点所在 pane 的当前 tab（焦点在结果区就是结果区的当前 tab）；找到目标时沿途展开的父节点记成手动展开过；树正在过滤、目标被滤掉，或者表还不在树上（catalog 没加载完）时什么都不改，光标不动，展开状态也不动。
+- [x] `SPC b` 把树展开时，焦点移到树上，光标落在当前 tab 对应的节点（同 nvim-tree 的 find_file）：表 tab 是 schema 下的表节点，沿途折叠着的父节点展开；console、引导 tab 是工作区里的 tab 节点。收起树时照旧。
+- [x] 定位的是焦点所在 pane 的当前 tab（焦点在结果区就是结果区的当前 tab）；找到目标时沿途展开的父节点记成手动展开过；树正在过滤、目标被滤掉，或者表还不在树上（catalog 没加载完）时什么都不改，光标不动，展开状态也不动。
 
 **验收**
-- [ ] e2e：焦点在 t_order 的 tab 上，树收起后 `SPC b`，树展开、焦点在树上、光标在 t_order 节点；在 console 上按则光标在工作区的 console 节点。
+- [x] e2e：焦点在 t_order 的 tab 上，树收起后 `SPC b`，树展开、焦点在树上、光标在 t_order 节点；在 console 上按则光标在工作区的 console 节点。
 
-## F3.30 工作区的缩进与日志图标 · 状态：todo
+## F3.30 工作区的缩进与日志图标 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F3.19
 - **涉及**：`internal/app`（workspace）、`internal/ui`（图标）
 
 **开发**
-- [ ] tab 节点比 pane 节点多缩进一级（现在两者看起来同层，§7.8「工作区节点」）。
-- [ ] 结果区的「日志」tab 加图标 `log`（§7.7），工作区节点和结果区的 tab 栏都画，名字和其他 tab 对齐。
+- [x] tab 节点比 pane 节点多缩进一级（现在两者看起来同层，§7.8「工作区节点」）。
+- [x] 结果区的「日志」tab 加图标 `log`（§7.7），工作区节点和结果区的 tab 栏都画，名字和其他 tab 对齐。
 
 **验收**
-- [ ] golden：工作区 window → pane → tab 三级缩进，日志 tab 带图标且对齐。
+- [x] golden：工作区 window → pane → tab 三级缩进，日志 tab 带图标且对齐。
 
-## F3.31 WHERE 历史 / 收藏下拉 · 状态：todo
+## F3.31 WHERE 历史 / 收藏下拉 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F1.5
 - **涉及**：`internal/app`（where 下拉）、`internal/config`（state.json）、`internal/keymap/default.toml`
 
 **开发**
-- [ ] `[keys.where]` 加 `Tab` / `↓` 下一项、`S-Tab` / `↑` 上一项，到头绕回（和 `C-n` / `C-p` 相同）。
-- [ ] 打开时列出全部收藏和历史，不按输入框里已有的文字过滤；开始输入后才过滤。每一项前面画图标：收藏 `star`、历史 `history`（§7.7），不再画「收藏」「历史」两个组标题（有图标就不配文字）；收藏在前，组内从新到旧。
-- [ ] 历史每张表最多 100 条（原来 50），满了丢最旧的；去重仍把相同的挪到最前。收藏不限。快速 SQL 的历史仍是 50 条，拆成两个常量。
-- [ ] 图标：`log` nf-fa-file_text_o（U+F0F6，ascii `L`）、`star` nf-fa-star（U+F005，ascii `*`）、`history` nf-fa-history（U+F1DA，ascii `h`）。「开始输入」指打开后输入框的文字第一次变化，之后按整个输入框过滤。
+- [x] `[keys.where]` 加 `Tab` / `↓` 下一项、`S-Tab` / `↑` 上一项，到头绕回（和 `C-n` / `C-p` 相同）。
+- [x] 打开时列出全部收藏和历史，不按输入框里已有的文字过滤；开始输入后才过滤。每一项前面画图标：收藏 `star`、历史 `history`（§7.7），不再画「收藏」「历史」两个组标题（有图标就不配文字）；收藏在前，组内从新到旧。
+- [x] 历史每张表最多 100 条（原来 50），满了丢最旧的；去重仍把相同的挪到最前。收藏不限。快速 SQL 的历史仍是 50 条，拆成两个常量。
+- [x] 图标：`log` nf-fa-file_text_o（U+F0F6，ascii `L`）、`star` nf-fa-star（U+F005，ascii `*`）、`history` nf-fa-history（U+F1DA，ascii `h`）。「开始输入」指打开后输入框的文字第一次变化，之后按整个输入框过滤。
 
 **验收**
-- [ ] e2e：`C-r` 打开后不输入就能看到收藏和历史，带各自的图标；`Tab`、`↓`、`S-Tab`、`↑` 都能移动；写满 101 条后最旧的一条不见了（单测即可）。
+- [x] e2e：`C-r` 打开后不输入就能看到收藏和历史，带各自的图标；`Tab`、`↓`、`S-Tab`、`↑` 都能移动；写满 101 条后最旧的一条不见了（单测即可）。
 
-## F3.32 整行复制粘贴与复制高亮 · 状态：todo
+## F3.32 整行复制粘贴与复制高亮 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F3.24、F3.1
 - **涉及**：`internal/app`（grid 的 yank / paste）、`internal/editor`、`internal/ui`（`yank` token）、`internal/keymap/default.toml`
 
 **开发**
-- [ ] 表格照 vim 的行：`yy` 复制整行（系统剪贴板里是 TSV），`yl` 复制单元格（原来 `yy` 的功能），`p` 在光标下面粘贴成一个新行（同 `o` 的新行，§10.6），各格的值取复制的那一行；行标识列里有默认值的（serial / identity）填 `<default>`，其余照抄。没复制过行时 `p` 不做事。结果区只读，`p` 不做事，`yy` / `yl` 照常。
-- [ ] 复制高亮（同 nvim 的 `vim.hl.on_yank`）：表格的 `yy` / `yl`、console 里所有的复制（`yy`、`y{移动}`、VISUAL 下 `y`），被复制的范围用新 token `yank`（§7.3，默认黄底）闪 150ms。
-- [ ] 细节（worker 提议，已定）：
+- [x] 表格照 vim 的行：`yy` 复制整行（系统剪贴板里是 TSV），`yl` 复制单元格（原来 `yy` 的功能），`p` 在光标下面粘贴成一个新行（同 `o` 的新行，§10.6），各格的值取复制的那一行；行标识列里有默认值的（serial / identity）填 `<default>`，其余照抄。没复制过行时 `p` 不做事。结果区只读，`p` 不做事，`yy` / `yl` 照常。
+- [x] 复制高亮（同 nvim 的 `vim.hl.on_yank`）：表格的 `yy` / `yl`、console 里所有的复制（`yy`、`y{移动}`、VISUAL 下 `y`），被复制的范围用新 token `yank`（§7.3，默认黄底）闪 150ms。
+- [x] 细节（worker 提议，已定）：
   - `yy` 写进剪贴板的是可见列、按显示顺序的 TSV，不带表头；NULL 和 `<default>` 写成空；值里有 Tab、换行或 `"` 时加双引号、内部 `"` 写两遍（encoding/csv，分隔符 Tab）。
   - 给 `p` 用的行另存一份：所有列（含隐藏列和未保存的修改），记下是哪张表，在别的表里 `p` 不做事；`yl` 不动它。`p` 只粘一行，忽略次数，光标位置和只读提示同 `o`。
   - 源行里本来是 `<default>` 的格仍是 `<default>`，NULL 照抄。catalog 记成 `generated always as identity` 的列，不管在不在行标识里都填 `<default>`（照抄会报 428C9）；`generated by default` 的非行标识列照抄。catalog 读 `attidentity`，把 identity 列的默认值记成 `generated by default as identity` / `generated always as identity`，所以 identity 列的选项浮层也会有 DEFAULT。generated 列照抄，保存时报错，用 `ponytail:` 标出。
   - 复制高亮：表格 `yy` 闪这一行的可见格，`yl` 闪这一格；console 只在 `y` 操作符（含 `"+y`）时闪，删除不闪，按字符 / 行 / 块各闪各的范围。写剪贴板仍用 OSC 52。
 
 **验收**
-- [ ] e2e：表格 `yyp` 多出一行，除自增主键是 `<default>` 外和原行相同，`C-s` 后存进去；`yy` 时那一行闪一下黄色；console 里 `yy` 同样闪一下。
+- [x] e2e：表格 `yyp` 多出一行，除自增主键是 `<default>` 外和原行相同，`C-s` 后存进去；`yy` 时那一行闪一下黄色；console 里 `yy` 同样闪一下。
 
-## F3.33 新行里用 Tab 切换字段 · 状态：todo
+## F3.33 新行里用 Tab 切换字段 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F3.24、F3.32
 - **涉及**：`internal/app`（单元格编辑）
 
 **开发**
-- [ ] 在还没保存的新行里编辑时，`Tab` / `S-Tab` 提交这一格，移到下一个 / 上一个字段并直接进入编辑，不用先退出再按 `↵`（用户：`o`、`yyp` 之后逐格填写）。新行里的选项浮层和时间浮层不再用 `Tab`：选项用 `↑` / `↓` / `C-n` / `C-p`，时间的选项行用 `C-n` / `C-p`，段用 `↑` / `↓` 加减、点击切段。已有的行照旧，`Tab` 仍在浮层里选择（F3.15、F3.34）。
-- [ ] 最后一个字段上 `Tab`、第一个字段上 `S-Tab`：提交这一格并退出编辑，光标留在那一格，不绕回（免得覆盖已经填好的格）。字段只算可见列，转置与否都一样，视图跟着滚动。不合法的值照 §10.7 挡住，不能切走。
-- [ ] 新作用域 `[keys.newrow]`（§6.4）：`<Tab>` = `cell.field.next`「下一个字段」、`<S-Tab>` = `cell.field.prev`「上一个字段」，只在编辑新行的格时生效，叠在 options / segments 之上；keymap.Context 的浮层能叠两层，没绑的键从下面那层来。
+- [x] 在还没保存的新行里编辑时，`Tab` / `S-Tab` 提交这一格，移到下一个 / 上一个字段并直接进入编辑，不用先退出再按 `↵`（用户：`o`、`yyp` 之后逐格填写）。新行里的选项浮层和时间浮层不再用 `Tab`：选项用 `↑` / `↓` / `C-n` / `C-p`，时间的选项行用 `C-n` / `C-p`，段用 `↑` / `↓` 加减、点击切段。已有的行照旧，`Tab` 仍在浮层里选择（F3.15、F3.34）。
+- [x] 最后一个字段上 `Tab`、第一个字段上 `S-Tab`：提交这一格并退出编辑，光标留在那一格，不绕回（免得覆盖已经填好的格）。字段只算可见列，转置与否都一样，视图跟着滚动。不合法的值照 §10.7 挡住，不能切走。
+- [x] 新作用域 `[keys.newrow]`（§6.4）：`<Tab>` = `cell.field.next`「下一个字段」、`<S-Tab>` = `cell.field.prev`「上一个字段」，只在编辑新行的格时生效，叠在 options / segments 之上；keymap.Context 的浮层能叠两层，没绑的键从下面那层来。
 
 **验收**
-- [ ] e2e：`o` 之后输入一格、`Tab`，直接在下一格编辑；`S-Tab` 回到上一格；`C-s` 后整行存进去。
+- [x] e2e：`o` 之后输入一格、`Tab`，直接在下一格编辑；`S-Tab` 回到上一格；`C-s` 后整行存进去。
 
-## F3.34 时间浮层的 Tab 走到选项 · 状态：todo
+## F3.34 时间浮层的 Tab 走到选项 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F3.15
 - **涉及**：`internal/app`（segments）
 
 **开发**
-- [ ] 时间浮层里 `Tab` / `S-Tab` 依次走过各段，再走到选项行的每一项（◷ 现在、∅ NULL、DEFAULT、↺ 原值，有才有），到头绕回；停在选项上时 `↵` 应用它，`↑` / `↓` 不做事，段不再高亮（§10.2）；S-Tab 在第一段上到最后一个选项；用 `C-n` / `C-p` 选中选项也算停在选项上；输入文字时回到原来那一段，点击某一段就到那一段。
+- [x] 时间浮层里 `Tab` / `S-Tab` 依次走过各段，再走到选项行的每一项（◷ 现在、∅ NULL、DEFAULT、↺ 原值，有才有），到头绕回；停在选项上时 `↵` 应用它，`↑` / `↓` 不做事，段不再高亮（§10.2）；S-Tab 在第一段上到最后一个选项；用 `C-n` / `C-p` 选中选项也算停在选项上；输入文字时回到原来那一段，点击某一段就到那一段。
 
 **验收**
-- [ ] e2e：created_at 编辑时连按 `Tab` 走过六段后选中「◷ 现在」，`↵` 填入当前时间；有默认值的时间列能选中 DEFAULT。
+- [x] e2e：created_at 编辑时连按 `Tab` 走过六段后选中「◷ 现在」，`↵` 填入当前时间；有默认值的时间列能选中 DEFAULT。
 
-## F3.35 悬停 tab 显示关闭按钮 · 状态：todo
+## F3.35 悬停 tab 显示关闭按钮 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F1.6
 - **涉及**：`internal/ui`（tab 栏）、`internal/app`（命中表）
 
 **开发**
-- [ ] 指针悬停在某个 tab 上时，名字后面的标记位置显示 `×`（图标 `close`），点击等于对这个 tab 执行关闭（同 `x`，有修改时照样确认）；点 tab 的其他部分照旧切过去。结果区的 tab 同样，「日志」tab 不能关、不画 `×`。右键菜单不做。
-- [ ] `×` 画在标记的位置（当前 tab 替换 `*`，上一个 tab 替换 `-`），没有标记的 tab 用名字后面的空格，悬停时 tab 栏不移位；指针停在 `×` 上时 `select` 底；点 `×` 关的是那一个 tab，不一定是当前 tab，当前 tab 不变。
+- [x] 指针悬停在某个 tab 上时，名字后面的标记位置显示 `×`（图标 `close`），点击等于对这个 tab 执行关闭（同 `x`，有修改时照样确认）；点 tab 的其他部分照旧切过去。结果区的 tab 同样，「日志」tab 不能关、不画 `×`。右键菜单不做。
+- [x] `×` 画在标记的位置（当前 tab 替换 `*`，上一个 tab 替换 `-`），没有标记的 tab 用名字后面的空格，悬停时 tab 栏不移位；指针停在 `×` 上时 `select` 底；点 `×` 关的是那一个 tab，不一定是当前 tab，当前 tab 不变。
 
 **验收**
-- [ ] golden：悬停时的 `×`；e2e：点 `×` 关掉那个 tab，有修改时弹确认框。
+- [x] golden：悬停时的 `×`；e2e：点 `×` 关掉那个 tab，有修改时弹确认框。
 
-## F3.36 表格的 `{N}G` 跳到第 N 行 · 状态：todo
+## F3.36 表格的 `{N}G` 跳到第 N 行 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F1.3
 - **涉及**：`internal/app`（grid）
 
 **开发**
-- [ ] 同 nvim：`{N}G`、`{N}gg` 跳到第 N 行，N 是行号列上显示的行号；不在当前页时翻到它所在的页；超出总行数时到最后一行。转置视图里对应第 N 个字段，不翻页；结果区的表格、日志同样。新行 `+` 不参与编号。目标是第 (N−1)/limit 页的第 (N−1)%limit 行；翻页照 PAGE 输入框的规则：总页数知道（精确或 `~` 估计）时夹到最后一页，不知道（计数中或 `?`）时直接去那一页，超出末尾就是空页；精确计数时 N 超过总行数到最后一行。不带次数的 `gg` / `G` 照旧是本页的第一行 / 最后一行。
+- [x] 同 nvim：`{N}G`、`{N}gg` 跳到第 N 行，N 是行号列上显示的行号；不在当前页时翻到它所在的页；超出总行数时到最后一行。转置视图里对应第 N 个字段，不翻页；结果区的表格、日志同样。新行 `+` 不参与编号。目标是第 (N−1)/limit 页的第 (N−1)%limit 行；翻页照 PAGE 输入框的规则：总页数知道（精确或 `~` 估计）时夹到最后一页，不知道（计数中或 `?`）时直接去那一页，超出末尾就是空页；精确计数时 N 超过总行数到最后一行。不带次数的 `gg` / `G` 照旧是本页的第一行 / 最后一行。
 
 **验收**
-- [ ] e2e：`15G` 光标到第 15 行；LIMIT 10 时 `15G` 翻到第 2 页第 5 行。
+- [x] e2e：`15G` 光标到第 15 行；LIMIT 10 时 `15G` 翻到第 2 页第 5 行。
 
-## F3.37 打开表的目标 pane 与「同一 pane 里唯一」 · 状态：todo
+## F3.37 打开表的目标 pane 与「同一 pane 里唯一」 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F3.18
 - **涉及**：`internal/app`（openTable、openTarget、palette）
 
 **开发**
-- [ ] 目标 pane 改为最近聚焦过的普通 pane，console 所在的 pane 也算（不再跳过当前 tab 是 console 的 pane）；焦点在树上时同样取最近聚焦过的那个（§12「表」）。
-- [ ] 同一个 pane 里一张表只开一个 tab：目标 pane 里已经有这张表就切过去（不重新取数），没有就在目标 pane 新开，别的 pane 里开着也不管（用户：用不同的 pane 对比同一张表）。`C-t`、树里的 `t`、`+` 的标记同样遵守；「选择 tab」列表不再需要，去掉（§7.8「打开已有的表」）。从引导 tab 打开的表在这个 pane 里已经开着时，切过去并关掉引导 tab（tester 提问后定，取代 F3.7 的「总是替换引导 tab」）。
-- [ ] `C-t`、树里的 `t`、中键和 `↵` 打开表的效果相同，action 和键位保留，`palette.open.tab`、`tree.open.tab` 的标题都改成「打开」，树的提示行去掉 `t tab`，面板底栏只留 `↵ 打开`；目标 pane 永远不是结果区；「选择 tab」的面板模式和相关代码删掉；列节点切到已开的 tab 时光标照旧移到这一列。`+` 的标记从 F3.7 起已经没有了，§7.8 那段过时的已改。
+- [x] 目标 pane 改为最近聚焦过的普通 pane，console 所在的 pane 也算（不再跳过当前 tab 是 console 的 pane）；焦点在树上时同样取最近聚焦过的那个（§12「表」）。
+- [x] 同一个 pane 里一张表只开一个 tab：目标 pane 里已经有这张表就切过去（不重新取数），没有就在目标 pane 新开，别的 pane 里开着也不管（用户：用不同的 pane 对比同一张表）。`C-t`、树里的 `t`、`+` 的标记同样遵守；「选择 tab」列表不再需要，去掉（§7.8「打开已有的表」）。从引导 tab 打开的表在这个 pane 里已经开着时，切过去并关掉引导 tab（tester 提问后定，取代 F3.7 的「总是替换引导 tab」）。
+- [x] `C-t`、树里的 `t`、中键和 `↵` 打开表的效果相同，action 和键位保留，`palette.open.tab`、`tree.open.tab` 的标题都改成「打开」，树的提示行去掉 `t tab`，面板底栏只留 `↵ 打开`；目标 pane 永远不是结果区；「选择 tab」的面板模式和相关代码删掉；列节点切到已开的 tab 时光标照旧移到这一列。`+` 的标记从 F3.7 起已经没有了，§7.8 那段过时的已改。
 
 **验收**
-- [ ] e2e：焦点在 ② console 时从树打开 t_order，在 ② 新开 tab；① 已开着 t_order 时从 ② 再打开，② 也开一个；在 ① 里再打开 t_order 只切过去，① 里不会有两个。
+- [x] e2e：焦点在 ② console 时从树打开 t_order，在 ② 新开 tab；① 已开着 t_order 时从 ② 再打开，② 也开一个；在 ① 里再打开 t_order 只切过去，① 里不会有两个。
 
-## F3.38 console 的系统剪贴板寄存器 · 状态：todo
+## F3.38 console 的系统剪贴板寄存器 · 状态：passed（23dca1d；e2e d64aeb1）
 
 - **依赖**：F3.2
 - **涉及**：`internal/editor`（寄存器）、`internal/app`（剪贴板）
 
 **开发**
-- [ ] 编辑器支持 `"+` 和 `"*`（等同）寄存器，读写系统剪贴板：`"+y{移动}`、`"+yy`、VISUAL 下 `"+y`、`"+p` / `"+P`、`"+d`、`"+x`，照 vim 的规则；VISUAL 下的 `"+p` 不做（VISUAL 的 `p` 本来就不做，§11）。其余具名寄存器照旧不做（§11）。nvim 差分测试里不测这两个寄存器。
-- [ ] 无名寄存器不再写系统剪贴板（同 vim 默认的 `clipboard=`，否则 `Y` 和 `yy` 没区别）；表格的 `yy` / `yl` 照旧写。读写系统剪贴板照 nvim 的 provider：依次找 `pbcopy` / `pbpaste`、`wl-copy` / `wl-paste`、`xclip`、`xsel`，找到就直接调用，都没有才用 OSC 52（tea.SetClipboard / tea.ReadClipboard）；表格的 `yy` / `yl` 共用这一处（用户在 tmux `set-clipboard external` 下，OSC 52 被 tmux 丢掉，nvim 能复制是因为它调的是 pbcopy）。tmux 实测（3.7b）：`set-clipboard on` 时回最新的 paste buffer，默认的 `external` 不回。
-- [ ] 通过后决策者在用户的 config.toml 里加 `[map.console.normal] Y = '"+yy'` 和 `[map.visual] Y = '"+y'`（用户要求用 `Y` 复制到系统剪贴板；VISUAL 只在 console 和 WHERE 里有，放 `[map.visual]` 两处都能用）。`"*` 等同 `"+`，当成一个寄存器。
+- [x] 编辑器支持 `"+` 和 `"*`（等同）寄存器，读写系统剪贴板：`"+y{移动}`、`"+yy`、VISUAL 下 `"+y`、`"+p` / `"+P`、`"+d`、`"+x`，照 vim 的规则；VISUAL 下的 `"+p` 不做（VISUAL 的 `p` 本来就不做，§11）。其余具名寄存器照旧不做（§11）。nvim 差分测试里不测这两个寄存器。
+- [x] 无名寄存器不再写系统剪贴板（同 vim 默认的 `clipboard=`，否则 `Y` 和 `yy` 没区别）；表格的 `yy` / `yl` 照旧写。读写系统剪贴板照 nvim 的 provider：依次找 `pbcopy` / `pbpaste`、`wl-copy` / `wl-paste`、`xclip`、`xsel`，找到就直接调用，都没有才用 OSC 52（tea.SetClipboard / tea.ReadClipboard）；表格的 `yy` / `yl` 共用这一处（用户在 tmux `set-clipboard external` 下，OSC 52 被 tmux 丢掉，nvim 能复制是因为它调的是 pbcopy）。tmux 实测（3.7b）：`set-clipboard on` 时回最新的 paste buffer，默认的 `external` 不回。
+- [x] 通过后决策者在用户的 config.toml 里加 `[map.console.normal] Y = '"+yy'` 和 `[map.visual] Y = '"+y'`（用户要求用 `Y` 复制到系统剪贴板；VISUAL 只在 console 和 WHERE 里有，放 `[map.visual]` 两处都能用）。`"*` 等同 `"+`，当成一个寄存器。
 
 **验收**
-- [ ] 单测：`"+yy` 之后剪贴板里是这一行，`"+p` 粘出剪贴板的内容。
-- [ ] e2e：VISUAL 选中后 `"+y`，剪贴板里是选中的文字。用假的 `pbcopy` / `pbpaste` 核对（AGENTS.md「隔离用户数据」），所以剪贴板工具要按 `PATH` 找（`exec.LookPath`），不写死路径；另一个脚本让 `PATH` 里找不到这些工具，查 tmux 的 paste buffer 来测 OSC 52 后备。
+- [x] 单测：`"+yy` 之后剪贴板里是这一行，`"+p` 粘出剪贴板的内容。
+- [x] e2e：VISUAL 选中后 `"+y`，剪贴板里是选中的文字。用假的 `pbcopy` / `pbpaste` 核对（AGENTS.md「隔离用户数据」），所以剪贴板工具要按 `PATH` 找（`exec.LookPath`），不写死路径；另一个脚本让 `PATH` 里找不到这些工具，查 tmux 的 paste buffer 来测 OSC 52 后备。
 
-## F3.39 WHERE 输入框的 vim 模式 · 状态：todo
+## F3.39 WHERE 输入框的 vim 模式 · 状态：passed（23dca1d；e2e d64aeb1）
 
 用户 2026-09-30 提出：WHERE 输入框和 console 一样用 vim 模式，好在 NORMAL 下用 `dd`、`ciw` 这类操作改条件。
 
@@ -680,7 +680,7 @@
 - **涉及**：`internal/app`（WHERE 输入）、`internal/editor`（单行用法）、`internal/keymap/default.toml`
 
 **开发**
-- [ ] WHERE 输入框改用 console 的 vim 编辑器，只有一行（§7.8「WHERE」）：
+- [x] WHERE 输入框改用 console 的 vim 编辑器，只有一行（§7.8「WHERE」）：
   - 从表格按 `/` 或点击进入时是 INSERT，光标在末尾（同现在）；INSERT 下补全、自动配对、`C-w` / `C-u` / `M-BS`、`C-r` 历史照旧，`↵` 执行。
   - INSERT 下 `esc` 回到 WHERE 的 NORMAL（补全列表开着时一次 `esc` 关列表并回 NORMAL，同 console）；NORMAL 下再 `esc` 回表格，没 `↵` 过的改动丢掉，输入框恢复成生效的条件（同现在）。
   - NORMAL 下编辑器支持的移动和操作都能用：`i a I A`、`x s S C D`、`cc` / `dd`（清空这一行）、`ciw caw diw daw ci' ci(` 等文本对象、`u` / `C-r`、`p` / `P`、`yy`；换行类的（`o` `O` `J`）不做事，`j` / `k` 不动，`↵` 执行。
@@ -688,11 +688,11 @@
   - 复制高亮同 console（F3.32）：`yy`、`y{移动}`、VISUAL 下 `y`、`"+y` 都闪 `yank` 色。VISUAL 下不走 `wherenormal`，`esc`、`↵` 交给编辑器，同 console 的 VISUAL。
   - 模式块照 console 显示 NORMAL / INSERT。
   - `C-c` 照旧等同 `esc`（它也是取消查询、连按退出的键），清空条件用 NORMAL 下的 `dd` / `cc`，或 INSERT 下的 `C-u`。
-- [ ] 作用域 `[keys.wherenormal]`（WHERE 在 NORMAL 下生效，§6.4）：`<CR>` = `where.run`「执行」、`/` = `where.history`、`<Esc>` = `where.leave`「回到表格」，没绑的交给编辑器；`[keys.normal]` 的键（`C-hjkl`、leader、`gt`、`?`）照常生效，同 console 的 NORMAL，切走焦点照现在的规则放弃这次编辑。用户映射：NORMAL 用 `[map.normal]`，VISUAL 用 `[map.visual]`，不吃 `[map.console.*]`（有意的）。INSERT 下照旧是 `input` 作用域。
-- [ ] 撤销历史：每次从表格进入 WHERE 新开一段，每次 INSERT 一个撤销步（同 console）；`↵` 或回表格就丢掉。
-- [ ] 单行的规则：INSERT 下 `↵` 执行不换行，粘贴里的换行照旧换成空格；`yy` 之后 `p` / `P` 把整行当字符放在光标后 / 前；`:` 不做事；VISUAL（`v` 后 `d` / `c` / `y`）能用，模式块显示 VISUAL；从表格点进来是 INSERT，已在 NORMAL 时点击只移光标；状态栏两种模式都显示「-- editing WHERE --」。
-- [ ] 直接替换 WHERE 现在的 ui.Input 路径，不为 F6.6 预留；F6.6 设计时再定无模式的用法。
+- [x] 作用域 `[keys.wherenormal]`（WHERE 在 NORMAL 下生效，§6.4）：`<CR>` = `where.run`「执行」、`/` = `where.history`、`<Esc>` = `where.leave`「回到表格」，没绑的交给编辑器；`[keys.normal]` 的键（`C-hjkl`、leader、`gt`、`?`）照常生效，同 console 的 NORMAL，切走焦点照现在的规则放弃这次编辑。用户映射：NORMAL 用 `[map.normal]`，VISUAL 用 `[map.visual]`，不吃 `[map.console.*]`（有意的）。INSERT 下照旧是 `input` 作用域。
+- [x] 撤销历史：每次从表格进入 WHERE 新开一段，每次 INSERT 一个撤销步（同 console）；`↵` 或回表格就丢掉。
+- [x] 单行的规则：INSERT 下 `↵` 执行不换行，粘贴里的换行照旧换成空格；`yy` 之后 `p` / `P` 把整行当字符放在光标后 / 前；`:` 不做事；VISUAL（`v` 后 `d` / `c` / `y`）能用，模式块显示 VISUAL；从表格点进来是 INSERT，已在 NORMAL 时点击只移光标；状态栏两种模式都显示「-- editing WHERE --」。
+- [x] 直接替换 WHERE 现在的 ui.Input 路径，不为 F6.6 预留；F6.6 设计时再定无模式的用法。
 
 **验收**
-- [ ] e2e：`/` 进 WHERE 输入、`esc` 到 NORMAL、`dd` 清空、`i` 输入新条件、`↵` 执行；NORMAL 下 `ciw` 改一个词；NORMAL 下 `/` 打开历史下拉；NORMAL 下 `esc` 回表格，没执行的改动丢掉。
+- [x] e2e：`/` 进 WHERE 输入、`esc` 到 NORMAL、`dd` 清空、`i` 输入新条件、`↵` 执行；NORMAL 下 `ciw` 改一个词；NORMAL 下 `/` 打开历史下拉；NORMAL 下 `esc` 回表格，没执行的改动丢掉。
 
