@@ -28,6 +28,11 @@ e2e_build() { [[ -n $E2E_NOBUILD ]] && { [[ -x $E2E_BIN ]] || { echo "e2e: E2E_N
 # -C: copy DIR's contents into $XDG_CONFIG_HOME/sqlmux/ (config.toml, themes/ …).
 # -S: use DIR (the caller's, kept across starts) as $XDG_STATE_HOME instead of a fresh one.
 # -D: the same for $XDG_DATA_HOME (consoles' files, §11).
+# -P: CMD's PATH instead of the default, which puts $E2E_TMP/bin first: a fake pbcopy / pbpaste there
+# keep the system clipboard in $E2E_TMP/clipboard (lib.sh clip), so no run touches the user's (F3.38,
+# AGENTS.md「隔离用户数据」); -P /bin has no clipboard tool at all, for the OSC 52 fallback. PATH is set inside
+# CMD's sh: tmux's `new-session -e PATH=…` shows in show-environment but the command still gets the client's PATH.
+# DISPLAY / WAYLAND_DISPLAY are unset there too, so xclip / wl-copy found on PATH are never used.
 # connections.toml (0600) has one connection, doraemon → $SQLMUX_TEST_PG; -C can replace it.
 # CMD runs under sh in the temp dir, so what sqlmux writes to its working directory (a result's
 # CSV, §11) stays out of the worktree; when it exits the pane prints "[e2e-exit N]" and drops to
@@ -36,20 +41,22 @@ e2e_build() { [[ -n $E2E_NOBUILD ]] && { [[ -x $E2E_BIN ]] || { echo "e2e: E2E_N
 # TERM=xterm-256color + COLORTERM: a detached tmux has no client to report RGB,
 # so colorprofile would drop to 256 colors and theme hex values couldn't be checked.
 e2e_start() {
-  local w=160 h=45 keys=off conf= confdir= state= data=
-  while [[ $1 == -[xykcCSD] ]]; do
-    case $1 in -x) w=$2; shift ;; -y) h=$2; shift ;; -c) conf=$2; shift ;; -C) confdir=$2; shift ;; -S) state=$2; shift ;; -D) data=$2; shift ;; -k) keys=on ;; esac; shift
+  local w=160 h=45 keys=off conf= confdir= state= data= path=
+  while [[ $1 == -[xykcCSDP] ]]; do
+    case $1 in -x) w=$2; shift ;; -y) h=$2; shift ;; -c) conf=$2; shift ;; -C) confdir=$2; shift ;; -S) state=$2; shift ;; -D) data=$2; shift ;; -P) path=$2; shift ;; -k) keys=on ;; esac; shift
   done
   _e2e_kill
   E2E_TMP=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e.XXXXXX")
-  mkdir -p "$E2E_TMP"/{config/sqlmux,state,data}
+  mkdir -p "$E2E_TMP"/{config/sqlmux,state,data,bin}
+  printf '#!/bin/sh\ncat >"%s/clipboard"\n' "$E2E_TMP" >"$E2E_TMP/bin/pbcopy"
+  printf '#!/bin/sh\ncat "%s/clipboard" 2>/dev/null\n' "$E2E_TMP" >"$E2E_TMP/bin/pbpaste"; chmod +x "$E2E_TMP"/bin/*
   (umask 077; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s"\n' "$SQLMUX_TEST_PG" >"$E2E_TMP/config/sqlmux/connections.toml")
   [[ -n $conf ]] && cp "$conf" "$E2E_TMP/config/sqlmux/config.toml"
   [[ -n $confdir ]] && cp -Rp "$confdir"/. "$E2E_TMP/config/sqlmux/"
   t -f /dev/null set -s extended-keys "$keys" \; new-session -d -s t -x "$w" -y "$h" \
     -e XDG_CONFIG_HOME="$E2E_TMP/config" -e XDG_STATE_HOME="${state:-$E2E_TMP/state}" \
-    -e XDG_DATA_HOME="${data:-$E2E_TMP/data}" -e COLORTERM=truecolor -e HISTFILE=/dev/null -e E2E_DIR="$E2E_TMP" \
-    -e E2E_CMD="$1" 'sh -c '\''export TERM=xterm-256color; cd "$E2E_DIR"; eval "$E2E_CMD"; echo "[e2e-exit $?]"; exec sh'\'''
+    -e XDG_DATA_HOME="${data:-$E2E_TMP/data}" -e E2E_PATH="${path:-$E2E_TMP/bin:$PATH}" -e COLORTERM=truecolor -e HISTFILE=/dev/null -e E2E_DIR="$E2E_TMP" \
+    -e E2E_CMD="$1" 'sh -c '\''export TERM=xterm-256color PATH="$E2E_PATH"; unset DISPLAY WAYLAND_DISPLAY; cd "$E2E_DIR"; eval "$E2E_CMD"; echo "[e2e-exit $?]"; exec sh'\'''
 }
 
 _e2e_kill() {
@@ -77,6 +84,7 @@ e2e_cap()  { t capture-pane -p -t t "$@"; }    # add -e for SGR colors
 e2e_flag() { t display -p -t t "#{$1}"; }      # e.g. alternate_on cursor_flag mouse_all_flag
 e2e_record() { t pipe-pane -t t -o "cat >> '$1'"; }   # FILE — append everything the program writes to the pane
 e2e_resize() { t resize-window -t t -x "$1" -y "$2"; }
+clip() { cat "$E2E_TMP/clipboard" 2>/dev/null; }   # what sqlmux put on the (fake) system clipboard
 
 # Raw SGR mouse reports (DECSET 1006), injected as literal bytes.
 _sgr() { t send-keys -t t -l $'\e['"<$1;$2;$3$4"; }

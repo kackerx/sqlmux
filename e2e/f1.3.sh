@@ -96,9 +96,9 @@ psql "$E2E_DB" -q -c "create table t_blank (id int primary key, s text)" -c "ins
   -c "create table t_empty (id int primary key)" -c "create table t_gone (id int primary key)"
 APP=e2e-f13-$$
 mkdir -p "$D/own"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s&application_name=%s"\n' "$E2E_DB" "$APP" >"$D/own/connections.toml"; chmod 600 "$D/own/connections.toml"
-# opened_sql NAME：先打开 NAME（列信息进缓存），再锁住它、从面板用 C-t 再开一个 tab，SQL 是正在等锁的取数语句
-# （计数排在取数后面，pg_stat_activity 只留每条连接的最后一条；F1.6 起 ↵ 只会切到已开着的 tab，不再取数）
-opened_sql() { open_table "$1"; e2e_lock "$1"; e2e_keys C-p; sleep 0.3; e2e_type "@$1"; sleep 0.3; e2e_keys C-t
+# opened_sql NAME：先打开 NAME（列信息进缓存），再锁住它、按 R 重新取数，SQL 是正在等锁的取数语句
+# （计数排在取数后面，pg_stat_activity 只留每条连接的最后一条；F3.37 起同一个 pane 里再打开它只会切过去，不再取数）
+opened_sql() { open_table "$1"; e2e_lock "$1"; e2e_keys R
   wait_for 5 eval '[[ -n $(e2e_waiting $APP) ]]'; SQL=$(e2e_waiting $APP); e2e_unlock; wait_for 5 eval '[[ -n $(grid_y) ]]'; sleep 0.3; }
 start -C "$D/own"
 
@@ -146,8 +146,8 @@ key Space %; key C-p; e2e_type "@t_user"; sleep 0.3; key C-t   # 新 pane 里第
 c=$(e2e_find busy $(H)); e2e_click $(( ${c%% *} + 1 )) $(H); sleep 0.3
 check "点击 busy 提示也能取消；第一次打开时取消，就是空表（没有网格）" eval 'toast_is "查询已取消" && [[ $(bar) != *busy* ]] && [[ $(e2e_text 99 159 3) != *┼* ]]'
 e2e_unlock
-sleep 0.5; key C-p; e2e_type "@t_user"; sleep 0.3; key C-t; sleep 0.5
-check "锁释放后再打开 t_user：正常显示，同一条 Meta 连接还能用" eval '[[ $(e2e_text 99 159 $(hy)) == *name* ]] || { echo "  $(e2e_text 99 159 $(hy))"; false; }'
+sleep 0.5; key R; sleep 0.5                                             # F3.37：② 里已有 t_user 的 tab，再打开只切过去，所以用 R 重取
+check "锁释放后在 ② 的 t_user 上 R：正常显示，同一条 Meta 连接还能用" eval '[[ $(e2e_text 99 159 $(hy)) == *name* ]] || { echo "  $(e2e_text 99 159 $(hy))"; false; }'
 
 # R（F1.2 的刷新）之后，已经打开的表仍保留类型颜色和钥匙图标
 e2e_keys Space; e2e_type x; sleep 0.3; open_table t_order     # 关掉 ②，切到 ① 的 t_order（只开着一个，F1.6）

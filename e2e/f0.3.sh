@@ -81,13 +81,13 @@ tui '[keys]\nleader = "<C-a>"\n'; check "leader = <C-a>：侧栏标题显示 C-a
 tui '[keys.normal]\n"<Leader>b" = ""\n'; check "解绑 tree.toggle：侧栏标题不显示提示" eval '[[ $(e2e_text 1 32 1) == *"doraemon ───"*"─┐" && $(e2e_text 1 32 1) != *SPC* ]]'
 tui '[keys.console]\n"<CR>" = ""\n"R" = "console.run"\n'; check "改绑 console.run 为 R：② console 标题显示 ▶ run R" text_ends 105 160 1 "▶ run  R ─┐"
 tui '[keys.grid]\n"T" = ""\n'; two_tabs; check "解绑 grid.transpose：tab 栏不显示「转置」" eval '[[ $(e2e_text 34 160 43) != *转置* && $(e2e_text 34 160 43) == *"↵ edit"* ]]'
-# 侧栏提示行（§6.7、§7.8）：未绑定的整项不显示；放不下时整项省略
+# 侧栏提示行（§6.7、§7.8）：未绑定的整项不显示；放不下时整项省略（F3.37 起没有 t tab，t 和 ↵ 一样是打开）
 side_hints() { local c; c=$(e2e_find ┐ 1); text_is 1 "${c%% *}" 43 "$1"; }
-tui ''; check "侧栏提示行（默认）" side_hints "│ j/k move · ↵ open · t tab    │"
-tui '[keys.tree]\n"<CR>" = ""\n'; check "解绑 tree.open：整项不显示" side_hints "│ j/k move · t tab             │"
-tui '[keys.tree]\n"j" = ""\n'; check "解绑 tree.down：j/k move 整项不显示" side_hints "│ ↵ open · t tab               │"
+tui ''; check "侧栏提示行（默认）" side_hints "│ j/k move · ↵ open            │"
+tui '[keys.tree]\n"<CR>" = ""\n'; check "解绑 tree.open：整项不显示" side_hints "│ j/k move                     │"
+tui '[keys.tree]\n"j" = ""\n'; check "解绑 tree.down：j/k move 整项不显示" side_hints "│ ↵ open                       │"
 conf ''; e2e_start -x 80 "$E2E_BIN"; wait_for 5 flag_is alternate_on 1; sleep 0.3
-check "80 宽：放不下的 t tab 整项省略" side_hints "│ j/k move · ↵ open    │"
+check "80 宽：两项都放得下（整项省略的规则由 golden 覆盖）" side_hints "│ j/k move · ↵ open    │"
 
 # ---- 配置写错：启动直接报错退出，指出文件
 tui 'icons = "emoji"\n'

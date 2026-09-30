@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # F1.7 命令面板：快速 SQL（specs/m1-browse/task.md F1.7；tech-design §12「快速 SQL」、§14 state.json）
-# 布局交给 golden（TestGoldenQuickSQL160x45）；这里测真实 PG 上的执行、取消、补全、重启后的历史和 OSC 52。
+# 布局交给 golden（TestGoldenQuickSQL160x45）；这里测真实 PG 上的执行、取消、补全、重启后的历史和剪贴板：
+# 第一次启动时 PATH 里没有剪贴板工具（-P /bin），C-y 走 OSC 52 后备、查 tmux 的 buffer；最后照默认 PATH 走假的 pbcopy（F3.38）。
 # 在自建库里做：要看写语句被拒绝、数据不变；application_name 用来认出本次运行的连接。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
@@ -32,7 +33,7 @@ items() { local g y; g=($(pop)); [[ -n ${g[0]} ]] || return 0
   for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 2)) $((g[0] + g[2] - 2)) $y | tr -s ' ' | sed 's/^ //; s/ $//'; done; }
 active() { psql_n "select count(*) from pg_stat_activity where application_name = '$APP' and state = 'active' and query ~* 'pg_sleep|fetch'"; }
 
-start -C "$D/own" -S "$ST"
+start -P /bin -C "$D/own" -S "$ST"
 pal
 check "面板多了「SQL ;」范围" eval '[[ $(e2e_text $(($(left) + 2)) $(($(right) - 2)) $(tabs_y)) == *"SQL ;"* ]]'
 
@@ -101,7 +102,7 @@ clear_all; e2e_type ";select * from agent_v"; sleep 0.5
 check "补全用 agentable 的表" eval '[[ $(items | head -1) == "agent_version 表" ]] || { items; false; }'
 e2e_keys Escape Escape; sleep 0.3; key C-h; key j; key C-l                      # 光标回到 public 节点
 
-# ---- C-y：结果转成 CSV（表头 + 显示的行，NULL 为空），经 OSC 52 进剪贴板（F-04）
+# ---- C-y：结果转成 CSV（表头 + 显示的行，NULL 为空）进剪贴板（F-04）；PATH 里没有 pbcopy 这类工具，走 OSC 52（F3.38）
 t set -g set-clipboard on
 q="select logged_at, msg, null::int as n, 'a,\"b\"' as q from t_log order by logged_at"
 pal; sql "$q"
@@ -123,5 +124,10 @@ e2e_keys Down; sleep 0.2; e2e_keys Enter; wait_for 8 eval '[[ -n $(title) ]]'
 check "选中 select 2 as y 按 ↵：填进输入并执行" eval '[[ $(input) == ";select 2 as y" && $(grid) == 2 ]]'
 e2e_keys Escape; sleep 0.3; pal
 check "「所有」范围不列 SQL 历史" eval '! row_has "select 1 as x" && ! row_has "select 2 as y"'
+
+# ---- PATH 里有 pbcopy（lib.sh 的假工具）时 C-y 调它，不经过终端（F3.38，照 nvim 的 clipboard provider）
+t set -g set-clipboard on
+clear_all; sql "$q"; e2e_keys C-y; sleep 0.5
+check "有 pbcopy 时 C-y：（假的）系统剪贴板里是同一份 CSV，tmux 的 buffer 里没有" eval 'wait_for 3 eval "[[ \"\$(clip; echo .)\" == \"\$want\" ]]" && ! t show-buffer >/dev/null 2>&1 || { clip | od -c | head -3; false; }'
 
 e2e_done

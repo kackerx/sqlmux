@@ -50,16 +50,16 @@ check "↵：按条件过滤，回到 NORMAL、焦点在表格；计数与数据
 key ']'; qb_has "PAGE 2/15" >/dev/null
 where "status = 'done' and id < 400"
 check "换条件后回到第 1 页，重新计数（100 行，PAGE 1/1）" eval 'qb_has "PAGE 1/1 " && [[ $(cnt) == 100 ]]'
-key /; e2e_type " and false"; sleep 0.2; key Escape; key Escape   # 第一次 esc 先关 F1.5 的补全列表（false 是关键字）
+key /; e2e_type " and false"; sleep 0.2; key Escape; key Escape   # 第一次 esc 关 F1.5 的补全列表（false 是关键字）并回到 WHERE 的 NORMAL（F3.39），第二次回表格
 check "esc：回到表格，输入框恢复成当前生效的条件，数据不变" eval 'mode_is NORMAL && [[ $(where_in) == "status = '"'done'"' and id < 400" && $(cnt) == 100 ]]'
 e2e_click 100 2; sleep 0.3
 check "点击 WHERE 那一行：开始输入" eval 'mode_is INSERT && [[ $(bar) == *"-- editing WHERE --"* ]]'
-key Escape
+key Escape; key Escape                                                         # F3.39：INSERT → WHERE 的 NORMAL → 表格
 where "stauts = 1"
 check "写错的条件：错误栏是 error 色的 [42703]（F3.20），表格照旧画着上一次的数据" eval 'errbar_is 1 "[42703] column \"stauts\" does not exist ×" && style_has 36 $(errbar_y 1) fg=$ERROR && [[ -n $(grid_y) && $(val status 1) == done ]] && pos_is 1,1'
 key /
 check "报错后查询条仍可编辑" eval 'mode_is INSERT && [[ $(where_in) == "stauts = 1" ]]'
-key Escape
+key Escape; key Escape
 where "status = 'done' -- 备注"
 check "末尾带 -- 注释：正常执行，仍按 id 排，第 1 行 id 2" eval '[[ $(cnt) == 1500 && $(nums id 1) == 2 ]] && qb_has "ORDER id $ASC" && qb_has "PAGE 1/15"'
 key ']'; wait_for 8 settled
@@ -75,7 +75,7 @@ check "é（e+U+0301）、👍🏽 各按一次退格：整个字删掉" eval '[
 e2e_type "$(printf 'x%.0s' $(seq 150))END"; sleep 0.3
 end_shown() { [[ $(e2e_text 42 159 2) == *END* ]] && c=$(e2e_find END 2) && [[ $(e2e_flag cursor_x) == $((${c%% *} + 2)) ]] && (( $(e2e_flag cursor_x) < 159 )); }
 check "输入超出宽度：结尾 END 可见，光标在它后面、仍在 pane 里" wait_for 3 end_shown   # 负载高时 150 个字要一会儿才画完
-key Escape
+key Escape; key Escape
 
 # ---- ORDER（go）：通用下拉框，第一项「默认」；同列 ↵ 翻转；行标识列作 tiebreaker；换了回第 1 页
 key go

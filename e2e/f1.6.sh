@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # F1.6 data pane 的 tab（specs/m1-browse/task.md F1.6；tech-design §7.8「tab 栏」「schema 侧栏」、§12「执行」）
-# 布局交给 golden（TestGoldenTabs160x45、TestGoldenTabPick160x45、80x24）；这里测按键、点击和真实 PG 上的打开 / 切换。
+# 布局交给 golden（TestGoldenTabs160x45、80x24）；这里测按键、点击和真实 PG 上的打开 / 切换。
 # 在自建库里做：「切过去，不重新取数」要锁住表，看有没有等锁的取数语句。
 . "$(dirname "$0")/lib.sh"
 SOLO=1   # ① alone right of the sidebar, as before M3's console (lib.sh solo)
@@ -59,9 +59,9 @@ check "在树上按 gt：① 的 tab 不变，焦点仍在树上" eval 'tabs_are
 key C-l; key x
 check "x 关闭 t_log：回到上一个 tab t_user" eval 'tabs_are 1 "1:t_order │ 2:t_user*" && [[ $(e2e_plain | head -1) == *" t_user ─"* ]]'
 
-# ---- ↵ 打开已经开着的表：只有一个 tab 就切过去，不重新取数；有多个就在面板里选
+# ---- ↵ 打开这个 pane 里已经开着的表：切过去，不重新取数（F3.37 起 C-t、树里的 t 也一样，「选择 tab」列表去掉了）
 pal_open t_order Enter
-check "面板 ↵ t_order（开着一个）：切过去，不新开" tabs_are 1 "1:t_order* │ 2:t_user-"
+check "面板 ↵ t_order（开着）：切过去，不新开" tabs_are 1 "1:t_order* │ 2:t_user-"
 e2e_lock t_user
 e2e_keys C-p; sleep 0.3; e2e_type "@t_user"; sleep 0.3; key Enter; sleep 1
 check "锁住 t_user 时 ↵ 它：切过去，没有发出取数（没有等锁的语句），表格照旧" eval '[[ -z $(e2e_waiting $APP) ]] && tabs_are 1 "1:t_order- │ 2:t_user*" && [[ $(bar) != *busy* ]] && user_kept'
@@ -69,35 +69,25 @@ e2e_unlock
 key C-h; key /; e2e_type t_order; sleep 0.3; key Enter; key Enter
 check "从树 ↵ t_order：同样切过去，焦点回到 ①" eval 'tabs_are 1 "1:t_order* │ 2:t_user-" && focus_is 1'
 key C-h; key /; key Escape; key C-l                                       # 清掉树的过滤
-pal_open t_order C-t; where "id > 100"; key 2 g t
-check "C-t 照样新开：t_order 开在 1、3 两个 tab" tabs_are 1 "1:t_order │ 2:t_user* │ 3:t_order-"
-e2e_keys C-p; sleep 0.3; e2e_type "@t_order"; sleep 0.3; key Enter
-check "↵ t_order（开着两个）：面板列出两个 tab 供选择，带位置和条件，底栏 ↵ 切过去 · C-t 新 tab" eval 'is_open && [[ $(list | cut -d"|" -f1 | tr "\n" "/") == "t_order  ① · 1/t_order  ① · 3 · id > 100/" && $(footer) == *"↵ 切过去 · C-t 新 tab"* ]] || { list; footer; false; }'
-key Down; key Enter
-check "选第二项 ↵：切到 tab 3（WHERE id > 100）" eval 'closed && tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_order*" && [[ $(where_in) == "id > 100" ]]'
-e2e_keys C-p; sleep 0.3; e2e_type "@t_order"; sleep 0.3; key Enter; key C-t; wait_for 8 settled
-check "选择 tab 时按 C-t：新开第 4 个" tabs_are 1 "1:t_order │ 2:t_user │ 3:t_order- │ 4:t_order*"
-key x
-key C-h; key /; e2e_type t_order; sleep 0.3; key Enter; key Enter
-check "从树 ↵ 开着两个的 t_order：也进入选择" eval 'is_open && [[ $(list | cut -d"|" -f1 | tr "\n" "/") == "t_order  ① · 1/t_order  ① · 3 · id > 100/" ]]'
-key Escape
-key t; wait_for 8 settled
-check "树里的 t：始终新开 tab" eval 'tabs_are 1 "1:t_order │ 2:t_user │ 3:t_order- │ 4:t_order*" && focus_is 1'
-key x; key C-h; key /; key Escape; key C-l
+key g t; pal_open t_order C-t
+check "面板里 C-t t_order：也只切过去，不新开第二个（F3.37）" eval 'tabs_are 1 "1:t_order* │ 2:t_user-" && closed'
+key g t; key C-h; key /; e2e_type t_order; sleep 0.3; key Enter; key t; wait_for 8 settled
+check "树里的 t：同样切过去" eval 'tabs_are 1 "1:t_order* │ 2:t_user-" && focus_is 1'
+key C-h; key /; key Escape; key C-l
 
-# ---- 两个 pane：点击 tab 聚焦它的 pane；↵ 切到别的 pane 里的 tab，焦点跟过去
+# ---- 两个 pane：点击 tab 聚焦它的 pane；打开表进最近聚焦的 pane，别的 pane 里开着也不管（F3.37）
 key Space %; pal_open t_sku Enter
 check "② 里打开 t_sku" eval 'tabs_are 2 "1:t_sku*" && focus_is 2'
 click_tab 1 2:t_user
 check "点击 ① 的 tab 2：切过去，并聚焦 ①" eval 'focus_is 1 && [[ $(tabbar 1) == *"2:t_user*"* ]]'
 pal_open t_sku Enter
-check "焦点在 ① 时 ↵ t_sku：切到 ② 的 tab，焦点跟过去，① 不变" eval 'focus_is 2 && tabs_are 2 "1:t_sku*" && [[ $(tabbar 1) == *"2:t_user*"* ]]'
+check "焦点在 ① 时 ↵ t_sku：① 里没有，就在 ① 新开，② 的 t_sku 不管" eval 'focus_is 1 && tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_sku*" && tabs_are 2 "1:t_sku*"'
 
 # ---- 点击 +（F3.7 起）：在那个 pane 新开一个引导 tab 并切过去，「打开表」选的表开在这个 tab 里；引导页的其余用例在 f3.7
 click_tab 1 +
-check "点击 ① 的 +：① 新开引导 tab 并切过去，焦点到 ①" eval 'focus_is 1 && tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_order │ 4:新 tab*"'
+check "点击 ① 的 +：① 新开引导 tab 并切过去，焦点到 ①" eval 'focus_is 1 && tabs_are 1 "1:t_order │ 2:t_user │ 3:t_sku- │ 4:新 tab*"'
 key t; e2e_type t_log; sleep 0.3; key Enter; wait_for 8 settled
-check "引导页按 t、选 t_log：开在这个 tab 里，② 不变" eval 'tabs_are 1 "1:t_order │ 2:t_user- │ 3:t_order │ 4:t_log*" && focus_is 1 && tabs_are 2 "1:t_sku*"'
+check "引导页按 t、选 t_log：开在这个 tab 里，② 不变" eval 'tabs_are 1 "1:t_order │ 2:t_user │ 3:t_sku- │ 4:t_log*" && focus_is 1 && tabs_are 2 "1:t_sku*"'
 
 # 窄侧栏里放不下的名字以 … 结尾（§7.8）：F1.12 起由 80x24 的 golden 覆盖（schema_migrati…）
 

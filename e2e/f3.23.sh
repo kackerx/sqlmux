@@ -20,6 +20,7 @@ col_x() { e2e_find "$1" "$(hy)" | tr ' ' '\n' | awk '$1 > 34 { print; exit }'; }
 row_y() { echo $(( $(grid_y) + $1 )); }
 cell() { local x; x=$(col_x "$1"); e2e_text "$x" $((x + 8)) "$(row_y "$2")" | sed 's/ *│.*//; s/ *$//; s/^ *//'; }   # NAME N
 bx() { e2e_find "$1" 3 | cut -d' ' -f1; }                                       # ICON：查询条第二行上这个图标的列
+interval() { e2e_text $(( $(bx "$AUTO") + 1 )) $(( $(bx "$STOP") - 1 )) 3 | tr -d ' '; }   # 自动刷新按钮上的间隔（F3.26 起它和停止同组、紧挨着）
 dd() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5 }'; }
 dd_rows() { local g y; g=($(dd)); for ((y = g[1] + 3; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 2)) $((g[0] + g[2] - 2)) $y | sed 's/ *$//'; done; }
 result() { qb | sed 's/.*   //; s/^ *//; s/ *$//'; }
@@ -33,21 +34,21 @@ start -C "$D/own"; open_table t_order; wait_for 8 settled
 
 # ---- 空闲：停止 dim、不可点；自动刷新 info
 e2e_move "$(bx "$STOP")" 3; sleep 0.3
-check "空闲时停止按钮是 dim 色，悬停不亮（没有请求，不可点）；自动刷新是 info 色、不带间隔" eval 'style_has $(bx "$STOP") 3 fg=$DIM && ! style_has $(bx "$STOP") 3 bg=$SELECT >/dev/null && style_has $(bx "$AUTO") 3 fg=$INFO && [[ $(e2e_text $(( $(bx "$AUTO") + 1 )) $(( $(bx "$AUTO") + 3 )) 3) == "   " ]]'
+check "空闲时停止按钮是 dim 色，悬停不亮（没有请求，不可点）；自动刷新是 info 色、不带间隔" eval 'style_has $(bx "$STOP") 3 fg=$DIM && ! style_has $(bx "$STOP") 3 bg=$SELECT >/dev/null && style_has $(bx "$AUTO") 3 fg=$INFO && [[ -z $(interval) ]]'
 e2e_move 100 30
 
 # ---- 下拉框：点按钮打开，关 / 2s / 5s / 10s / 30s / 60s；选 2s 后按钮 warn 色带间隔
 e2e_click "$(bx "$AUTO")" 3; sleep 0.3
 check "点自动刷新按钮：下拉框开在按钮下面，列出 关 2s 5s 10s 30s 60s" eval 'g=($(dd)); [[ ${g[0]} == $(( $(bx "$AUTO") - 1 )) && ${g[1]} == 4 && $(dd_rows | tr "\n" " ") == "关 2s 5s 10s 30s 60s " ]] && mode_is COMMAND || { echo "  [$(dd)] $(dd_rows | tr "\n" ,)"; false; }'
 e2e_type 2s; sleep 0.3; key Enter
-check "选 2s：按钮 warn 色，画成 <图标> 2s" eval 'style_has $(bx "$AUTO") 3 fg=$WARN && [[ $(e2e_text $(( $(bx "$AUTO") + 1 )) $(( $(bx "$AUTO") + 3 )) 3) == " 2s" ]] && mode_is NORMAL'
+check "选 2s：按钮 warn 色，画成 <图标> 2s" eval 'style_has $(bx "$AUTO") 3 fg=$WARN && [[ $(interval) == 2s ]] && mode_is NORMAL'
 psql_n "update t_order set amount = 42 where id = 1" >/dev/null
 check "另一条连接改了 id 1：2 秒一轮，表格跟着变（42.00）" wait_for 5 eval '[[ $(cell amount 1) == 42.00 ]]'
 
 # ---- 有未保存的修改、正在编辑单元格时跳过这一轮；按钮照样 warn 色带间隔
 set_amount 2 7
 psql_n "update t_order set amount = 43 where id = 1" >/dev/null; sleep 4.5
-check "有未保存的修改：不刷新（id 1 还是 42.00，修改还在），按钮仍是 warn 色带 2s" eval '[[ $(cell amount 1) == 42.00 && $(cell amount 2) == 7 ]] && style_has $(bx "$AUTO") 3 fg=$WARN && [[ $(e2e_text $(( $(bx "$AUTO") + 1 )) $(( $(bx "$AUTO") + 3 )) 3) == " 2s" ]]'
+check "有未保存的修改：不刷新（id 1 还是 42.00，修改还在），按钮仍是 warn 色带 2s" eval '[[ $(cell amount 1) == 42.00 && $(cell amount 2) == 7 ]] && style_has $(bx "$AUTO") 3 fg=$WARN && [[ $(interval) == 2s ]]'
 key r
 check "撤回修改之后：接着刷新（43.00）" wait_for 5 eval '[[ $(cell amount 1) == 43.00 ]]'
 key Enter; sleep 0.3
@@ -75,7 +76,7 @@ key Space; e2e_type z; mark
 check "取消 zoom：接着刷新" wait_for 5 fetched
 key Space; e2e_type x; sleep 0.3                                               # 关掉 ②
 auto 关
-check "选「关」：按钮回到 info 色、不带间隔，不再刷新" eval 'style_has $(bx "$AUTO") 3 fg=$INFO && [[ $(e2e_text $(( $(bx "$AUTO") + 1 )) $(( $(bx "$AUTO") + 3 )) 3) == "   " ]] && { sleep 2.5; mark; sleep 4.5; ! fetched; }'
+check "选「关」：按钮回到 info 色、不带间隔，不再刷新" eval 'style_has $(bx "$AUTO") 3 fg=$INFO && [[ -z $(interval) ]] && { sleep 2.5; mark; sleep 4.5; ! fetched; }'
 
 # ---- 停止：有请求在跑时 error 色、可点，等同 C-c（task.md F3.23 验收：慢查询时点停止能取消）
 e2e_lock t_order

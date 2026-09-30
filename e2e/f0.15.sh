@@ -30,7 +30,7 @@ L z; L z; check "after zoom and unzoom: still 40" side_is 40
 L b; L b; check "after fold and unfold: still 40" side_is 40
 
 # ---- no drag while folded or zoomed
-L b; e2e_down 4 20; e2e_drag_to 30 20; e2e_up 30 20; sleep 0.3; L b
+L b; e2e_down 4 20; e2e_drag_to 30 20; e2e_up 30 20; sleep 0.3; L b; e2e_keys C-l; sleep 0.3   # F3.29：展开时焦点到树上，zoom 之前回到 data pane
 check "folded: the strip's gap does not drag" side_is 40
 L z; e2e_down 41 20; e2e_drag_to 60 20; e2e_up 60 20; sleep 0.3; L z
 check "zoomed: no drag handle" side_is 40

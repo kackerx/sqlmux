@@ -55,13 +55,13 @@ clear_input; e2e_type '>'; sleep 0.3
 check "command rows carry the command icon U+F0E7 and label 命令" eval '[[ $(icon_of 1) == "$NF_COMMAND" ]] && list | head -1 | grep -q "命令|"'
 e2e_keys Escape; sleep 0.2
 
-# ---- tables: ↵ and C-t both open a new tab (F3.18: ↵ no longer replaces the current one); footer; C-t on a non-table does nothing
+# ---- tables: ↵ and C-t both open a new tab (F3.18: ↵ no longer replaces the current one; F3.37: C-t is the same as ↵); footer; C-t on a non-table does nothing
 start; two_tabs; pal "@t_sku"
-check "a table selected: footer says ↵ 打开 · C-t 新 tab" eval '[[ $(footer) == *"↵ 打开 · C-t 新 tab " ]]'
+check "a table selected: footer says only ↵ 打开 (F3.37)" eval '[[ $(footer) == *"↵ 打开 " && $(footer) != *C-t* ]] || { echo "  footer: $(footer)"; false; }'
 e2e_keys Enter; sleep 0.3
 check "↵ opens t_sku in a new tab (F3.18), t_order stays" eval 'closed && text_has 34 160 1 " t_sku ─" && [[ $(data_tabs) == "│ 1:t_user │ 2:t_order- │ 3:t_sku* │ +"* ]]'
 pal "@goal"; e2e_keys C-t; sleep 0.3
-check "C-t opens it in a new tab; the old one is marked -" eval 'closed && [[ $(data_tabs) == "│ 1:t_user │ 2:t_order │ 3:t_sku- │ 4:goal* │ +"* ]]'
+check "C-t on a table not open in this pane: a new tab, the old one marked -" eval 'closed && [[ $(data_tabs) == "│ 1:t_user │ 2:t_order │ 3:t_sku- │ 4:goal* │ +"* ]]'
 pal ">split"; e2e_keys C-t; sleep 0.3
 check "C-t with a command selected: nothing happens, the palette stays" eval 'is_open && (( $(e2e_panes | awk "\$1 != \"-\"" | wc -l) == 2 ))'
 e2e_keys Escape; sleep 0.2
