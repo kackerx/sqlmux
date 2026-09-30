@@ -14,6 +14,7 @@ import (
 
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
+	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/sqlkit"
 	"sqlmux/internal/ui"
@@ -55,6 +56,7 @@ type dataTab struct {
 	request
 	shown    request
 	where    ui.Input         // the WHERE input
+	ed       *editor.Editor   // its vim while typing is "where" (F3.39): where shows its line
 	hidden   map[string]bool  // columns COLS hides
 	pageIn   ui.Input         // PAGE's page number, while typed
 	typing   string           // the input that has the keys: "where", "page", "cell" or ""
@@ -320,7 +322,7 @@ func (t *dataTab) stopTyping() {
 	if t.cell != nil && t.cellHint() == "" { // no value of the column: dropped (§10.7)
 		t.commitCell()
 	}
-	t.typing, t.where, t.comp, t.hist = "", ui.Input{Text: t.applied, Pos: len(t.applied)}, nil, nil
+	t.typing, t.where, t.comp, t.hist, t.ed = "", ui.Input{Text: t.applied, Pos: len(t.applied)}, nil, nil, nil
 }
 
 // dataOf is pane p's current table, or nil.
@@ -482,8 +484,14 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 		right += " · " + t.page.Took.Round(time.Millisecond).String()
 	}
 	names, _ := a.sqlNames(t.where.Text, t.table.Schema, &t.cols)
+	where := t.where
+	if from, to, ok := t.vimSel(); ok {
+		end := ui.Input{Text: where.Text, Pos: to}
+		end.Right() // the character at to is in
+		where.Sel = [2]int{from, end.Pos}
+	}
 	return ui.QueryBar{
-		Where: t.where, Typing: t.typing == "where", Pane: p.ID, Right: right, Note: t.note, Names: names,
+		Where: where, Typing: t.typing == "where", Pane: p.ID, Right: right, Note: t.note, Names: names,
 		Chips: []ui.Chip{
 			order,
 			{Label: "LIMIT", Value: strconv.Itoa(t.shown.limit), Action: "grid.limit"},
@@ -736,56 +744,34 @@ func (a *App) turnPage(d int) tea.Cmd {
 	return a.fetch(t, false)
 }
 
-// typeKey edits the query bar input that has the keys (§7.8): ↵ runs it,
-// esc drops it.
+// typeKey edits the query bar input that has the keys (§7.8): the WHERE's
+// vim, a cell's edit, or PAGE's, which ↵ runs and esc drops.
 func (a *App) typeKey(t *dataTab, k keymap.Key) tea.Cmd {
-	if t.cell != nil { // ↵ and esc are cell.accept and cell.done (§10.2)
+	switch {
+	case t.typing == "where":
+		return a.whereKey(t, k)
+	case t.cell != nil: // ↵ and esc are cell.accept and cell.done (§10.2)
 		if editInput(&t.cell.in, k) {
 			t.cell.sel = -1 // the options change with it: none picked (§10.2)
 		}
 		return nil
-	}
-	switch k {
-	case keymap.Esc:
-		if t.comp != nil || t.hist != nil { // a list goes first, then the input (§9.7)
-			t.comp, t.hist = nil, nil
-			return nil
-		}
+	case k == keymap.Esc:
 		t.stopTyping()
 		return nil
-	case "<CR>":
-		if t.comp != nil { // ↵ runs only when taking it changes nothing (§9.7)
-			if changed, _ := a.acceptCompletion(); changed {
-				return nil
-			}
-		}
-		if t.typing == "where" {
-			return a.runWhere(t)
-		}
-		n, err := strconv.Atoi(strings.TrimSpace(t.pageIn.Text))
-		t.stopTyping()
-		if err != nil {
-			return nil
-		}
-		if pages, ok := t.pages(); ok { // past the ends: to the end
-			n = min(n, int(pages))
-		}
-		t.pageNo = max(n-1, 0)
-		return a.fetch(t, false)
-	}
-	if t.typing == "page" {
+	case k != "<CR>":
 		editInput(&t.pageIn, k)
 		return nil
 	}
-	text := t.where.Text
-	a.editPaired(&t.where, k)
-	switch {
-	case t.hist == nil:
-		a.complete(t)
-	case t.where.Text != text: // typed into: the list filters by it from now on (§9.7)
-		t.hist.typed, t.hist.sel = true, 0
+	n, err := strconv.Atoi(strings.TrimSpace(t.pageIn.Text))
+	t.stopTyping()
+	if err != nil {
+		return nil
 	}
-	return nil
+	if pages, ok := t.pages(); ok { // past the ends: to the end
+		n = min(n, int(pages))
+	}
+	t.pageNo = max(n-1, 0)
+	return a.fetch(t, false)
 }
 
 // baseType is a catalog type's name without its modifier: format_type

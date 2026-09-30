@@ -138,6 +138,11 @@ leader = "<Space>"
 "<C-f>" = "where.star"
 "<Esc>" = "where.close"
 
+[keys.wherenormal] # F3.39: the WHERE input in NORMAL; the rest goes to its vim, normal under it
+"<CR>" = "where.run"
+"/" = "where.history"
+"<Esc>" = "where.leave"
+
 [keys.keyhelp] # §6.5: the other keys it lists are pressed
 "<Esc>" = "keyhelp.close"
 "<BS>" = "keyhelp.back"

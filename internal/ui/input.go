@@ -13,8 +13,9 @@ import (
 // as in nvim.
 type Input struct {
 	Text string
-	Pos  int  // byte offset of the cursor, on a grapheme boundary
-	All  bool // all of it selected, as a cell's edit starts (§10.1): typing replaces it
+	Pos  int    // byte offset of the cursor, on a grapheme boundary
+	All  bool   // all of it selected, as a cell's edit starts (§10.1): typing replaces it
+	Sel  [2]int // bytes Sel[0] up to Sel[1] selected: a WHERE's VISUAL (F3.39), drawn by DrawSQL
 }
 
 func (in *Input) Insert(s string) {
@@ -78,11 +79,7 @@ func (in Input) DrawSQL(f *Frame, r uv.Rectangle, st uv.Style, names SQLNames) u
 
 // draw is Draw, the text's bytes in colors, when there are any.
 func (in Input) draw(f *Frame, r uv.Rectangle, st uv.Style, colors []color.Color) uv.Position {
-	start := 0
-	for Width(Printable(in.Text[start:in.Pos])) >= r.Dx() && start < in.Pos { // the cursor takes a cell too
-		gr, _ := ansi.FirstGraphemeCluster(in.Text[start:], ansi.GraphemeWidth)
-		start += len(gr)
-	}
+	start := in.Start(r.Dx())
 	if in.All {
 		st.Bg = f.Theme.Visual
 	}
@@ -98,7 +95,21 @@ func (in Input) draw(f *Frame, r uv.Rectangle, st uv.Style, colors []color.Color
 			cst = st
 			cst.Fg = colors[i]
 		}
+		if in.Sel[0] <= i && i < in.Sel[1] {
+			cst.Bg = f.Theme.Visual
+		}
 		x, i = f.Text(x, r.Min.Y, r.Max.X, Printable(gr), cst), i+len(gr)
 	}
 	return uv.Pos(r.Min.X+Width(Printable(in.Text[start:in.Pos])), r.Min.Y)
+}
+
+// Start is the first byte shown when w columns show the text: the cursor
+// stays in view.
+func (in Input) Start(w int) int {
+	start := 0
+	for Width(Printable(in.Text[start:in.Pos])) >= w && start < in.Pos { // the cursor takes a cell too
+		gr, _ := ansi.FirstGraphemeCluster(in.Text[start:], ansi.GraphemeWidth)
+		start += len(gr)
+	}
+	return start
 }

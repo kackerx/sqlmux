@@ -432,8 +432,8 @@ func (a *App) statusLine() ui.StatusLine {
 
 	pending := ui.Run{Text: "·", Style: bar(th.Dim)}
 	ks := keymap.Display(a.res.Pending())
-	if c := a.focusedConsole(); ks == "" && c != nil { // what the editor waits on: nvim's showcmd
-		ks = c.ed.Pending()
+	if ed := a.vim(); ks == "" && ed != nil { // what the editor waits on: nvim's showcmd
+		ks = ed.Pending()
 	}
 	if ks != "" {
 		pending = ui.Run{Text: ks, Style: uv.Style{Fg: th.Warn, Bg: th.Bar, Attrs: uv.AttrBold}}
@@ -468,8 +468,8 @@ func (a *App) statusLine() ui.StatusLine {
 		s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: busy, Style: bar(th.Warn)}}, Action: "cancel"})
 	}
 	name := strings.ToUpper(mode.String())
-	if c := a.focusedConsole(); c != nil { // V-LINE, V-BLOCK and REPLACE in the colors of VISUAL and INSERT
-		name = c.ed.Mode().String()
+	if ed := a.vim(); ed != nil { // V-LINE, V-BLOCK and REPLACE in the colors of VISUAL and INSERT
+		name = ed.Mode().String()
 	}
 	s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: " " + name + " ", Style: uv.Style{Fg: th.Bg, Bg: modeColor, Attrs: uv.AttrBold}}}})
 	return s

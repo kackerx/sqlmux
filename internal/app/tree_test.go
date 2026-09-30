@@ -361,7 +361,7 @@ func TestInputDeleteWord(t *testing.T) {
 	if feed(t, a, "/id > 5<C-w><M-BS>"); tab.where.Text != "id " {
 		t.Errorf("WHERE: %q", tab.where.Text)
 	}
-	if feed(t, a, "<Esc><C-p>@t_ord<C-w>"); a.palette.input.Text != "@" {
+	if feed(t, a, "<Esc><Esc><C-p>@t_ord<C-w>"); a.palette.input.Text != "@" {
 		t.Errorf("palette: %q", a.palette.input.Text)
 	}
 	if feed(t, a, "<Esc>i<C-w>"); tab.cell == nil || tab.cell.in.Text != "" {

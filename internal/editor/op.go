@@ -345,6 +345,9 @@ func (e *Editor) join(count int) {
 // the cursor's line, the cursor on the first line's first non-blank.
 func (e *Editor) put(after bool, count int) {
 	r := e.reg
+	if e.OneLine && (r.kind == 'v' || r.kind == 'V') {
+		r.kind, r.text = 'v', strings.ReplaceAll(strings.TrimSuffix(r.text, "\n"), "\n", " ")
+	}
 	switch r.kind {
 	case 0: // nothing to put, but vim has saved for undo
 		e.beginChange()
@@ -412,6 +415,9 @@ func (e *Editor) replace(c cmd) {
 	}
 	switch c.arg {
 	case "\r":
+		if e.OneLine {
+			return
+		}
 		e.setLine(e.cur.Line, l[:col]+l[end:])
 		e.startInsert(Insert, cmd{name: "r"})
 		e.insertKey("<CR>")

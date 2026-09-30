@@ -54,7 +54,8 @@ func withRecorder(t *testing.T, w, h int) (*App, *dataTab, *recDB) {
 }
 
 // / types a WHERE (INSERT, -- editing WHERE --); ↵ runs it from the first
-// page and counts again; esc puts back what is in effect (§7.8).
+// page and counts again; esc goes to its vim's NORMAL, esc again puts back
+// what is in effect (§7.8, F3.39).
 func TestWhere(t *testing.T) {
 	a, tab, _ := withRecorder(t, 160, 45)
 	tab.pageNo = 3
@@ -71,7 +72,11 @@ func TestWhere(t *testing.T) {
 		t.Fatalf("↵: applied %q page %d typing %q counted %v", tab.applied, tab.pageNo, tab.typing, tab.counted)
 	}
 	feed(t, a, "/<BS><BS>9<Esc>")
-	if tab.where.Text != "id > 5" || tab.applied != "id > 5" || a.mode() != keymap.Normal {
+	if tab.where.Text != "id >9" || tab.typing != "where" || a.mode() != keymap.Normal || a.statusLine().Info != "-- editing WHERE --" {
+		t.Fatalf("esc: input %q typing %q mode %v", tab.where.Text, tab.typing, a.mode())
+	}
+	feed(t, a, "<Esc>")
+	if tab.where.Text != "id > 5" || tab.applied != "id > 5" || a.mode() != keymap.Normal || tab.typing != "" {
 		t.Errorf("esc: input %q applied %q", tab.where.Text, tab.applied)
 	}
 	feed(t, a, "/x")

@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -64,7 +65,7 @@ func init() {
 				a.sess.Meta.Cancel()
 				return nil
 			}
-			if a.mode() != keymap.Normal { // in any input C-c is esc, as in vim (§6.8)
+			if a.mode() != keymap.Normal || inWhere(a) { // in any input C-c is esc, as in vim (§6.8), in a WHERE's NORMAL too (F3.39)
 				return a.press(keymap.Esc)
 			}
 			if a.busy > 0 { // a query or a save is running: cancel it (§8.3, §10.3)
@@ -188,11 +189,24 @@ func init() {
 		"where.star":      {Title: "收藏 / 取消收藏", Local: true, Run: when(inHist, func(a *App) tea.Cmd { return a.histStar(a.typingTab()) })},
 		"where.close":     {Title: "关闭下拉", Local: true, Run: when(inHist, func(a *App) tea.Cmd { a.typingTab().hist = nil; return nil })},
 		// C-r in the WHERE input, or a click on its ▾ from the grid (Q-02).
-		"where.history": {Title: "历史 / 收藏", Local: true, Run: do(func(a *App, _ Args) {
-			if t := dataOf(a.focused()); t != nil && t.page.Cols != nil && a.drop == nil && a.cols == nil && t.typing != "page" {
-				t.typing, t.comp, t.hist = "where", nil, &histMenu{}
+		"where.history": {Title: "历史 / 收藏", Local: true, Run: func(a *App, _ Args) tea.Cmd {
+			t := dataOf(a.focused())
+			if t == nil || t.page.Cols == nil || a.drop != nil || a.cols != nil || t.typing == "page" {
+				return nil
 			}
-		})},
+			var cmd tea.Cmd
+			switch {
+			case t.typing != "where":
+				a.startWhere(t)
+			case t.ed.Mode() != editor.Insert: // NORMAL's /: what is typed then filters it (F3.39)
+				cmd = a.whereDid(t, t.ed.Feed("A"))
+			}
+			t.comp, t.hist = nil, &histMenu{}
+			return cmd
+		}},
+		// The WHERE input in its vim's NORMAL (F3.39).
+		"where.run":   {Title: "执行", Local: true, Run: when(inWhere, func(a *App) tea.Cmd { return a.runWhere(a.typingTab()) })},
+		"where.leave": {Title: "回到表格", Local: true, Run: when(inWhere, func(a *App) tea.Cmd { a.typingTab().stopTyping(); return nil })},
 		"cols.up":     {Title: "上移", Local: true, Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(-1); return nil })},
 		"cols.down":   {Title: "下移", Local: true, Run: when(inCols, func(a *App) tea.Cmd { a.colsMove(1); return nil })},
 		"cols.toggle": {Title: "显示 / 隐藏这一列", Local: true, Run: when(inCols, func(a *App) tea.Cmd { a.colsToggle(a.cols.sel); return nil })},
@@ -305,8 +319,8 @@ func init() {
 		"confirm.no": {Title: "取消", Local: true, Run: when(inConfirm, func(a *App) tea.Cmd { a.confirm = nil; return nil })},
 		// The query bar (§7.8「查询条」).
 		"grid.where": {Title: "WHERE 条件", Run: do(func(a *App, _ Args) {
-			if t := dataOf(a.focused()); t != nil {
-				t.typing, t.where.Pos = "where", len(t.where.Text)
+			if t := dataOf(a.focused()); t != nil && t.typing != "where" {
+				a.startWhere(t)
 			}
 		})},
 		"grid.page": {Title: "PAGE", Run: do(func(a *App, _ Args) {
@@ -412,6 +426,11 @@ func inComplete(a *App) bool { return a.completing() != nil }
 func inHist(a *App) bool {
 	t := a.typingTab()
 	return t != nil && t.hist != nil
+}
+
+func inWhere(a *App) bool {
+	t := a.typingTab()
+	return t != nil && t.typing == "where"
 }
 
 // by is a grid move of dr rows and dc columns.

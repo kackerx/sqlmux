@@ -3,7 +3,6 @@ package app
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -46,9 +45,9 @@ type App struct {
 
 	state *config.State // kept between runs (§14)
 
-	rowCopy  *copiedRow // the row yy took, for p (§10.6)
-	clipWait *clipWait  // a "+p waiting for the clipboard (F3.38)
-	flash    *yankFlash // a yank flashing (F3.32)
+	rowCopy  *copiedRow           // the row yy took, for p (§10.6)
+	clipWait func(string) tea.Cmd // a "+p waiting for the clipboard: what to do with its text (F3.38)
+	flash    *yankFlash           // a yank flashing (F3.32)
 	flashSeq int
 
 	toast     string
@@ -162,9 +161,9 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.flash = nil
 		}
 	case tea.ClipboardMsg: // what a "+p asked for (F3.38)
-		if w := a.clipWait; w != nil && slices.Contains(a.sess.consoles(), w.t) {
+		if w := a.clipWait; w != nil {
 			a.clipWait = nil
-			return a, a.consoleDid(w.t, w.t.ed.PutClip(msg.Content, w.put))
+			return a, w(msg.Content)
 		}
 	case tea.KeyPressMsg:
 		return a, a.press(keymap.FromTea(msg.Key()))
@@ -231,11 +230,11 @@ func (a *App) feed(k keymap.Key, maps bool) tea.Cmd {
 	}
 	// An editor waiting for the rest of a command takes the keys itself,
 	// user maps and all, C-c as esc (§6.4): f<Space>x is no leader key.
-	if t := a.focusedConsole(); t != nil && t.ed.Pending() != "" {
+	if ed := a.vim(); ed != nil && ed.Pending() != "" {
 		if k == "<C-c>" {
 			k = keymap.Esc
 		}
-		return a.consoleKey(a.focused(), t, k)
+		return a.dispatch([]keymap.Result{{Keys: []keymap.Key{k}}})
 	}
 	out, wait := a.res.Feed(a.context(), k, maps)
 	cmd := a.dispatch(out)
@@ -323,6 +322,10 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		}
 		return cmd
 	case ui.KindHint, ui.KindRowNo:
+		if w := dataOf(a.focused()); t.Action == "grid.where" && t.Pane == a.focused().ID && w != nil && w.typing == "where" { // in it already: the cursor goes there (F3.39)
+			a.whereClick(a.focused(), w, p)
+			return nil
+		}
 		return tea.Batch(focus(), a.run(t.Action, 0))
 	case ui.KindTitle:
 		if double {
@@ -411,6 +414,9 @@ func (a *App) paste(s string) tea.Cmd {
 		return a.consoleDid(t, t.ed.Paste(s))
 	}
 	s = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ").Replace(s)
+	if t := dataOf(a.focused()); t != nil && t.typing == "where" && !a.overlaid() { // text in any mode, as a console takes it (F3.39)
+		return a.whereDid(t, t.ed.Paste(s))
+	}
 	if a.mode() == keymap.Normal {
 		return a.editCell(&s)
 	}
@@ -458,17 +464,13 @@ func (a *App) dispatch(out []keymap.Result) tea.Cmd {
 
 // mode is derived from state, never stored (§3 principle 3).
 func (a *App) mode() keymap.Mode {
-	switch t, c := a.typingTab(), a.focusedConsole(); {
-	case a.palette != nil, a.drop != nil, a.cols != nil, a.confirm != nil, a.keyHelp != nil, t != nil && t.hist != nil: // an overlay has the keys (§7.8)
+	switch t, ed := a.typingTab(), a.vim(); {
+	case a.overlaid(), t != nil && t.hist != nil: // an overlay has the keys (§7.8)
 		return keymap.Command
+	case ed != nil: // a console's vim, or a WHERE's (F3.39)
+		return vimMode(ed.Mode())
 	case a.win().tree.filtering, t != nil:
 		return keymap.Insert
-	case c != nil: // the console's vim
-		return [...]keymap.Mode{
-			editor.Normal: keymap.Normal, editor.Insert: keymap.Insert, editor.Replace: keymap.Insert,
-			editor.Visual: keymap.Visual, editor.VisualLine: keymap.Visual, editor.VisualBlock: keymap.Visual,
-			editor.Command: keymap.Command,
-		}[c.ed.Mode()]
 	}
 	return keymap.Normal
 }
@@ -506,6 +508,14 @@ func (a *App) context() keymap.Context {
 		}
 		if typing.cell.add != nil { // a row added's: Tab goes on to the next field (F3.33)
 			c.Overlay, c.Under = "newrow", c.Overlay
+		}
+		return c
+	case typing != nil && typing.typing == "where" && vimMode(typing.ed.Mode()) != keymap.Insert:
+		// its vim's NORMAL or VISUAL: user maps as any pane's, esc and ↵ in
+		// VISUAL the vim's, as a console's (F3.39)
+		c := keymap.Context{Mode: vimMode(typing.ed.Mode())}
+		if c.Mode == keymap.Normal {
+			c.Focus = []string{"wherenormal"}
 		}
 		return c
 	case a.win().tree.filtering, typing != nil:
@@ -553,9 +563,9 @@ func (a *App) View() tea.View {
 	if c := f.Cursor; c != nil { // the terminal's own cursor, which input methods follow (§12)
 		v.Cursor = tea.NewCursor(c.X, c.Y)
 		v.Cursor.Shape = tea.CursorBar
-		if t := a.focusedConsole(); t != nil && t.ed.Mode() != editor.Insert { // vim's: a block, a bar in INSERT, a line under in REPLACE (§11)
+		if ed := a.vim(); ed != nil && ed.Mode() != editor.Insert { // vim's: a block, a bar in INSERT, a line under in REPLACE (§11)
 			v.Cursor.Shape = tea.CursorBlock
-			if t.ed.Mode() == editor.Replace {
+			if ed.Mode() == editor.Replace {
 				v.Cursor.Shape = tea.CursorUnderline
 			}
 		}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -37,12 +38,6 @@ type consoleTab struct {
 	wait  *compWait
 }
 
-// clipWait is a console's "+p waiting for the system clipboard (F3.38).
-type clipWait struct {
-	t   *consoleTab
-	put editor.ClipPut
-}
-
 // compWait is where a console last completed, C-n's or not.
 type compWait struct {
 	at     editor.Pos
@@ -70,10 +65,39 @@ func consoleOf(p *Pane) *consoleTab {
 // focusedConsole is the console that has the keys: the focused pane's
 // current tab, with no overlay over it.
 func (a *App) focusedConsole() *consoleTab {
-	if a.palette != nil || a.drop != nil || a.cols != nil || a.confirm != nil || a.keyHelp != nil {
+	if a.overlaid() {
 		return nil
 	}
 	return consoleOf(a.focused())
+}
+
+// overlaid reports whether an overlay has the keys (§7.8).
+func (a *App) overlaid() bool {
+	return a.palette != nil || a.drop != nil || a.cols != nil || a.confirm != nil || a.keyHelp != nil
+}
+
+// vim is the editor that has the keys, with nothing over it: the focused
+// console's, or the WHERE's being typed (F3.39).
+func (a *App) vim() *editor.Editor {
+	if a.overlaid() {
+		return nil
+	}
+	if c := consoleOf(a.focused()); c != nil {
+		return c.ed
+	}
+	if t := dataOf(a.focused()); t != nil && t.typing == "where" && t.hist == nil {
+		return t.ed
+	}
+	return nil
+}
+
+// vimMode is the keymap's mode for a vim's (§6.4).
+func vimMode(m editor.Mode) keymap.Mode {
+	return [...]keymap.Mode{
+		editor.Normal: keymap.Normal, editor.Insert: keymap.Insert, editor.Replace: keymap.Insert,
+		editor.Visual: keymap.Visual, editor.VisualLine: keymap.Visual, editor.VisualBlock: keymap.Visual,
+		editor.Command: keymap.Command,
+	}[m]
 }
 
 // consoleView is console t in pane p as it draws, and the area it draws
@@ -169,6 +193,24 @@ func (a *App) consoleAccept(t *consoleTab) (ok bool, cmd tea.Cmd) {
 	return false, nil
 }
 
+// vimCmds are what any vim's eff asks of the app (F3.38): the clipboard
+// gets what "+ took, or is asked for what "+p puts, which put takes once
+// it comes; an error is toasted.
+func (a *App) vimCmds(eff editor.Effect, put func(text string, p editor.ClipPut) tea.Cmd) []tea.Cmd {
+	var cmds []tea.Cmd
+	if eff.Clip != nil {
+		cmds = append(cmds, clipCopy(*eff.Clip))
+	}
+	if p := eff.Paste; p != nil {
+		a.clipWait = func(text string) tea.Cmd { return put(text, *p) }
+		cmds = append(cmds, clipPaste)
+	}
+	if eff.Error != "" {
+		cmds = append(cmds, a.showToast(eff.Error, toastTTL))
+	}
+	return cmds
+}
+
 type autosave struct {
 	t   *consoleTab
 	ver int
@@ -177,25 +219,20 @@ type autosave struct {
 // autosaveDelay is how long after the last change a console is written (§11).
 var autosaveDelay = time.Second
 
-// consoleDid acts on what the editor did: the clipboard gets what "+
-// took, or is asked for what "+p puts (F3.38), a change drops the red ▶
-// and is written a second after the last one, a : command it left runs
-// here. The candidate list closes; typing on opens it again (consoleKey).
+// consoleDid acts on what the editor did: the clipboard as vimCmds, a
+// yank flashes, a change drops the red ▶ and is written a second after
+// the last one, a : command it left runs here. The candidate list closes;
+// typing on opens it again (consoleKey).
 func (a *App) consoleDid(t *consoleTab, eff editor.Effect) tea.Cmd {
 	t.comp = nil
-	var cmds []tea.Cmd
-	if eff.Clip != nil {
-		cmds = append(cmds, clipCopy(*eff.Clip))
-	}
-	if eff.Paste != nil {
-		a.clipWait = &clipWait{t, *eff.Paste}
-		cmds = append(cmds, clipPaste)
-	}
+	cmds := a.vimCmds(eff, func(text string, p editor.ClipPut) tea.Cmd {
+		if !slices.Contains(a.sess.consoles(), t) {
+			return nil
+		}
+		return a.consoleDid(t, t.ed.PutClip(text, p))
+	})
 	if eff.Yank != nil {
 		cmds = append(cmds, a.flashYank(yankFlash{pane: a.focused().ID, text: yankSel(*eff.Yank)}))
-	}
-	if eff.Error != "" {
-		cmds = append(cmds, a.showToast(eff.Error, toastTTL))
 	}
 	if eff.Changed {
 		t.failed = -1

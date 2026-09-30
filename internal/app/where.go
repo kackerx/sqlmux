@@ -369,10 +369,23 @@ func (a *App) acceptCompletion() (changed bool, cmd tea.Cmd) {
 	if t := a.focusedConsole(); t != nil {
 		return a.consoleAccept(t)
 	}
-	t := a.typingTab()
-	changed = t.comp.accept(&t.where)
+	return a.whereAccept(a.typingTab()), nil
+}
+
+// whereAccept is accept in the WHERE's vim, as typing it would (F3.39):
+// the closing quote after the cursor goes when the insert has its own.
+func (a *App) whereAccept(t *dataTab) bool {
+	c, in := t.comp, t.where
 	t.comp = nil
-	return changed, nil
+	if !c.accept(&in) {
+		return false
+	}
+	t.ed.Complete(c.start, c.items[c.sel].insert)
+	if t.ed.Lines()[0] != in.Text {
+		t.ed.Feed("<Del>")
+	}
+	t.syncWhere()
+	return true
 }
 
 // accept leaves in as it is when the candidate differs from the word only
@@ -397,9 +410,83 @@ func (c *completion) move(d int) {
 	c.sel = ((c.sel+d)%n + n) % n
 }
 
-// editPaired is editInput with autopairs, a WHERE's and the quick SQL's
-// (§7.9): an opening half gets its other, a closing one after the cursor
-// is stepped over, and BS takes an empty pair.
+// startWhere gives the keys to t's WHERE input, its vim in INSERT at the
+// end (F3.39); made anew, so its undo starts here and goes with it.
+func (a *App) startWhere(t *dataTab) {
+	t.typing, t.comp, t.hist = "where", nil, nil
+	t.ed = editor.New(t.where.Text)
+	t.ed.TabWidth, t.ed.AutoPairs, t.ed.OneLine = a.tabWidth, a.autoPairs, true
+	t.ed.Feed("A")
+	t.syncWhere()
+}
+
+// syncWhere shows the WHERE's vim in the input: its line and cursor.
+func (t *dataTab) syncWhere() {
+	t.where = ui.Input{Text: t.ed.Lines()[0], Pos: t.ed.Cursor().Col}
+}
+
+// vimSel is the WHERE's VISUAL selection, the bytes from to the character
+// at to; all of it in V-LINE.
+func (t *dataTab) vimSel() (from, to int, ok bool) {
+	if t.typing != "where" {
+		return 0, 0, false
+	}
+	f, e, ok := t.ed.Selection()
+	if t.ed.Mode() == editor.VisualLine {
+		return 0, len(t.where.Text), ok
+	}
+	return f.Col, e.Col, ok
+}
+
+// whereKey gives key k to the WHERE's vim (F3.39): in INSERT ↵ takes the
+// selected candidate, or runs the WHERE when that changes nothing (§9.7),
+// and esc leaves INSERT, the list closing with it, as a console's.
+func (a *App) whereKey(t *dataTab, k keymap.Key) tea.Cmd {
+	if m := t.ed.Mode(); k == "<CR>" && (m == editor.Insert || m == editor.Replace) {
+		if t.comp != nil && a.whereAccept(t) {
+			return nil
+		}
+		return a.runWhere(t)
+	}
+	return a.whereDid(t, t.ed.Feed(string(k)))
+}
+
+// whereDid acts on what the WHERE's vim did: the input shows it; in INSERT
+// the candidates follow the cursor, or the history list filters by the
+// text once typed into (§9.7); the clipboard as a console's. gq has
+// nothing to lay out.
+func (a *App) whereDid(t *dataTab, eff editor.Effect) tea.Cmd {
+	was := t.where.Text
+	t.syncWhere()
+	switch {
+	case t.ed.Mode() != editor.Insert:
+		t.comp = nil
+	case t.hist == nil:
+		a.complete(t)
+	case t.where.Text != was:
+		t.hist.typed, t.hist.sel = true, 0
+	}
+	ed := t.ed
+	return tea.Batch(a.vimCmds(eff, func(text string, p editor.ClipPut) tea.Cmd {
+		if t.typing != "where" || t.ed != ed { // the edit is over
+			return nil
+		}
+		return a.whereDid(t, ed.PutClip(text, p))
+	})...)
+}
+
+// whereClick puts the WHERE's cursor where p is on pane pn's input.
+func (a *App) whereClick(pn *Pane, t *dataTab, p uv.Position) {
+	r := a.queryBar(pn, t).InputRect(bodyRect(a.layout()[pn.ID]))
+	shown := t.where.Text[:t.where.Start(r.Dx())]
+	t.ed.Click(0, ui.Width(ui.Printable(shown))+p.X-r.Min.X)
+	t.syncWhere()
+	t.comp = nil
+}
+
+// editPaired is editInput with autopairs, the quick SQL's (§7.9): an
+// opening half gets its other, a closing one after the cursor is stepped
+// over, and BS takes an empty pair.
 func (a *App) editPaired(in *ui.Input, k keymap.Key) bool {
 	before, after := in.Text[:in.Pos], in.Text[in.Pos:]
 	t := keymap.Text(k)

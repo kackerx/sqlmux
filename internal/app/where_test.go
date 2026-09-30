@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/editor"
@@ -153,7 +154,7 @@ func TestAutoPairs(t *testing.T) {
 	if feed(t, a, "'ru<CR>"); tab.where.Text != "status = 'running'" || tab.where.Pos != 18 || tab.applied != "" {
 		t.Fatalf("taking 'running': %q at %d", tab.where.Text, tab.where.Pos)
 	}
-	feed(t, a, "<Esc>i(")
+	feed(t, a, "<Esc><Esc>i(")
 	if tab.cell == nil || tab.cell.in.Text != "(" {
 		t.Fatalf("a cell's edit doesn't pair: %+v", tab.cell)
 	}
@@ -318,5 +319,56 @@ func TestSQLNames(t *testing.T) {
 	}
 	if _, cmd := a.Update(tea.WindowSizeMsg{Width: 160, Height: 45}); cmd != nil {
 		t.Error("asked again")
+	}
+}
+
+// The WHERE input is a vim of one line (F3.39): esc goes to its NORMAL,
+// where dd, ciw, u and VISUAL work, o does nothing and a click moves the
+// cursor; ↵ runs it, / opens the history, what is typed then filtering
+// it; esc or C-c goes back to the table, the change dropped. [map.normal]
+// applies, a grid's maps don't; "+P puts the clipboard (F3.38).
+func TestWhereVim(t *testing.T) {
+	a := configured(t, 160, 45, "[map.normal]\nQ = \"dd\"\n[map.grid.normal]\nX = \"dd\"\n")
+	tab := loadOrders(t, a, 10)
+	mode := func() string { r := a.statusLine().Right; return r[len(r)-1].Runs[0].Text }
+	feed(t, a, "/id > 5<Esc>")
+	if tab.where.Text != "id > 5" || tab.where.Pos != 5 || mode() != " NORMAL " || a.View().Cursor.Shape != tea.CursorBlock {
+		t.Fatalf("NORMAL: %+v in %q", tab.where, mode())
+	}
+	if feed(t, a, "X"); tab.where.Text != "id >5" {
+		t.Errorf("X is vim's, not the grid's map: %q", tab.where.Text)
+	}
+	if feed(t, a, "Q"); tab.where.Text != "" {
+		t.Errorf("[map.normal]'s dd: %q", tab.where.Text)
+	}
+	if feed(t, a, "u0ciwamount<Esc>o"); tab.where.Text != "amount >5" || len(tab.ed.Lines()) != 1 || mode() != " NORMAL " {
+		t.Errorf("u ciw o: %q in %q", tab.ed.Lines(), mode())
+	}
+	r := a.queryBar(a.focused(), tab).InputRect(bodyRect(a.layout()[a.focused().ID]))
+	feed(t, a, "0ve")
+	if f := a.render(); f.Buf.CellAt(r.Min.X+5, r.Min.Y).Style.Bg != a.theme.Visual || f.Buf.CellAt(r.Min.X+6, r.Min.Y).Style.Bg == a.theme.Visual || mode() != " VISUAL " {
+		t.Errorf("VISUAL: amount not selected alone, in %q", mode())
+	}
+	feed(t, a, "<Esc>")
+	if click(a, uv.Pos(r.Min.X+3, r.Min.Y)); tab.where.Pos != 3 || tab.ed.Mode() != editor.Normal {
+		t.Errorf("click: %+v in %v", tab.where, tab.ed.Mode())
+	}
+	if feed(t, a, "/"); tab.hist == nil || tab.ed.Mode() != editor.Insert || a.mode() != keymap.Command {
+		t.Fatalf("/: history %v in %v", tab.hist, tab.ed.Mode())
+	}
+	if feed(t, a, " "); !tab.hist.typed {
+		t.Error("typing does not filter the history")
+	}
+	if feed(t, a, "<BS><Esc><Esc><CR>"); tab.applied != "amount >5" || tab.typing != "" {
+		t.Fatalf("↵: applied %q typing %q", tab.applied, tab.typing)
+	}
+	for _, ks := range []string{"/<Esc>dd<Esc>", "/<Esc>dd<C-c>"} {
+		if feed(t, a, ks); tab.typing != "" || tab.where.Text != "amount >5" || tab.ed != nil {
+			t.Errorf("%s: typing %q input %q", ks, tab.typing, tab.where.Text)
+		}
+	}
+	feed(t, a, `/<Esc>0"+P`)
+	if a.Update(tea.ClipboardMsg{Content: "x\n"}); tab.where.Text != "xamount >5" {
+		t.Errorf(`"+P puts the clipboard's line as characters: %q`, tab.where.Text)
 	}
 }

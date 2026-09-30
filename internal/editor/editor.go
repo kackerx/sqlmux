@@ -76,6 +76,10 @@ type Editor struct {
 	// AutoPairs puts the other half of a bracket or quote typed in INSERT
 	// (§7.9); nvim has no such thing, so its diff tests keep it off.
 	AutoPairs bool
+	// OneLine keeps the text one line, a WHERE's (F3.39): o, O, r<CR> and
+	// the / ? : lines do nothing, and a put is charwise, newlines spaces.
+	// The app runs INSERT's <CR> and turns a paste's newlines to spaces.
+	OneLine bool
 
 	lines  []string
 	cur    Pos
@@ -339,6 +343,9 @@ func (e *Editor) run(c cmd) {
 	e.curswant()                                                                       // vim settles it before each command (update_topline_cursor)
 	if c.reg == "+" && c.op == "" && (c.name == "p" || c.name == "P") && !e.visual() { // the text comes later: PutClip
 		e.eff.Paste = &ClipPut{c}
+		return
+	}
+	if e.OneLine && (c.name == "/" || c.name == "?" || c.name == ":" || !e.visual() && (c.name == "o" || c.name == "O")) {
 		return
 	}
 	if c.name == "/" || c.name == "?" || c.name == ":" && c.op == "" {
