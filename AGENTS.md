@@ -222,7 +222,7 @@ sqlmux/
     - 用 `send-keys` 发按键；
     - 用 `send-keys -l $'\e[<0;X;YM\e[<0;X;Ym'` 单击第 X 列、第 Y 行（从 1 开始计）；
     - 用 `capture-pane -p` 读屏幕，需要颜色时加 `-e`。
-- **隔离用户数据**：e2e 运行时，把 `XDG_CONFIG_HOME`、`XDG_STATE_HOME`、`XDG_DATA_HOME` 指向临时目录，不要读写用户自己的配置和数据。
+- **隔离用户数据**：e2e 运行时，把 `XDG_CONFIG_HOME`、`XDG_STATE_HOME`、`XDG_DATA_HOME` 指向临时目录，不要读写用户自己的配置和数据。系统剪贴板也一样：`lib.sh` 在每次运行的临时目录里放假的 `pbcopy` / `pbpaste`（读写这个目录里的一个文件），放在 sqlmux 进程 `PATH` 的最前面，测试一次也不碰用户真实的剪贴板；测 OSC 52 后备时把 `PATH` 设成找不到这些工具（2026-09-29，tester 提议）。
 - **报告问题**：一条消息发给 worker，写明 feature ID、复现步骤（脚本或按键序列）、期望结果（引用 tech-design 的章节或 PRD 编号）、实际结果（贴屏幕截取）。
 - **测完一批**：一条消息把结论（每个 feature 通过 / 不通过、问题数、e2e 的 sha）同时发给决策者和 worker。
 

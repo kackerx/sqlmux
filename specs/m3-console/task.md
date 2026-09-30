@@ -670,7 +670,7 @@
 
 **验收**
 - [ ] 单测：`"+yy` 之后剪贴板里是这一行，`"+p` 粘出剪贴板的内容。
-- [ ] e2e：VISUAL 选中后 `"+y`，系统剪贴板里是选中的文字（OSC 52 时查 tmux 的 buffer）。
+- [ ] e2e：VISUAL 选中后 `"+y`，剪贴板里是选中的文字。用假的 `pbcopy` / `pbpaste` 核对（AGENTS.md「隔离用户数据」），所以剪贴板工具要按 `PATH` 找（`exec.LookPath`），不写死路径；另一个脚本让 `PATH` 里找不到这些工具，查 tmux 的 paste buffer 来测 OSC 52 后备。
 
 ## F3.39 WHERE 输入框的 vim 模式 · 状态：todo
 
