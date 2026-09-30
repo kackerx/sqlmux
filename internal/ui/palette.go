@@ -37,6 +37,7 @@ type PaletteResult struct {
 	Title string // "100+ 行 · 12ms · 只读"
 	Hints []Hint // right of the title: C-y CSV
 	Err   string
+	Warn  bool // Err is a warning, in its color: a write not run (F-05)
 	Grid  Grid
 }
 
@@ -159,7 +160,11 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 		f.Text(x0, y, x1, r.Title, dim)
 		hintRow(f, x1-hintRowWidth(r.Hints), y, x1, r.Hints, dim, Target{Kind: KindButton})
 		if r.Err != "" { // in place of the table, as a data pane shows it (§7.6)
-			f.Text(grid.Min.X+1, grid.Min.Y, grid.Max.X-1, r.Err, uv.Style{Fg: th.Error, Bg: th.PaneBg})
+			fg := th.Error
+			if r.Warn {
+				fg = th.Warn
+			}
+			f.Text(grid.Min.X+1, grid.Min.Y, grid.Max.X-1, r.Err, uv.Style{Fg: fg, Bg: th.PaneBg})
 		} else {
 			r.Grid.Draw(f, grid)
 		}

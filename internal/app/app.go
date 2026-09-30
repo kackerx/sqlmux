@@ -130,6 +130,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotAuto(msg)
 	case quickMsg:
 		return a, a.gotQuick(msg)
+	case quickRerun:
+		return a, a.gotQuickRerun(msg)
 	case colsMsg:
 		return a, a.gotCols(msg)
 	case saveMsg:

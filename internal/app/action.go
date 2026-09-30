@@ -354,7 +354,7 @@ func init() {
 	} {
 		actions[id] = Action{Title: title}
 	}
-	actions["quicksql.edit"] = Action{Title: "在 console 里编辑", Local: true} // the palette's C-e: M4
+	actions["quicksql.edit"] = Action{Title: "在 console 里编辑", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.quickEdit() })}
 }
 
 // Titles maps each titled action ID to its title: the keymap export notes

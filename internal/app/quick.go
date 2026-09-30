@@ -12,6 +12,7 @@ import (
 
 	"sqlmux/internal/db"
 	"sqlmux/internal/db/postgres"
+	"sqlmux/internal/sqlkit"
 	"sqlmux/internal/ui"
 )
 
@@ -21,7 +22,8 @@ type quickSQL struct {
 	ran, running string // "" for none; running is the SQL scope's input as ↵ ran it
 	res          db.Result
 	err          string
-	top, left    int // the result's scroll
+	write        bool // ran is a write, not run: a console runs it (F-05)
+	top, left    int  // the result's scroll
 }
 
 // quickRows is how many rows a quick SQL shows, quickHistory how many runs
@@ -64,12 +66,17 @@ func (a *App) runQuick(sql string) tea.Cmd {
 	if p.quick.running != "" { // ↵ waits for it, or for C-c
 		return nil
 	}
-	p.quick.running, p.comp = sql, nil
+	p.comp = nil
 	if a.state.SQL == nil {
 		a.state.SQL = map[string][]string{}
 	}
 	h := slices.Insert(slices.DeleteFunc(a.state.SQL[a.sess.Name], func(s string) bool { return s == sql }), 0, sql)
 	a.state.SQL[a.sess.Name] = h[:min(len(h), quickHistory)]
+	if q := p.quick; !sqlkit.IsRead(sql, sqlkit.PG) { // a write is for a console, where running it is the user's own ↵ (F-05)
+		q.ran, q.res, q.err, q.write, q.top, q.left = sql, db.Result{}, "", true, 0, 0
+		return a.saveState()
+	}
+	p.quick.running = sql
 	a.busy++
 	meta, schema := a.sess.Meta, a.sess.Schema
 	return tea.Batch(a.saveState(), func() tea.Msg {
@@ -91,7 +98,7 @@ func (a *App) gotQuick(m quickMsg) tea.Cmd {
 	if errors.Is(m.err, context.Canceled) {
 		return a.showToast("查询已取消", toastTTL)
 	}
-	q.ran, q.res, q.err, q.top, q.left = sql, m.res, "", 0, 0
+	q.ran, q.res, q.err, q.write, q.top, q.left = sql, m.res, "", false, 0, 0
 	if m.err != nil {
 		q.res, q.err = db.Result{Took: m.res.Took}, m.err.Error()
 	}
@@ -99,13 +106,14 @@ func (a *App) gotQuick(m quickMsg) tea.Cmd {
 }
 
 // quickView is the result area: "100+ 行 · 12ms · 只读" over the table, or
-// the database's error.
+// the database's error, or what a write not run says; the buttons for what
+// can follow (F-04).
 func (a *App) quickView(q *quickSQL) *ui.PaletteResult {
 	var title []string
 	switch {
 	case q.running != "":
 		title = append(title, "… 行")
-	case q.err != "":
+	case q.err != "", q.write:
 	case q.res.Cols == nil: // no rows to show: what it did
 		title = append(title, q.res.Tag)
 	case q.res.Truncated:
@@ -124,10 +132,112 @@ func (a *App) quickView(q *quickSQL) *ui.PaletteResult {
 	for _, c := range q.res.Cols {
 		r.Grid.Cols = append(r.Grid.Cols, ui.GridCol{Name: c.Name, Type: colType(c.Type)})
 	}
-	if q.res.Cols != nil { // rows to copy
-		r.Hints = bound(ui.Hint{Key: a.keys.Hint("quicksql.copy", "palette"), Label: "CSV", Action: "quicksql.copy"})
+	edit := ui.Hint{Key: a.keys.Hint("quicksql.edit", "palette"), Label: "console", Action: "quicksql.edit"}
+	if q.write {
+		r.Err, r.Warn = "写语句不在这里执行", true
+		if edit.Key != "" {
+			r.Err += " · " + edit.Key + " 在 console 中打开"
+		}
 	}
+	if q.res.Cols != nil { // rows to copy, or to put in the result area
+		r.Hints = append(r.Hints,
+			ui.Hint{Key: a.keys.Hint("quicksql.copy", "palette"), Label: "CSV", Action: "quicksql.copy"},
+			ui.Hint{Key: a.keys.Hint("palette.open.tab", "palette"), Label: "结果区", Action: "palette.open.tab"})
+	}
+	r.Hints = bound(append(r.Hints, edit)...)
 	return r
+}
+
+// quickToResult is C-t in the SQL scope (§12「C-t 送到结果区」): the rows
+// shown, as they are, a pinned tab quick #n of the result area, which
+// comes out if SPC r hid it; a line in the log; the palette stays. None
+// without rows.
+func (a *App) quickToResult() tea.Cmd {
+	q := a.palette.quick
+	if q == nil || q.res.Cols == nil {
+		return nil
+	}
+	a.sess.RunSeq++
+	r := &run{name: "quick", sql: q.ran, seq: a.sess.RunSeq, start: time.Now(), win: a.win(), done: true}
+	p := a.showResult(r.win)
+	a.log(r, r.sql, resultText(q.res), false)
+	p.Tabs = append(p.Tabs, Tab{Name: r.label(1), Result: &resultTab{gridState: gridState{page: q.res}, run: r, part: 1, pinned: true}})
+	selectTab(p, len(p.Tabs)-1)
+	return nil
+}
+
+// quickRerun answers rerunQuick.
+type quickRerun struct {
+	rt  *resultTab
+	res db.Result
+	err error
+}
+
+// rerunQuick is R on a quick SQL's tab (§12): its SQL again as the palette
+// runs it, on Meta, read only, the tree's schema first; the rows in the
+// tab's place, a line in the log.
+func (a *App) rerunQuick(rt *resultTab) tea.Cmd {
+	r := rt.run
+	if !r.done {
+		return nil
+	}
+	r.done, r.start = false, time.Now()
+	a.busy++
+	meta, sql, schema := a.sess.Meta, r.sql, a.sess.Schema
+	return tea.Batch(func() tea.Msg {
+		res, err := postgres.Quick(context.Background(), meta, sql, schema, quickRows)
+		return quickRerun{rt, res, err}
+	}, a.runTick(r))
+}
+
+// gotQuickRerun shows what rerunQuick got: the rows, or a failure in the
+// log, which shows, the rows as they were; a cancel says so (§11).
+func (a *App) gotQuickRerun(m quickRerun) tea.Cmd {
+	a.busy--
+	rt, r := m.rt, m.rt.run
+	r.done = true
+	switch {
+	case errors.Is(m.err, context.Canceled):
+		a.log(r, r.sql, "已取消", false)
+		return a.showToast("查询已取消", toastTTL)
+	case m.err != nil:
+		e := postgres.ServerErrorOf(m.err)
+		a.log(r, r.sql, e.Severity+": "+e.Message, true)
+		if p := r.win.Result; p != nil {
+			selectTab(p, 0)
+		}
+		return nil
+	}
+	rt.gridState = gridState{page: m.res, transpose: rt.transpose}
+	a.log(r, r.sql, resultText(m.res), false)
+	return nil
+}
+
+// quickEdit is C-e (§12「C-e 在 console 中打开」): the SQL scope's text, the
+// ; off, at the end of a new console in openTarget's pane, a blank line
+// before it when there is text; one undo step, the cursor at its start in
+// NORMAL; the palette goes, the console has the focus.
+func (a *App) quickEdit() tea.Cmd {
+	scope, sql := a.paletteScope()
+	if scope != sqlScope || strings.TrimSpace(sql) == "" {
+		return nil
+	}
+	a.palette = nil
+	if cmd := a.newConsole(); cmd != nil { // its file can't be read
+		return cmd
+	}
+	t := consoleOf(a.focused())
+	pre := strings.Join(t.ed.Lines(), "\n")
+	switch {
+	case pre == "":
+	case strings.HasSuffix(pre, "\n"): // a blank line last: that one goes before the SQL
+		pre += "\n"
+	default:
+		pre += "\n\n"
+	}
+	cmd := a.consoleDid(t, t.ed.Load(pre+sql))
+	t.ed.Click(strings.Count(pre, "\n"), 0)
+	return cmd
 }
 
 // copyQuick puts the result on the clipboard as CSV (F-04):

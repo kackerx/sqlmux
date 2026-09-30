@@ -2,15 +2,12 @@ package sqlkit
 
 import "strings"
 
-// SelectLike reports whether s is a statement to declare a cursor for
-// (§12 快速 SQL): its first word, past spaces, comments and opening
-// parentheses, is select, values, table or with. It follows PG 16 psql's
-// is_select_command (common.c, for FETCH_COUNT; PG 17 dropped it), which
-// takes select and values only; table and with are added here, a WITH …
-// SELECT over a big table being common.
-// ponytail: the first word only, so WITH … DELETE goes to DECLARE and fails
-// with `syntax error at or near "delete"` rather than the read-only
-// transaction's error; M4 F4.3 puts IsRead (§9.3) in its place.
+// SelectLike reports whether s, a statement IsRead takes, is one to
+// declare a cursor for (§12 快速 SQL): its first word, past spaces,
+// comments and opening parentheses, is select, values, table or with. It
+// follows PG 16 psql's is_select_command (common.c, for FETCH_COUNT; PG 17
+// dropped it), which takes select and values only; table and with are
+// added here, a WITH … SELECT over a big table being common.
 func SelectLike(s string) bool {
 	for _, t := range Scan(s, PG) {
 		switch w := strings.ToLower(s[t.Start:t.End]); {

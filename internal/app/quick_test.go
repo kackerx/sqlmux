@@ -12,7 +12,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/golden"
 
+	"sqlmux/internal/config"
 	"sqlmux/internal/db"
+	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -307,4 +309,82 @@ func TestGoldenQuickSQL160x45(t *testing.T) {
 	answerQuick(a, r, nil)
 	feed(t, a, "x")
 	golden.RequireEqual(t, a.render().String())
+}
+
+// A write is not run, nor sent: the result area says so in warn's color,
+// C-e's key read from the keymap; the history keeps it (F-05). WITH …
+// DELETE is a write too.
+func TestQuickSQLWrite(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	rec := &recDB{}
+	a.sess.Meta = db.NewWorker(rec)
+	for _, sql := range []string{"delete from t_order", "with x as (delete from t_order returning *) select * from x"} {
+		feed(t, a, "<C-p>;"+sql+"<CR>")
+		r := a.paletteView().Result
+		sent := slices.ContainsFunc(rec.sqls, func(s string) bool { return strings.Contains(s, "delete") }) // columns completion asked for aside
+		if a.busy != 0 || sent || r == nil || r.Title != "只读" || r.Err != "写语句不在这里执行 · C-e 在 console 中打开" || !r.Warn {
+			t.Fatalf("%s: busy %d, sent %q, %+v", sql, a.busy, rec.sqls, r)
+		}
+		if a.state.SQL["doraemon"][0] != sql || enterOf(a) != "↵ 执行" {
+			t.Errorf("%s: history %v, enter %q", sql, a.state.SQL, enterOf(a))
+		}
+		feed(t, a, "<Esc>")
+	}
+}
+
+// C-t puts the rows shown in the result area as a pinned quick #n, n the
+// session's run count, a line in the log, the palette open; again, another
+// tab. With no rows nothing. R on it runs the SQL again as the quick SQL
+// does, its rows in place (§12「C-t 送到结果区」).
+func TestQuickSQLToResult(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<C-p>;select 1<CR>")
+	if feed(t, a, "<C-t>"); a.win().Result != nil {
+		t.Fatal("no rows yet: a tab")
+	}
+	answerQuick(a, quickResult(2), nil)
+	feed(t, a, "<C-t>")
+	res := a.win().Result
+	if res == nil || tabNames(res) != "日志 quick #1" || res.Cur != 1 || !resultOf(res).pinned || a.palette == nil {
+		t.Fatalf("C-t: %v, palette %v", res, a.palette)
+	}
+	if l := a.win().log[len(a.win().log)-1]; !strings.Contains(l.Head, "  quick  select 1  ") || l.Tail != "2 行 · 12ms" {
+		t.Errorf("the log: %+v", l)
+	}
+	click(a, find(t, a, ui.Target{Kind: ui.KindButton, Action: "palette.open.tab"}).Min) // the title's C-t 结果区
+	if tabNames(res) != "日志 quick #1 quick #2" {
+		t.Fatalf("again: %v", tabNames(res))
+	}
+	feed(t, a, "<Esc>")
+	a.win().focus(res.ID)
+	_, cmd := a.Update(teaKey("R"))
+	if cmd == nil || a.busy != 1 || resultOf(res).run.done {
+		t.Fatalf("R: busy %d", a.busy)
+	}
+	a.Update(quickRerun{resultOf(res), quickResult(5), nil})
+	if rt := resultOf(res); a.busy != 0 || len(rt.page.Rows) != 5 || !rt.run.done {
+		t.Errorf("rerun: %d rows", len(rt.page.Rows))
+	}
+}
+
+// C-e puts the SQL scope's text, the ; off, at the end of a new console
+// in the pane a table would open in, after a blank line; the palette goes,
+// the console has the focus, its cursor on the SQL in NORMAL (§12).
+func TestQuickSQLEdit(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	a := sized(160, 45, "nerd")
+	if err := config.WriteConsole(config.ConsolePath("doraemon", 2), "select 1\n"); err != nil {
+		t.Fatal(err)
+	}
+	feed(t, a, "<C-p>;delete from t_order<CR><C-e>")
+	c := consoleOf(a.focused())
+	if a.palette != nil || c == nil || a.focused().Object() != "console_2" || text(c) != "select 1\n\ndelete from t_order" {
+		t.Fatalf("C-e: palette %v, %v", a.palette, a.focused().Object())
+	}
+	if c.ed.Cursor() != (editor.Pos{Line: 2}) || c.ed.Mode() != editor.Normal {
+		t.Errorf("cursor %v in %v", c.ed.Cursor(), c.ed.Mode())
+	}
+	if feed(t, a, "u"); text(c) != "select 1" {
+		t.Errorf("one undo step: %q", text(c))
+	}
 }

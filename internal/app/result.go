@@ -32,7 +32,8 @@ type resultTab struct {
 	pinned    bool
 }
 
-// run is one run of a console's SQL (§11「执行」).
+// run is one run of a console's SQL (§11「执行」), or a quick SQL's rows
+// C-t put in the result area, from no console (§12).
 type run struct {
 	from  *consoleTab
 	name  string // the console's tab name as it ran: console_1
@@ -382,13 +383,17 @@ func resultText(r db.Result) string {
 	return fmt.Sprintf("%d 行 · %s", len(r.Rows), took)
 }
 
-// rerun is 重跑: the SQL of the result tab's run, as a new run of its console.
+// rerun is 重跑: the SQL of the result tab's run, as a new run of its
+// console, or as the quick SQL runs it for a quick #n.
 func (a *App) rerun() tea.Cmd {
 	rt := resultOf(a.focused())
 	if rt == nil || rt.run == nil {
 		return nil
 	}
 	r := rt.run
+	if r.from == nil {
+		return a.rerunQuick(rt)
+	}
 	return a.runSQL(r.from, r.name, r.sql, r.base, r.ver) // base holds only while the text is still r.ver
 }
 

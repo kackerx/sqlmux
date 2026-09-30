@@ -11,9 +11,9 @@ import (
 	"sqlmux/internal/sqlkit"
 )
 
-// Quick runs sql, one statement, for the palette's quick SQL (§12): in a
-// read-only transaction that is always rolled back, with schema first on
-// the search path. A select-like statement (sqlkit.SelectLike) goes
+// Quick runs sql, one statement IsRead takes, for the palette's quick SQL
+// (§12): in a read-only transaction that is always rolled back, with
+// schema first on the search path. A select-like statement (sqlkit.SelectLike) goes
 // through a cursor, so the server stops at maxRows+1 rows instead of
 // working out all of them, as PG 16 psql's FETCH_COUNT did; the rest run
 // as they are. At most maxRows rows come back, Truncated when there were

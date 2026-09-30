@@ -278,11 +278,14 @@ func (a *App) paletteScopeTo(i int) {
 func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 	items, ms := a.paletteMatches()
 	if scope, sql := a.paletteScope(); scope == sqlScope { // run what is typed, or the history's pick
+		if newTab { // C-t: the rows to the result area
+			return a.quickToResult()
+		}
 		if strings.TrimSpace(sql) == "" && i < len(ms) {
 			sql = items[ms[i].Index].id
 			a.palette.input = ui.Input{Text: scopes[scope].prefix + sql, Pos: len(scopes[scope].prefix + sql)}
 		}
-		if newTab || strings.TrimSpace(sql) == "" { // C-t sends a result to a pane: M3
+		if strings.TrimSpace(sql) == "" {
 			return nil
 		}
 		return a.runQuick(sql)

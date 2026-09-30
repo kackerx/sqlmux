@@ -59,8 +59,9 @@ func TestQuick(t *testing.T) {
 	}
 }
 
-// A write is refused by the read-only transaction and changes nothing. It
-// runs on a database of its own (AGENTS.md「集成测试环境」).
+// A write is refused by the read-only transaction and changes nothing, a
+// function that writes too (the app does not send what IsRead calls a
+// write, F-05). It runs on a database of its own (AGENTS.md「集成测试环境」).
 func TestQuickRefusesWrites(t *testing.T) {
 	ctx := context.Background()
 	dsn := ownDB(t)
@@ -69,7 +70,7 @@ func TestQuickRefusesWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer own.Close()
-	if _, err := own.Exec(ctx, "create table t (x int); insert into t select generate_series(1, 10)", 0); err != nil {
+	if _, err := own.Exec(ctx, "create table t (x int); insert into t select generate_series(1, 10); create sequence s", 0); err != nil {
 		t.Fatal(err)
 	}
 	meta, err := Connect(ctx, dsn, "", true)
@@ -83,6 +84,10 @@ func TestQuickRefusesWrites(t *testing.T) {
 	}
 	if _, err := Quick(ctx, w, "with d as (delete from t returning *) select * from d", "public", 100); err == nil {
 		t.Error("a delete in a WITH ran")
+	}
+	// a select calling what writes: IsRead lets it through, the transaction not
+	if _, err := Quick(ctx, w, "select nextval('s')", "public", 100); sqlState(err) != "25006" {
+		t.Errorf("nextval: %v", err)
 	}
 	if r, _ := own.Query(ctx, "select count(*) from t"); r.Rows[0][0].S != "10" {
 		t.Errorf("rows left: %v", r.Rows)
