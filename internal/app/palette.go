@@ -3,6 +3,7 @@ package app
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -70,7 +71,8 @@ var scopes = []struct {
 const sqlScope = 4
 
 // paletteItem is one candidate. id tells it apart within its kind: the
-// action, the table, the pane's ID or the window's number.
+// action, the table (schema.name), the pane's ID, the window's number, or
+// a tab's window number, pane ID and place in the pane ("0 1 2").
 type paletteItem struct {
 	kind        itemKind
 	id          string
@@ -87,7 +89,8 @@ func (it paletteItem) key() itemKey { return itemKey{it.kind, it.id} }
 
 // recent is how state.json keeps it (§14).
 func (it paletteItem) recent() config.Recent {
-	// never kept for SQL (the history is its own), but paletteItems sorts it too
+	// never kept for SQL (the history is its own) nor for a tab (paletteRun),
+	// but paletteItems sorts them too
 	kind := [...]string{itemWindow: "window", itemPane: "pane", itemTab: "tab", itemTable: "table", itemCommand: "command", itemSQL: "sql"}[it.kind]
 	return config.Recent{Kind: kind, ID: it.id}
 }
@@ -122,21 +125,21 @@ func (a *App) paletteScope() (scope int, query string) {
 func (a *App) paletteItems() []paletteItem {
 	var items []paletteItem
 	for wi, w := range a.sess.Windows {
-		win := fmt.Sprintf("%d: %s", wi, w.Name)
-		items = append(items, paletteItem{itemWindow, strconv.Itoa(wi), a.icons.Window, win, a.sess.Name})
-		win = a.sess.Name + " › " + win
+		name := fmt.Sprintf("%d: %s", wi, w.Name)
+		items = append(items, paletteItem{itemWindow, strconv.Itoa(wi), a.icons.Window, name, a.sess.Name})
+		place := a.sess.Name + " › " + name // where its panes are
 		if wi == a.sess.Active {
-			items = append(items, a.paneItem(0, w.Tree, win))
+			items = append(items, a.paneItem(0, w.Tree, place))
 		}
 		for n, p := range w.Root.Leaves() { // pane-<n> by ⟨n⟩, the sidebar being 0
 			if wi == a.sess.Active {
-				items = append(items, a.paneItem(n+1, p, win))
+				items = append(items, a.paneItem(n+1, p, place))
 			}
 			for i := range p.Tabs {
 				icon, _ := a.tabIcon(&p.Tabs[i])
 				icon.Text = cmp.Or(icon.Text, " ") // a landing tab's: the names in line
 				id := fmt.Sprintf("%d %d %d", wi, p.ID, i)
-				items = append(items, paletteItem{itemTab, id, icon, p.Tabs[i].Name, fmt.Sprintf("%s › pane-%d", win, n+1)})
+				items = append(items, paletteItem{itemTab, id, icon, p.Tabs[i].Name, fmt.Sprintf("%s › pane-%d", place, n+1)})
 			}
 		}
 	}
@@ -171,9 +174,9 @@ func (a *App) paletteItems() []paletteItem {
 	return items
 }
 
-// paneItem is pane ⟨n⟩ p of this window, in window win: by the current
+// paneItem is pane ⟨n⟩ p of this window, placed at place: by the current
 // tab's type, words and all, which are what is searched (§7.7).
-func (a *App) paneItem(n int, p *Pane, win string) paletteItem {
+func (a *App) paneItem(n int, p *Pane, place string) paletteItem {
 	icon, word := a.tabIcon(p.tab())
 	switch p {
 	case a.win().Tree:
@@ -187,7 +190,7 @@ func (a *App) paneItem(n int, p *Pane, win string) paletteItem {
 	} else if obj != "" {
 		name += " " + obj
 	}
-	return paletteItem{itemPane, strconv.Itoa(p.ID), icon, name, win}
+	return paletteItem{itemPane, strconv.Itoa(p.ID), icon, name, place}
 }
 
 // paletteMatches ranks the candidates in scope for what is typed: fzf over
@@ -300,10 +303,12 @@ type (
 		p   *palette
 		seq int
 	}
-	// ddlMsg brings a table's DDL, or why there is none.
+	// ddlMsg brings a table's DDL, or why there is none; a table's columns
+	// come with it, cols.Cols nil for a view's.
 	ddlMsg struct {
 		table db.Table
 		text  string
+		cols  db.Columns
 		err   error
 	}
 	// ddlText is a table's DDL as the cache keeps it; got is false while it
@@ -324,24 +329,42 @@ func (a *App) previewed() (db.Table, bool) {
 	if a.palette.sel >= len(ms) || items[ms[a.palette.sel].Index].kind != itemTable {
 		return db.Table{}, false
 	}
-	id := items[ms[a.palette.sel].Index].id
-	i := slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Schema+"."+t.Name == id })
-	if i < 0 {
-		return db.Table{}, false
-	}
-	return a.sess.Tables[i], true
+	return a.tableByID(items[ms[a.palette.sel].Index].id)
 }
 
-// palettePreview is the preview of the table selected, once its DDL is in.
+// tableByID is the session's table of a palette item's id, schema.name.
+func (a *App) tableByID(id string) (db.Table, bool) {
+	if i := slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Schema+"."+t.Name == id }); i >= 0 {
+		return a.sess.Tables[i], true
+	}
+	return db.Table{}, false
+}
+
+// previewedView is the DDL of the view the palette previews, "" for none,
+// and its schema: its names are colored by the tables its query names
+// (§7.3), whose columns wantCols fetches.
+func (a *App) previewedView() (text, schema string) {
+	if t, ok := a.previewed(); ok && t.View() {
+		if d := a.sess.ddl[idOf(t)]; d.got && d.err == "" {
+			return d.text, t.Schema
+		}
+	}
+	return "", ""
+}
+
+// palettePreview is the preview of the table selected, once its DDL is in:
+// in SQL's colors, a table's own columns among them, fetched with it; a
+// view's by the tables its query names, as a console's (F3.27).
 func (a *App) palettePreview() *ui.PalettePreview {
 	t, ok := a.previewed()
 	d := a.sess.ddl[idOf(t)]
 	if !ok || !d.got {
 		return nil
 	}
-	cols, cached := a.sess.cols[idOf(t)]
-	names, _ := a.sqlNames(d.text, t.Schema, nil)
-	if cached { // its own columns, as a WHERE's (§7.3)
+	var names ui.SQLNames
+	if cols := a.sess.cols[idOf(t)]; t.View() {
+		names, _ = a.sqlNames(d.text, t.Schema, nil)
+	} else {
 		names, _ = a.sqlNames(d.text, "", &cols)
 	}
 	return &ui.PalettePreview{Text: d.text, Err: d.err, Names: names}
@@ -357,9 +380,6 @@ func (a *App) wantDDL() tea.Cmd {
 		return nil
 	}
 	t, ok := a.previewed()
-	if !ok {
-		t = db.Table{}
-	}
 	if idOf(t) == p.preview {
 		return nil
 	}
@@ -372,7 +392,9 @@ func (a *App) wantDDL() tea.Cmd {
 	return tea.Tick(previewDelay, func(time.Time) tea.Msg { return due })
 }
 
-// fetchDDL asks Meta for the DDL of the table the selection rested on.
+// fetchDDL asks Meta for the DDL of the table the selection rested on, a
+// table's columns with it, bounded by countTimeout: a table another
+// session locks holds pg_get_expr up (§8.3, PG 16 on).
 func (a *App) fetchDDL(m previewDue) tea.Cmd {
 	t, ok := a.previewed()
 	if m.p != a.palette || m.seq != m.p.previewSeq || !ok {
@@ -384,22 +406,40 @@ func (a *App) fetchDDL(m previewDue) tea.Cmd {
 	a.sess.ddl[idOf(t)] = ddlText{}
 	meta := a.sess.Meta
 	return func() tea.Msg {
-		var text string
-		err := meta.Run(context.Background(), func(ctx context.Context, c db.Conn) (err error) {
-			text, err = postgres.DDL(ctx, c, t.Schema, t.Name)
+		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
+		defer cancel()
+		m := ddlMsg{table: t}
+		m.err = meta.Run(ctx, func(ctx context.Context, c db.Conn) (err error) {
+			if m.text, err = postgres.DDL(ctx, c, t.Schema, t.Name); err != nil || t.View() {
+				return err
+			}
+			m.cols, err = postgres.TableColumns(ctx, c, t.Schema, t.Name)
 			return err
 		})
-		return ddlMsg{t, text, err}
+		return m
 	}
 }
 
-// gotDDL caches a DDL; shown if the selection is still on its table.
+// gotDDL caches a DDL, shown if the selection is still on its table, and
+// a table's columns. One out of time, or cancelled, is not kept: the next
+// rest asks again; one the cache dropped meanwhile (R) neither.
 func (a *App) gotDDL(m ddlMsg) {
+	id := idOf(m.table)
+	if _, asked := a.sess.ddl[id]; !asked {
+		return
+	}
+	if errors.Is(m.err, context.DeadlineExceeded) || errors.Is(m.err, context.Canceled) {
+		delete(a.sess.ddl, id)
+		return
+	}
 	d := ddlText{text: m.text, got: true}
 	if m.err != nil {
 		d.err = m.err.Error()
 	}
-	a.sess.ddl[idOf(m.table)] = d
+	a.sess.ddl[id] = d
+	if m.cols.Cols != nil {
+		a.sess.cols[id] = m.cols
+	}
 }
 
 // quickShows is whether the palette shows a quick SQL's result area.
@@ -468,11 +508,11 @@ func (a *App) paletteDo(it paletteItem) tea.Cmd {
 	case itemCommand:
 		return a.run(it.id, 0)
 	case itemTable:
-		if i := slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Schema+"."+t.Name == it.id }); i >= 0 {
+		if t, ok := a.tableByID(it.id); ok {
 			if into != nil {
-				return a.openTableIn(into, a.sess.Tables[i])
+				return a.openTableIn(into, t)
 			}
-			return a.openTable(a.sess.Tables[i])
+			return a.openTable(t)
 		}
 	case itemPane:
 		id, _ := strconv.Atoi(it.id)
@@ -487,21 +527,21 @@ func (a *App) paletteDo(it paletteItem) tea.Cmd {
 	return nil
 }
 
-// paletteKey edits the palette's input. With quick SQL's candidates up, ↵
-// takes the selected one, and runs when that changes nothing; esc closes
-// the list first (§9.7).
-func (a *App) paletteKey(k keymap.Key) tea.Cmd {
-	p := a.palette
-	switch {
-	case p.comp != nil && k == "<CR>":
+// paletteEnter is ↵ in the palette: with quick SQL's candidates up it
+// takes the selected one, and runs only when that changes nothing (§9.7).
+func (a *App) paletteEnter() tea.Cmd {
+	if a.palette.comp != nil {
 		if changed, _ := a.acceptCompletion(); changed {
 			return nil
 		}
-		return a.paletteRun(p.sel, false)
-	case p.comp != nil && k == keymap.Esc:
-		p.comp = nil
-		return nil
 	}
+	return a.paletteRun(a.palette.sel, false)
+}
+
+// paletteKey edits the palette's input, quick SQL's candidates following
+// it (§9.7).
+func (a *App) paletteKey(k keymap.Key) tea.Cmd {
+	p := a.palette
 	edit := editInput
 	if scope, _ := a.paletteScope(); scope == sqlScope && p.input.Pos > 0 { // the SQL after the ; pairs (§7.9)
 		edit = a.editPaired

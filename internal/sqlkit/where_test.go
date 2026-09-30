@@ -40,17 +40,3 @@ func TestWhereContext(t *testing.T) {
 		}
 	}
 }
-
-func TestSelectLike(t *testing.T) {
-	for s, want := range map[string]bool{
-		"select 1": true, "  SELECT 1": true, "values (1)": true, "table t_order": true,
-		"with x as (select 1) select * from x":                 true,
-		"-- note\n/* why */ ((select 1) union all (select 2))": true,
-		"show search_path": false, "explain select 1": false, "delete from t": false,
-		"selectx 1": false, `"select"`: false, "'select'": false, "": false, "(": false,
-	} {
-		if got := SelectLike(s); got != want {
-			t.Errorf("SelectLike(%q) = %v", s, got)
-		}
-	}
-}

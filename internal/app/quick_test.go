@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/golden"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/db"
@@ -335,7 +337,8 @@ func TestQuickSQLWrite(t *testing.T) {
 // C-t puts the rows shown in the result area as a pinned quick #n, n the
 // session's run count, a line in the log, the palette open; again, another
 // tab. With no rows nothing. R on it runs the SQL again as the quick SQL
-// does, its rows in place (§12「C-t 送到结果区」).
+// does, its rows in place; failing, the log says so as a console's run's,
+// and shows (§12「C-t 送到结果区」).
 func TestQuickSQLToResult(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>;select 1<CR>")
@@ -365,11 +368,19 @@ func TestQuickSQLToResult(t *testing.T) {
 	if rt := resultOf(res); a.busy != 0 || len(rt.page.Rows) != 5 || !rt.run.done {
 		t.Errorf("rerun: %d rows", len(rt.page.Rows))
 	}
+	rt := resultOf(res)
+	a.Update(teaKey("R"))
+	a.Update(quickRerun{rt, db.Result{}, &pgconn.PgError{Severity: "ERROR", Message: "gone", Hint: "look again"}})
+	if l := a.win().log; len(rt.page.Rows) != 5 || l[len(l)-2].Tail != "ERROR: gone" || l[len(l)-1].Tail != "    HINT: look again" || res.Cur != 0 {
+		t.Errorf("a failed rerun: the log %+v, on tab %d", l[len(l)-2:], res.Cur)
+	}
 }
 
 // C-e puts the SQL scope's text, the ; off, at the end of a new console
 // in the pane a table would open in, after a blank line; the palette goes,
-// the console has the focus, its cursor on the SQL in NORMAL (§12).
+// the console has the focus, its cursor on the SQL in NORMAL (§12). The
+// candidates up, it still does; with no console to open, the palette
+// stays, the SQL in it.
 func TestQuickSQLEdit(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	a := sized(160, 45, "nerd")
@@ -386,5 +397,18 @@ func TestQuickSQLEdit(t *testing.T) {
 	}
 	if feed(t, a, "u"); text(c) != "select 1" {
 		t.Errorf("one undo step: %q", text(c))
+	}
+	feed(t, a, "<C-p>;select * from t_or") // the candidates up: C-e over them, as C-t and C-y
+	if a.palette == nil || a.palette.comp == nil {
+		t.Fatal("no candidates")
+	}
+	if feed(t, a, "<C-e>"); a.palette != nil || !strings.HasSuffix(text(consoleOf(a.focused())), "select * from t_or") {
+		t.Errorf("C-e over the candidates: palette %v", a.palette)
+	}
+	if err := os.MkdirAll(config.ConsolePath("doraemon", 4), 0o700); err != nil { // console_4's file can't be read
+		t.Fatal(err)
+	}
+	if feed(t, a, "<C-p>;select 9<C-e>"); a.palette == nil || a.palette.input.Text != ";select 9" || a.toast == "" {
+		t.Errorf("no console: the palette and its SQL go (%v, toast %q)", a.palette, a.toast)
 	}
 }

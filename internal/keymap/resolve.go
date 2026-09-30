@@ -25,7 +25,7 @@ func (m Mode) typing() bool { return m == Insert || m == Command }
 // Context is where a key press lands; it picks and orders the scopes (§6.4).
 type Context struct {
 	Overlay string   // topmost overlay scope, if one is open
-	Under   string   // an overlay under it, whose keys come next: options or segments under newrow (F3.33)
+	Under   string   // an overlay under it, whose keys come next: options or segments under newrow (F3.33), the palette under quick SQL's candidates (F4.1)
 	Focus   []string // focused widget scopes, most specific first: {"result", "grid"}
 	Pane    string   // pane type for [map.<pane>.<mode>]: console | grid | tree
 	Mode    Mode

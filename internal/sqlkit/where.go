@@ -2,25 +2,6 @@ package sqlkit
 
 import "strings"
 
-// SelectLike reports whether s, a statement IsRead takes, is one to
-// declare a cursor for (§12 快速 SQL): its first word, past spaces,
-// comments and opening parentheses, is select, values, table or with. It
-// follows PG 16 psql's is_select_command (common.c, for FETCH_COUNT; PG 17
-// dropped it), which takes select and values only; table and with are
-// added here, a WITH … SELECT over a big table being common.
-func SelectLike(s string) bool {
-	for _, t := range Scan(s, PG) {
-		switch w := strings.ToLower(s[t.Start:t.End]); {
-		case t.Kind == Space, t.Kind == Comment, w == "(":
-		case t.Kind == Ident || t.Kind == Keyword:
-			return w == "select" || w == "values" || w == "table" || w == "with"
-		default:
-			return false
-		}
-	}
-	return false
-}
-
 // Where is what the cursor of a WHERE input is at (§9.7): Prefix, from
 // Start, is the word or the value being typed that a completion replaces;
 // Column is set where a value of that column goes (col =, col <>,

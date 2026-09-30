@@ -45,11 +45,18 @@ func init() {
 		// Keys inside the palette. Like every overlay's own actions they are
 		// Local, which the palette does not list (§12); bound elsewhere in
 		// config, they do nothing.
-		"palette.up":         {Title: "上移", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
-		"palette.down":       {Title: "下移", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
-		"palette.run":        {Title: "执行", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, false) })},
-		"palette.open.tab":   {Title: "打开", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, true) })},
-		"palette.close":      {Title: "关闭命令面板", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.palette = nil; return nil })},
+		"palette.up":       {Title: "上移", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
+		"palette.down":     {Title: "下移", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
+		"palette.run":      {Title: "执行", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteEnter() })},
+		"palette.open.tab": {Title: "打开", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, true) })},
+		"palette.close": {Title: "关闭命令面板", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { // quick SQL's candidates first (§9.7)
+			if a.palette.comp != nil {
+				a.palette.comp = nil
+			} else {
+				a.palette = nil
+			}
+			return nil
+		})},
 		"quicksql.copy":      {Title: "复制结果", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.copyQuick() })},
 		"palette.scope.next": {Title: "下一个范围", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s + 1); return nil })},
 		"palette.scope.prev": {Title: "上一个范围", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s - 1); return nil })},

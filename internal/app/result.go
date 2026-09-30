@@ -321,11 +321,7 @@ func (a *App) gotRun(m runDone) tea.Cmd {
 			a.log(r, stmt, "已取消", false)
 			cmds = append(cmds, a.showToast("查询已取消", toastTTL))
 		} else {
-			e, text := postgres.ServerErrorOf(m.err), strings.Join(r.from.ed.Lines(), "\n")
-			a.log(r, stmt, e.Severity+": "+e.Message, true) // then DETAIL and HINT a line each (§11)
-			for _, l := range e.More {
-				r.win.log = append(r.win.log, ui.LogLine{Tail: "    " + l, Err: true})
-			}
+			e, text := a.logError(r, stmt, m.err), strings.Join(r.from.ed.Lines(), "\n")
 			var at []string
 			if r.from.ver == r.ver && m.set == "" { // the text is still what ran
 				r.from.failed = strings.Count(text[:r.base+s.Start], "\n")
@@ -368,6 +364,17 @@ func (a *App) log(r *run, stmt, did string, failed bool) {
 	if p := a.resultPane(w); len(p.Tabs) > 0 {
 		p.Tabs[0].Result.top = len(w.log) // the bottom: LogTop keeps it to the last line
 	}
+}
+
+// logError logs statement stmt of run r failing with err (§11): the
+// server's severity and message, then DETAIL and HINT a line each.
+func (a *App) logError(r *run, stmt string, err error) postgres.ServerError {
+	e := postgres.ServerErrorOf(err)
+	a.log(r, stmt, e.Severity+": "+e.Message, true)
+	for _, l := range e.More {
+		r.win.log = append(r.win.log, ui.LogLine{Tail: "    " + l, Err: true})
+	}
+	return e
 }
 
 // resultText is what a result says in the log and on the result area's

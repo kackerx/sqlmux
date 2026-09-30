@@ -51,7 +51,7 @@ func (p *PalettePreview) Lines() int {
 // row, then the table, or the database's error in its place.
 type PaletteResult struct {
 	Title string // "100+ 行 · 12ms · 只读"
-	Hints []Hint // right of the title: C-y CSV
+	Hints []Hint // right of the title: C-y CSV; the last give way first
 	Err   string
 	Warn  bool // Err is a warning, in its color: a write not run (F-05)
 	Grid  Grid
@@ -68,8 +68,9 @@ const (
 // and shrinks; list rows = how many show. With a result the box reaches
 // down to a row above the status bar, and grid is where the result's table
 // goes, the list giving up rows before it does. A preview of that many
-// lines goes under the list, at most 12, in grid: short of room it gives up
-// rows first, before the list does (F4.2).
+// lines goes under the list, at most 12, in grid (§12「预览」): short of
+// room the preview gives up rows down to 3, then the list down to 3, then
+// the preview goes; one of fewer lines keeps them all.
 func PaletteBox(screen uv.Rectangle, n int, result bool, preview int) (box uv.Rectangle, rows int, grid uv.Rectangle) {
 	w := min(100, screen.Dx()-4)
 	x, top := screen.Min.X+(screen.Dx()-w)/2, screen.Min.Y+screen.Dy()/6
@@ -77,7 +78,16 @@ func PaletteBox(screen uv.Rectangle, n int, result bool, preview int) (box uv.Re
 		// border, scopes, input, rule | list | rule, footer, border
 		room := screen.Max.Y - top - 7
 		rows = max(min(n, paletteRows, room), 0)
-		preview = max(min(preview, paletteRows, room-rows-1), 0) // | rule, preview
+		preview = min(preview, paletteRows)
+		switch least := min(preview, 3); { // | rule, preview
+		case preview <= 0, rows+1+preview <= room:
+		case rows+1+least <= room:
+			preview = room - rows - 1
+		case min(rows, 3)+1+least <= room:
+			rows, preview = room-1-least, least
+		default:
+			preview = 0
+		}
 		box = uv.Rect(x, top, w, rows+7)
 		if preview > 0 {
 			box.Max.Y += preview + 1
@@ -104,7 +114,7 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 		preview = p.Preview.Lines()
 	}
 	box, rows, grid := PaletteBox(screen, len(p.Rows), p.Result != nil, preview)
-	top := max(min(p.Top, p.Sel), p.Sel-rows+1, 0) // the selection in view, when a preview took rows
+	top := max(min(p.Top, p.Sel), p.Sel-rows+1, 0) // the selection in view as the list loses rows: to a preview, or the window
 	f.Dim()
 	f.Region(f.Bounds(), Target{Kind: KindBackdrop}) // a click outside closes it
 	if box.Dx() < 8 {
@@ -210,7 +220,11 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 			y++
 		}
 		f.Text(x0, y, x1, r.Title, dim)
-		hintRow(f, x1-hintRowWidth(r.Hints), y, x1, r.Hints, dim, Target{Kind: KindButton})
+		hs := r.Hints
+		for len(hs) > 0 && Width(r.Title)+2+hintRowWidth(hs) > x1-x0 { // whole ones, the last going first
+			hs = hs[:len(hs)-1]
+		}
+		hintRow(f, x1-hintRowWidth(hs), y, x1, hs, dim, Target{Kind: KindButton})
 		if r.Err != "" { // in place of the table, as a data pane shows it (§7.6)
 			fg := th.Error
 			if r.Warn {

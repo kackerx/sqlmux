@@ -63,18 +63,42 @@ func TestPaletteBoxResult(t *testing.T) {
 	}
 }
 
-// A preview under the list gets at most 12 rows, and gives them up first
-// in a short window: the list keeps its own (F4.2).
+// The result's buttons give way whole as the box narrows, the last first:
+// never over the title (F-04).
+func TestPaletteResultHints(t *testing.T) {
+	p := Palette{Search: Icon{Text: "~"}, Result: &PaletteResult{Title: "100+ 行 · 12ms · 只读", Hints: []Hint{
+		{Key: "C-y", Label: "CSV"}, {Key: "C-t", Label: "结果区"}, {Key: "C-e", Label: "console"},
+	}}}
+	for w, want := range map[int]string{80: "C-y CSV · C-t 结果区 · C-e console", 60: "C-y CSV · C-t 结果区", 44: "C-y CSV", 30: ""} {
+		f := NewFrame(w, 30, TokyonightStorm)
+		p.Draw(f, uv.Rect(0, 0, w, 29))
+		row := ""
+		for _, l := range strings.Split(f.String(), "\n") {
+			if strings.Contains(l, "100+ 行 · 12ms · 只读") {
+				_, row, _ = strings.Cut(l, "只读")
+				row = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(row), "│"))
+			}
+		}
+		if row != want {
+			t.Errorf("%d wide: %q, want %q", w, row, want)
+		}
+	}
+}
+
+// A preview under the list gets at most 12 rows; short of room it gives
+// them up down to 3, then the list does down to 3, then it goes; a DDL of
+// fewer lines keeps them (§12「预览」).
 func TestPaletteBoxPreview(t *testing.T) {
-	for _, c := range []struct{ h, rows, preview int }{
-		{44, 12, 12}, // tall: both whole
-		{30, 12, 5},  // shorter: the preview shrinks
-		{24, 12, 0},  // short: no room left for it
-		{12, 3, 0},   // tiny: the list's 3 rows
+	for _, c := range []struct{ h, lines, rows, preview int }{
+		{44, 15, 12, 12}, // tall: both whole
+		{30, 15, 12, 5},  // shorter: the preview shrinks
+		{24, 15, 9, 3},   // short: the preview at 3, the list gives way
+		{24, 2, 10, 2},   // a DDL of 2 lines keeps both
+		{12, 15, 3, 0},   // tiny: the list's 3 rows, no preview
 	} {
-		box, rows, grid := PaletteBox(uv.Rect(0, 0, 160, c.h), 20, false, 15)
+		box, rows, grid := PaletteBox(uv.Rect(0, 0, 160, c.h), 20, false, c.lines)
 		if rows != c.rows || grid.Dy() != c.preview || box.Dy() != rows+7+min(c.preview, 1)+c.preview || box.Max.Y > c.h {
-			t.Errorf("h %d: box %v rows %d preview %v", c.h, box, rows, grid)
+			t.Errorf("h %d, %d lines: box %v rows %d preview %v", c.h, c.lines, box, rows, grid)
 		}
 	}
 }

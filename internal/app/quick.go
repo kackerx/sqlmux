@@ -201,11 +201,8 @@ func (a *App) gotQuickRerun(m quickRerun) tea.Cmd {
 		a.log(r, r.sql, "已取消", false)
 		return a.showToast("查询已取消", toastTTL)
 	case m.err != nil:
-		e := postgres.ServerErrorOf(m.err)
-		a.log(r, r.sql, e.Severity+": "+e.Message, true)
-		if p := r.win.Result; p != nil {
-			selectTab(p, 0)
-		}
+		a.logError(r, r.sql, m.err)
+		selectTab(r.win.Result, 0) // the log's, made if need be
 		return nil
 	}
 	rt.gridState = gridState{page: m.res, transpose: rt.transpose}
@@ -222,10 +219,10 @@ func (a *App) quickEdit() tea.Cmd {
 	if scope != sqlScope || strings.TrimSpace(sql) == "" {
 		return nil
 	}
-	a.palette = nil
-	if cmd := a.newConsole(); cmd != nil { // its file can't be read
+	if cmd := a.newConsole(); cmd != nil { // its file can't be read: the palette stays, the SQL in it
 		return cmd
 	}
+	a.palette = nil
 	t := consoleOf(a.focused())
 	pre := strings.Join(t.ed.Lines(), "\n")
 	switch {

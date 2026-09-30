@@ -489,8 +489,8 @@ func (a *App) context() keymap.Context {
 		return keymap.Context{Overlay: "confirm", Mode: keymap.Command}
 	case a.keyHelp != nil: // the keys it lists come to keyHelpKey
 		return keymap.Context{Overlay: "keyhelp", Mode: keymap.Command}
-	case a.palette != nil && a.palette.comp != nil: // ↵ and esc are the input's, as in a WHERE (§9.7)
-		return keymap.Context{Overlay: "complete", Focus: []string{"input"}, Mode: keymap.Command}
+	case a.palette != nil && a.palette.comp != nil: // the palette's keys under the list's: its ↵ and esc see to the list first (§9.7)
+		return keymap.Context{Overlay: "complete", Under: "palette", Focus: []string{"input"}, Mode: keymap.Command}
 	case a.palette != nil:
 		return keymap.Context{Overlay: "palette", Mode: keymap.Command}
 	case a.drop != nil:

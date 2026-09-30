@@ -114,3 +114,19 @@ func TestGoldenConsole(t *testing.T) {
 		})
 	}
 }
+
+// A table's name is a table's before ( too, a function's name else;
+// columns by names (§7.3).
+func TestSQLColorsNames(t *testing.T) {
+	th := TokyonightStorm
+	text := "references t_user(id), count(id)"
+	names := func(_ int, w string) SQLName {
+		return map[string]SQLName{"t_user": TableName, "id": ColumnName}[w]
+	}
+	cs := SQLColors(th, text, names)
+	for w, want := range map[string]any{"t_user": th.SQLTable, "count": th.Func, "id": th.SQLColumn} {
+		if got := cs[strings.Index(text, w)]; got != want {
+			t.Errorf("%s: %v", w, got)
+		}
+	}
+}

@@ -220,15 +220,17 @@ func SQLColors(th *Theme, text string, names SQLNames) []color.Color {
 		case sqlkit.Op:
 			col = th.SQLOperator
 		case sqlkit.Ident, sqlkit.Quoted:
-			if t.Kind == sqlkit.Ident && i+1 < len(ts) && ts[i+1].Start == t.End && text[t.End] == '(' {
+			n := OtherName
+			if names != nil {
+				n = names(t.Start, text[t.Start:t.End])
+			}
+			switch {
+			case n == TableName: // a table's name before ( too: references t(id), insert into t(a)
+				col = th.SQLTable
+			case t.Kind == sqlkit.Ident && i+1 < len(ts) && ts[i+1].Start == t.End && text[t.End] == '(':
 				col = th.Func
-			} else if names != nil {
-				switch names(t.Start, text[t.Start:t.End]) {
-				case TableName:
-					col = th.SQLTable
-				case ColumnName:
-					col = th.SQLColumn
-				}
+			case n == ColumnName:
+				col = th.SQLColumn
 			}
 		}
 		for j := t.Start; j < t.End; j++ {

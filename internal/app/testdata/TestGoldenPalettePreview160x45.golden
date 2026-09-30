@@ -13,20 +13,20 @@
 │       ▸  schema_migrations │  t_order_item  doraemon.public                                                               表 │                             │
 │       ▸  t_order       1.2m│──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
 │       ▸  t_order_item  3.4m│ create table public.t_order (                                                                    │                             │
-│       ▸  t_payment     410k│   id bigint not null,                                                                            │                             │
-│       ▸  t_refund       12k│   status text not null,                                                                          │                             │
-│       ▸  t_sku         8.1k│   constraint t_order_pkey PRIMARY KEY (id)                                                       │                             │
-│       ▸  t_user         38k│ );                                                                                               │                             │
-│       ▸  t_user_address 52k│ CREATE INDEX t_order_status ON public.t_order USING btree (status);                              │                             │
-│       ▸  t_user_profile 38k│──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
-│        Views (0)           │ ↑/↓ 移动 · Tab/S-Tab 范围 · esc 关闭                                                      ↵ 打开 │                             │
-│ ▾  工作区                  └──────────────────────────────────────────────────────────────────────────────────────────────────┘                             │
-│   ▾  data                   │ │                                                                                                                             │
-│         pane-1               │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
-│                              │ │                                                                                                                             │
+│       ▸  t_payment     410k│   id bigint not null default nextval('t_order_id_seq'::regclass),                                │                             │
+│       ▸  t_refund       12k│   user_id bigint not null,                                                                       │                             │
+│       ▸  t_sku         8.1k│   status order_status not null default 'pending'::order_status,                                  │                             │
+│       ▸  t_user         38k│   amount numeric(10,2) not null,                                                                 │                             │
+│       ▸  t_user_address 52k│   paid boolean,                                                                                  │                             │
+│       ▸  t_user_profile 38k│   meta jsonb,                                                                                    │                             │
+│        Views (0)           │   raw json,                                                                                      │                             │
+│ ▾  工作区                  │   note text,                                                                                     │                             │
+│   ▾  data                  │   created_at timestamp with time zone not null default now(),                                    │                             │
+│         pane-1              │   deleted_at timestamp with time zone,                                                           │                             │
+│                             │ …                                                                                                │                             │
+│                             │──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
+│                             │ ↑/↓ 移动 · Tab/S-Tab 范围 · esc 关闭                                                      ↵ 打开 │                             │
+│                             └──────────────────────────────────────────────────────────────────────────────────────────────────┘                             │
 │                              │ │                                                                                                                             │
 │                              │ │                                                                                                                             │
 │                              │ │                                                                                                                             │

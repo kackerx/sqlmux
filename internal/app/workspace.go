@@ -346,7 +346,7 @@ func (a *App) closeTab(p *Pane, i int) {
 // closeTabAsking is x on pane p's tab i (F3.35): a console's is written
 // first, not asked about (§11); a table's with changes asks first.
 func (a *App) closeTabAsking(p *Pane, i int) tea.Cmd {
-	if i >= len(p.Tabs) {
+	if i < 0 || i >= len(p.Tabs) { // tab.close.at's i may come from a user's map
 		return nil
 	}
 	if t := p.Tabs[i].Console; t != nil {

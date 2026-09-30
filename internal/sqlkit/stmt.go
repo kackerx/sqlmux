@@ -201,6 +201,16 @@ func explainRead(s string, ts []Token, depth []int) bool {
 	return isRead(s, ts[i:], depth[i:])
 }
 
+// queryWords start a query: what AutoLimit limits and quick SQL declares a
+// cursor for (§9.4, §12), as PG 16 psql's is_select_command (common.c, for
+// FETCH_COUNT; PG 17 dropped it) took select and values; table and with
+// are added, a WITH … SELECT over a big table being common.
+var queryWords = map[string]bool{"select": true, "with": true, "table": true, "values": true}
+
+// IsQuery is whether statement s starts as a query does (queryWords), past
+// opening parentheses.
+func IsQuery(s string, d Dialect) bool { return queryWords[FirstWord(s, d)] }
+
 // AutoLimit is s with LIMIT n after it (§9.4) when it is a query that
 // reads, select, with, table or values, with no LIMIT or FETCH at its top
 // level; a ; at its end goes. When the whole query is in parentheses, or
@@ -211,9 +221,7 @@ func AutoLimit(s string, d Dialect, n int) string {
 	if !isRead(s, ts, depth) {
 		return s
 	}
-	switch lower(s, ts, first(s, ts)) {
-	case "select", "with", "table", "values":
-	default:
+	if !queryWords[lower(s, ts, first(s, ts))] {
 		return s
 	}
 	out := s

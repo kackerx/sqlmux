@@ -137,7 +137,8 @@ order by 1, 3`, db.Val{S: schema}, db.Val{S: table})
 // constraint of it makes; a view's and a materialized view's query by
 // pg_get_viewdef, the latter's indexes too.
 // ponytail: no generated column's expression, partitioning, inheritance,
-// comments, owner or grants; add them when the preview is read as a script
+// comments, owner or grants, and a foreign table reads as a table; add them
+// when the preview is read as a script
 func DDL(ctx context.Context, c db.Conn, schema, name string) (string, error) {
 	rel := db.Val{S: pgx.Identifier{schema, name}.Sanitize()}
 	r, err := c.Query(ctx, `
@@ -168,7 +169,7 @@ order by a.attnum`, rel)
 		cons, err := c.Query(ctx, `
 select 'constraint ' || quote_ident(conname) || ' ' || pg_get_constraintdef(oid)
 from pg_constraint
-where conrelid = $1::regclass and contype <> 'n'
+where conrelid = $1::regclass and contype in ('p', 'u', 'f', 'c', 'x')
 order by case contype when 'p' then 1 when 'u' then 2 when 'f' then 3 when 'c' then 4 else 5 end, conname`, rel)
 		if err != nil {
 			return "", err
@@ -190,14 +191,19 @@ order by case contype when 'p' then 1 when 'u' then 2 when 'f' then 3 when 'c' t
 		for _, con := range cons.Rows {
 			lines = append(lines, "  "+con[0].S)
 		}
-		b.WriteString("create table " + qualified + " (\n" + strings.Join(lines, ",\n") + "\n);")
+		body := "\n" + strings.Join(lines, ",\n") + "\n"
+		if len(lines) == 0 {
+			body = ""
+		}
+		b.WriteString("create table " + qualified + " (" + body + ");")
 	}
-	// not the indexes a constraint of its own makes: those of a primary key, a unique or an exclusion constraint
+	// not the indexes a primary key, unique or exclusion constraint makes: a
+	// foreign key's conindid is the index it references, its own table's or another's
 	idx, err := c.Query(ctx, `
 select pg_get_indexdef(i.indexrelid)
 from pg_index i
 where i.indrelid = $1::regclass
-  and not exists (select from pg_constraint con where con.conindid = i.indexrelid and con.conrelid = i.indrelid)
+  and not exists (select from pg_constraint con where con.conindid = i.indexrelid and con.contype in ('p', 'u', 'x'))
 order by i.indexrelid::regclass::text`, rel)
 	if err != nil {
 		return "", err

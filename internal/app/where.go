@@ -228,24 +228,28 @@ func (a *App) sqlNames(text, schema string, cols *db.Columns) (names ui.SQLNames
 }
 
 // wantCols asks for the columns of the tables the consoles on screen name
-// that the cache lacks, for their names' colors (§7.3): each once, till
-// the cache is dropped.
+// that the cache lacks, and the palette's previewed view does, for their
+// names' colors (§7.3, F4.2): each once, till the cache is dropped.
 // ponytail: the consoles are scanned after every message, as they are
 // drawn; keep the tables a console names per change if a big file lags
 func (a *App) wantCols() tea.Cmd {
 	var cmds []tea.Cmd
-	for id := range a.layout() {
-		c := consoleOf(a.win().pane(id))
-		if c == nil {
-			continue
-		}
-		_, missing := a.sqlNames(strings.Join(c.ed.Lines(), "\n"), cmp.Or(c.schema, a.sess.Schema), nil)
+	want := func(text, schema string) {
+		_, missing := a.sqlNames(text, schema, nil)
 		for _, t := range missing {
 			if !a.sess.colsAsked[idOf(t)] {
 				a.sess.colsAsked[idOf(t)] = true
 				cmds = append(cmds, a.fetchCols(t))
 			}
 		}
+	}
+	for id := range a.layout() {
+		if c := consoleOf(a.win().pane(id)); c != nil {
+			want(strings.Join(c.ed.Lines(), "\n"), cmp.Or(c.schema, a.sess.Schema))
+		}
+	}
+	if text, schema := a.previewedView(); text != "" {
+		want(text, schema)
 	}
 	return tea.Batch(cmds...)
 }

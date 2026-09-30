@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -397,12 +399,39 @@ func TestPaletteLayout(t *testing.T) {
 	}
 }
 
-// ddlOrder is t_order's DDL, as postgres.DDL puts it.
-const ddlOrder = "create table public.t_order (\n  id bigint not null,\n  status text not null,\n  constraint t_order_pkey PRIMARY KEY (id)\n);\nCREATE INDEX t_order_status ON public.t_order USING btree (status);"
+// ddlOrder is t_order's DDL as postgres.DDL puts it together from the
+// seed: 14 lines, 2 past what a preview shows.
+const ddlOrder = `create table public.t_order (
+  id bigint not null default nextval('t_order_id_seq'::regclass),
+  user_id bigint not null,
+  status order_status not null default 'pending'::order_status,
+  amount numeric(10,2) not null,
+  paid boolean,
+  meta jsonb,
+  raw json,
+  note text,
+  created_at timestamp with time zone not null default now(),
+  deleted_at timestamp with time zone,
+  constraint t_order_pkey PRIMARY KEY (id),
+  constraint t_order_user_id_fkey FOREIGN KEY (user_id) REFERENCES t_user(id)
+);`
+
+// rest is previewDelay up on the palette's selection: the Cmd asking for
+// its DDL, nil when none is asked for.
+func rest(a *App) tea.Cmd {
+	_, cmd := a.Update(previewDue{a.palette, a.palette.previewSeq})
+	return cmd
+}
+
+func tableNamed(a *App, name string) db.Table {
+	return a.sess.Tables[slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Name == name })]
+}
 
 // The selection resting on a table asks for its DDL once the delay is
-// up, only for the one it stopped on; the DDL shows under the list,
-// cached, till R drops it with the columns (F4.2).
+// up, only for the one it stopped on; the DDL shows under the list, its
+// columns coming with it, cached till R drops it with the columns (F4.2).
+// Out of time it is not cached; a database's error is, shown in its
+// color; an answer R dropped meanwhile is not kept.
 func TestPalettePreview(t *testing.T) {
 	a := wide(160, 45)
 	feed(t, a, "<C-p>@t_order")
@@ -413,42 +442,64 @@ func TestPalettePreview(t *testing.T) {
 		t.Fatal("moved on: t_order's asked for")
 	}
 	feed(t, a, "<Up>")
-	if _, cmd := a.Update(previewDue{p, p.previewSeq}); cmd == nil || a.paletteView().Preview != nil {
+	if rest(a) == nil || a.paletteView().Preview != nil {
 		t.Fatal("rested on t_order: not asked for")
 	}
-	order := a.sess.Tables[slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Name == "t_order" })]
-	a.Update(ddlMsg{table: order, text: ddlOrder})
-	if pv := a.paletteView().Preview; pv == nil || pv.Text != ddlOrder {
+	order := tableNamed(a, "t_order")
+	a.Update(ddlMsg{table: order, text: ddlOrder, cols: db.Columns{Cols: []db.Column{{Name: "status"}}}})
+	if pv := a.paletteView().Preview; pv == nil || pv.Text != ddlOrder || a.sess.cols[idOf(order)].Cols == nil {
 		t.Fatalf("the preview: %+v", pv)
 	}
-	f := a.render().String()
-	if !strings.Contains(f, "  status text not null,") || !strings.Contains(f, "CREATE INDEX t_order_status") {
-		t.Errorf("not drawn:\n%s", f)
+	if st := styleOf(t, a.render(), "status order_status"); st.Fg != a.theme.SQLColumn {
+		t.Errorf("its column: %+v", st)
 	}
 	seq := p.previewSeq
 	feed(t, a, "<Down><Up>") // t_order_item timed, t_order cached
 	if a.paletteView().Preview == nil || p.previewSeq != seq+1 {
 		t.Errorf("back on t_order: cached, not timed again (seq %d, was %d)", p.previewSeq, seq)
 	}
+	a.sess.dropCols()
+	if len(a.sess.ddl) != 0 {
+		t.Fatal("R keeps the DDL")
+	}
+	feed(t, a, "<Down>")
+	rest(a)
+	item := tableNamed(a, "t_order_item")
+	if a.Update(ddlMsg{table: item, err: context.DeadlineExceeded}); len(a.sess.ddl) != 0 {
+		t.Error("out of time: cached")
+	}
+	feed(t, a, "<Up><Down>")
+	rest(a)
+	a.Update(ddlMsg{table: item, err: errors.New(`ERROR: relation "t_order_item" does not exist (SQLSTATE 42P01)`)})
+	if pv := a.paletteView().Preview; pv == nil || pv.Err == "" || styleOf(t, a.render(), "relation").Fg != a.theme.Error {
+		t.Errorf("an error: %+v", pv)
+	}
+	feed(t, a, "<Up>")
+	rest(a)
+	a.sess.dropCols()
+	if a.Update(ddlMsg{table: order, text: ddlOrder}); len(a.sess.ddl) != 0 {
+		t.Error("an answer R dropped: kept")
+	}
 	if feed(t, a, "<BS><BS><BS><BS><BS><BS><BS>>"); a.paletteView().Preview != nil {
 		t.Error("a command selected: a preview")
 	}
-	a.sess.dropCols()
-	if len(a.sess.ddl) != 0 {
-		t.Error("R keeps the DDL")
-	}
 }
 
-// The palette with a table's DDL under the list, in SQL's colors (F4.2).
+// The palette with a table's DDL under the list, in SQL's colors, cut at
+// 12 rows with a dim … (F4.2).
 func TestGoldenPalettePreview160x45(t *testing.T) {
 	a := wide(160, 45)
 	feed(t, a, "<C-p>@t_order")
-	order := a.sess.Tables[slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Name == "t_order" })]
-	a.Update(ddlMsg{table: order, text: ddlOrder})
-	if st := styleOf(t, a.render(), "PRIMARY KEY"); st.Fg != a.theme.Keyword {
-		t.Errorf("PRIMARY KEY: %+v", st)
+	rest(a)
+	a.Update(ddlMsg{table: tableNamed(a, "t_order"), text: ddlOrder})
+	f := a.render()
+	if st := styleOf(t, f, "create table"); st.Fg != a.theme.Keyword {
+		t.Errorf("create table: %+v", st)
 	}
-	golden.RequireEqual(t, a.render().String())
+	if st := styleOf(t, f, "…"); st.Fg != a.theme.Dim {
+		t.Errorf("the …: %+v", st)
+	}
+	golden.RequireEqual(t, f.String())
 }
 
 // % lists every open tab too, as the tree's workspace names it: its type's
@@ -471,5 +522,27 @@ func TestPaletteTabs(t *testing.T) {
 	feed(t, a, "<C-p>%②")
 	if rows := a.paletteView().Rows; len(rows) == 0 || rows[0].Where != "doraemon › 0: data" {
 		t.Errorf("a pane's place: %+v", rows)
+	}
+	// another window's tab is listed, not its pane; ↵ on it does nothing till M5
+	// its pane's ID is ①'s: IDs go by window
+	a.sess.Windows[1].Root = leaf(&Pane{ID: 1, Tabs: []Tab{{Name: "t_sku", Data: newDataTab(tableNamed(a, "t_sku"))}, landing()}, Cur: 1})
+	feed(t, a, "<Esc><C-p>%report")
+	var tab ui.PaletteRow
+	for _, r := range a.paletteView().Rows {
+		if r.Tag == "Pane" && strings.Contains(r.Where, "1: report") {
+			t.Errorf("another window's pane: %+v", r)
+		}
+		if r.Name == "t_sku" {
+			tab = r
+		}
+	}
+	if tab.Where != "doraemon › 1: report › pane-1" {
+		t.Fatalf("another window's tab: %+v", tab)
+	}
+	a.win().focus(2)
+	focus, cur, one := a.win().Focus, a.sess.Windows[1].Root.Pane.Cur, a.win().pane(1).Cur
+	feed(t, a, "<C-u>%t_sku<CR>")
+	if a.win().Focus != focus || a.sess.Windows[1].Root.Pane.Cur != cur || a.win().pane(1).Cur != one || a.sess.Active != 0 {
+		t.Errorf("↵ on another window's tab: focus %d, cur %d, ①'s %d", a.win().Focus, a.sess.Windows[1].Root.Pane.Cur, a.win().pane(1).Cur)
 	}
 }
