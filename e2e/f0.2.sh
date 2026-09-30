@@ -46,7 +46,7 @@ check "分隔线 #2f3549" eval 'style_has 2 3 fg=$SEP && style_has 31 3 fg=$SEP'
 tree_y() { local y; for y in $(seq 4 30); do [[ $(e2e_text 1 32 $y) == *" $1 "* ]] && echo $y && return; done; }   # 树里 NAME 所在的行（F1.12 起是层级树）
 check "表项：图标 func、行数 border 色" eval 'y=$(tree_y t_order_item); at "$NF_TABLE" $y fg=#7aa2f7 && at "400" $y fg=$BORDER'
 check "当前表 t_order（F1.2：与光标行分开画）：图标和表名 focus 色，行不是 select 底" eval 'y=$(tree_y t_order); at "$NF_TABLE" $y fg=$FOCUS && at t_order $y fg=$FOCUS && style_has 2 $y bg=$PANE_BG && style_has 31 $y bg=$PANE_BG'
-check "提示行（F1.2：hintRow）：全部 dim 色，· 分隔" eval 'text_is 1 32 43 "│ j/k move · ↵ open · t tab    │" && at "j/k" 43 fg=$DIM && at "move" 43 fg=$DIM && at "↵ open" 43 fg=$DIM'
+check "提示行（F1.2：hintRow）：全部 dim 色，· 分隔" eval 'text_is 1 32 43 "│ j/k move · ↵ open            │" && at "j/k" 43 fg=$DIM && at "move" 43 fg=$DIM && at "↵ open" 43 fg=$DIM'
 
 # ---- 80x24：侧栏 24 列、截断、不越界
 start -x 80 -y 24

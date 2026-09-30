@@ -58,7 +58,7 @@ check "缩放时不登记拖动柄：拖动无效" eval '(( $(w_of 1) == 63 ))'
 # ---- 细栏、提示、which-key 项：点击执行对应的 Action
 start
 L b; e2e_click 2 10; sleep 0.3
-check "点击 3 列宽的细栏：侧栏展开，但不获得焦点" eval 'geom_is 0 "1 1 32 44" && focus_is 1'
+check "点击 3 列宽的细栏：侧栏展开，焦点到树上（同 SPC b，F3.29）" eval 'geom_is 0 "1 1 32 44" && focus_is 0'
 e2e_click $(at "SPC b" 1); sleep 0.3
 check "点击侧栏标题上的 SPC b：折叠侧栏" eval '[[ $(e2e_text 1 3 1) == "┌─┐" ]]'
 e2e_click 2 10; sleep 0.3

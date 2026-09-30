@@ -31,16 +31,16 @@ check "选 t_order：开在 ① 里，标题是 table 图标" eval 'tabs_are 1 "
 click_tab 1 +
 check "点 +：新开引导 tab「新 tab」并切过去，显示引导页" eval 'tabs_are 1 "1:t_order- │ 2:新 tab*" && landing 1 && focus_is 1'
 key t; e2e_type t_order; sleep 0.3; key Enter; wait_for 8 eval '[[ -n $(grid_y) ]]'
-check "引导 tab 上按 t 选 t_order：开在这个 tab 里，替换它，不切到已开的 t_order" eval 'tabs_are 1 "1:t_order- │ 2:t_order*"'
+check "引导 tab 上按 t 选这个 pane 里已开着的 t_order：切过去，关掉引导 tab，不留空 tab（F3.37）" eval 'tabs_are 1 "1:t_order*" && ! landing 1 >/dev/null'
 click_tab 1 +; key C-p; e2e_type @t_sku; sleep 0.3; key C-t; wait_for 8 eval '[[ -n $(grid_y) ]]'
-check "引导 tab 上从面板 C-t 打开：也替换它，不另开（cd4729f）" eval 'tabs_are 1 "1:t_order │ 2:t_order- │ 3:t_sku*"'
+check "引导 tab 上从面板 C-t 打开没开着的 t_sku：替换它，不另开（cd4729f）" eval 'tabs_are 1 "1:t_order- │ 2:t_sku*"'
 key x
 click_tab 1 +; key c
-check "引导 tab 上按 c：就地换成 console_2，标题 console 图标加 ▶ run ↵" eval 'tabs_are 1 "1:t_order │ 2:t_order- │ 3:console_2*" && [[ $(title 1) == "┌─ ① $NF_CONSOLE console_2 ─"*"▶ run  ↵ ─┐" ]]'
+check "引导 tab 上按 c：就地换成 console_2，标题 console 图标加 ▶ run ↵" eval 'tabs_are 1 "1:t_order- │ 2:console_2*" && [[ $(title 1) == "┌─ ① $NF_CONSOLE console_2 ─"*"▶ run  ↵ ─┐" ]]'
 click_tab 1 +; key x
-check "引导 tab 上按 x：直接关掉，不确认，回到 console_2" eval 'tabs_are 1 "1:t_order │ 2:t_order │ 3:console_2*" && ! screen_has 关闭会丢弃'
+check "引导 tab 上按 x：直接关掉，不确认，回到 console_2" eval '[[ $(tabbar 1) == "1:t_order"*" │ 2:console_2*" ]] && ! screen_has 关闭会丢弃 || { echo "  $(tabbar 1)"; false; }'
 click_tab 1 +; key C-p; e2e_type '>console.new'; sleep 0.3; key Enter
-check "引导 tab 上从面板执行 console.new：也就地换成 console_3" eval '[[ $(tabbar 1) == "1:t_order │ 2:t_order │ 3:console_2"*" │ 4:console_3*" ]] || { echo "  $(tabbar 1)"; false; }'
+check "引导 tab 上从面板执行 console.new：也就地换成 console_3" eval '[[ $(tabbar 1) == "1:t_order"*" │ 2:console_2"*" │ 3:console_3*" ]] || { echo "  $(tabbar 1)"; false; }'
 key :; e2e_type q; sleep 0.3; key Enter
 
 # ---- 同一个 pane 里切换 table / console：标题图标、▶ run、按键作用域跟着变（§6.4）
@@ -48,23 +48,23 @@ key gT
 check "gT 到 t_order：标题 table 图标，没有 ▶ run" eval '[[ $(title 1) == "┌─ ① $NF_TABLE t_order ─"* && $(title 1) != *"▶ run"* ]]'
 key /
 check "表 tab 上按 /：编辑 WHERE（grid 的键）" eval '[[ $(mode) == INSERT && $(bar) == *"-- editing WHERE --"* ]]'
-key Escape; key gt
+key Escape; key Escape; key gt                                               # F3.39：第一次 esc 到 WHERE 的 NORMAL，第二次回表格
 check "gt 到 console_2：标题 console 图标，有 ▶ run" eval '[[ $(title 1) == "┌─ ① $NF_CONSOLE console_2 ─"*"▶ run  ↵ ─┐" ]]'
 key /
 check "console tab 上按 /：编辑器的搜索命令行（COMMAND）" eval '[[ $(mode) == COMMAND && $(bar) != *"editing WHERE"* ]]'
 key Escape
 
-# ---- 打开表的目标 pane（§5）：当前 tab 是 console 时不替换它
+# ---- 打开表的目标 pane（§5、F3.37）：最近聚焦过的普通 pane，当前 tab 是 console 的也算；不替换 console tab
 tree_open() { key /; key Escape; key /; e2e_type "$1"; sleep 0.3; key Enter; key Enter; wait_for 8 eval '[[ -n $(grid_y) ]]'; }   # 树里过滤出 NAME 再 ↵
 key C-h; tree_open t_log
-check "①、② 当前都是 console 时从树 ↵ 打开表：在最近聚焦的 ① 新开 tab，console_2 还在" eval 'tabs_are 1 "1:t_order │ 2:t_order │ 3:console_2- │ 4:t_log*" && tabs_are 2 "1:console_1*" && focus_is 1'
+check "①、② 当前都是 console 时从树 ↵ 打开表：在最近聚焦的 ① 新开 tab，console_2 还在" eval '[[ $(tabbar 1) == "1:t_order │ 2:console_2- │ 3:t_log*" ]] && tabs_are 2 "1:console_1*" && focus_is 1 || { echo "  $(tabbar 1)"; false; }'
 key C-l; key Space; e2e_type q; sleep 0.3; e2e_type 0; sleep 0.3      # ② 聚焦过之后按编号跳到树
 tree_open t_sku
-check "最近聚焦的 ② 当前是 console、① 当前是表：表开到 ① 的新 tab（F3.18），原来的 t_log 还在，② 不变" eval '[[ $(tabbar 1) == *"4:t_log- │ 5:t_sku*" ]] && tabs_are 2 "1:console_1*" && focus_is 1 || { echo "  $(tabbar 1)"; false; }'
+check "最近聚焦的是 ②（当前 tab 是 console）：表开到 ② 的新 tab，console_1 还在，① 不变（F3.37）" eval 'tabs_are 2 "1:console_1- │ 2:t_sku*" && [[ $(tabbar 1) == *"3:t_log*" ]] && focus_is 2 || { echo "  ① $(tabbar 1) | ② $(tabbar 2)"; false; }'
 
 # ---- 分割出的新 pane 显示引导页
 key Space; e2e_type %; sleep 0.3
-check "SPC % 分出的新 pane：引导页，标题只有 ⟨n⟩" eval 'landing 2 && [[ $(title 2) =~ ^┌─\ ②\ ─+┐$ ]] && focus_is 2'
+check "SPC % 分出的新 pane（焦点在 ②，新的是 ③）：引导页，标题只有 ⟨n⟩" eval 'landing 3 && [[ $(title 3) =~ ^┌─\ ③\ ─+┐$ ]] && focus_is 3'
 key Space; e2e_type x; sleep 0.3
 
 # ---- :wq（§11「文件」）：表 tab 上先保存，成功后才关闭；失败时 tab 留着，不弹丢弃确认

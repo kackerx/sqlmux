@@ -18,7 +18,7 @@ mode() { bar | awk '{ print $NF }'; }
 SOLO=1 start; open_table t_order
 key /; typ "status = '"
 check "WHERE 输入 status = '：补上右引号，光标在两个引号中间" where_is "status = ''" 10
-key Escape; key /; clear_in; typ "status = 'done'"
+key Escape; key Escape; key /; clear_in; typ "status = 'done'"   # F3.39：两次 esc 才回表格
 check "接着输入 done'：右引号只是跳过去，得到 status = 'done'，光标在最后" where_is "status = 'done'" 15
 clear_in; typ "don't"
 check "don't 里的引号前面是字母：不配对" where_is "don't" 5

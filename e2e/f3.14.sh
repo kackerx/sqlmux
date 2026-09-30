@@ -22,7 +22,7 @@ mbs
 check "WHERE 里 M-BS：同 C-w，再删掉 and" eval '[[ $(where_in) == "status = '"'done'"'" ]] || { echo "  $(where_in)"; false; }'
 key C-u
 check "WHERE 里 C-u：删到行首" eval '[[ -z $(where_in) ]]'
-key Escape
+key Escape; key Escape                                                         # F3.39：INSERT → WHERE 的 NORMAL → 表格
 
 # ---- COLS 的过滤框、PAGE 输入框（§7.9：所有单行输入框）
 key g; key c; key /; typ "user id"; key C-w

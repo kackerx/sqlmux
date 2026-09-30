@@ -63,12 +63,8 @@ key g c; key j j j Space Escape; key h                                        # 
 p=$(pos); key C-h; goto amount; key Enter
 check "打开已有的 tab、这一列被 COLS 隐藏了：光标不动，也不取消隐藏" eval 'pos_is $p && qb_has "COLS 9/10"'
 key g c; key a Escape
-e2e_keys C-p; sleep 0.3; e2e_type "@t_order"; sleep 0.3; key C-t; wait_for 8 settled   # t_order 再开一个 tab（tab 2，光标 1,1）
-key C-h; goto amount; key Enter
-check "t_order 开着两个 tab 时列节点 ↵：面板进入「选择 tab」" eval 'is_open && [[ $(footer) == *"↵ 切过去"* ]]'
-key Enter; wait_for 8 settled
-check "选定 ① · 2（F3.18 起 agent 在 tab 1）：切过去，光标也移到 amount（1,4）（§7.8，docs cc95d0d）" eval '[[ $(e2e_text 34 160 43 | noicon) == *"2:t_order*"* ]] && pos_is 1,4'
-key g t; key x                                                                   # 关掉 tab 3，回到 tab 2
+key 0; key g T; key C-h; goto amount; key Enter                               # 先切到 tab 1 的 agent
+check "t_order 已开在 ① 时列节点 ↵：切过去（F3.37 起没有「选择 tab」），光标也移到 amount（1,4）（§7.8，docs cc95d0d）" eval '! palette_open && [[ $(e2e_text 34 160 43 | noicon) == *"2:t_order*"* ]] && pos_is 1,4'
 
 # ---- 鼠标：单击 ▸ / ▾ 展开折叠；单击表与 ↵ 相同；中键与 t 相同
 key C-h; y=$(y_of t_sku); x=$(e2e_find ▸ "$y" | cut -d' ' -f1)

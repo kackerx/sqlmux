@@ -19,6 +19,7 @@ tbox() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5; exit }'; }        # 
 segs() { local g; g=($(tbox)); e2e_text $((g[0] + 1)) $((g[0] + g[2] - 2)) $((g[1] + 2)) | tr -s ' ' | sed 's/^ //; s/ $//'; }   # 分段行的文字
 up_x() { local g; g=($(tbox)); e2e_find ▴ $((g[1] + 1)) | tr ' ' '\n' | awk -v l=${g[0]} '$1 > l' | sed -n "${1}p"; }   # N：第 N 段（年月日时分秒）上方 ▴ 的列
 cur_seg() { local g x; g=($(tbox)); for x in $(seq $((g[0] + 1)) $((g[0] + g[2] - 2))); do style_has $x $((g[1] + 2)) bg=$SELECT >/dev/null && printf '%s' "$(e2e_text $x $x $((g[1] + 2)))"; done; }   # 当前段（select 底）的文字
+opt_sel() { local g x; g=($(tbox)); for x in $(seq $((g[0] + 1)) $((g[0] + g[2] - 2))); do style_has $x $((g[1] + 4)) bg=$SELECT >/dev/null && printf '%s' "$(e2e_text $x $x $((g[1] + 4)))"; done | sed 's/^ *//; s/ *$//'; }   # 选项行里选中（select 底）的那一项
 input() { e2e_text $(col_x created_at) $(( $(col_x created_at) + 24 )) $(row_y 1) | sed 's/ *▾.*//; s/ *$//'; }   # 第 1 行 created_at 输入框的文字
 orig=$(psql_n "select created_at from t_order where id = 1")
 
@@ -36,7 +37,11 @@ check "12 月再 ↑：绕回 01，年不进位" eval '[[ $(input) == "2026-01-0
 key BTab
 check "S-Tab：回到年" eval '[[ $(cur_seg) == 2026 ]]'
 key BTab
-check "年上再 S-Tab：绕到最后一段秒" eval '[[ $(cur_seg) == 00 && $(input) == "2026-01-01 00:01:00+00" ]] && key Down && [[ $(input) == "2026-01-01 00:01:59+00" ]] || { echo "  $(input)"; false; }'
+check "年上再 S-Tab：到选项行的最后一项 DEFAULT（F3.34；这一格还没提交过修改，没有 ↺ 原值），段不再高亮" eval '[[ -z $(cur_seg) && $(opt_sel) == DEFAULT ]] || { echo "  seg [$(cur_seg)] option [$(opt_sel)]"; false; }'
+key Up
+check "停在选项上时 ↑ 不做事" eval '[[ $(input) == "2026-01-01 00:01:00+00" && $(opt_sel) == DEFAULT ]]'
+key BTab; key BTab
+check "再 S-Tab 两次（◷ 现在，然后秒）：回到最后一段秒，↓ 减一" eval '[[ $(cur_seg) == 00 && $(input) == "2026-01-01 00:01:00+00" ]] && key Down && [[ $(input) == "2026-01-01 00:01:59+00" ]] || { echo "  $(input)"; false; }'
 
 # ---- 鼠标：点 ▴ / ▾ 加减，在某一段上滚滚轮加减，点击某一段选中它
 g=($(tbox)); dx=$(up_x 3)                                                       # 日是第 3 段
@@ -65,9 +70,42 @@ check "C-n 选 ◷ 现在、↵：输入框是本地现在（YYYY-MM-DD HH:MM:SS
 key Enter; key C-s; wait_for 8 eval '[[ $(qb) == *已保存* ]]'
 check "保存后：库里 id 2 的 created_at 就是这个时刻（PG 按这个写法解析出同一个时间点）" eval '[[ $(psql_n "select extract(epoch from created_at)::bigint from t_order where id = 2") == $(psql_n "select extract(epoch from '"'$v'"'::timestamptz)::bigint") ]] || { echo "  DB $(psql_n "select created_at from t_order where id = 2") want $v"; false; }'
 
+# ---- Tab 走过六段再到选项（F3.34，task.md 验收）：第七次 Tab 选中「◷ 现在」，↵ 填入当前时间；有默认值的列能选中 DEFAULT
+goto created_at 3; key Enter
+for i in 1 2 3 4 5 6; do e2e_keys Tab; sleep 0.15; done; sleep 0.3
+check "连按 6 次 Tab：走过年月日时分秒，选中「◷ 现在」，段不再高亮" eval '[[ $(opt_sel) == "◷ 现在" && -z $(cur_seg) ]] || { echo "  seg [$(cur_seg)] option [$(opt_sel)]"; false; }'
+key Enter
+v=$(e2e_text $(col_x created_at) $(( $(col_x created_at) + 24 )) $(row_y 3) | sed 's/ *▾.*//; s/ *$//')
+check "↵：填入本地的现在，仍在编辑" eval '[[ $v =~ $now_re && $v == "$(date "+%Y-%m-%d %H:")"* ]] && mode_is INSERT || { echo "  [$v]"; false; }'
+key Escape; key r
+goto created_at 4; key Enter
+for i in 1 2 3 4 5 6 7; do e2e_keys Tab; sleep 0.15; done; sleep 0.3
+check "第 4 行连按 7 次 Tab：选中 DEFAULT（created_at 有默认值 now()）" eval '[[ $(opt_sel) == DEFAULT ]] || { echo "  option [$(opt_sel)]"; false; }'
+key Enter
+check "↵ 应用 DEFAULT：退出编辑，这一格是 <default>" eval 'mode_is NORMAL && e2e_text $(col_x created_at) $(( $(col_x created_at) + 18 )) $(row_y 4) | grep -q "<default>"'
+key r
+
 # ---- 解析不了的值（NULL 进来是空文字）：分段区变暗，↑ / ↓ 不起作用
 goto deleted_ 1; key Enter                                                     # 表头截成了 deleted_
 check "deleted_at 是 NULL：分段区显示 ----，↑ 不起作用（文字仍为空）" eval '[[ $(segs) == "---- - -- - -- -- : -- : --" ]] && key Up && [[ $(segs) == "---- - -- - -- -- : -- : --" && -z $(e2e_text $(col_x deleted_) $(( $(col_x deleted_) + 6 )) $(row_y 1) | sed "s/ *▾.*//; s/ *│.*//; s/ *$//") ]]'
+key Escape
+# F3.34：没有分段可走的格（NULL、infinity）第一下 Tab 就选中「◷ 现在」，S-Tab 选中最后一项，到头绕回（reviewer 在 F3.34 实测）
+goto deleted_ 1; key Enter; key Tab
+check "NULL 的 deleted_at：第一下 Tab 选中「◷ 现在」" eval '[[ $(opt_sel) == "◷ 现在" ]] || { echo "  option [$(opt_sel)]"; false; }'
+key Tab
+check "再 Tab：∅ NULL（可空、没有默认值，这是最后一项）" eval '[[ $(opt_sel) == "∅ NULL" ]] || { echo "  option [$(opt_sel)]"; false; }'
+key Tab
+check "再 Tab：绕回「◷ 现在」" eval '[[ $(opt_sel) == "◷ 现在" ]] || { echo "  option [$(opt_sel)]"; false; }'
+key Escape; goto deleted_ 1; key Enter; key BTab
+check "刚进编辑就 S-Tab：选中最后一项 ∅ NULL" eval '[[ $(opt_sel) == "∅ NULL" ]] || { echo "  option [$(opt_sel)]"; false; }'
+key Escape
+psql_n "update t_order set created_at = 'infinity' where id = 5" >/dev/null; key R; wait_for 8 settled   # 这时没有未保存的修改，R 直接重取
+goto created_at 5; key Enter
+check "created_at 是 infinity：分段区是 ----" eval '[[ $(segs) == "---- - -- - -- -- : -- : --" ]] || { echo "  $(segs)"; false; }'
+key Tab
+check "infinity 上第一下 Tab：选中「◷ 现在」" eval '[[ $(opt_sel) == "◷ 现在" ]] || { echo "  option [$(opt_sel)]"; false; }'
+key BTab
+check "再 S-Tab：绕到最后一项 DEFAULT" eval '[[ $(opt_sel) == DEFAULT ]] || { echo "  option [$(opt_sel)]"; false; }'
 key Escape
 
 # ---- 矮终端：放不下整个时间浮层时整个不画，键盘照样能加减
