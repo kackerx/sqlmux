@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -42,6 +43,7 @@ type itemKind int
 const (
 	itemWindow itemKind = iota
 	itemPane
+	itemTab // an open tab, any window's (F4.3)
 	itemTable
 	itemCommand
 	itemSQL // a quick SQL from the history
@@ -49,7 +51,7 @@ const (
 
 // itemTags name a row's kind. The SQL history, a list of one kind, has
 // none (§12).
-var itemTags = [...]string{itemWindow: "窗口", itemPane: "Pane", itemTable: "表", itemCommand: "命令", itemSQL: ""}
+var itemTags = [...]string{itemWindow: "窗口", itemPane: "Pane", itemTab: "Tab", itemTable: "表", itemCommand: "命令", itemSQL: ""}
 
 // scopes are the palette's tabs (K-02). The prefix typed in the input is the
 // only scope state: Tab rewrites it, and `:` is `>` typed (§12).
@@ -57,8 +59,8 @@ var scopes = []struct {
 	label, prefix string
 	kinds         []itemKind
 }{
-	{"所有", "", []itemKind{itemWindow, itemPane, itemTable, itemCommand}}, // not the SQL history (§12)
-	{"窗口·Pane", "%", []itemKind{itemWindow, itemPane}},
+	{"所有", "", []itemKind{itemWindow, itemPane, itemTab, itemTable, itemCommand}}, // not the SQL history (§12)
+	{"窗口·Pane", "%", []itemKind{itemWindow, itemPane, itemTab}},
 	{"表", "@", []itemKind{itemTable}},
 	{"命令", ">", []itemKind{itemCommand}},
 	{"SQL", ";", []itemKind{itemSQL}}, // what follows the ; is SQL, the history while there is none
@@ -86,7 +88,7 @@ func (it paletteItem) key() itemKey { return itemKey{it.kind, it.id} }
 // recent is how state.json keeps it (§14).
 func (it paletteItem) recent() config.Recent {
 	// never kept for SQL (the history is its own), but paletteItems sorts it too
-	kind := [...]string{itemWindow: "window", itemPane: "pane", itemTable: "table", itemCommand: "command", itemSQL: "sql"}[it.kind]
+	kind := [...]string{itemWindow: "window", itemPane: "pane", itemTab: "tab", itemTable: "table", itemCommand: "command", itemSQL: "sql"}[it.kind]
 	return config.Recent{Kind: kind, ID: it.id}
 }
 
@@ -113,29 +115,30 @@ func (a *App) paletteScope() (scope int, query string) {
 }
 
 // paletteItems is every candidate, recent ones first and the rest in kind
-// order: windows, panes by ⟨n⟩, tables, commands by action id (§12).
+// order: windows as the tree's workspace has them, this one's panes by ⟨n⟩,
+// each pane's tabs after it (F4.3), then tables, commands by action id
+// (§12). A pane and a tab are placed by the tree's names for them:
+// doraemon › 0: data › pane-1.
 func (a *App) paletteItems() []paletteItem {
 	var items []paletteItem
-	for i, w := range a.sess.Windows {
-		items = append(items, paletteItem{itemWindow, strconv.Itoa(i), a.icons.Window, fmt.Sprintf("%d: %s", i, w.Name), a.sess.Name})
-	}
-	win := fmt.Sprintf("%d: %s", a.sess.Active, a.win().Name)
-	for n, p := range a.panesByNumber() {
-		// by the current tab's type, words and all: they are what is searched (§7.7)
-		icon, word := a.tabIcon(p.tab())
-		switch p {
-		case a.win().Tree:
-			icon, word = a.icons.Schema, "schema"
-		case a.win().Result:
-			icon, word = a.icons.Result, "result"
+	for wi, w := range a.sess.Windows {
+		win := fmt.Sprintf("%d: %s", wi, w.Name)
+		items = append(items, paletteItem{itemWindow, strconv.Itoa(wi), a.icons.Window, win, a.sess.Name})
+		win = a.sess.Name + " › " + win
+		if wi == a.sess.Active {
+			items = append(items, a.paneItem(0, w.Tree, win))
 		}
-		name := strings.TrimSpace(a.icons.Number(n) + " " + word)
-		if obj := p.Object(); obj != "" && word != "" {
-			name += " · " + obj
-		} else if obj != "" {
-			name += " " + obj
+		for n, p := range w.Root.Leaves() { // pane-<n> by ⟨n⟩, the sidebar being 0
+			if wi == a.sess.Active {
+				items = append(items, a.paneItem(n+1, p, win))
+			}
+			for i := range p.Tabs {
+				icon, _ := a.tabIcon(&p.Tabs[i])
+				icon.Text = cmp.Or(icon.Text, " ") // a landing tab's: the names in line
+				id := fmt.Sprintf("%d %d %d", wi, p.ID, i)
+				items = append(items, paletteItem{itemTab, id, icon, p.Tabs[i].Name, fmt.Sprintf("%s › pane-%d", win, n+1)})
+			}
 		}
-		items = append(items, paletteItem{itemPane, strconv.Itoa(p.ID), icon, name, win})
 	}
 	// the tree's schema first, as the tree lists it, then the others (§12)
 	for _, here := range []bool{true, false} {
@@ -166,6 +169,25 @@ func (a *App) paletteItems() []paletteItem {
 	}
 	slices.SortStableFunc(items, func(x, y paletteItem) int { return recent(x) - recent(y) })
 	return items
+}
+
+// paneItem is pane ⟨n⟩ p of this window, in window win: by the current
+// tab's type, words and all, which are what is searched (§7.7).
+func (a *App) paneItem(n int, p *Pane, win string) paletteItem {
+	icon, word := a.tabIcon(p.tab())
+	switch p {
+	case a.win().Tree:
+		icon, word = a.icons.Schema, "schema"
+	case a.win().Result:
+		icon, word = a.icons.Result, "result"
+	}
+	name := strings.TrimSpace(a.icons.Number(n) + " " + word)
+	if obj := p.Object(); obj != "" && word != "" {
+		name += " · " + obj
+	} else if obj != "" {
+		name += " " + obj
+	}
+	return paletteItem{itemPane, strconv.Itoa(p.ID), icon, name, win}
 }
 
 // paletteMatches ranks the candidates in scope for what is typed: fzf over
@@ -225,7 +247,7 @@ func (a *App) paletteView() ui.Palette {
 		p.Enter = bound(ui.Hint{Key: run, Label: label, Action: "palette.run"})
 	case a.palette.sel < len(ms):
 		it := items[ms[a.palette.sel].Index]
-		enter := [...]string{itemWindow: "切换", itemPane: "聚焦", itemTable: "打开", itemCommand: "执行", itemSQL: "执行"}[it.kind]
+		enter := [...]string{itemWindow: "切换", itemPane: "聚焦", itemTab: "切换", itemTable: "打开", itemCommand: "执行", itemSQL: "执行"}[it.kind]
 		if it.kind == itemCommand && actions[it.id].On != nil {
 			enter = "切换"
 		}
@@ -422,6 +444,9 @@ func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 	if newTab && it.kind != itemTable {
 		return nil
 	}
+	if it.kind == itemTab { // ponytail: not kept among the recent: a pane's ID and a tab's place change from run to run
+		return a.paletteDo(it)
+	}
 	r := it.recent()
 	a.state.Recent = slices.Insert(slices.DeleteFunc(a.state.Recent, func(k config.Recent) bool { return k == r }), 0, r)
 	a.state.Recent = a.state.Recent[:min(len(a.state.Recent), recentRows)]
@@ -452,6 +477,12 @@ func (a *App) paletteDo(it paletteItem) tea.Cmd {
 	case itemPane:
 		id, _ := strconv.Atoi(it.id)
 		a.showPane(id)
+	case itemTab: // this window's; another's waits for M5, as its window's switch
+		var wi, id, i int
+		fmt.Sscan(it.id, &wi, &id, &i)
+		if p := a.win().pane(id); wi == a.sess.Active && p != nil {
+			a.showTab(p, i)
+		}
 	}
 	return nil
 }

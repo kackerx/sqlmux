@@ -255,7 +255,7 @@ func TestPaletteScopesCycle(t *testing.T) {
 func TestPaletteScopesFilter(t *testing.T) {
 	for in, want := range map[string]string{
 		"@ord": "表:t_order 表:t_order_item",
-		"%con": "Pane:② console · console_1",
+		"%con": "Tab:console_1 Pane:② console · console_1 Pane:⓪ schema", // ⓪'s doraemon too
 	} {
 		a := twoPanes(160, 45, "nerd")
 		if feed(t, a, "<C-p>"+in); strings.Join(namesOf(a), " ") != want {
@@ -270,8 +270,8 @@ func TestPaletteScopesFilter(t *testing.T) {
 			t.Errorf("所有 lacks %s", s)
 		}
 	}
-	if !strings.HasPrefix(all, "窗口:0: data 窗口:1: report Pane:⓪ schema") {
-		t.Errorf("windows, then panes, when nothing is typed: %.80s", all)
+	if want := "窗口:0: data Pane:⓪ schema Pane:① table · t_order Tab:t_order Tab:t_user Pane:② console · console_1 Tab:console_1 窗口:1: report 表:"; !strings.HasPrefix(all, want) {
+		t.Errorf("as the tree's workspace, when nothing is typed: a window, its panes, each pane's tabs:\n%.200s", all)
 	}
 }
 
@@ -449,4 +449,27 @@ func TestGoldenPalettePreview160x45(t *testing.T) {
 		t.Errorf("PRIMARY KEY: %+v", st)
 	}
 	golden.RequireEqual(t, a.render().String())
+}
+
+// % lists every open tab too, as the tree's workspace names it: its type's
+// icon, its name, doraemon › 0: data › pane-1; ↵ switches to it and
+// focuses its pane, and is not kept among the recent (F4.3). A pane is
+// placed doraemon › 0: data.
+func TestPaletteTabs(t *testing.T) {
+	a := twoPanes(160, 45, "nerd") // ① t_order and t_user, ② console_1
+	a.win().focus(2)
+	feed(t, a, "<C-p>%t_us")
+	rows := a.paletteView().Rows
+	if len(rows) == 0 || rows[0].Tag != "Tab" || rows[0].Name != "t_user" || rows[0].Where != "doraemon › 0: data › pane-1" || rows[0].Icon.Text != a.icons.Table.Text {
+		t.Fatalf("t_user's tab: %+v", rows)
+	}
+	recent := len(a.state.Recent)
+	feed(t, a, "<CR>")
+	if p := a.focused(); a.palette != nil || p.ID != 1 || p.Object() != "t_user" || len(a.state.Recent) != recent {
+		t.Fatalf("↵: focus %d on %q, recent %v", p.ID, p.Object(), a.state.Recent)
+	}
+	feed(t, a, "<C-p>%②")
+	if rows := a.paletteView().Rows; len(rows) == 0 || rows[0].Where != "doraemon › 0: data" {
+		t.Errorf("a pane's place: %+v", rows)
+	}
 }
