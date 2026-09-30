@@ -161,3 +161,16 @@ func TestIsQuery(t *testing.T) {
 		}
 	}
 }
+
+// IsWrite takes what IsRead doesn't but for a first word no keyword: a
+// typo goes to the database.
+func TestIsWrite(t *testing.T) {
+	for s, want := range map[string]bool{
+		"delete from t": true, "with x as (delete from t returning *) select * from x": true, "(insert into t values (1))": true,
+		"select 1": false, "selec 1": false, "t_order": false, "": false, "explain analyze delete from t": true,
+	} {
+		if got := IsWrite(s, PG); got != want {
+			t.Errorf("IsWrite(%q) = %v", s, got)
+		}
+	}
+}

@@ -431,7 +431,8 @@ func tableNamed(a *App, name string) db.Table {
 // up, only for the one it stopped on; the DDL shows under the list, its
 // columns coming with it, cached till R drops it with the columns (F4.2).
 // Out of time it is not cached; a database's error is, shown in its
-// color; an answer R dropped meanwhile is not kept.
+// color; an answer R dropped meanwhile is not kept. The palette closing
+// stops what is on its way.
 func TestPalettePreview(t *testing.T) {
 	a := wide(160, 45)
 	feed(t, a, "<C-p>@t_order")
@@ -482,6 +483,14 @@ func TestPalettePreview(t *testing.T) {
 	}
 	if feed(t, a, "<BS><BS><BS><BS><BS><BS><BS>>"); a.paletteView().Preview != nil {
 		t.Error("a command selected: a preview")
+	}
+	// the palette closing stops the fetches out: they would hold Meta up
+	feed(t, a, "<C-u>@t_order_item")
+	if rest(a) == nil || p.fetches.Err() != nil {
+		t.Fatal("not asked for")
+	}
+	if feed(t, a, "<Esc>"); p.fetches.Err() == nil || a.fetching != nil {
+		t.Error("closed: the fetch goes on")
 	}
 }
 

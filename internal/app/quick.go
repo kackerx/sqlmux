@@ -72,7 +72,7 @@ func (a *App) runQuick(sql string) tea.Cmd {
 	}
 	h := slices.Insert(slices.DeleteFunc(a.state.SQL[a.sess.Name], func(s string) bool { return s == sql }), 0, sql)
 	a.state.SQL[a.sess.Name] = h[:min(len(h), quickHistory)]
-	if q := p.quick; !sqlkit.IsRead(sql, sqlkit.PG) { // a write is for a console, where running it is the user's own ↵ (F-05)
+	if q := p.quick; sqlkit.IsWrite(sql, sqlkit.PG) { // a write is for a console, where running it is the user's own ↵ (F-05)
 		q.ran, q.res, q.err, q.write, q.top, q.left = sql, db.Result{}, "", true, 0, 0
 		return a.saveState()
 	}

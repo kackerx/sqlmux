@@ -47,6 +47,7 @@ type App struct {
 
 	rowCopy  *copiedRow           // the row yy took, for p (§10.6)
 	clipWait func(string) tea.Cmd // a "+p waiting for the clipboard: what to do with its text (F3.38)
+	fetching *palette             // the palette whose DDL fetches may be out (F4.2)
 	flash    *yankFlash           // a yank flashing (F3.32)
 	flashSeq int
 

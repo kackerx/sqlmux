@@ -315,7 +315,7 @@ func TestGoldenQuickSQL160x45(t *testing.T) {
 
 // A write is not run, nor sent: the result area says so in warn's color,
 // C-e's key read from the keymap; the history keeps it (F-05). WITH …
-// DELETE is a write too.
+// DELETE is a write too; a typo, no keyword first, is sent.
 func TestQuickSQLWrite(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	rec := &recDB{}
@@ -331,6 +331,9 @@ func TestQuickSQLWrite(t *testing.T) {
 			t.Errorf("%s: history %v, enter %q", sql, a.state.SQL, enterOf(a))
 		}
 		feed(t, a, "<Esc>")
+	}
+	if feed(t, a, "<C-p>;selec 1<CR>"); a.busy != 1 || a.palette.quick.write { // no keyword first: the database says what is wrong
+		t.Errorf("a typo: busy %d", a.busy)
 	}
 }
 

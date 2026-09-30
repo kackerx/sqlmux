@@ -26,10 +26,13 @@ type palette struct {
 	sel, top int   // selected candidate, first one shown
 	into     *Pane // a landing tab's 打开表: the table picked opens there (§5)
 
-	// The table the selection was on when last looked at, and the preview's
-	// timer for it (F4.2).
+	// The table the selection was on when last looked at, the preview's
+	// timer for it, and what stops the DDL fetches out once the palette
+	// closes (F4.2).
 	preview    tableID
 	previewSeq int
+	fetches    context.Context
+	stop       context.CancelFunc
 
 	// Quick SQL's (§12).
 	comp  *completion
@@ -375,6 +378,10 @@ func (a *App) palettePreview() *ui.PalettePreview {
 // move meanwhile starts over (F4.2). Checked after every message, as the
 // selection moves with keys, the mouse and the input's filter.
 func (a *App) wantDDL() tea.Cmd {
+	if w := a.fetching; w != nil && w != a.palette { // it closed: a DDL on its way would hold Meta up, the next request and C-c behind it
+		w.stop()
+		a.fetching = nil
+	}
 	p := a.palette
 	if p == nil {
 		return nil
@@ -404,9 +411,13 @@ func (a *App) fetchDDL(m previewDue) tea.Cmd {
 		return nil
 	}
 	a.sess.ddl[idOf(t)] = ddlText{}
-	meta := a.sess.Meta
+	if a.fetching != m.p {
+		m.p.fetches, m.p.stop = context.WithCancel(context.Background())
+		a.fetching = m.p
+	}
+	meta, ctx := a.sess.Meta, m.p.fetches
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
+		ctx, cancel := context.WithTimeout(ctx, countTimeout)
 		defer cancel()
 		m := ddlMsg{table: t}
 		m.err = meta.Run(ctx, func(ctx context.Context, c db.Conn) (err error) {

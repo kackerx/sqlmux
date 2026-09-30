@@ -137,6 +137,16 @@ func IsRead(s string, d Dialect) bool {
 	return isRead(s, ts, depth)
 }
 
+// IsWrite is whether s is a statement IsRead does not take whose first
+// word, past opening parentheses, is a keyword: what quick SQL keeps from
+// the database (§12「写语句」). A word mistyped, selec, is none: the
+// database's read-only transaction answers it with the syntax error.
+func IsWrite(s string, d Dialect) bool {
+	ts, depth := words(s, d)
+	i := first(s, ts)
+	return i < len(ts) && ts[i].Kind == Keyword && !isRead(s, ts, depth)
+}
+
 func isRead(s string, ts []Token, depth []int) bool {
 	i := first(s, ts)
 	switch lower(s, ts, i) {
