@@ -24,7 +24,7 @@ import (
 
 func TestMain(m *testing.M) {
 	// feed runs the Cmds keys return, the ticks too: they must not hold it up
-	whichKeyDelay, quitWindow, toastTTL, autosaveDelay, runTickEvery, yankFlashFor = time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond
+	whichKeyDelay, quitWindow, toastTTL, autosaveDelay, runTickEvery, yankFlashFor, previewDelay = time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond
 	clipTools = nil // OSC 52: the user's clipboard stays theirs
 	dir, _ := os.MkdirTemp("", "sqlmux-app-test")
 	os.Setenv("XDG_STATE_HOME", dir) // saves the state from the Cmds tests run go here, not the user's

@@ -1,12 +1,15 @@
 package app
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/exp/golden"
 
+	"sqlmux/internal/db"
 	"sqlmux/internal/ui"
 )
 
@@ -195,7 +198,7 @@ func TestPaletteMouse(t *testing.T) {
 	}
 
 	feed(t, a, "<C-p>")
-	box, _, _ := ui.PaletteBox(a.window(), len(rowsOf(a)), false)
+	box, _, _ := ui.PaletteBox(a.window(), len(rowsOf(a)), false, 0)
 	click(a, uv.Pos(box.Min.X+3, box.Min.Y+2)) // the input row
 	if a.palette == nil {
 		t.Fatal("a click inside the box is not outside")
@@ -210,7 +213,7 @@ func TestPaletteMouse(t *testing.T) {
 func TestPaletteCursor(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>ab<Left>")
-	box, _, _ := ui.PaletteBox(a.window(), len(rowsOf(a)), false)
+	box, _, _ := ui.PaletteBox(a.window(), len(rowsOf(a)), false, 0)
 	// the input row, below the scope tabs; after the search icon and a space
 	if c := a.View().Cursor; c == nil || c.X != box.Min.X+2+ui.Width(ui.NerdIcons.Search.Text)+1+1 || c.Y != box.Min.Y+2 {
 		t.Fatalf("cursor %+v, box %v", c, box)
@@ -377,7 +380,7 @@ func TestPaletteLayout(t *testing.T) {
 	for _, c := range []struct{ w, h, width, top int }{{160, 45, 100, 7}, {80, 24, 76, 3}} {
 		a := sized(c.w, c.h, "nerd")
 		feed(t, a, "<C-p>")
-		if box, _, _ := ui.PaletteBox(a.window(), len(rowsOf(a)), false); box.Dx() != c.width || box.Min.Y != c.top {
+		if box, _, _ := ui.PaletteBox(a.window(), len(rowsOf(a)), false, 0); box.Dx() != c.width || box.Min.Y != c.top {
 			t.Errorf("%dx%d: box %v, want %d wide at row %d", c.w, c.h, box, c.width, c.top)
 		}
 	}
@@ -392,4 +395,58 @@ func TestPaletteLayout(t *testing.T) {
 			t.Errorf("%s: input row %q", icons, in)
 		}
 	}
+}
+
+// ddlOrder is t_order's DDL, as postgres.DDL puts it.
+const ddlOrder = "create table public.t_order (\n  id bigint not null,\n  status text not null,\n  constraint t_order_pkey PRIMARY KEY (id)\n);\nCREATE INDEX t_order_status ON public.t_order USING btree (status);"
+
+// The selection resting on a table asks for its DDL once the delay is
+// up, only for the one it stopped on; the DDL shows under the list,
+// cached, till R drops it with the columns (F4.2).
+func TestPalettePreview(t *testing.T) {
+	a := wide(160, 45)
+	feed(t, a, "<C-p>@t_order")
+	p := a.palette
+	first := previewDue{p, p.previewSeq}
+	feed(t, a, "<Down>") // t_order_item
+	if _, cmd := a.Update(first); cmd != nil || len(a.sess.ddl) != 0 {
+		t.Fatal("moved on: t_order's asked for")
+	}
+	feed(t, a, "<Up>")
+	if _, cmd := a.Update(previewDue{p, p.previewSeq}); cmd == nil || a.paletteView().Preview != nil {
+		t.Fatal("rested on t_order: not asked for")
+	}
+	order := a.sess.Tables[slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Name == "t_order" })]
+	a.Update(ddlMsg{table: order, text: ddlOrder})
+	if pv := a.paletteView().Preview; pv == nil || pv.Text != ddlOrder {
+		t.Fatalf("the preview: %+v", pv)
+	}
+	f := a.render().String()
+	if !strings.Contains(f, "  status text not null,") || !strings.Contains(f, "CREATE INDEX t_order_status") {
+		t.Errorf("not drawn:\n%s", f)
+	}
+	seq := p.previewSeq
+	feed(t, a, "<Down><Up>") // t_order_item timed, t_order cached
+	if a.paletteView().Preview == nil || p.previewSeq != seq+1 {
+		t.Errorf("back on t_order: cached, not timed again (seq %d, was %d)", p.previewSeq, seq)
+	}
+	if feed(t, a, "<BS><BS><BS><BS><BS><BS><BS>>"); a.paletteView().Preview != nil {
+		t.Error("a command selected: a preview")
+	}
+	a.sess.dropCols()
+	if len(a.sess.ddl) != 0 {
+		t.Error("R keeps the DDL")
+	}
+}
+
+// The palette with a table's DDL under the list, in SQL's colors (F4.2).
+func TestGoldenPalettePreview160x45(t *testing.T) {
+	a := wide(160, 45)
+	feed(t, a, "<C-p>@t_order")
+	order := a.sess.Tables[slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Name == "t_order" })]
+	a.Update(ddlMsg{table: order, text: ddlOrder})
+	if st := styleOf(t, a.render(), "PRIMARY KEY"); st.Fg != a.theme.Keyword {
+		t.Errorf("PRIMARY KEY: %+v", st)
+	}
+	golden.RequireEqual(t, a.render().String())
 }

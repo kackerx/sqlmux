@@ -110,10 +110,11 @@ func (a *App) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// Update is update, then the columns the consoles on screen want (§7.3).
+// Update is update, then the columns the consoles on screen want (§7.3)
+// and the DDL the palette's selection may (F4.2).
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	_, cmd := a.update(msg)
-	return a, tea.Batch(cmd, a.wantCols())
+	return a, tea.Batch(cmd, a.wantCols(), a.wantDDL())
 }
 
 func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -130,6 +131,10 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotAuto(msg)
 	case quickMsg:
 		return a, a.gotQuick(msg)
+	case previewDue:
+		return a, a.fetchDDL(msg)
+	case ddlMsg:
+		a.gotDDL(msg)
 	case quickRerun:
 		return a, a.gotQuickRerun(msg)
 	case colsMsg:

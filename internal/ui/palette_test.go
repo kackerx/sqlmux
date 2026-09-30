@@ -17,7 +17,7 @@ func TestPaletteColumns(t *testing.T) {
 		{Icon: Icon{Text: ":"}, Name: long, Where: "w-three", Tag: "命令", Pos: []int{59}},
 	}}
 	f := NewFrame(160, 45, TokyonightStorm)
-	box, _, _ := PaletteBox(uv.Rect(0, 0, 160, 44), len(p.Rows), false)
+	box, _, _ := PaletteBox(uv.Rect(0, 0, 160, 44), len(p.Rows), false, 0)
 	p.Draw(f, uv.Rect(0, 0, 160, 44))
 	lines := strings.Split(f.String(), "\n")
 	var starts []int
@@ -56,9 +56,25 @@ func TestPaletteBoxResult(t *testing.T) {
 		{44, 0, 0, 28},   // nothing listed: no rule under the list either
 	} {
 		screen := uv.Rect(0, 0, 160, c.h)
-		box, rows, grid := PaletteBox(screen, c.n, true)
+		box, rows, grid := PaletteBox(screen, c.n, true, 0)
 		if box.Max.Y != c.h-1 || rows != c.rows || grid.Dy() != c.gridH || grid.Max.Y != box.Max.Y-3 {
 			t.Errorf("h %d n %d: box %v rows %d grid %v", c.h, c.n, box, rows, grid)
+		}
+	}
+}
+
+// A preview under the list gets at most 12 rows, and gives them up first
+// in a short window: the list keeps its own (F4.2).
+func TestPaletteBoxPreview(t *testing.T) {
+	for _, c := range []struct{ h, rows, preview int }{
+		{44, 12, 12}, // tall: both whole
+		{30, 12, 5},  // shorter: the preview shrinks
+		{24, 12, 0},  // short: no room left for it
+		{12, 3, 0},   // tiny: the list's 3 rows
+	} {
+		box, rows, grid := PaletteBox(uv.Rect(0, 0, 160, c.h), 20, false, 15)
+		if rows != c.rows || grid.Dy() != c.preview || box.Dy() != rows+7+min(c.preview, 1)+c.preview || box.Max.Y > c.h {
+			t.Errorf("h %d: box %v rows %d preview %v", c.h, box, rows, grid)
 		}
 	}
 }

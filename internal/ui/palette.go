@@ -29,6 +29,22 @@ type Palette struct {
 	Footer   []Hint // left: moving, scopes, closing
 	Enter    []Hint // right: what ↵ (and C-t) do
 	Result   *PaletteResult
+	Preview  *PalettePreview
+}
+
+// PalettePreview is the DDL of the table selected, under the list (F4.2):
+// in SQL's colors, or the error that came instead.
+type PalettePreview struct {
+	Text, Err string
+	Names     SQLNames
+}
+
+// Lines is how many rows p takes whole.
+func (p *PalettePreview) Lines() int {
+	if p.Err != "" {
+		return 1
+	}
+	return strings.Count(p.Text, "\n") + 1
 }
 
 // PaletteResult is quick SQL's result area, under the list (§12): a title
@@ -51,14 +67,23 @@ const (
 // half to SQL results, and fixed so the input stays put as the list grows
 // and shrinks; list rows = how many show. With a result the box reaches
 // down to a row above the status bar, and grid is where the result's table
-// goes, the list giving up rows before it does.
-func PaletteBox(screen uv.Rectangle, n int, result bool) (box uv.Rectangle, rows int, grid uv.Rectangle) {
+// goes, the list giving up rows before it does. A preview of that many
+// lines goes under the list, at most 12, in grid: short of room it gives up
+// rows first, before the list does (F4.2).
+func PaletteBox(screen uv.Rectangle, n int, result bool, preview int) (box uv.Rectangle, rows int, grid uv.Rectangle) {
 	w := min(100, screen.Dx()-4)
 	x, top := screen.Min.X+(screen.Dx()-w)/2, screen.Min.Y+screen.Dy()/6
 	if !result {
 		// border, scopes, input, rule | list | rule, footer, border
-		rows = max(min(n, paletteRows, screen.Max.Y-top-7), 0)
-		return uv.Rect(x, top, w, rows+7), rows, uv.Rectangle{}
+		room := screen.Max.Y - top - 7
+		rows = max(min(n, paletteRows, room), 0)
+		preview = max(min(preview, paletteRows, room-rows-1), 0) // | rule, preview
+		box = uv.Rect(x, top, w, rows+7)
+		if preview > 0 {
+			box.Max.Y += preview + 1
+			grid = uv.Rect(x+1, top+4+rows+1, w-2, preview)
+		}
+		return box, rows, grid
 	}
 	box = uv.Rect(x, top, w, max(screen.Max.Y-1-top, 0))
 	// border, scopes, input, rule | list, rule | title | table | rule, footer, border
@@ -74,7 +99,12 @@ func PaletteBox(screen uv.Rectangle, n int, result bool) (box uv.Rectangle, rows
 // the input's cursor goes.
 func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 	th := f.Theme
-	box, rows, grid := PaletteBox(screen, len(p.Rows), p.Result != nil)
+	preview := 0
+	if p.Preview != nil {
+		preview = p.Preview.Lines()
+	}
+	box, rows, grid := PaletteBox(screen, len(p.Rows), p.Result != nil, preview)
+	top := max(min(p.Top, p.Sel), p.Sel-rows+1, 0) // the selection in view, when a preview took rows
 	f.Dim()
 	f.Region(f.Bounds(), Target{Kind: KindBackdrop}) // a click outside closes it
 	if box.Dx() < 8 {
@@ -119,7 +149,7 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 		located = located || r.Where != ""
 	}
 	nameW = min(nameW, box.Dx()*2/5)
-	for i := p.Top; i < min(p.Top+rows, len(p.Rows)); i, y = i+1, y+1 {
+	for i := top; i < min(top+rows, len(p.Rows)); i, y = i+1, y+1 {
 		r := p.Rows[i]
 		st := bg
 		if i == p.Sel {
@@ -151,6 +181,28 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 		name, inName := TruncateMatch(r.Name, inName, w)
 		f.TextMatch(nx, y, min(nx+w, right-1), name, inName, st)
 		f.TextMatch(nx+nameW+2, y, right-1, r.Where, inWhere, faint)
+	}
+	if pv := p.Preview; pv != nil && grid.Dy() > 0 {
+		rule(y)
+		lines, colors := strings.Split(pv.Text, "\n"), SQLColors(th, pv.Text, pv.Names)
+		if pv.Err != "" {
+			lines, colors = []string{pv.Err}, nil
+		}
+		at := 0
+		for i, l := range lines[:min(len(lines), grid.Dy())] {
+			r := uv.Rect(x0, grid.Min.Y+i, x1-x0, 1)
+			switch {
+			case i == grid.Dy()-1 && i < len(lines)-1: // cut
+				// ponytail: a DDL longer than the preview is cut, not scrolled
+				f.Text(r.Min.X, r.Min.Y, r.Max.X, "…", dim)
+			case colors == nil:
+				f.Text(r.Min.X, r.Min.Y, r.Max.X, l, uv.Style{Fg: th.Error, Bg: th.PaneBg})
+			default:
+				Input{Text: l}.draw(f, r, bg, colors[at:at+len(l)])
+			}
+			at += len(l) + 1
+		}
+		y = grid.Max.Y
 	}
 	if r := p.Result; r != nil {
 		if rows > 0 {

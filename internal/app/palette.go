@@ -1,16 +1,19 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"sqlmux/internal/config"
 	"sqlmux/internal/db"
+	"sqlmux/internal/db/postgres"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -20,6 +23,11 @@ type palette struct {
 	input    ui.Input
 	sel, top int   // selected candidate, first one shown
 	into     *Pane // a landing tab's 打开表: the table picked opens there (§5)
+
+	// The table the selection was on when last looked at, and the preview's
+	// timer for it (F4.2).
+	preview    tableID
+	previewSeq int
 
 	// Quick SQL's (§12).
 	comp  *completion
@@ -226,6 +234,7 @@ func (a *App) paletteView() ui.Palette {
 	if a.quickShows() {
 		p.Result = a.quickView(a.palette.quick)
 	}
+	p.Preview = a.palettePreview()
 	return p
 }
 
@@ -252,7 +261,123 @@ func (a *App) paletteMove(d int) {
 // paletteBox is where the palette sits for n candidates, and its result's
 // table goes: quick SQL has one once it has run.
 func (a *App) paletteBox(n int) (box uv.Rectangle, rows int, grid uv.Rectangle) {
-	return ui.PaletteBox(a.window(), n, a.quickShows())
+	lines := 0
+	if pv := a.palettePreview(); pv != nil {
+		lines = pv.Lines()
+	}
+	return ui.PaletteBox(a.window(), n, a.quickShows(), lines)
+}
+
+// previewDelay is how long the palette's selection rests on a table before
+// its DDL is asked for (§12「预览」).
+var previewDelay = 150 * time.Millisecond
+
+type (
+	// previewDue is previewDelay after the selection went to a table.
+	previewDue struct {
+		p   *palette
+		seq int
+	}
+	// ddlMsg brings a table's DDL, or why there is none.
+	ddlMsg struct {
+		table db.Table
+		text  string
+		err   error
+	}
+	// ddlText is a table's DDL as the cache keeps it; got is false while it
+	// is on its way.
+	ddlText struct {
+		text, err string
+		got       bool
+	}
+)
+
+// previewed is the table the palette's selection is on, if any: in 所有
+// and 表, the scopes listing tables (F4.2).
+func (a *App) previewed() (db.Table, bool) {
+	if a.palette == nil {
+		return db.Table{}, false
+	}
+	items, ms := a.paletteMatches()
+	if a.palette.sel >= len(ms) || items[ms[a.palette.sel].Index].kind != itemTable {
+		return db.Table{}, false
+	}
+	id := items[ms[a.palette.sel].Index].id
+	i := slices.IndexFunc(a.sess.Tables, func(t db.Table) bool { return t.Schema+"."+t.Name == id })
+	if i < 0 {
+		return db.Table{}, false
+	}
+	return a.sess.Tables[i], true
+}
+
+// palettePreview is the preview of the table selected, once its DDL is in.
+func (a *App) palettePreview() *ui.PalettePreview {
+	t, ok := a.previewed()
+	d := a.sess.ddl[idOf(t)]
+	if !ok || !d.got {
+		return nil
+	}
+	cols, cached := a.sess.cols[idOf(t)]
+	names, _ := a.sqlNames(d.text, t.Schema, nil)
+	if cached { // its own columns, as a WHERE's (§7.3)
+		names, _ = a.sqlNames(d.text, "", &cols)
+	}
+	return &ui.PalettePreview{Text: d.text, Err: d.err, Names: names}
+}
+
+// wantDDL times the preview: the selection moved to a table whose DDL is
+// not cached, previewDelay from now it is asked for if still there; a
+// move meanwhile starts over (F4.2). Checked after every message, as the
+// selection moves with keys, the mouse and the input's filter.
+func (a *App) wantDDL() tea.Cmd {
+	p := a.palette
+	if p == nil {
+		return nil
+	}
+	t, ok := a.previewed()
+	if !ok {
+		t = db.Table{}
+	}
+	if idOf(t) == p.preview {
+		return nil
+	}
+	p.preview = idOf(t)
+	if _, cached := a.sess.ddl[idOf(t)]; !ok || cached {
+		return nil
+	}
+	p.previewSeq++
+	due := previewDue{p, p.previewSeq}
+	return tea.Tick(previewDelay, func(time.Time) tea.Msg { return due })
+}
+
+// fetchDDL asks Meta for the DDL of the table the selection rested on.
+func (a *App) fetchDDL(m previewDue) tea.Cmd {
+	t, ok := a.previewed()
+	if m.p != a.palette || m.seq != m.p.previewSeq || !ok {
+		return nil
+	}
+	if _, cached := a.sess.ddl[idOf(t)]; cached {
+		return nil
+	}
+	a.sess.ddl[idOf(t)] = ddlText{}
+	meta := a.sess.Meta
+	return func() tea.Msg {
+		var text string
+		err := meta.Run(context.Background(), func(ctx context.Context, c db.Conn) (err error) {
+			text, err = postgres.DDL(ctx, c, t.Schema, t.Name)
+			return err
+		})
+		return ddlMsg{t, text, err}
+	}
+}
+
+// gotDDL caches a DDL; shown if the selection is still on its table.
+func (a *App) gotDDL(m ddlMsg) {
+	d := ddlText{text: m.text, got: true}
+	if m.err != nil {
+		d.err = m.err.Error()
+	}
+	a.sess.ddl[idOf(m.table)] = d
 }
 
 // quickShows is whether the palette shows a quick SQL's result area.
