@@ -2,7 +2,7 @@
 # F1.7 命令面板：快速 SQL（specs/m1-browse/task.md F1.7；tech-design §12「快速 SQL」、§14 state.json）
 # 布局交给 golden（TestGoldenQuickSQL160x45）；这里测真实 PG 上的执行、取消、补全、重启后的历史和剪贴板：
 # 第一次启动时 PATH 里没有剪贴板工具（-P /bin），C-y 走 OSC 52 后备、查 tmux 的 buffer；最后照默认 PATH 走假的 pbcopy（F3.38）。
-# 在自建库里做：要看写语句被拒绝、数据不变；application_name 用来认出本次运行的连接。
+# 在自建库里做：要看写语句不执行、数据不变（F4.1 起不发给数据库，f4.1 细测）；application_name 用来认出本次运行的连接。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 
@@ -14,23 +14,6 @@ mkdir -p "$D/own"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres
 . "$(dirname "$0")/palette.sh"
 ERROR=#f7768e
 psql_n() { psql "$E2E_DB" -At -c "$1"; }
-pbox() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5; exit }'; }   # 面板的 X Y W H
-# prows：面板内每一行的文字（第一行是上边框）；结果区的标题行以「只读」收尾
-prows() { local g; g=($(pbox)); e2e_rows $((g[0] + 1)) $((g[0] + g[2] - 2)) ${g[1]} $((g[1] + g[3] - 1)) $((g[0] + 1)) | cut -d'|' -f1; }
-title() { prows | grep -m1 ' 只读' | tr -s ' ' | sed 's/^ //; s/ $//'; }
-title_like() { [[ $(title) =~ $1 ]] || { echo "  title: '$(title)', want /$1/"; false; }; }
-line1() { prows | awk '/ 只读/ { getline; print; exit }' | sed 's/^ *//; s/ *$//'; }   # 标题下面第一行（报错时就是错误）
-# grid：结果区表格的数据行，每行「列1|列2…」
-grid() { prows | awk '/ 只读/ { f = 1; next } f && /┼/ { g = 1; next } g && /│/' | sed 's/^ *[0-9]* │//; s/ *│ */|/g; s/^ *//; s/ *$//'; }
-pfoot() { prows | tail -2 | head -1 | sed 's/ *$//'; }                     # 底栏
-modified() { [[ $(pfoot) == *"已修改，↵ 重新执行" ]]; }
-input() { local g; g=($(pbox)); e2e_text $((g[0] + 3)) $((g[0] + g[2] - 2)) $((g[1] + 2)) | sed 's/^ *//; s/ *$//'; }
-clear_all() { local i; for ((i = 0; i < 120; i++)); do e2e_keys BSpace; done; sleep 0.3; }
-# sql TEXT：在已打开的面板里清空输入、输入 ;TEXT、↵，等结果回来
-sql() { clear_all; e2e_type ";$1"; sleep 0.4; e2e_keys Enter; wait_for 8 eval '[[ -n $(title) && $(title) != "… 行"* ]]'; sleep 0.2; }
-pop() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5 }' | sed -n 2p; }   # 补全列表：面板之后的第二个浮层
-items() { local g y; g=($(pop)); [[ -n ${g[0]} ]] || return 0
-  for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 2)) $((g[0] + g[2] - 2)) $y | tr -s ' ' | sed 's/^ //; s/ $//'; done; }
 active() { psql_n "select count(*) from pg_stat_activity where application_name = '$APP' and state = 'active' and query ~* 'pg_sleep|fetch'"; }
 
 start -P /bin -C "$D/own" -S "$ST"
@@ -40,7 +23,7 @@ check "面板多了「SQL ;」范围" eval '[[ $(e2e_text $(($(left) + 2)) $(($(
 # ---- 执行：Meta 上的只读事务，结果在面板下半部分（§12）
 sql "select status, count(*) from t_order group by 1 order by 1"
 want=$(psql_n "select status || '|' || count(*) from t_order group by status order by status" | tr '\n' /)
-check "group by：标题「4 行 · 耗时 · 只读」，右侧 C-y CSV；四行和 psql 一致" eval 'title_like "^4 行 · [0-9.]+(µs|ms|s) · 只读 C-y CSV$" && [[ $(grid | tr "\n" /) == "$want" ]] || { grid; echo "  want $want"; false; }'
+check "group by：标题「4 行 · 耗时 · 只读」，右侧 C-y CSV · C-t 结果区 · C-e console（F4.1）；四行和 psql 一致" eval 'title_like "^4 行 · [0-9.]+(µs|ms|s) · 只读 C-y CSV · C-t 结果区 · C-e console$" && [[ $(grid | tr "\n" /) == "$want" ]] || { grid; echo "  want $want"; false; }'
 check "刚执行完：底栏没有「已修改」" eval '! modified'
 e2e_keys BSpace; sleep 0.3
 check "改动输入：底栏「已修改，↵ 重新执行」" modified
@@ -57,7 +40,7 @@ check "服务端只算到第 101 行：第 5000 行的除零没有发生，显�
 sql "selec 1"
 check "语法错误：标题下第一行是数据库原文，红色" eval '[[ $(line1) == "ERROR: syntax error at or near \"selec\" (SQLSTATE 42601)" ]] && g=($(pbox)) && style_has $((g[0] + 2)) $(( $(prows | grep -n -m1 "ERROR:" | cut -d: -f1) + g[1] - 1 )) fg=$ERROR || { echo "  $(line1)"; false; }'
 sql "delete from t_order where id = 1"
-check "写语句：只读事务拒绝，显示数据库的错误，数据不变" eval '[[ $(line1) == *"cannot execute DELETE in a read-only transaction"* && $(psql_n "select count(*) from t_order where id = 1") == 1 ]] || { echo "  $(line1)"; false; }'
+check "写语句（F4.1）：不执行，标题下第一行是提示「写语句不在这里执行 · C-e 在 console 中打开」，数据不变" eval '[[ $(line1) == "写语句不在这里执行 · C-e 在 console 中打开" && $(psql_n "select count(*) from t_order where id = 1") == 1 ]] || { echo "  $(line1)"; false; }'
 
 # ---- 执行中：标题「… 行」，再按 ↵ 忽略；C-c 取消查询、面板不关、保留上次结果（§12、§8.3）
 sql "select 42 as x"
