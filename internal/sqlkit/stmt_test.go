@@ -162,9 +162,27 @@ func TestIsQuery(t *testing.T) {
 	}
 }
 
+// pgCommands are the first words of PG 17's SQL Commands (the docs'
+// Reference, I. SQL Commands), each statement's.
+var pgCommands = strings.Fields(`abort alter analyze begin call checkpoint close cluster comment commit
+	copy create deallocate declare delete discard do drop end execute explain fetch grant import
+	insert listen load lock merge move notify prepare reassign refresh reindex release reset revoke
+	rollback savepoint security select set show start table truncate unlisten update vacuum values with`)
+
 // IsWrite takes what IsRead doesn't but for a first word no keyword: a
-// typo goes to the database.
+// typo goes to the database. Every PG statement's first word is one: what
+// IsRead doesn't take of them is a write.
 func TestIsWrite(t *testing.T) {
+	for _, w := range pgCommands {
+		if s := w + " x"; IsWrite(s, PG) == IsRead(s, PG) {
+			t.Errorf("%s: IsWrite %v, IsRead %v", s, IsWrite(s, PG), IsRead(s, PG))
+		}
+	}
+	for _, s := range []string{"selec 1", "sleect 1"} {
+		if IsWrite(s, PG) {
+			t.Errorf("a typo, %s, is kept back", s)
+		}
+	}
 	for s, want := range map[string]bool{
 		"delete from t": true, "with x as (delete from t returning *) select * from x": true, "(insert into t values (1))": true,
 		"select 1": false, "selec 1": false, "t_order": false, "": false, "explain analyze delete from t": true,
