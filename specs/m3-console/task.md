@@ -684,7 +684,8 @@
   - 从表格按 `/` 或点击进入时是 INSERT，光标在末尾（同现在）；INSERT 下补全、自动配对、`C-w` / `C-u` / `M-BS`、`C-r` 历史照旧，`↵` 执行。
   - INSERT 下 `esc` 回到 WHERE 的 NORMAL（补全列表开着时一次 `esc` 关列表并回 NORMAL，同 console）；NORMAL 下再 `esc` 回表格，没 `↵` 过的改动丢掉，输入框恢复成生效的条件（同现在）。
   - NORMAL 下编辑器支持的移动和操作都能用：`i a I A`、`x s S C D`、`cc` / `dd`（清空这一行）、`ciw caw diw daw ci' ci(` 等文本对象、`u` / `C-r`、`p` / `P`、`yy`；换行类的（`o` `O` `J`）不做事，`j` / `k` 不动，`↵` 执行。
-  - NORMAL 下 `/` 打开历史 / 收藏下拉（这里不需要搜索）。
+  - NORMAL 下 `/` 打开历史 / 收藏下拉（这里不需要搜索），同时进 INSERT、光标到末尾（同 `A`），接着打字就是过滤；下拉里 `esc` 只关下拉、停在 INSERT。
+  - 复制高亮同 console（F3.32）：`yy`、`y{移动}`、VISUAL 下 `y`、`"+y` 都闪 `yank` 色。VISUAL 下不走 `wherenormal`，`esc`、`↵` 交给编辑器，同 console 的 VISUAL。
   - 模式块照 console 显示 NORMAL / INSERT。
   - `C-c` 照旧等同 `esc`（它也是取消查询、连按退出的键），清空条件用 NORMAL 下的 `dd` / `cc`，或 INSERT 下的 `C-u`。
 - [ ] 作用域 `[keys.wherenormal]`（WHERE 在 NORMAL 下生效，§6.4）：`<CR>` = `where.run`「执行」、`/` = `where.history`、`<Esc>` = `where.leave`「回到表格」，没绑的交给编辑器；`[keys.normal]` 的键（`C-hjkl`、leader、`gt`、`?`）照常生效，同 console 的 NORMAL，切走焦点照现在的规则放弃这次编辑。用户映射只用 `[map.normal]`。INSERT 下照旧是 `input` 作用域。
