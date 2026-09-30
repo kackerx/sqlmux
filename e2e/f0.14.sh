@@ -38,17 +38,17 @@ e2e_keys Escape; sleep 0.2
 # ---- prefixes restrict the search
 pal "@ord"; check "@ord searches tables only" eval '[[ $(kinds) == "表 " ]] && row_has t_order && row_has t_order_item'
 e2e_keys Escape; sleep 0.2
-pal "%t_ord"; check "%t_ord searches windows and panes only (finds ① on t_order)" eval '[[ $(kinds) == "Pane " ]] && row_has "table · t_order"'
+pal "%t_ord"; check "%t_ord searches windows, panes and tabs only (F4.3: ① on t_order, and the tab itself)" eval '[[ $(kinds) == "Pane Tab " ]] && row_has "table · t_order" && list | grep -q "^t_order  doraemon › 0: data › pane-1  Tab|"'
 e2e_keys Escape; sleep 0.2
 
 # ---- rows: icon, name, dim location, key / ON-OFF, type label
 pal
 wrow() { list | grep -n "^0: data  doraemon .*窗口|" | cut -d: -f1; }   # the window row's number (the recent tables come first)
 check "window row: 0: data, located in doraemon, labelled 窗口, window icon" eval 'n=$(wrow); [[ -n $n && $(icon_of $n) == "$NF_WINDOW" ]]'
-check "pane row: ⟨1⟩ table · t_order (F3.7: the type of its tab), located in 0: data, labelled Pane" eval 'row_has "table · t_order  0: data" && list | grep -q "table · t_order  0: data .*Pane|"'
+check "pane row: ⟨1⟩ table · t_order (F3.7: the type of its tab), located in doraemon › 0: data (F4.3), labelled Pane" eval 'list | grep -q "table · t_order  doraemon › 0: data  Pane|"'
 check "table row: located in doraemon.public, labelled 表" eval 'list | grep -q "^mv_order_by_status  doraemon.public .*表|"'
 check "the location is dim; the type label is dim and right-aligned (ends one column before │)" eval 'y=$(row_y $(wrow)); c=$(e2e_find doraemon $y); style_has $c $y fg=#565f89 && text_is $(( $(right) - 5 )) $(right) $y "窗口 │" && style_has $(( $(right) - 5 )) $y fg=#565f89'
-check "所有, empty input: recent first (t_order, t_user), then window → pane → table → command" eval 'clear_input; o=$(list | cut -d"|" -f1 | awk "{print \$NF}" | uniq | tr "\n" " "); [[ $o == "表 窗口 Pane 表 "* && $(list | head -2 | cut -d" " -f1 | tr "\n" " ") == "t_order t_user " ]] || { echo "  order: $o"; false; }'
+check "所有, empty input: recent first (t_order, t_user), then window → pane → its tabs (F4.3: ① t_user, t_order; ② none) → table → command" eval 'clear_input; o=$(list | cut -d"|" -f1 | awk "{print \$NF}" | uniq | tr "\n" " "); [[ $o == "表 窗口 Pane Tab Pane 表 "* && $(list | head -2 | cut -d" " -f1 | tr "\n" " ") == "t_order t_user " ]] || { echo "  order: $o"; false; }'
 seen=""; clear_input; for i in $(seq 24); do seen+=" $(kinds)"; e2e_keys Down; sleep 0.05; done
 check "所有 has all four kinds (scrolling through the list)" eval '[[ $seen == *窗口* && $seen == *Pane* && $seen == *表* && $seen == *命令* ]] || { echo "  kinds: $(tr " " "\n" <<<"$seen" | sort -u | tr "\n" " ")"; false; }'
 clear_input; e2e_type '>'; sleep 0.3

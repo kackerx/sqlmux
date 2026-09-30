@@ -20,7 +20,7 @@ check "filter row: icon then the table count, no /" text_is 2 14 2 " $NF_FILTER 
 check "status bar: the palette entry is only the search icon" eval '[[ $(e2e_text 1 160 45) != *C-p* ]] && text_is $(( $(search_col) - 1 )) $(( $(search_col) + 1 )) 45 " $SEARCH_ICON "'
 e2e_click $(search_col) 45; sleep 0.3
 check "clicking the search icon opens the palette" is_open
-check "palette pane rows keep the type of the current tab (F3.7): ① table · t_order, the empty ② none" eval 'clear_input; e2e_type "%"; sleep 0.3; row_has "① table · t_order" && list | grep -qE "^ *② +0: data"'
+check "palette pane rows keep the type of the current tab (F3.7): ① table · t_order, the empty ② none" eval 'clear_input; e2e_type "%"; sleep 0.3; row_has "① table · t_order" && list | grep -qE "^ *② +doraemon › 0: data"'
 e2e_keys Escape; sleep 0.2
 e2e_keys Space; e2e_type '"'; sleep 0.3
 check "a new pane is ② and the right one becomes ③" eval 'text_has 34 96 23 "┌─ ② ─" && text_has 98 160 1 "┌─ ③ ─"'
