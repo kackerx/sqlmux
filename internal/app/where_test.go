@@ -323,8 +323,8 @@ func TestSQLNames(t *testing.T) {
 }
 
 // The WHERE input is a vim of one line (F3.39): esc goes to its NORMAL,
-// where dd, ciw, u and VISUAL work, o does nothing and a click moves the
-// cursor; ↵ runs it, / opens the history, what is typed then filtering
+// where dd, ciw, u and VISUAL work, a yank flashing, o does nothing and a
+// click moves the cursor; ↵ runs it, / opens the history, what is typed then filtering
 // it; esc or C-c goes back to the table, the change dropped. [map.normal]
 // applies, a grid's maps don't; "+P puts the clipboard (F3.38).
 func TestWhereVim(t *testing.T) {
@@ -349,7 +349,11 @@ func TestWhereVim(t *testing.T) {
 	if f := a.render(); f.Buf.CellAt(r.Min.X+5, r.Min.Y).Style.Bg != a.theme.Visual || f.Buf.CellAt(r.Min.X+6, r.Min.Y).Style.Bg == a.theme.Visual || mode() != " VISUAL " {
 		t.Errorf("VISUAL: amount not selected alone, in %q", mode())
 	}
-	feed(t, a, "<Esc>")
+	keys(t, a, "y")
+	if st := a.render().Buf.CellAt(r.Min.X, r.Min.Y).Style; st.Bg != a.theme.Yank || mode() != " NORMAL " {
+		t.Errorf("y flashes what it took: %+v", st)
+	}
+	a.Update(flashDone{a.flashSeq})
 	if click(a, uv.Pos(r.Min.X+3, r.Min.Y)); tab.where.Pos != 3 || tab.ed.Mode() != editor.Normal {
 		t.Errorf("click: %+v in %v", tab.where, tab.ed.Mode())
 	}

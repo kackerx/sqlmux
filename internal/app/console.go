@@ -121,17 +121,23 @@ func (a *App) consoleView(p *Pane, t *consoleTab) (ui.Console, uv.Rectangle) {
 		c.Yank = f.text
 	}
 	c.Prompt, c.Text, c.Pos, _ = ed.CmdLine()
+	c.Sel = vimSel(ed)
+	return c, body
+}
+
+// vimSel is what a vim's VISUAL selects, none out of it.
+func vimSel(ed *editor.Editor) (s ui.Sel) {
 	if from, to, ok := ed.Selection(); ok {
-		c.Sel = ui.Sel{Mode: ui.SelChars, From: ui.TextPos(from), To: ui.TextPos(to)}
+		s = ui.Sel{Mode: ui.SelChars, From: ui.TextPos(from), To: ui.TextPos(to)}
 		switch ed.Mode() {
 		case editor.VisualLine:
-			c.Sel.Mode = ui.SelLines
+			s.Mode = ui.SelLines
 		case editor.VisualBlock:
-			c.Sel.Mode = ui.SelBlock
-			_, _, c.Sel.Left, c.Sel.Right, _ = ed.Block()
+			s.Mode = ui.SelBlock
+			_, _, s.Left, s.Right, _ = ed.Block()
 		}
 	}
-	return c, body
+	return s
 }
 
 // consoleKey gives key k to the editor of console t, in pane p. With the
@@ -193,11 +199,15 @@ func (a *App) consoleAccept(t *consoleTab) (ok bool, cmd tea.Cmd) {
 	return false, nil
 }
 
-// vimCmds are what any vim's eff asks of the app (F3.38): the clipboard
-// gets what "+ took, or is asked for what "+p puts, which put takes once
-// it comes; an error is toasted.
+// vimCmds are what any vim's eff asks of the app: the clipboard gets
+// what "+ took, or is asked for what "+p puts, which put takes once it
+// comes (F3.38); a yank flashes in the focused pane (F3.32); an error is
+// toasted.
 func (a *App) vimCmds(eff editor.Effect, put func(text string, p editor.ClipPut) tea.Cmd) []tea.Cmd {
 	var cmds []tea.Cmd
+	if eff.Yank != nil {
+		cmds = append(cmds, a.flashYank(yankFlash{pane: a.focused().ID, text: yankSel(*eff.Yank)}))
+	}
 	if eff.Clip != nil {
 		cmds = append(cmds, clipCopy(*eff.Clip))
 	}
@@ -219,10 +229,10 @@ type autosave struct {
 // autosaveDelay is how long after the last change a console is written (§11).
 var autosaveDelay = time.Second
 
-// consoleDid acts on what the editor did: the clipboard as vimCmds, a
-// yank flashes, a change drops the red ▶ and is written a second after
-// the last one, a : command it left runs here. The candidate list closes;
-// typing on opens it again (consoleKey).
+// consoleDid acts on what the editor did: vimCmds, then a change drops
+// the red ▶ and is written a second after the last one, a : command it
+// left runs here. The candidate list closes; typing on opens it again
+// (consoleKey).
 func (a *App) consoleDid(t *consoleTab, eff editor.Effect) tea.Cmd {
 	t.comp = nil
 	cmds := a.vimCmds(eff, func(text string, p editor.ClipPut) tea.Cmd {
@@ -231,9 +241,6 @@ func (a *App) consoleDid(t *consoleTab, eff editor.Effect) tea.Cmd {
 		}
 		return a.consoleDid(t, t.ed.PutClip(text, p))
 	})
-	if eff.Yank != nil {
-		cmds = append(cmds, a.flashYank(yankFlash{pane: a.focused().ID, text: yankSel(*eff.Yank)}))
-	}
 	if eff.Changed {
 		t.failed = -1
 		t.ver++

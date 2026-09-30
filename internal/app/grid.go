@@ -485,10 +485,11 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	}
 	names, _ := a.sqlNames(t.where.Text, t.table.Schema, &t.cols)
 	where := t.where
-	if from, to, ok := t.vimSel(); ok {
-		end := ui.Input{Text: where.Text, Pos: to}
-		end.Right() // the character at to is in
-		where.Sel = [2]int{from, end.Pos}
+	if t.typing == "where" {
+		where.Sel = vimSel(t.ed)
+		if f := a.flash; f != nil && f.pane == p.ID {
+			where.Yank = f.text
+		}
 	}
 	return ui.QueryBar{
 		Where: where, Typing: t.typing == "where", Pane: p.ID, Right: right, Note: t.note, Names: names,

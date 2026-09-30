@@ -425,19 +425,6 @@ func (t *dataTab) syncWhere() {
 	t.where = ui.Input{Text: t.ed.Lines()[0], Pos: t.ed.Cursor().Col}
 }
 
-// vimSel is the WHERE's VISUAL selection, the bytes from to the character
-// at to; all of it in V-LINE.
-func (t *dataTab) vimSel() (from, to int, ok bool) {
-	if t.typing != "where" {
-		return 0, 0, false
-	}
-	f, e, ok := t.ed.Selection()
-	if t.ed.Mode() == editor.VisualLine {
-		return 0, len(t.where.Text), ok
-	}
-	return f.Col, e.Col, ok
-}
-
 // whereKey gives key k to the WHERE's vim (F3.39): in INSERT ↵ takes the
 // selected candidate, or runs the WHERE when that changes nothing (§9.7),
 // and esc leaves INSERT, the list closing with it, as a console's.
@@ -453,8 +440,8 @@ func (a *App) whereKey(t *dataTab, k keymap.Key) tea.Cmd {
 
 // whereDid acts on what the WHERE's vim did: the input shows it; in INSERT
 // the candidates follow the cursor, or the history list filters by the
-// text once typed into (§9.7); the clipboard as a console's. gq has
-// nothing to lay out.
+// text once typed into (§9.7); the clipboard and a yank's flash as a
+// console's. gq has nothing to lay out.
 func (a *App) whereDid(t *dataTab, eff editor.Effect) tea.Cmd {
 	was := t.where.Text
 	t.syncWhere()
