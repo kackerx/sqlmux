@@ -665,7 +665,7 @@
 
 **开发**
 - [ ] 编辑器支持 `"+` 和 `"*`（等同）寄存器，读写系统剪贴板：`"+y{移动}`、`"+yy`、VISUAL 下 `"+y`、`"+p` / `"+P`、`"+d`、`"+x`，照 vim 的规则；VISUAL 下的 `"+p` 不做（VISUAL 的 `p` 本来就不做，§11）。其余具名寄存器照旧不做（§11）。nvim 差分测试里不测这两个寄存器。
-- [ ] 无名寄存器不再写系统剪贴板（同 vim 默认的 `clipboard=`，否则 `Y` 和 `yy` 没区别）；表格的 `yy` / `yl` 照旧写。`"+p` 用 OSC 52 查询读取（tea.ReadClipboard），终端不回应就什么都不做，没做 pbpaste / xclip 后备，用 `ponytail:` 标出；tmux 实测（3.7b）：`set-clipboard on` 时回最新的 paste buffer，默认的 `external` 不回。
+- [ ] 无名寄存器不再写系统剪贴板（同 vim 默认的 `clipboard=`，否则 `Y` 和 `yy` 没区别）；表格的 `yy` / `yl` 照旧写。读写系统剪贴板照 nvim 的 provider：依次找 `pbcopy` / `pbpaste`、`wl-copy` / `wl-paste`、`xclip`、`xsel`，找到就直接调用，都没有才用 OSC 52（tea.SetClipboard / tea.ReadClipboard）；表格的 `yy` / `yl` 共用这一处（用户在 tmux `set-clipboard external` 下，OSC 52 被 tmux 丢掉，nvim 能复制是因为它调的是 pbcopy）。tmux 实测（3.7b）：`set-clipboard on` 时回最新的 paste buffer，默认的 `external` 不回。
 - [ ] 通过后决策者在用户的 config.toml 里加 `[map.console.normal] Y = '"+yy'` 和 `[map.console.visual] Y = '"+y'`（用户要求用 `Y` 复制到系统剪贴板）。
 
 **验收**
