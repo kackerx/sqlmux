@@ -56,7 +56,7 @@ func TestConsoleErrorBar(t *testing.T) {
 		t.Error("the next run takes it away")
 	}
 	d.fail["select 1"] = fail // R on select 1's result, the console closed
-	a.closeTab(p)
+	a.closeTab(p, p.Cur)
 	a.win().focus(a.win().Result.ID)
 	if press(t, a, "R"); c.bar != nil || !strings.HasSuffix(logText(a), "HINT: look again") {
 		t.Errorf("rerun of a closed console: bar %+v, log %q", c.bar, logText(a))

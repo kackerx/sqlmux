@@ -363,7 +363,7 @@ func TestCloseTabPicksNext(t *testing.T) {
 		for _, name := range c.tabs {
 			p.Tabs = append(p.Tabs, Tab{Name: name})
 		}
-		a.closeTab(p)
+		a.closeTab(p, p.Cur)
 		if got := tabNames(p); got != strings.Join(c.want, " ") || p.Cur != c.wantCur || p.Prev != -1 {
 			t.Errorf("%v cur %d prev %d: got %v cur %d prev %d; want %v cur %d", c.tabs, c.cur, c.prev, got, p.Cur, p.Prev, c.want, c.wantCur)
 		}
@@ -784,12 +784,18 @@ func TestFoldSidebar(t *testing.T) {
 
 // SPC b unfolding the tree puts the focus on it, its cursor on the node of
 // the tab focused before, the nodes above it opened: a table's under its
-// schema, a console's in the workspace (F3.29).
+// schema, a console's in the workspace (F3.29). Filtered out, nothing
+// opens.
 func TestFoldSidebarReveals(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	loadOrders(t, a, 3)
 	a.sess.open[schemaNode("public")] = false // folded by hand
-	feed(t, a, "<Space>b<Space>b")
+	a.win().tree.filter = ui.Input{Text: "planner"}
+	if feed(t, a, "<Space>b<Space>b"); a.sess.open[schemaNode("public")] {
+		t.Fatal("filtered out, t_order's schema opens")
+	}
+	a.win().tree.filter = ui.Input{}
+	feed(t, a, "<C-l><Space>b<Space>b")
 	if n, _ := a.treeNode(); a.win().Focus != 0 || n.kind != nodeTable || n.table.Name != "t_order" {
 		t.Fatalf("t_order's: focus %d, node %+v", a.win().Focus, n.TreeNode)
 	}

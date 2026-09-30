@@ -337,14 +337,16 @@ func (t *dataTab) stepCurrent(d int) {
 
 // moveSeg is Tab and S-Tab over a time's box (§10.2, F3.34): d through its
 // parts, then the options' row, around the ends. On an option no part is
-// current; ↵ takes it.
+// current; ↵ takes it. Text with no parts (empty, infinity) has the
+// options alone.
 func (t *dataTab) moveSeg(d int) {
 	c := t.cell
 	n := len(ui.TimeSegs(t.cellKind(), c.in.Text))
-	all := n + len(t.options())
-	if all == 0 {
+	if n == 0 {
+		t.moveOption(d)
 		return
 	}
+	all := n + len(t.options())
 	at := c.seg
 	if c.sel >= 0 {
 		at = n + c.sel
@@ -545,7 +547,8 @@ func (a *App) cellField(d int) tea.Cmd {
 		t.commitCell()
 	}
 	if next := t.col + d; next >= 0 && next < len(t.shownCols()) {
-		a.gridGoto(fmt.Sprintf("%d %d", t.row, next))
+		t.col = next
+		a.gridMove(func(r, c, _, _ int) (int, int) { return r, c }) // into view
 		return a.editCell(nil)
 	}
 	return nil
@@ -696,7 +699,7 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 		}
 		t.added = slices.DeleteFunc(t.added, func(r *newRow) bool { return slices.Contains(m.adds, r) })
 		if p := a.paneShowing(t); closing && t.changes() == 0 && t.cell == nil && p != nil { // :wq, and nothing changed since, nor being typed
-			a.closeTab(p)
+			a.closeTab(p, p.Cur)
 			return nil
 		}
 		cmd := a.fetch(t, true) // the rows may leave the WHERE now

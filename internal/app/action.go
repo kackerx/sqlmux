@@ -48,7 +48,7 @@ func init() {
 		"palette.up":         {Title: "上移", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(-1); return nil })},
 		"palette.down":       {Title: "下移", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.paletteMove(1); return nil })},
 		"palette.run":        {Title: "执行", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, false) })},
-		"palette.open.tab":   {Title: "在新 tab 打开", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, true) })},
+		"palette.open.tab":   {Title: "打开", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.paletteRun(a.palette.sel, true) })},
 		"palette.close":      {Title: "关闭命令面板", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { a.palette = nil; return nil })},
 		"quicksql.copy":      {Title: "复制结果", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { return a.copyQuick() })},
 		"palette.scope.next": {Title: "下一个范围", Local: true, Run: when(inPalette, func(a *App) tea.Cmd { s, _ := a.paletteScope(); a.paletteScopeTo(s + 1); return nil })},
@@ -80,38 +80,21 @@ func init() {
 			a.quitToast = a.toastSeq
 			return cmd
 		}},
-		"quit": {Title: "退出", Run: func(a *App, _ Args) tea.Cmd { return a.quit() }},
-		"tab.close": {Title: "关闭 tab", Run: func(a *App, _ Args) tea.Cmd {
-			if t := consoleOf(a.focused()); t != nil { // written, not asked about (§11)
-				if err := t.flush(); err != nil {
-					return a.saveFailed(err)
-				}
-				a.closeTab(a.focused())
-				return nil
-			}
-			n, name := 0, ""
-			if t := dataOf(a.focused()); t != nil {
-				n, name = t.changes(), t.table.Name+" "
-			}
-			return a.unlessUnsaved(n, name, "关闭", func() tea.Cmd { a.closeTab(a.focused()); return nil })
-		}},
+		"quit":      {Title: "退出", Run: func(a *App, _ Args) tea.Cmd { return a.quit() }},
+		"tab.close": {Title: "关闭 tab", Run: func(a *App, _ Args) tea.Cmd { return a.closeTabAsking(a.focused(), a.focused().Cur) }},
 		// "tab.close.at <pane> <i>" is a click on a tab's × (F3.35): x on that
-		// tab, the one current before it back once it goes
+		// tab, the current one staying so
 		"tab.close.at": {Run: func(a *App, args Args) tea.Cmd {
 			var id, i int
 			p := (*Pane)(nil)
 			if _, err := fmt.Sscan(args.Arg, &id, &i); err == nil {
 				p = a.win().pane(id)
 			}
-			if p == nil || i >= len(p.Tabs) {
+			if p == nil {
 				return nil
 			}
 			a.focusPane(id)
-			selectTab(p, i)
-			if p == a.win().Result {
-				return a.run("result.close", 0)
-			}
-			return a.run("tab.close", 0)
+			return a.closeTabAsking(p, i)
 		}},
 		// :wq (§11): a table's changes are saved first, and it closes once
 		// they are; a console is written by closing it anyway.
@@ -148,7 +131,7 @@ func init() {
 		})},
 		"result.close": {Title: "关闭结果", Run: do(func(a *App, _ Args) {
 			if p := a.focused(); p == a.win().Result {
-				a.closeTab(p)
+				a.closeTab(p, p.Cur)
 			}
 		})},
 
@@ -172,7 +155,7 @@ func init() {
 		"tree.expand":   {Title: "展开", Run: func(a *App, _ Args) tea.Cmd { return a.treeExpand() }},
 		"tree.collapse": {Title: "折叠 / 到上一级", Run: func(a *App, _ Args) tea.Cmd { return a.treeCollapse() }},
 		"tree.open":     {Title: "打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(false) }},
-		"tree.open.tab": {Title: "在新 tab 打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(true) }},
+		"tree.open.tab": {Title: "打开", Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(true) }},
 		"tree.filter":   {Title: "过滤", Run: do(func(a *App, _ Args) { a.treeFilter() })},
 		"tree.refresh":  {Title: "刷新表列表", Run: func(a *App, _ Args) tea.Cmd { a.sess.dropCols(); return a.loadCatalog() }},
 		// Keys inside the dropdowns and the COLS list (§6.8): untitled, like the palette's.
@@ -195,11 +178,12 @@ func init() {
 				return nil
 			}
 			var cmd tea.Cmd
-			switch {
+			switch ed := t.ed; {
 			case t.typing != "where":
 				a.startWhere(t)
-			case t.ed.Mode() != editor.Insert: // NORMAL's /: what is typed then filters it (F3.39)
-				cmd = a.whereDid(t, t.ed.Feed("A"))
+			case ed.Mode() != editor.Insert && ed.Mode() != editor.Replace: // NORMAL's /, or ▾: in INSERT what is typed then filters it (F3.39)
+				ed.Feed("<Esc>") // out of VISUAL, or a command pending
+				cmd = a.whereDid(t, ed.Feed("A"))
 			}
 			t.comp, t.hist = nil, &histMenu{}
 			return cmd
@@ -270,15 +254,16 @@ func init() {
 		"grid.last": {Title: "最后一列", Run: do(func(a *App, _ Args) {
 			a.gridMove(func(r, _, _, cols int) (int, int) { return r, cols - 1 })
 		})},
-		"grid.transpose":    {Title: "转置", Run: do(func(a *App, _ Args) { a.gridTranspose() })},
-		"grid.edit":         {Title: "编辑单元格", Run: func(a *App, _ Args) tea.Cmd { return a.editCell(nil) }},
-		"grid.revert":       {Title: "撤回这一格的修改", Run: do(func(a *App, _ Args) { a.revertCell() })},
-		"grid.row.add":      {Title: "新增一行", Run: func(a *App, _ Args) tea.Cmd { return a.addRow() }},
-		"grid.yank":         {Title: "复制单元格", Run: func(a *App, _ Args) tea.Cmd { return a.yankGrid(false) }},
-		"grid.yank.row":     {Title: "复制整行", Run: func(a *App, _ Args) tea.Cmd { return a.yankGrid(true) }},
-		"grid.paste":        {Title: "粘贴成新行", Run: func(a *App, _ Args) tea.Cmd { return a.pasteRow() }},
-		"grid.row.delete":   {Title: "标记 / 取消删除这一行", Run: func(a *App, _ Args) tea.Cmd { return a.deleteRow() }},
-		"result.toggle":     {Title: "显示 / 隐藏结果区", Run: do(func(a *App, _ Args) { a.toggleResult() })},
+		"grid.transpose":  {Title: "转置", Run: do(func(a *App, _ Args) { a.gridTranspose() })},
+		"grid.edit":       {Title: "编辑单元格", Run: func(a *App, _ Args) tea.Cmd { return a.editCell(nil) }},
+		"grid.revert":     {Title: "撤回这一格的修改", Run: do(func(a *App, _ Args) { a.revertCell() })},
+		"grid.row.add":    {Title: "新增一行", Run: func(a *App, _ Args) tea.Cmd { return a.addRow() }},
+		"grid.yank":       {Title: "复制单元格", Run: func(a *App, _ Args) tea.Cmd { return a.yankGrid(false) }},
+		"grid.yank.row":   {Title: "复制整行", Run: func(a *App, _ Args) tea.Cmd { return a.yankGrid(true) }},
+		"grid.paste":      {Title: "粘贴成新行", Run: func(a *App, _ Args) tea.Cmd { return a.pasteRow() }},
+		"grid.row.delete": {Title: "标记 / 取消删除这一行", Run: func(a *App, _ Args) tea.Cmd { return a.deleteRow() }},
+		"result.toggle": {Title: "显示 / 隐藏结果区", Run: do(func(a *App, _ Args) { a.toggleResult() }),
+			On: func(a *App) bool { return a.win().Result != nil && !a.win().resultHidden }},
 		"grid.refresh.auto": {Title: "自动刷新", Run: do(func(a *App, _ Args) { a.openDrop(dropAuto) })},
 		"grid.stop": {Title: "停止", Run: do(func(a *App, _ Args) { // the query bar's stop: what C-c cancels (§8.3)
 			a.sess.Meta.Cancel()

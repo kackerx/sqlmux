@@ -114,7 +114,7 @@ func TestLayoutSizes(t *testing.T) {
 }
 
 // The sidebar's hint row drops unbound actions and items that don't fit
-// whole (§6.7): no key-less "open", no dangling "t".
+// whole (§6.7): no key-less "open", no dangling "↵".
 func TestSidebarHintRow(t *testing.T) {
 	row := func(a *App) string {
 		r := a.layout()[0]
@@ -126,14 +126,18 @@ func TestSidebarHintRow(t *testing.T) {
 		bind string
 		want string
 	}{
-		{160, "", "│ j/k move · ↵ open · t tab"},
-		{160, `"<CR>" = ""`, "│ j/k move · t tab"},
-		{160, `"j" = ""`, "│ ↵ open · t tab"},
-		{80, "", "│ j/k move · ↵ open"}, // "t tab" doesn't fit whole
+		{160, "", "│ j/k move · ↵ open"},
+		{160, `"<CR>" = ""`, "│ j/k move"},
+		{160, `"j" = ""`, "│ ↵ open"},
 	} {
 		if got := strings.TrimRight(row(configured(t, c.w, 45, "[keys.tree]\n"+c.bind)), " │"); got != c.want {
 			t.Errorf("w=%d %s: %q, want %q", c.w, c.bind, got, c.want)
 		}
+	}
+	a := sized(160, 45, "nerd")
+	a.win().TreeW = 18
+	if got := strings.TrimRight(row(a), " │"); got != "│ j/k move" { // "↵ open" doesn't fit whole
+		t.Errorf("narrow: %q", got)
 	}
 }
 

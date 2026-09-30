@@ -155,7 +155,7 @@ func TestKeyHelpCtrlLeader(t *testing.T) {
 
 // The top level is named by the key that opens the help there (§6.5).
 func TestKeyHelpTitle(t *testing.T) {
-	a := configured(t, 160, 45, "[keys.grid]\n\"?\" = \"\"\n\"g?\" = \"keyhelp.open\"")
+	a := configured(t, 160, 45, "[keys.grid]\n\"g?\" = \"keyhelp.open\"")
 	loadOrders(t, a, 3)
 	if feed(t, a, "g?"); a.keyHelp == nil || a.keyHelpView().Prefix != "g?" {
 		t.Fatalf("g?: %+v", a.keyHelp)

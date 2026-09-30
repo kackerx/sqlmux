@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
@@ -125,22 +126,41 @@ func TestGoldenTabClose(t *testing.T) {
 }
 
 // A click on a tab's × closes it as x does, asking first when it has
-// changes, the tab current before it back; the log has none (F3.35).
+// changes, the current and previous tabs staying so; the log has none
+// (F3.35). Tabs past the bar's end take no clicks: the pane's border is
+// no tab's.
 func TestTabCloseClick(t *testing.T) {
 	a := wide(160, 45)
 	tab := loadOrders(t, a, 3)
-	feed(t, a, "lix<Esc><C-p>@t_user<CR>") // t_order changed, t_user current
+	feed(t, a, "lix<Esc><C-p>@t_user<CR><C-p>@t_sku<CR>1gt3gt") // t_order changed and -, t_user, t_sku current
 	p := a.focused()
 	x := func(i int) {
 		at := find(t, a, ui.Target{Kind: ui.KindTab, Pane: p.ID, I: i}).Min
 		a.Update(tea.MouseMotionMsg{X: at.X, Y: at.Y})
 		click(a, find(t, a, ui.Target{Kind: ui.KindButton, Pane: p.ID, Action: fmt.Sprintf("tab.close.at %d %d", p.ID, i)}).Min)
 	}
+	if x(1); tabNames(p) != "t_order t_sku" || p.Cur != 1 || p.Prev != 0 {
+		t.Fatalf("t_user closed: %v, cur %d prev %d", tabNames(p), p.Cur, p.Prev)
+	}
 	if x(0); a.confirm == nil || len(p.Tabs) != 2 {
 		t.Fatal("changes: it asks")
 	}
-	if feed(t, a, "y"); len(p.Tabs) != 1 || dataOf(p).table.Name != "t_user" || dataOf(p) == tab {
+	if feed(t, a, "n"); len(p.Tabs) != 2 || p.Cur != 1 {
+		t.Fatalf("n: %v, cur %d", tabNames(p), p.Cur)
+	}
+	x(0)
+	if feed(t, a, "y"); len(p.Tabs) != 1 || dataOf(p).table.Name != "t_sku" || dataOf(p) == tab {
 		t.Fatalf("closed: %v", tabNames(p))
+	}
+	for _, n := range []string{"t_user", "t_payment", "t_refund", "t_user_address", "t_user_profile", "mt_task_log", "agent_version"} {
+		feed(t, a, "<C-p>@"+n+"<CR>")
+	}
+	r := a.layout()[p.ID]
+	border := uv.Pos(r.Max.X-1, r.Max.Y-2)
+	a.Update(tea.MouseMotionMsg{X: border.X, Y: border.Y})
+	a.View()
+	if hit, _ := ui.HitAt(a.hits, border); hit.Kind == ui.KindTab || hit.Kind == ui.KindButton {
+		t.Errorf("the border takes a tab not shown: %+v", hit)
 	}
 }
 
@@ -348,20 +368,16 @@ func TestColType(t *testing.T) {
 
 // The tool buttons at a few widths, auto refresh on and a request out:
 // a group on one box, transpose on none; whole groups give way,
-// transpose, auto refresh and stop, + −, then save and refresh. Last, the
-// pointer on refresh lights it alone (§7.8「工具按钮」).
+// transpose, auto refresh and stop, + −, then save and refresh
+// (§7.8「工具按钮」). The pointer lighting one is TestToolButtonBoxes'.
 func TestGoldenToolButtons(t *testing.T) {
 	var rows []string
-	for _, w := range []int{160, 110, 90, 70, 160} {
+	for _, w := range []int{160, 110, 90, 70} {
 		a := wide(w, 20)
 		tab := loadOrders(t, a, 3)
 		tab.auto, tab.out = 5*time.Second, 1
 		tab.edits = map[editKey]edit{{"1", "note"}: {val: db.Val{S: "x"}}, {"2", "note"}: {val: db.Val{S: "y"}}}
 		r := a.layout()[a.focused().ID]
-		if len(rows) == 4 {
-			at := a.queryBar(a.focused(), tab).ButtonRect(bodyRect(r), "grid.refresh").Min
-			a.Update(tea.MouseMotionMsg{X: at.X, Y: at.Y})
-		}
 		rows = append(rows, ansi.Cut(strings.Split(a.render().String(), "\n")[r.Min.Y+2], r.Min.X, r.Max.X))
 	}
 	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")

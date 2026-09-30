@@ -577,7 +577,8 @@ func TestGoldenCellOptions160x45(t *testing.T) {
 // A time cell steps its parts: Tab / S-Tab pick one, and then the
 // options, around the ends; ↑ / ↓ step a part, the text following, and do
 // nothing on an option; ◷ 现在 fills the text and the edit goes on; a text
-// that doesn't parse steps nothing (§10.2, F3.34).
+// that doesn't parse steps nothing, its Tab on the options alone (§10.2,
+// F3.34).
 func TestTimeCell(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	tab := loadOrders(t, a, 3)
@@ -611,6 +612,9 @@ func TestTimeCell(t *testing.T) {
 	feed(t, a, "ix<Up>")
 	if tab.cell.in.Text != "x" {
 		t.Errorf("unparsed steps: %q", tab.cell.in.Text)
+	}
+	if feed(t, a, "<Tab>"); tab.cell.sel != 0 {
+		t.Errorf("unparsed, Tab goes to ◷ 现在 first: %d", tab.cell.sel)
 	}
 }
 

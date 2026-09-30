@@ -209,7 +209,7 @@ func (a *App) openTableIn(p *Pane, t db.Table) tea.Cmd {
 	landing := p.tab().landing()
 	if i := slices.IndexFunc(p.Tabs, func(tb Tab) bool { return tb.Data != nil && idOf(tb.Data.table) == idOf(t) }); i >= 0 {
 		if closed := p.Cur; landing {
-			if a.closeTab(p); closed < i {
+			if a.closeTab(p, closed); closed < i {
 				i--
 			}
 		}
@@ -310,26 +310,55 @@ func (a *App) paneShowing(t *dataTab) *Pane {
 	return nil
 }
 
-// closeTab closes pane p's current tab (:q). Closing the last tab closes
-// the pane too, except the sidebar and the window's only pane.
-func (a *App) closeTab(p *Pane) {
-	if p == a.win().Tree || len(p.Tabs) == 0 || p == a.win().Result && resultOf(p).run == nil { // the log stays (§11)
+// closeTab closes pane p's tab i: the current one (:q) gives way to the
+// previous, as vim's alternate; another leaves the current and previous
+// tabs as they were. Closing the last tab closes the pane too, except the
+// sidebar and the window's only pane; the result area's log stays (§11).
+func (a *App) closeTab(p *Pane, i int) {
+	if p == a.win().Tree || i < 0 || i >= len(p.Tabs) || p.Tabs[i].Result != nil && p.Tabs[i].Result.run == nil {
 		return
 	}
-	closed := p.Cur
-	p.Tabs = slices.Delete(p.Tabs, closed, closed+1)
+	p.Tabs = slices.Delete(p.Tabs, i, i+1)
 	switch {
-	case p.Prev > closed: // back to the previous tab, like vim's alternate
-		p.Cur = p.Prev - 1
-	case p.Prev >= 0 && p.Prev != closed:
-		p.Cur = p.Prev
+	case i != p.Cur:
+		if p.Cur > i {
+			p.Cur--
+		}
+		if p.Prev == i {
+			p.Prev = -1
+		} else if p.Prev > i {
+			p.Prev--
+		}
+	case p.Prev > i:
+		p.Cur, p.Prev = p.Prev-1, -1
+	case p.Prev >= 0 && p.Prev != i:
+		p.Cur, p.Prev = p.Prev, -1
 	default:
-		p.Cur = max(min(closed, len(p.Tabs)-1), 0)
+		p.Cur, p.Prev = max(min(i, len(p.Tabs)-1), 0), -1
 	}
-	p.Prev = -1
 	if len(p.Tabs) == 0 {
 		a.removePane(p.ID)
 	}
+}
+
+// closeTabAsking is x on pane p's tab i (F3.35): a console's is written
+// first, not asked about (§11); a table's with changes asks first.
+func (a *App) closeTabAsking(p *Pane, i int) tea.Cmd {
+	if i >= len(p.Tabs) {
+		return nil
+	}
+	if t := p.Tabs[i].Console; t != nil {
+		if err := t.flush(); err != nil {
+			return a.saveFailed(err)
+		}
+		a.closeTab(p, i)
+		return nil
+	}
+	n, name := 0, ""
+	if t := p.Tabs[i].Data; t != nil {
+		n, name = t.changes(), t.table.Name+" "
+	}
+	return a.unlessUnsaved(n, name, "关闭", func() tea.Cmd { a.closeTab(p, i); return nil })
 }
 
 // removePane takes pane id out of the tree: its sibling gets the space and

@@ -304,7 +304,6 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 		Hints: bound(
 			ui.Hint{Key: a.hints("tree", "/", "tree.down", "tree.up"), Label: "move"},
 			ui.Hint{Key: a.keys.Hint("tree.open", "tree"), Label: "open", Action: "tree.open"},
-			ui.Hint{Key: a.keys.Hint("tree.open.tab", "tree"), Label: "tab", Action: "tree.open.tab"},
 		),
 		Pane: win.Tree.ID,
 	}

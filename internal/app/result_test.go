@@ -412,7 +412,8 @@ func TestResultAreaCloses(t *testing.T) {
 }
 
 // SPC r hides the result area, its tabs kept and the console taller, and
-// brings it back as it was; nothing before the first run. The focus in it
+// brings it back as it was, a toggle in the palette (§12); nothing before
+// the first run. The focus in it
 // goes back to the pane before. A run finishing hidden stays so; one
 // started shows it (§11).
 func TestResultToggle(t *testing.T) {
@@ -431,7 +432,10 @@ func TestResultToggle(t *testing.T) {
 	if _, shown := a.layout()[res.ID]; shown || win.Result != res || len(res.Tabs) != 2 || a.layout()[console.ID].Dy() <= h || a.focused() != console {
 		t.Fatalf("hidden: shown %v, tabs %v, height %d of %d, focus %d", shown, tabNames(res), a.layout()[console.ID].Dy(), h, a.focused().ID)
 	}
-	if press(t, a, "<Space>r"); a.layout()[console.ID].Dy() != h || win.Root.Ratio != ratio || tabNames(res) != "日志 console_1 #1" {
+	if on := actions["result.toggle"].On; on(a) {
+		t.Error("hidden: the palette's toggle is ON")
+	}
+	if press(t, a, "<Space>r"); a.layout()[console.ID].Dy() != h || win.Root.Ratio != ratio || tabNames(res) != "日志 console_1 #1" || !actions["result.toggle"].On(a) {
 		t.Fatalf("back: height %d of %d, tabs %v", a.layout()[console.ID].Dy(), h, tabNames(res))
 	}
 	_, cmd := a.Update(teaKey("<CR>"))

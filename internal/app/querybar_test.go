@@ -591,7 +591,7 @@ func TestAutoRefresh(t *testing.T) {
 	if a.gotAuto(autoMsg{tab, 0}) != nil {
 		t.Error("an old ticking goes on")
 	}
-	a.closeTab(a.focused())
+	a.closeTab(a.focused(), a.focused().Cur)
 	if a.gotAuto(autoMsg{tab, 1}) != nil {
 		t.Error("a closed tab ticks on")
 	}

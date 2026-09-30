@@ -95,7 +95,8 @@ type Editor struct {
 	ins  *insertion // the INSERT or REPLACE going on
 	reg  register
 
-	yanked bool // the command running put text in reg
+	yanked  bool // the command running put text in reg
+	regClip bool // reg is what a "+ yank or delete took: vim's unnamed register points at "+
 
 	vstart     Pos // where VISUAL started: the other end of the selection
 	lastVisual visualArea
@@ -173,7 +174,7 @@ func (e *Editor) Feed(k string) Effect {
 // motion, or [count] ["x] [count] command.
 type cmd struct {
 	count int    // 0 when none was typed
-	reg   string // the register "x names: "+ for the system clipboard, "" for the unnamed (§11)
+	reg   string // the register "x names: "+ for the system clipboard, "" for the unnamed, else one not kept (§11)
 	op    string // the operator waiting for the motion: "d", "gU"
 	name  string // the motion, text object or command: "w", "iw", "gg", "f"
 	arg   string // the character f, t, r take
@@ -199,9 +200,12 @@ func (e *Editor) normal() {
 		return
 	}
 	e.keys = nil
-	if st == complete {
+	if st == complete && (c.reg == "" || c.reg == "+") { // a register of the others: none here (§11)
 		e.yanked = false
 		e.run(c)
+		if e.yanked {
+			e.regClip = c.reg == "+"
+		}
 		if c.reg == "+" && e.yanked { // the unnamed register too, as vim's
 			clip := e.reg.text
 			e.eff.Clip = &clip
@@ -212,18 +216,28 @@ func (e *Editor) normal() {
 
 // PutClip is the put p asked the clipboard for, text what it holds: put as
 // a register charwise, or linewise when it ends in a newline, as vim takes
-// the clipboard; the unnamed register stays as it was.
+// the clipboard; empty, nothing is put (vim's E353), nor once the editor
+// left NORMAL or has keys pending. The unnamed register
+// stays as it was, but for one a "+ yank or delete filled: that stands for
+// "+ in vim, and so holds what came.
 func (e *Editor) PutClip(text string, p ClipPut) Effect {
 	e.eff = Effect{}
-	kept := e.reg
-	kind := byte('v')
-	if strings.HasSuffix(text, "\n") {
-		kind = 'V'
+	if e.mode != Normal || len(e.keys) > 0 { // come too late: the editor went on
+		return e.eff
 	}
-	e.reg = register{text: text, kind: kind}
+	kept := e.reg
+	e.reg = register{text: text, kind: 'v'}
+	switch {
+	case text == "":
+		e.reg = register{}
+	case strings.HasSuffix(text, "\n"):
+		e.reg.kind = 'V'
+	}
 	p.c.reg = ""
 	e.run(p.c)
-	e.reg = kept
+	if !e.regClip {
+		e.reg = kept
+	}
 	e.settle()
 	e.scrollToCursor()
 	return e.eff
@@ -239,20 +253,28 @@ func (e *Editor) settle() {
 	}
 }
 
+// registers are the names vim's registers go by, besides " + and *.
+const registers = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_/:.%#="
+
 // withArg are the commands that take the character typed next.
 var withArg = map[string]bool{"f": true, "F": true, "t": true, "T": true, "r": true}
 
 // parse reads keys as vim's NORMAL and VISUAL modes do.
 func parse(keys []string, visual bool) (c cmd, st status) {
 	c.count, keys = count(keys)
-	if len(keys) > 0 && keys[0] == `"` { // a register: "+ and "* alone, the clipboard (§11)
+	if len(keys) > 0 && keys[0] == `"` { // a register: "+ and "* the clipboard (§11), "" the unnamed
 		if len(keys) == 1 {
 			return c, waiting
 		}
-		if keys[1] != "+" && keys[1] != "*" {
+		switch r := keys[1]; {
+		case r == "+" || r == "*":
+			c.reg = "+"
+		case r == `"`:
+		case len(r) == 1 && strings.Contains(registers, r): // one of vim's others: read whole, not run (normal)
+			c.reg = r
+		default: // "<Esc>: no register, the command goes, as in vim
 			return c, invalid
 		}
-		c.reg = "+"
 		n, rest := count(keys[2:])
 		if n > 0 {
 			c.count = max(c.count, 1) * n

@@ -45,7 +45,7 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		if ic.Text != "" {
 			w += Width(ic.Text) + 1
 		}
-		tab := uv.Rect(x, y, w, 1)
+		tab := uv.Rect(x, y, max(min(w, r.Max.X-x), 0), 1) // what shows of it: the pane's border is no tab's
 		f.Region(tab, Target{Kind: KindTab, Pane: t.Pane, I: i})
 		x = f.Text(x, y, r.Max.X, num, st)
 		if ic.Text != "" {
@@ -56,7 +56,7 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 		tail := mark + " "
 		if t.Close.Text != "" && i >= t.Keep && f.Mouse.In(tab) { // × in the mark's place, or the blank's after the name
 			cst := st
-			if f.Region(uv.Rect(x, y, Width(t.Close.Text), 1), Target{Kind: KindButton, Pane: t.Pane, Action: fmt.Sprintf("tab.close.at %d %d", t.Pane, i)}) {
+			if f.Region(uv.Rect(x, y, max(min(Width(t.Close.Text), r.Max.X-x), 0), 1), Target{Kind: KindButton, Pane: t.Pane, Action: fmt.Sprintf("tab.close.at %d %d", t.Pane, i)}) {
 				cst.Bg = th.Select
 			}
 			x, tail = f.Text(x, y, r.Max.X, t.Close.Text, t.Close.On(cst)), tail[1:]

@@ -376,3 +376,18 @@ func TestWhereVim(t *testing.T) {
 		t.Errorf(`"+P puts the clipboard's line as characters: %q`, tab.where.Text)
 	}
 }
+
+// The history over the WHERE's vim in any mode (▾, C-r, NORMAL's /) has
+// it in INSERT or REPLACE, so what is typed filters the list: VISUAL and
+// a command pending end first (F3.39).
+func TestWhereHistoryModes(t *testing.T) {
+	a, tab, _ := withRecorder(t, 160, 45)
+	for _, ks := range []string{"/id > 5<Esc>vl", "/id > 5<Esc>d", "/id > 5<Esc>0R"} {
+		feed(t, a, ks)
+		a.run("where.history", 0)
+		if feed(t, a, "x"); tab.hist == nil || !tab.hist.typed || tab.where.Text != "id > 5x" && tab.where.Text != "xd > 5" {
+			t.Errorf("%s: %q in %v", ks, tab.where.Text, tab.ed.Mode())
+		}
+		feed(t, a, "<Esc><Esc><Esc>") // the list, INSERT, the WHERE
+	}
+}

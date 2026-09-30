@@ -446,12 +446,14 @@ func (a *App) whereDid(t *dataTab, eff editor.Effect) tea.Cmd {
 	was := t.where.Text
 	t.syncWhere()
 	switch {
-	case t.ed.Mode() != editor.Insert:
-		t.comp = nil
-	case t.hist == nil:
+	case t.hist != nil: // in INSERT or REPLACE, as where.history puts it
+		if t.where.Text != was {
+			t.hist.typed, t.hist.sel = true, 0
+		}
+	case t.ed.Mode() == editor.Insert:
 		a.complete(t)
-	case t.where.Text != was:
-		t.hist.typed, t.hist.sel = true, 0
+	default:
+		t.comp = nil
 	}
 	ed := t.ed
 	return tea.Batch(a.vimCmds(eff, func(text string, p editor.ClipPut) tea.Cmd {
@@ -463,6 +465,9 @@ func (a *App) whereDid(t *dataTab, eff editor.Effect) tea.Cmd {
 }
 
 // whereClick puts the WHERE's cursor where p is on pane pn's input.
+// ponytail: the column is the input's, where a tab is one cell, and the
+// editor's tabs go to the tabstop: past a pasted tab a click lands short;
+// map through the byte offset if tabs ever show up in a WHERE
 func (a *App) whereClick(pn *Pane, t *dataTab, p uv.Position) {
 	r := a.queryBar(pn, t).InputRect(bodyRect(a.layout()[pn.ID]))
 	shown := t.where.Text[:t.where.Start(r.Dx())]

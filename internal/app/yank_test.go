@@ -40,8 +40,8 @@ func keys(t *testing.T, a *App, s string) (cmd tea.Cmd) {
 // yy copies the row as TSV of the columns shown, changes in, NULL empty,
 // a value with a newline or a tab quoted, the row flashing; yl the cell,
 // flashing it. p pastes the row yy took as a row added under the cursor's,
-// every column's value but a key's with a default; for another table it
-// pastes nothing (F3.32).
+// every column's value but a key's with a default and a generated always
+// identity's; for another table it pastes nothing (F3.32).
 func TestYankRow(t *testing.T) {
 	a := wide(160, 45)
 	tab := loadOrders(t, a, 3)
@@ -62,12 +62,13 @@ func TestYankRow(t *testing.T) {
 	if a.grid(a.focused(), tab).Yank != nil {
 		t.Error("the flash goes")
 	}
+	tab.cols.Cols[3].Default = "generated always as identity" // paid, as a column taking no value
 	feed(t, a, "p")
 	if len(tab.added) != 1 || tab.row != 2 {
 		t.Fatalf("p: added %d, cursor %d", len(tab.added), tab.row)
 	}
 	cells := tab.added[0].cells
-	if _, ok := cells["id"]; ok || cells["amount"].val.S != "9" || cells["meta"].val.S == "" || cells["note"].val != tab.page.Rows[1][5] {
+	if _, ok := cells["id"]; ok || cells["amount"].val.S != "9" || cells["paid"] != (edit{}) || cells["meta"].val.S == "" || cells["note"].val != tab.page.Rows[1][5] {
 		t.Errorf("pasted: %+v", cells)
 	}
 	a.rowCopy.table = tableID{"public", "t_user"}

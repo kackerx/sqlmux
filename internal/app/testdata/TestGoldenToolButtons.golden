@@ -2,4 +2,3 @@
 │  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7           2             │
 │  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7     2         │
 │  ORDER id    LIMIT 100   PAGE 1/?        │
-│  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7           2       5s                                  auto · … 行 · 0s │

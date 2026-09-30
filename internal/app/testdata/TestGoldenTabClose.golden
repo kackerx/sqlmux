@@ -1,4 +1,4 @@
-│ j/k move · ↵ open · t tab    │ │ 1: t_order- │ 2: t_user │ 3: t_sku* │ +                                                   hjkl · ↵ edit · T 转置 · gt/gT │
-│ j/k move · ↵ open · t tab    │ │ 1: t_order │ 2: t_user │ 3: t_sku* │ +                                                   hjkl · ↵ edit · T 转置 · gt/gT │
-│ j/k move · ↵ open · t tab    │ │ 1: t_order- │ 2: t_user│ 3: t_sku* │ +                                                   hjkl · ↵ edit · T 转置 · gt/gT │
-│ j/k move · ↵ open · t tab    │ │ 1: t_order- │ 2: t_user │ 3: t_sku │ +                                                   hjkl · ↵ edit · T 转置 · gt/gT │
+│ j/k move · ↵ open            │ │ 1: t_order- │ 2: t_user │ 3: t_sku* │ +                                                   hjkl · ↵ edit · T 转置 · gt/gT │
+│ j/k move · ↵ open            │ │ 1: t_order │ 2: t_user │ 3: t_sku* │ +                                                   hjkl · ↵ edit · T 转置 · gt/gT │
+│ j/k move · ↵ open            │ │ 1: t_order- │ 2: t_user│ 3: t_sku* │ +                                                   hjkl · ↵ edit · T 转置 · gt/gT │
+│ j/k move · ↵ open            │ │ 1: t_order- │ 2: t_user │ 3: t_sku │ +                                                   hjkl · ↵ edit · T 转置 · gt/gT │

@@ -118,10 +118,11 @@ func tsv(vals []string) string {
 
 // pasteRow is p (§10.6, F3.32): the row yy took, a row added under the
 // cursor's with its values, but for the row identity's columns that have
-// a default (serial, identity): theirs. A row of another table, or none
+// a default (serial, identity) and the generated always identity columns,
+// which take none (PG's 428C9): theirs. A row of another table, or none
 // taken, pastes nothing.
-// ponytail: a generated column is copied too, and the save fails on it;
-// leave those out when the catalog tells them apart
+// ponytail: a generated (stored) column is copied too, and the save fails
+// on it; leave those out when the catalog tells them apart
 func (a *App) pasteRow() tea.Cmd {
 	_, t, ok := a.focusedGrid()
 	if !ok || a.rowCopy == nil || a.rowCopy.table != idOf(t.table) {
@@ -134,7 +135,8 @@ func (a *App) pasteRow() tea.Cmd {
 	}
 	sr.add.cells = map[string]edit{}
 	for name, v := range a.rowCopy.vals {
-		if !slices.Contains(t.cols.Key(), name) || t.column(name).Default == "" {
+		def := t.column(name).Default
+		if def != "generated always as identity" && (!slices.Contains(t.cols.Key(), name) || def == "") {
 			sr.add.cells[name] = edit{val: v}
 		}
 	}
@@ -155,13 +157,15 @@ func yankSel(y editor.Yank) ui.Sel {
 	return s
 }
 
-// clipTools are the system clipboard's commands in the order nvim's
-// clipboard provider looks for them (runtime/autoload/provider/clipboard.vim,
-// v0.12.4): the first on PATH, with its display set for Wayland's and
-// X11's, is used, so a tmux dropping OSC 52 doesn't matter; with none the
-// terminal is asked over OSC 52 (F3.38, §11). nvim's xclip -quiet and
-// xsel --nodetach keep the process it waits on as the selection's owner;
-// without them the tools fork one off and exit.
+// clipTools are the system clipboard's commands, local tools first and
+// OSC 52 without them as nvim's clipboard provider has it, with its
+// arguments (runtime/autoload/provider/clipboard.vim, v0.12.4); the order
+// is §11's, not quite nvim's, which tries xsel before xclip and wants
+// wl-paste on PATH with wl-copy. The first on PATH, with its display set
+// for Wayland's and X11's, is used, so a tmux dropping OSC 52 doesn't
+// matter; with none the terminal is asked over OSC 52 (F3.38). nvim's
+// xclip -quiet and xsel --nodetach keep the process it waits on as the
+// selection's owner; without them the tools fork one off and exit.
 var clipTools = []clipTool{
 	{"", []string{"pbcopy"}, []string{"pbpaste"}},
 	{"WAYLAND_DISPLAY", []string{"wl-copy", "--type", "text/plain"}, []string{"wl-paste", "--no-newline"}},
@@ -182,8 +186,8 @@ func clipCmd(paste bool) *exec.Cmd {
 		if paste {
 			argv = t.paste
 		}
-		if _, err := exec.LookPath(argv[0]); err == nil && (t.env == "" || os.Getenv(t.env) != "") {
-			return exec.Command(argv[0], argv[1:]...)
+		if c := exec.Command(argv[0], argv[1:]...); c.Err == nil && (t.env == "" || os.Getenv(t.env) != "") { // Err: not on PATH
+			return c
 		}
 	}
 	return nil

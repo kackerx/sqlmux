@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -95,7 +96,7 @@ func paneNode(wi int, p *Pane) string { return fmt.Sprintf("%s/pane:%d", windowN
 // revealTab puts the tree's cursor on the node of pane p's current tab,
 // the nodes above it opened, as nvim-tree's find_file (F3.29): a table's
 // under its schema, any other's in the workspace. Not showing (a filter,
-// the catalog not in), the cursor stays.
+// the catalog not in), nothing changes: the cursor stays, no node opens.
 func (a *App) revealTab(p *Pane) {
 	tab := p.tab()
 	if tab == nil || p == a.win().Tree {
@@ -107,13 +108,16 @@ func (a *App) revealTab(p *Pane) {
 		path = []string{"session", schemaNode(t.table.Schema), groupNode(t.table.Schema, t.table.View())}
 		is = func(n node) bool { return n.kind == nodeTable && idOf(n.table) == idOf(t.table) }
 	}
+	was := maps.Clone(a.sess.open)
 	for _, id := range path {
 		a.sess.open[id] = true
 	}
 	ns, _ := a.treeNodes()
 	if i := slices.IndexFunc(ns, is); i >= 0 {
 		a.treeGo(i)
+		return
 	}
+	a.sess.open = was
 }
 
 // nodeKind is what a tree node stands for (§7.8).
