@@ -245,6 +245,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	}
 	if c := consoleOf(p); c != nil {
 		view, body := a.consoleView(p, c)
+		view.Names, _ = a.sqlNames(strings.Join(view.Lines, "\n"), cmp.Or(c.schema, a.sess.Schema), nil) // for the drawing alone: consoleView goes with every key
 		if cur := view.Draw(f, body); cur.X >= 0 && b.Focused && a.focusedConsole() == c {
 			f.Cursor = &cur
 		}

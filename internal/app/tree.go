@@ -419,17 +419,17 @@ func (a *App) treeCollapse() tea.Cmd {
 	return nil
 }
 
-// treeOpen is ↵ (and t, tabOnly) on the cursor's node (§7.8): a table
+// treeOpen is ↵ (and t, tablesOnly) on the cursor's node (§7.8): a table
 // opens, a column opens its table on that column, a tab of this window is
 // switched to; the rest, panes too, open and close. t only opens tables,
 // as ↵ does since a pane has a tab of a table at most (F3.37).
-func (a *App) treeOpen(tabOnly bool) tea.Cmd {
+func (a *App) treeOpen(tablesOnly bool) tea.Cmd {
 	n, ok := a.treeNode()
 	switch {
 	case !ok:
 	case n.kind == nodeTable:
 		return a.openTable(n.table)
-	case tabOnly:
+	case tablesOnly:
 	case n.kind == nodeColumn:
 		cmd := a.openTable(n.table)
 		a.gotoColumn(n.table, n.column)
@@ -440,6 +440,18 @@ func (a *App) treeOpen(tabOnly bool) tea.Cmd {
 		return a.treeFold(n, !n.Open)
 	}
 	return nil
+}
+
+// tabSummary is what t shows when not all rows in the default order: its
+// WHERE, its ORDER (§7.8).
+func tabSummary(t *dataTab) (out []string) {
+	if s := t.shown; strings.TrimSpace(s.applied) != "" {
+		out = append(out, s.applied)
+	}
+	if s := t.shown; s.order != "" {
+		out = append(out, sortedBy(s.order, s.desc))
+	}
+	return out
 }
 
 // gotoColumn puts the cursor of the table just opened on column col: now,

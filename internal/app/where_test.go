@@ -10,6 +10,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"sqlmux/internal/config"
+	"sqlmux/internal/db"
 	"sqlmux/internal/editor"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
@@ -280,14 +281,15 @@ func openPaletteOn(t *testing.T, a *App) *App {
 	return a
 }
 
-// Names in SQL for their colors: a table the catalog has, folded unless
-// quoted; a column of the tables its statement names, not of an alias's
-// or a CTE's; the tables whose columns are not fetched yet missing, and
+// Names in SQL for their colors: a table the catalog has, its ASCII
+// folded unless quoted, not a schema qualifying one; a column of the
+// tables its statement names, not of an alias's or a CTE's; the tables whose columns are not fetched yet missing, and
 // asked for once, the consoles on screen's (§7.3).
 func TestSQLNames(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	tab := loadOrders(t, a, 3)
-	text := `select o.status, "status", "Status", AMOUNT from T_ORDER o; select status from t_user; with x as (select 1) select status from x`
+	a.sess.Tables = append(a.sess.Tables, db.Table{Schema: "public", Name: "agentable"}, db.Table{Schema: "public", Name: "État"})
+	text := `select o.status, "status", "Status", AMOUNT from T_ORDER o; select status from t_user; with x as (select 1) select status from x; table agentable.planner; table ÉTAT`
 	names, missing := a.sqlNames(text, "public", nil)
 	for _, c := range []struct {
 		word string
@@ -298,6 +300,8 @@ func TestSQLNames(t *testing.T) {
 		{"status", 0, ui.ColumnName}, {`"status"`, 0, ui.ColumnName}, {`"Status"`, 0, ui.OtherName}, {"AMOUNT", 0, ui.ColumnName},
 		{"status", 2, ui.OtherName}, // t_user's, not fetched
 		{"status", 3, ui.OtherName}, // x's, a CTE
+		// a schema's name, a table's too, as s of s.t; PG folds ASCII only: État
+		{"agentable", 0, ui.OtherName}, {"planner", 0, ui.TableName}, {"ÉTAT", 0, ui.TableName},
 	} {
 		at := -1
 		for range c.n + 1 {

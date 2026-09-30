@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"sqlmux/internal/db"
 	"sqlmux/internal/keymap"
 	"sqlmux/internal/ui"
 )
@@ -119,5 +120,24 @@ func TestClipTools(t *testing.T) {
 	clipTools[2] = clipTool{"", []string{"false"}, []string{"false"}}
 	if clipCopy("x")() != tea.SetClipboard("x")() || clipPaste() != tea.ReadClipboard() {
 		t.Error("a failing tool is not OSC 52")
+	}
+}
+
+// yy and yl on a result's grid copy its row as TSV and its cell; p there
+// pastes nothing (F3.32).
+func TestYankResult(t *testing.T) {
+	r := db.Result{Cols: []db.Col{{Name: "a"}, {Name: "b"}}, Rows: [][]db.Val{{{S: "x y"}, {Null: true}}, {{S: "q\"r"}, {S: "2"}}}}
+	a, _ := inRun(t, &execDB{res: map[string]db.Result{"select 1": r}}, "select 1;")
+	press(t, a, "<CR>")
+	res := a.win().Result
+	a.win().focus(res.ID)
+	if cmd := keys(t, a, "jyy"); !clipped(cmd, "\"q\"\"r\"\t2") || a.flash == nil || a.flash.cell != [2]int{1, -1} {
+		t.Errorf("yy: flash %+v", a.flash)
+	}
+	if cmd := keys(t, a, "kyl"); !clipped(cmd, "x y") {
+		t.Error("yl")
+	}
+	if feed(t, a, "p"); a.focused() != res || len(res.Tabs) != 2 {
+		t.Errorf("p: %d tabs", len(res.Tabs))
 	}
 }

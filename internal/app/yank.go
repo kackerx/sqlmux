@@ -44,13 +44,21 @@ func (a *App) flashYank(f yankFlash) tea.Cmd {
 	return tea.Tick(yankFlashFor, func(time.Time) tea.Msg { return flashDone{f.seq} })
 }
 
+// change is the change to column col of row sr, of row key key, not
+// saved: an edit, or a row added's cell (§10.1, §10.6).
+func (t *dataTab) change(sr shownRow, key, col string) (edit, bool) {
+	if sr.add != nil {
+		e, ok := sr.add.cells[col]
+		return e, ok
+	}
+	e, ok := t.edits[editKey{key, col}]
+	return e, ok
+}
+
 // value is column col of row sr, of row key key, as it shows, changes in;
 // not ok for a DEFAULT.
 func (t *dataTab) value(sr shownRow, key, col string) (db.Val, bool) {
-	e, ok := t.edits[editKey{key, col}]
-	if sr.add != nil {
-		e, ok = sr.add.cells[col]
-	}
+	e, ok := t.change(sr, key, col)
 	switch {
 	case ok:
 		return e.val, !e.def

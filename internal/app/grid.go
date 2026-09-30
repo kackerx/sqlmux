@@ -483,7 +483,7 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	if t.page.Cols != nil {
 		right += " · " + t.page.Took.Round(time.Millisecond).String()
 	}
-	names, _ := a.sqlNames(t.where.Text, t.table.Schema, &t.cols)
+	names, _ := a.sqlNames(t.where.Text, "", &t.cols)
 	where := t.where
 	if t.typing == "where" {
 		where.Sel = vimSel(t.ed)
@@ -695,8 +695,9 @@ func (a *App) scrollGrid(p *Pane, dr, dc int) {
 
 // gridLine is gg and G (§7.6): the first or the last row; with a count N
 // as nvim's, row N, by the numbers a table's rows show: on its page,
-// fetched when that isn't the one shown, the pages' count as PAGE's input
-// takes it (§7.8), N past the rows counted the last row. Transposed, and
+// fetched when that isn't the one shown or another is on its way, the
+// pages' count as PAGE's input takes it (§7.8), N past the rows counted
+// the last row. Transposed, and
 // in the result area, the Nth row on screen.
 func (a *App) gridLine(n int, bottom bool) tea.Cmd {
 	t := dataOf(a.focused())
@@ -717,7 +718,7 @@ func (a *App) gridLine(n int, bottom bool) tea.Cmd {
 		page = min(page, int(pages)-1)
 	}
 	rec := n - 1 - page*t.shown.limit
-	if page != t.shown.pageNo {
+	if page != t.shown.pageNo || t.pageNo != t.shown.pageNo { // another page on its way: this one instead
 		t.pageNo, t.wantRec = page, rec+1
 		return a.fetch(t, false)
 	}

@@ -173,11 +173,7 @@ func (a *App) editCell(pasted *string) tea.Cmd {
 		c.orig = t.page.Rows[sr.rec][field]
 	}
 	cur := c.orig
-	e, ok := t.edits[c.key]
-	if sr.add != nil {
-		e, ok = sr.add.cells[c.key.col]
-	}
-	if ok {
+	if e, ok := t.change(sr, c.key.row, c.key.col); ok {
 		cur = e.val
 	}
 	if !cur.Null { // a NULL or DEFAULT starts empty
@@ -476,23 +472,23 @@ func (a *App) addRow() tea.Cmd {
 	if t.cols.Key() == nil {
 		return a.readOnly(t)
 	}
-	r := &newRow{page: t.shown.pageNo, after: -1}
-	sr, _, ok := t.cursor()
-	if ok && sr.add != nil {
-		r.page, r.after = sr.add.page, sr.add.after
-	} else if ok {
-		r.after = sr.rec
-	}
 	// added keeps the order they show in, (page, after), a save's too:
 	// right after the cursor's, or before those added under its row before
 	// ponytail: at the last page's end the rows of pages before it, a LIMIT
 	// cut since, show after this page's though they sort before; sort by
 	// where shownRows puts them if 新增的第 N 行 is ever read off there
+	r := &newRow{page: t.shown.pageNo, after: -1}
 	at := len(t.added)
-	if ok && sr.add != nil {
+	if sr, _, ok := t.cursor(); ok && sr.add != nil {
+		r.page, r.after = sr.add.page, sr.add.after
 		at = slices.Index(t.added, sr.add) + 1
-	} else if i := slices.IndexFunc(t.added, func(o *newRow) bool { return cmp.Or(cmp.Compare(o.page, r.page), cmp.Compare(o.after, r.after)) >= 0 }); i >= 0 {
-		at = i
+	} else {
+		if ok {
+			r.after = sr.rec
+		}
+		if i := slices.IndexFunc(t.added, func(o *newRow) bool { return cmp.Or(cmp.Compare(o.page, r.page), cmp.Compare(o.after, r.after)) >= 0 }); i >= 0 {
+			at = i
+		}
 	}
 	t.added = slices.Insert(t.added, at, r)
 	t.note, t.failed = ui.Note{}, nil

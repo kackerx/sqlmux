@@ -166,11 +166,11 @@ func TestQuickSQLHistory(t *testing.T) {
 	if slices.ContainsFunc(namesOf(a), func(n string) bool { return strings.HasPrefix(n, ":") }) {
 		t.Error("所有 lists the SQL history")
 	}
-	for i := range historyRows + 5 {
+	for i := range quickHistory + 5 {
 		a.palette = nil
 		feed(t, a, fmt.Sprintf("<C-p>;select %d<CR>", i))
 	}
-	if n := len(a.state.SQL["doraemon"]); n != historyRows {
+	if n := len(a.state.SQL["doraemon"]); n != quickHistory {
 		t.Errorf("history keeps %d", n)
 	}
 }

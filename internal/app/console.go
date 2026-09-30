@@ -116,7 +116,6 @@ func (a *App) consoleView(p *Pane, t *consoleTab) (ui.Console, uv.Rectangle) {
 		Cursor: ui.TextPos(ed.Cursor()), CursorCol: ed.CursorCol(), Normal: ed.Mode() == editor.Normal,
 		Failed: t.failed, Pane: p.ID,
 	}
-	c.Names, _ = a.sqlNames(strings.Join(c.Lines, "\n"), cmp.Or(t.schema, a.sess.Schema), nil)
 	if f := a.flash; f != nil && f.pane == p.ID {
 		c.Yank = f.text
 	}

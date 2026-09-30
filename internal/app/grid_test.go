@@ -108,8 +108,8 @@ func TestGoldenTabs160x45(t *testing.T) {
 }
 
 // The pointer on a tab shows × at its mark, or after its name, the bar
-// not moving: here over the previous, an unmarked and the current tab
-// (F3.35).
+// not moving: here over the previous, an unmarked and the current tab;
+// on the × it is lit (F3.35).
 func TestGoldenTabClose(t *testing.T) {
 	a := wide(160, 45)
 	loadOrders(t, a, 3)
@@ -121,6 +121,10 @@ func TestGoldenTabClose(t *testing.T) {
 		at := find(t, a, ui.Target{Kind: ui.KindTab, Pane: p.ID, I: i}).Min
 		a.Update(tea.MouseMotionMsg{X: at.X, Y: at.Y})
 		rows = append(rows, bar())
+	}
+	x := find(t, a, ui.Target{Kind: ui.KindButton, Pane: p.ID, Action: fmt.Sprintf("tab.close.at %d 2", p.ID)}).Min
+	if a.Update(tea.MouseMotionMsg{X: x.X, Y: x.Y}); a.render().Buf.CellAt(x.X, x.Y).Style.Bg != a.theme.Select {
+		t.Error("the × under the pointer is not lit")
 	}
 	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")
 }
@@ -384,7 +388,7 @@ func TestGoldenToolButtons(t *testing.T) {
 }
 
 // {N}G and {N}gg go to row N by its number: on this page, or fetching its
-// own, N past the rows counted the last, a count not known taken as PAGE's
+// own, also with another page on its way, N past the rows counted the last, a count not known taken as PAGE's
 // input does; transposed, field N. G and gg alone: the page's last and
 // first rows (F3.36).
 func TestGridLine(t *testing.T) {
@@ -397,6 +401,12 @@ func TestGridLine(t *testing.T) {
 	}
 	if feed(t, a, "5G"); tab.row != 4 || tab.pageNo != 0 {
 		t.Fatalf("5G: row %d page %d", tab.row, tab.pageNo)
+	}
+	if feed(t, a, "]3G"); tab.pageNo != 0 || tab.wantRec != 3 {
+		t.Fatalf("3G while ] is on its way: page %d, row %d", tab.pageNo, tab.wantRec)
+	}
+	if answer(10); tab.row != 2 || tab.shown.pageNo != 0 {
+		t.Fatalf("3G after ]: row %d page %d", tab.row, tab.shown.pageNo)
 	}
 	if feed(t, a, "15gg"); tab.pageNo != 1 {
 		t.Fatalf("15gg: page %d", tab.pageNo)

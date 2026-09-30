@@ -24,8 +24,12 @@ type quickSQL struct {
 	top, left    int // the result's scroll
 }
 
-// quickRows is how many rows a quick SQL shows (§12).
-const quickRows = 100
+// quickRows is how many rows a quick SQL shows, quickHistory how many runs
+// a connection's quick SQL history keeps (§12).
+const (
+	quickRows    = 100
+	quickHistory = 50
+)
 
 // quickMsg answers runQuick.
 type quickMsg struct {
@@ -65,7 +69,7 @@ func (a *App) runQuick(sql string) tea.Cmd {
 		a.state.SQL = map[string][]string{}
 	}
 	h := slices.Insert(slices.DeleteFunc(a.state.SQL[a.sess.Name], func(s string) bool { return s == sql }), 0, sql)
-	a.state.SQL[a.sess.Name] = h[:min(len(h), historyRows)]
+	a.state.SQL[a.sess.Name] = h[:min(len(h), quickHistory)]
 	a.busy++
 	meta, schema := a.sess.Meta, a.sess.Schema
 	return tea.Batch(a.saveState(), func() tea.Msg {

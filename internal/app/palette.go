@@ -183,18 +183,6 @@ func (a *App) paletteMatches() (items []paletteItem, ms []ui.Match) {
 	return items, ms
 }
 
-// tabSummary is what t shows when not all rows in the default order: its
-// WHERE, its ORDER (§7.8).
-func tabSummary(t *dataTab) (out []string) {
-	if s := t.shown; strings.TrimSpace(s.applied) != "" {
-		out = append(out, s.applied)
-	}
-	if s := t.shown; s.order != "" {
-		out = append(out, sortedBy(s.order, s.desc))
-	}
-	return out
-}
-
 // paletteView is what the palette draws.
 func (a *App) paletteView() ui.Palette {
 	items, ms := a.paletteMatches()

@@ -199,13 +199,25 @@ func (a *App) sqlNames(text, schema string, cols *db.Columns) (names ui.SQLNames
 			add(st.End, cs)
 		}
 	}
+	schemas := map[string]bool{}
+	for _, s := range a.sess.Schemas {
+		schemas[s] = true
+	}
 	return func(at int, word string) ui.SQLName {
-		name := strings.ToLower(word) // PG folds a name unless it is quoted
+		// PG folds a name's ASCII letters unless it is quoted (downcase_identifier)
+		name := strings.Map(func(r rune) rune {
+			if 'A' <= r && r <= 'Z' {
+				r += 'a' - 'A'
+			}
+			return r
+		}, word)
 		if strings.HasPrefix(word, `"`) {
 			name = strings.ReplaceAll(strings.TrimSuffix(word[1:], `"`), `""`, `"`)
 		}
 		i := sort.Search(len(spans), func(i int) bool { return spans[i].end > at })
 		switch {
+		case schemas[name] && strings.HasPrefix(text[min(at+len(word), len(text)):], "."): // s of s.t: a schema's, whatever table shares its name
+			return ui.OtherName
 		case tables[name]:
 			return ui.TableName
 		case i < len(spans) && spans[i].cols[name]:
@@ -613,12 +625,8 @@ func sameQuery(x, y config.Query) bool {
 	return x.Where == y.Where && x.Order == y.Order && x.Desc == y.Desc && x.Limit == y.Limit
 }
 
-// historyRows is how many runs a connection's quick SQL history keeps
-// (§12), whereRows a table's WHERE history (§9.7).
-const (
-	historyRows = 50
-	whereRows   = 100
-)
+// whereRows is how many runs a table's WHERE history keeps (§9.7).
+const whereRows = 100
 
 // runWhere runs the WHERE typed, from the first page, counting again; a
 // condition goes into the history, a repeat moving up to the top (§9.7).
