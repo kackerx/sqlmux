@@ -30,6 +30,7 @@
 - [ ] `C-t`（SQL 范围、已有结果时）：结果作为固定 tab `quick #n` 进结果区，日志记一行，`R` 在 `Meta` 的只读事务里重跑，导出名 `quick-42.csv`，面板不关（§12「C-t 送到结果区」）。
 - [ ] `C-e`（Action `quicksql.edit`，`[keys.palette]` 里已经绑了）：在目标 pane 按 `console.new` 的规则开 console，已有内容时追加到末尾、前面空一行，光标落在 SQL 第一行，关面板、聚焦 console（§12「C-e 在 console 中打开」）。
 - [ ] 细节（worker 提议，已定）：
+  - 只拦首词是 SQL 关键字、且 `IsRead` 为假的；首词不是关键字的（`selec 1` 这类拼错的）照旧发给数据库，报语法错误（f1.7）。
   - 写语句的提示画在结果区第一行（报错的位置），标题行只剩「只读」；判为写的也记进历史，之后能找回再 `C-e`。
   - 删掉 `SelectLike`：「首词是 select / values / table / with」和 `AutoLimit` 里的判断是同一件事，快速 SQL 走不走游标和自动 LIMIT 共用这一处（reviewer 发现重复）。
   - `C-t` 在 SQL 范围由 `palette.open.tab` 分支处理，不另加 action；只在有结果集时起作用，报错、写语句提示、只有命令标签时不做事；送的是面板里已有的结果，不重跑；`quick #n` 的 n 和 `console_1 #42` 用同一个 `Session.RunSeq`；日志写 `quick  <首行>  N 行`（截断时 `N+`）；结果区被 `SPC r` 隐藏着也放进去并显示，焦点留在面板；同一个结果按两次就是两个 tab。`R` 重跑走快速 SQL 的执行（`Meta` 只读事务、游标 FETCH 101、search_path 取按 `R` 时树的 schema）。
