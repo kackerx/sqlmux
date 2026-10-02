@@ -333,7 +333,7 @@ H = "0"
 - **标题**：每个有默认键的 Action 都要有标题（含输入框、浮层里的，如 `where.history`、`keyhelp.close`），键位帮助、面板、导出都用它；单测检查 `default.toml` 里每个绑定的 Action 都有标题（M3 F3.17 reviewer 发现）。
 - **提示**：`keymap.Hint(actionID, scope)` 返回当前生效的第一个键位的显示形式。界面上所有的键位文字都通过它读取，不写死；未绑定的 Action 不显示提示。
 - **导出**：`sqlmux keys` 输出当前生效的键位表（markdown），加 `--format toml` 输出可以分享的配置片段。
-  - toml 片段要能原样放进 `config.toml` 当作完整的键位参考（M1 用户反馈）：按作用域分节，每节前一行注释写明这个作用域什么时候生效（§6.4）；每行后面注释 Action 的标题；有标题但没有绑定键的 Action，以注释行 `# "" = "<action>"  # <标题>` 列在所属作用域下，作用域按 id 前缀对应（`grid.` → grid，`tree.` → tree，`console.` → console，`result.` → result，其余 → normal）；末尾附一段注释掉的 `[map.<上下文>.<模式>]` 示例（§6.6）。
+  - toml 输出就是一份完整的 `keymaps.toml`（M5 F5.9 起键位和映射单独放在 `~/.config/sqlmux/keymaps.toml`，M1 用户反馈要完整的键位参考）：按作用域分节，每节前一行注释写明这个作用域什么时候生效（§6.4）；**每一条绑定都写成注释行**，值就是默认键，后面注释 Action 的标题，用户去掉 `#` 再改右边才生效——这样新版本改了默认键，不会被一份旧导出盖住（M3 验收期间两次出现）；没有默认键的 Action 写成 `# "" = "<action>"  # <标题>`，作用域按 id 前缀对应（`grid.` → grid，`tree.` → tree，`console.` → console，`result.` → result，其余 → normal）；`leader` 和 `[map.<上下文>.<模式>]` 的示例同样注释着放在里面（§6.6）。
   - 同一个键可以在不同作用域各绑一个 Action，按焦点所在的 pane 类型生效，例如 `R` 在表格里是刷新数据、在树里是刷新表列表（§6.4 的解析顺序本来就支持）。
 
 ### 6.8 默认键位
@@ -351,7 +351,7 @@ H = "0"
 | NORMAL | `SPC b` | 折叠 / 展开 schema 树；展开时焦点到树上、光标落在当前 tab 对应的节点（F3.29） | C-a b |
 | NORMAL | `SPC r` | 显示 / 隐藏结果区（`result.toggle`，F3.28） | 新增 |
 | NORMAL | `gt` · `gT` | 下一个 · 上一个 tab | 同 |
-| 表格 / 树 / 引导页 | `:` | 打开命令面板并直接进入命令范围；`:q`、`:qa`、`:w` 照常可用（§12）。M3 起绑在 `[keys.grid]`、`[keys.tree]`、`[keys.landing]`，不在 normal：console 里的 `:` 要交给编辑器自己的命令行（§11） | 同 |
+| 表格 / 树 / 引导页 | `:` | 打开命令面板的「所有」范围（M5 F5.8 起，同 `C-p`；原来进命令范围，想要原来的就把 `:` 绑到 `palette.command`）；`:q`、`:qa`、`:w` 照常可用（§12）。M3 起绑在 `[keys.grid]`、`[keys.tree]`、`[keys.landing]`，不在 normal：console 里的 `:` 要交给编辑器自己的命令行（§11） | 同 |
 | 表格 / 树 / 引导页 | `;` | 打开命令面板并直接进入 SQL 范围（§12）。绑法同 `:`，console 里 `;` 是 vim 的「重复 f/t」 | 新增（M1 用户反馈） |
 | 引导页（`landing`） | `t` · `c` | 打开表（`tab.table`）· 新建 console（`console.new`） | 新增（M3） |
 | 表格 | `hjkl` `gg` `G` `0` `$` | 移动，支持次数前缀；`{N}G` / `{N}gg` 跳到第 N 行（F3.36） | hjkl |
@@ -375,7 +375,7 @@ H = "0"
 | 单元格编辑 | 见 §10.2 | 时间分段调整、选项选择 | 新增 |
 | 各浮层 | 见下表 | 各浮层内的移动与选择 | 同 PRD |
 
-**默认键位只放常用的**（M0 用户反馈）。其余操作都能在命令面板里搜到并执行；想要快捷键的，在 `config.toml` 里自己绑定，例如：
+**默认键位只放常用的**（M0 用户反馈）。其余操作都能在命令面板里搜到并执行；想要快捷键的，在 `keymaps.toml` 里自己绑定（M5 F5.9 起，原来在 `config.toml`），例如：
 
 ```toml
 [keys.normal]
@@ -520,7 +520,7 @@ type Hit struct {
 - **宽度计算**：按字素簇计算（§7.1「宽度」），CJK 字符和 emoji 都能正确处理。
 - **单元格显示**：
   - 按列的类型分类着色（§7.3），分类按 catalog 的 `format_type`：
-    - `number`（右对齐）：smallint、integer、bigint、numeric(…)、real、double precision、oid；
+    - `number`（右对齐；转置视图里一律左对齐，因为一列里混着各种类型，M5 F5.7 用户要求）：smallint、integer、bigint、numeric(…)、real、double precision、oid；
     - `time`：date、time…、timestamp…（含 with time zone）、interval；
     - `bool`：boolean；
     - `json`：json、jsonb；
@@ -648,7 +648,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
     - 图标按钮（M2/M3 验收时重新设计，见下面「工具按钮」；这一段是原来的三个按钮）：保存（M2 之前只占位，点击不做事）、刷新（`grid.refresh`）、转置（`grid.transpose`），图标见 §7.7。每个按钮画成 ` <图标> `，左右各留 1 列，按钮之间隔 1 列；悬停时整个按钮 `select` 底，命中区覆盖整个按钮（M1 用户反馈：图标紧贴、悬停只亮半个，见 §7.7「图标后面留空格」）。保存在 M2 之前没有命中区，悬停不亮，免得让人以为能点；M2 起有命中区，点击执行 `save`，有修改时画成 ` <save 图标> 3 `，3 是这个 tab 所有页的修改格数（按格计），没有修改时只有图标（Q-05）；
     - 最右边：`auto · 6000 行 · 12ms`。「行」是计数结果而不是本页行数（本页固定 100 行没有信息量）：计数完成前 `…`，超时 `?`，用估计值时 `~1.2m`（量级格式同侧栏）。
   - 查询条和表格之间不画分隔线。
-  - **工具按钮**（M2/M3 验收时定，取代上面的三个按钮；F3.26 重新分组：用户嫌每个图标一块底色难看）：分四组 `+ −` ｜ 保存 刷新 ｜ 自动刷新 停止 ｜ 转置，组之间隔 2 列；一组共用一块 `sep` 底，组内按钮紧挨着、各占 ` <图标> `，转置不画底色；悬停时只把那一个按钮画成 `select` 底。下面的按钮说明按原来的三组写，颜色与行为不变：
+  - **工具按钮**（M2/M3 验收时定，取代上面的三个按钮；F3.26 重新分组：用户嫌每个图标一块底色难看）：分四组 `+ −` ｜ 保存 刷新 ｜ 自动刷新 停止 ｜ 转置。M5 F5.5 起（用户嫌一组一块底色有割裂感，参考 DataGrip 的工具栏）：整排按钮共用一条 `sep` 底，组之间用 `border` 色的 `│` 分隔，转置也在这条底里；按钮各占 ` <图标> `；悬停时只把那一个按钮画成 `select` 底。下面的按钮说明按原来的三组写，颜色与行为不变：
     - 数据：新增行 `row_add`（`focus` 色，同 `o`）、删除行 `row_delete`（`error` 色，同 `dd`）、保存 `save`（`info` 色，有修改时带数字）；
     - 查询：刷新 `refresh`（`info`）、自动刷新 `auto_refresh`（`info`，开着时 `warn` 色并带间隔，如 ` <图标> 5s `）、停止 `stop`（这个 tab 有请求在跑时 `error` 色、可点，否则 `dim`、不可点，同 `C-c`）；
     - 视图：转置 `transpose`（`info`）。
@@ -1275,14 +1275,14 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 命令面板是执行命令的主要入口，取代了 M0 最初的 `:` 命令行（M0 用户反馈）。M0 先做面板本身，包括命令、表、pane、window 四个范围（F0.13、F0.14）；表在 M0 里用侧栏的假数据，M1 换成 catalog。session、SQL 范围和 DDL 预览在后面的里程碑。
 
 - **打开**：`C-p`（`palette.open`）打开，范围为「所有」；NORMAL 下按 `:`（`palette.command`）打开并直接进入命令范围，相当于输入了 `>`。
-- **ex 别名**：命令可以带别名，如 `q`（关闭 tab）、`qa`（退出）、`w`（保存）。在命令范围里，输入与某个别名完全相同时，这条命令排第一，所以 `:q↵`、`:qa↵` 的用法不变。
+- **ex 别名**：命令可以带别名，如 `q`（关闭 tab）、`qa`（退出）、`w`（保存）。在命令范围和「所有」范围里，输入与某个别名完全相同时，这条命令排第一，所以 `:q↵`、`:qa↵` 的用法不变（F5.8 起 `:` 打开「所有」）。
 - **数据来源**：session、window、pane 取自工作现场；表取自 catalog；命令取自 Action 注册表（带标题的 Action）；SQL 取自快速查询的历史。
   - 只在浮层或输入状态里用的 Action 不作为候选：离开那个上下文，执行它们没有意义，标题单独看也看不懂。包括：
     - 浮层作用域里的，比如面板自己的 `palette.up` / `palette.down` / `palette.run` / `palette.close`，以及以后的 `where.*`、`cols.*`；
     - `cell`、`input` 作用域里的，比如 `cell.accept`「确定」、`cell.up`「加一」。
   - 判断方法是「只在这些作用域里有绑定」。
 - **范围与前缀**：按 PRD K-02，范围标签为 所有 / 会话 / 窗口·Pane / 表 / 命令 / SQL，M0 先有 所有、窗口·Pane、表、命令。`Tab` / `S-Tab` 切换范围标签；输入前缀直接限定范围：`>` 命令、`@` 表、`%` 窗口·Pane、`$` 会话、`;` SQL。
-  - 范围只由输入里的前缀决定，不另存状态：`Tab` / `S-Tab` 就是改写前缀（「命令」→ `>`、「表」→ `@`、「窗口·Pane」→ `%`，「所有」去掉前缀），输入的其余内容保留；范围标签按当前前缀高亮。`:` 相当于输入了 `>`，也是同一套机制。
+  - 范围只由输入里的前缀决定，不另存状态：`Tab` / `S-Tab` 就是改写前缀（「命令」→ `>`、「表」→ `@`、「窗口·Pane」→ `%`，「所有」去掉前缀），输入的其余内容保留；范围标签按当前前缀高亮。`palette.command` 相当于输入了 `>`，也是同一套机制；F5.8 起 `:` 默认绑 `palette.open`，打开「所有」。
 - **每一行**（K-03）：图标、名称、所在位置（`dim` 色）、右侧的键位或 ON / OFF、类型标签（命令 / 表 / Pane / 窗口）。图标都放在最左列对齐。
   - pane 的名称是 `⟨1⟩ data · t_order`，所在位置是它所在的 window，如 `0: data`（M4 F4.3 起写全层级 `play › 0: data`）；
   - window 的名称是 `0: data`，所在位置是 session 名。
@@ -1362,7 +1362,8 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 
 | 文件 | 写入方 | 内容 |
 |---|---|---|
-| `~/.config/sqlmux/config.toml` | 只有用户写 | 常规选项、主题、键位、映射 |
+| `~/.config/sqlmux/config.toml` | 只有用户写 | 常规选项、主题 |
+| `~/.config/sqlmux/keymaps.toml` | 只有用户写 | 键位 `[keys.*]`、leader、映射 `[map.*]`（M5 F5.9 起从 config.toml 挪出来；`sqlmux keys --format toml` 生成一份全部注释掉的完整参考）。config.toml 里还写着 `[keys]` / `[map]` 时启动报错，提示挪到 keymaps.toml |
 | `~/.config/sqlmux/connections.toml` | 由应用写入（S-03 新建连接） | 连接定义 |
 | `~/.config/sqlmux/themes/*.toml` | 只有用户写 | 自定义主题 |
 | `~/.local/state/sqlmux/state.json` | 由应用写入 | 最近使用、每张表的 WHERE 历史与收藏、快速 SQL 历史；以后还有工作现场 |
@@ -1398,7 +1399,10 @@ autopairs    = true              # 输入括号、引号时补上另一半（§7
 
 [console]
 max_rows = 1000
+```
 
+```toml
+# keymaps.toml（M5 F5.9 起；sqlmux keys --format toml 生成的是全部注释掉的完整版，这里只列改动过的几行）
 [keys]
 leader = "<Space>"               # 改成 "<C-a>" 即为 tmux 式的全局前缀
 
