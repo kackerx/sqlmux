@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -82,7 +83,7 @@ func TestUpdateConnection(t *testing.T) {
 	if got := readFile(t, path); !strings.HasSuffix(got, "dsn = \"postgres://localhost/last\"\nread_only = true\n") || !strings.HasPrefix(got, "# my databases\n\n# the one for play\n") {
 		t.Errorf("the last block:\n%s", got)
 	}
-	if fi, err := os.Stat(path); err != nil || fi.Mode().Perm() != 0o644 {
+	if fi, err := os.Stat(path); err != nil || (fi.Mode().Perm() != 0o644 && runtime.GOOS != "windows") { // windows has no group/other bits to strip
 		t.Errorf("permissions: %v %v", fi.Mode(), err)
 	}
 	if _, err := UpdateConnection("nobody", was, c); err == nil {
@@ -335,7 +336,7 @@ func TestConnectionsWrite(t *testing.T) {
 	if li, err := os.Lstat(path); err != nil || li.Mode()&os.ModeSymlink == 0 {
 		t.Errorf("no longer a link: %v %v", li, err)
 	}
-	if fi, err := os.Stat(target); err != nil || fi.Mode().Perm() != 0o640 || !strings.Contains(readFile(t, target), "h/b") {
+	if fi, err := os.Stat(target); err != nil || (fi.Mode().Perm() != 0o640 && runtime.GOOS != "windows") || !strings.Contains(readFile(t, target), "h/b") { // windows has no group/other bits to strip
 		t.Errorf("the target: %v %v\n%s", fi, err, readFile(t, target))
 	}
 
@@ -372,6 +373,16 @@ func TestCheckUpdateWritable(t *testing.T) {
 	path = connectionsFile(t, oneConn)
 	if os.Geteuid() == 0 {
 		return // root makes files anywhere
+	}
+	if runtime.GOOS == "windows" { // the readonly attribute is what blocks there, not a directory's mode
+		if err := os.Chmod(path, 0o444); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(path, 0o600) })
+		if err := CheckUpdate("a", was, to); err == nil {
+			t.Error("a file that cannot be written")
+		}
+		return
 	}
 	if err := os.Chmod(filepath.Dir(path), 0o555); err != nil {
 		t.Fatal(err)

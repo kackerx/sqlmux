@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -121,7 +122,7 @@ func TestQueryFile(t *testing.T) {
 	}
 	feed(t, a, "A -- one<Esc>:w<CR>")
 	info, err := os.Stat(c.path)
-	if err != nil || info.Mode().Perm() != 0o600 {
+	if err != nil || (info.Mode().Perm() != 0o600 && runtime.GOOS != "windows") { // windows has no group/other bits
 		t.Fatalf(":w: %v %v", info, err)
 	}
 	feed(t, a, "o2<Esc>:wq<CR>")
@@ -1011,7 +1012,12 @@ func TestQueryRenameEdges(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := filepath.Dir(c.path)
-	if err := os.Chmod(dir, 0o555); err != nil { // a file there can be written over, not moved
+	if runtime.GOOS == "windows" { // a readonly file at the target is what blocks a rename there
+		if err := os.WriteFile(config.QueryPath("moved"), []byte("x"), 0o444); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(config.QueryPath("moved"), 0o600) })
+	} else if err := os.Chmod(dir, 0o555); err != nil { // a file there can be written over, not moved
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) }) // the temp dir goes with it

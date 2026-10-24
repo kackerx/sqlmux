@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -81,11 +82,15 @@ func TestLoadConnectionErrors(t *testing.T) {
 // password_cmd wins over password_env, which wins over password (§13).
 func TestSecret(t *testing.T) {
 	t.Setenv("SQLMUX_TEST_SECRET", "from-env")
+	cmd, fail := "printf 'from-cmd\\n'", "echo nope >&2; exit 3"
+	if runtime.GOOS == "windows" { // no sh: cmd's echo ends its lines with \r\n, set /p does not (and leaves errorlevel 1)
+		cmd, fail = "<nul set /p=from-cmd&exit 0", "echo nope 1>&2&exit 3"
+	}
 	for _, c := range []struct {
 		conn Connection
 		want string
 	}{
-		{Connection{PasswordCmd: "printf 'from-cmd\\n'", PasswordEnv: "SQLMUX_TEST_SECRET", Password: "plain"}, "from-cmd"},
+		{Connection{PasswordCmd: cmd, PasswordEnv: "SQLMUX_TEST_SECRET", Password: "plain"}, "from-cmd"},
 		{Connection{PasswordEnv: "SQLMUX_TEST_SECRET", Password: "plain"}, "from-env"},
 		{Connection{Password: "plain"}, "plain"},
 		{Connection{}, ""},
@@ -94,7 +99,7 @@ func TestSecret(t *testing.T) {
 			t.Errorf("%+v: %q %v, want %q", c.conn, got, err, c.want)
 		}
 	}
-	if _, err := (Connection{PasswordCmd: "echo nope >&2; exit 3"}).Secret(); err == nil || !strings.Contains(err.Error(), "nope") {
+	if _, err := (Connection{PasswordCmd: fail}).Secret(); err == nil || !strings.Contains(err.Error(), "nope") {
 		t.Errorf("a failing password_cmd: %v, want its stderr", err)
 	}
 	if _, err := (Connection{PasswordEnv: "SQLMUX_TEST_UNSET"}).Secret(); err == nil {
@@ -122,7 +127,7 @@ func TestAppendConnection(t *testing.T) {
 	if err := AppendConnection(Connection{Name: "c", Engine: "postgres", DSN: "y"}); err != nil {
 		t.Fatal(err)
 	}
-	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
+	if info, err := os.Stat(path); err != nil || (info.Mode().Perm() != 0o600 && runtime.GOOS != "windows") { // windows has no group/other bits to strip
 		t.Errorf("made: %v %v", info, err)
 	}
 	// connections in an inline array: a [[connection]] after it would break
@@ -182,6 +187,18 @@ func TestCheckAppendUnwritable(t *testing.T) {
 		t.Errorf("no file yet: %v", err)
 	}
 	if os.Geteuid() == 0 {
+		return
+	}
+	if runtime.GOOS == "windows" { // chmod on a directory blocks nothing there; a file where it is does
+		if err := os.RemoveAll(filepath.Dir(path)); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Dir(path), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if CheckAppend(c) == nil {
+			t.Error("a directory no file can be made in")
+		}
 		return
 	}
 	if err := os.Chmod(filepath.Dir(path), 0o500); err != nil { // no file yet, and none can be made

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"testing"
 
@@ -132,10 +133,15 @@ func TestYankFlashQuery(t *testing.T) {
 // when there is none or it fails (F3.38).
 func TestClipTools(t *testing.T) {
 	f := filepath.Join(t.TempDir(), "clip")
+	write, paste := []string{"sh", "-c", "cat > " + f}, []string{"cat", f}
+	if runtime.GOOS == "windows" { // no sh: powershell is the exact write and paste
+		write = []string{"powershell", "-NoProfile", "-Command", "[IO.File]::WriteAllText('" + f + "', [Console]::In.ReadToEnd())"}
+		paste = []string{"powershell", "-NoProfile", "-Command", "[Console]::Out.Write([IO.File]::ReadAllText('" + f + "'))"}
+	}
 	clipTools = []clipTool{
 		{"", []string{"sqlmux-no-such-copy"}, []string{"sqlmux-no-such-paste"}},
 		{"SQLMUX_NO_SUCH_DISPLAY", []string{"true"}, []string{"true"}},
-		{"", []string{"sh", "-c", "cat > " + f}, []string{"cat", f}},
+		{"", write, paste},
 	}
 	defer func() { clipTools = nil }()
 	if msg := clipCopy("a\tb\n")(); msg != nil {
@@ -147,6 +153,37 @@ func TestClipTools(t *testing.T) {
 	clipTools[2] = clipTool{"", []string{"false"}, []string{"false"}}
 	if clipCopy("x")() != tea.SetClipboard("x")() || clipPaste() != tea.ReadClipboard() {
 		t.Error("a failing tool is not OSC 52")
+	}
+}
+
+// The windows row is in the table on windows only, its argv the spec's
+// two PowerShell commands, and its read's \r\n lines are normalized (§7.8,
+// F18.3).
+func TestClipWindowsRow(t *testing.T) {
+	rows := slices.DeleteFunc(slices.Clone(clipTable()), func(t clipTool) bool {
+		return len(t.copy) == 0 || t.copy[0] != "powershell"
+	})
+	if runtime.GOOS != "windows" {
+		if len(rows) != 0 {
+			t.Errorf("the powershell rows are there on %s", runtime.GOOS)
+		}
+		return
+	}
+	if len(rows) != 1 {
+		t.Fatalf("the windows rows: %d", len(rows))
+	}
+	want := clipTool{
+		"",
+		[]string{"powershell", "-NoProfile", "-Command", "[Console]::InputEncoding=[Text.Encoding]::UTF8;Set-Clipboard -Value ([Console]::In.ReadToEnd())"},
+		[]string{"powershell", "-NoProfile", "-Command", "[Console]::OutputEncoding=[Text.Encoding]::UTF8;[Console]::Out.Write((Get-Clipboard -Raw))"},
+	}
+	if !slices.Equal(rows[0].copy, want.copy) || !slices.Equal(rows[0].paste, want.paste) {
+		t.Errorf("the windows row:\n got %#v\nwant %#v", rows[0], want)
+	}
+	clipTools = []clipTool{{"", []string{"cmd", "/c", "rem"}, []string{"cmd", "/c", "echo a\tb"}}}
+	defer func() { clipTools = nil }()
+	if msg := clipPaste(); msg != (tea.ClipboardMsg{Content: "a\tb\n", Selection: 'c'}) { // echo ends the line with \r\n
+		t.Errorf("pasted %#v", msg)
 	}
 }
 

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -31,7 +32,7 @@ func TestAppendHistoryFormat(t *testing.T) {
 	if string(data) != want {
 		t.Fatalf("history.jsonl:\n%s\nwant:\n%s", data, want)
 	}
-	if fi, _ := os.Stat(historyPath()); fi.Mode().Perm() != 0o600 {
+	if fi, _ := os.Stat(historyPath()); fi.Mode().Perm() != 0o600 && runtime.GOOS != "windows" { // windows has no group/other bits to strip
 		t.Fatalf("mode %v: the history is the user's alone (§13)", fi.Mode())
 	}
 }

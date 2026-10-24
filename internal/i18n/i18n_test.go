@@ -31,6 +31,7 @@ func scan(t *testing.T) (keys map[string][]int, outside []literal) {
 	root := filepath.Join("..", "..")
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		rel, _ := filepath.Rel(root, path)
+		rel = filepath.ToSlash(rel) // the prefix checks below compare slashed paths on every GOOS
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") ||
 			strings.HasPrefix(rel, "internal/i18n") || strings.HasPrefix(rel, "e2e") {
 			return nil //nolint:nilerr // an entry that cannot be read is skipped, the walk goes on

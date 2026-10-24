@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -314,6 +315,9 @@ func TestRedialEventOfAClosedSession(t *testing.T) {
 // a Worker that dials again reads the new one, not the item of the old name,
 // which is gone (F8.19).
 func TestRedialAfterRenameInTheManager(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managed(t)
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	withOwnPassword(t, a)
@@ -344,7 +348,11 @@ func TestRedialDialsTheCurrentConfig(t *testing.T) {
 	edited.Name, edited.DSN, edited.Engine = "now", "postgres://u@127.0.0.1:2/x?connect_timeout=1", "mysql"
 	c.setConfig(edited)
 	_, err := c.Main.Redial(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "127.0.0.1:2: connect: connection refused") { // PG's dial of the new address
+	refused := "127.0.0.1:2: connect: connection refused" // windows says connectex
+	if runtime.GOOS == "windows" {
+		refused = "127.0.0.1:2: connectex"
+	}
+	if err == nil || !strings.Contains(err.Error(), refused) { // PG's dial of the new address
 		t.Errorf("the address it dials: %v", err)
 	}
 }

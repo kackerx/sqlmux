@@ -7,10 +7,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/kackerx/sqlmux/internal/db"
@@ -132,10 +132,16 @@ func (q *Query) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// StateDir is $XDG_STATE_HOME/sqlmux, falling back to ~/.local/state/sqlmux (§14).
+// StateDir is $XDG_STATE_HOME/sqlmux, falling back to ~/.local/state/sqlmux,
+// %LOCALAPPDATA%\sqlmux on windows (§14).
 func StateDir() string {
 	if d := os.Getenv("XDG_STATE_HOME"); d != "" {
 		return filepath.Join(d, "sqlmux")
+	}
+	if runtime.GOOS == "windows" {
+		if d, err := os.UserCacheDir(); err == nil {
+			return filepath.Join(d, "sqlmux")
+		}
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".local", "state", "sqlmux")
@@ -263,11 +269,11 @@ func lockFile(path string) (unlock func(), err error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+	if err := flockExclusive(f); err != nil {
 		f.Close()
 		return nil, err
 	}
-	return func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); f.Close() }, nil
+	return func() { _ = funlockExclusive(f); f.Close() }, nil
 }
 
 // beforeRename is the test that kills a write between the temp file and the

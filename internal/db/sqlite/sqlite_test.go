@@ -9,6 +9,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -69,17 +70,27 @@ func cells(r db.Result) []string {
 // driver's parameters go on, and a busy timeout when none says another.
 func TestDSN(t *testing.T) {
 	t.Setenv("HOME", "/home/u")
+	home, root := "/home/u", "/" // what ~ and an absolute path start from
 	wd, _ := os.Getwd()
+	wd = filepath.ToSlash(wd)
+	if runtime.GOOS == "windows" { // UserHomeDir is %USERPROFILE%, /x the current drive's
+		t.Setenv("USERPROFILE", `C:\Users\u`)
+		home, root, wd = "/C:/Users/u", "/"+filepath.VolumeName(wd)+"/", "/"+wd
+	}
 	const busy = "_pragma=busy_timeout%285000%29"
-	for spec, want := range map[string]string{
-		"~/x.db":             "file:///home/u/x.db?" + busy + "&mode=rw",
+	want := map[string]string{
+		"~/x.db":             "file://" + home + "/x.db?" + busy + "&mode=rw",
 		"x.db?mode=ro":       "file://" + wd + "/x.db?" + busy + "&mode=ro",
-		"/t.db?mode=rwc":     "file:///t.db?" + busy + "&mode=rwc",
-		"/a b/c#d.db":        "file:///a%20b/c%23d.db?" + busy + "&mode=rw",
-		"/t.db?_pragma=a(1)": "file:///t.db?_pragma=a%281%29&" + busy + "&mode=rw", // a pragma of the user's keeps the timeout
-		"/t.db?_pragma=busy_timeout(1)&_pragma=foreign_keys(1)": "file:///t.db?_pragma=busy_timeout%281%29&_pragma=foreign_keys%281%29&mode=rw",
+		"/t.db?mode=rwc":     "file://" + root + "t.db?" + busy + "&mode=rwc",
+		"/a b/c#d.db":        "file://" + root + "a%20b/c%23d.db?" + busy + "&mode=rw",
+		"/t.db?_pragma=a(1)": "file://" + root + "t.db?_pragma=a%281%29&" + busy + "&mode=rw", // a pragma of the user's keeps the timeout
+		"/t.db?_pragma=busy_timeout(1)&_pragma=foreign_keys(1)": "file://" + root + "t.db?_pragma=busy_timeout%281%29&_pragma=foreign_keys%281%29&mode=rw",
 		"~other/x.db": "file://" + wd + "/~other/x.db?" + busy + "&mode=rw", // not a home
-	} {
+	}
+	if runtime.GOOS == "windows" {
+		want[`~\x.db`] = "file://" + home + "/x.db?" + busy + "&mode=rw" // the other separator is taken too
+	}
+	for spec, want := range want {
 		if _, got, err := DSN(spec); err != nil || got != want {
 			t.Errorf("%q: %q %v, want %q", spec, got, err, want)
 		}

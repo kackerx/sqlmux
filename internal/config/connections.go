@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -355,7 +356,7 @@ func (c Connection) Expanded() (Connection, error) {
 func (c Connection) Secret() (string, error) {
 	switch {
 	case c.PasswordCmd != "":
-		out, err := exec.Command("sh", "-c", c.PasswordCmd).Output()
+		out, err := ShellCommand(context.Background(), c.PasswordCmd).Output()
 		var exit *exec.ExitError
 		if errors.As(err, &exit) {
 			return "", fmt.Errorf("password_cmd: %w: %s", err, strings.TrimSpace(string(exit.Stderr)))

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 )
@@ -25,9 +26,11 @@ func TestQueryFiles(t *testing.T) {
 	if text, err := ReadQuery(path); text != "select 1;\n" || err != nil {
 		t.Errorf("read back: %q %v", text, err)
 	}
-	for p, want := range map[string]os.FileMode{path: 0o600, filepath.Dir(path): 0o700, filepath.Join(dir, "sqlmux"): 0o700} {
-		if info, err := os.Stat(p); err != nil || info.Mode().Perm() != want {
-			t.Errorf("%s: %v %v, want %v", p, info.Mode().Perm(), err, want)
+	if runtime.GOOS != "windows" { // windows has no group/other bits to strip
+		for p, want := range map[string]os.FileMode{path: 0o600, filepath.Dir(path): 0o700, filepath.Join(dir, "sqlmux"): 0o700} {
+			if info, err := os.Stat(p); err != nil || info.Mode().Perm() != want {
+				t.Errorf("%s: %v %v, want %v", p, info.Mode().Perm(), err, want)
+			}
 		}
 	}
 	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(path), "*-*")); len(left) > 0 {

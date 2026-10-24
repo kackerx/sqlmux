@@ -298,10 +298,7 @@ func TestStartNotes(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(data, "sqlmux", "consoles"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(filepath.Join(data, "sqlmux"), 0o500); err != nil { // consoles cannot move to queries
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(filepath.Join(data, "sqlmux"), 0o700) })
+	blockRename(t, filepath.Join(data, "sqlmux", "consoles")) // consoles cannot move to queries
 	if got := startNotes(cfg); !strings.Contains(got, "confirm_dngerous") || !strings.Contains(got, "consoles") {
 		t.Errorf("a key and a move that failed: %q", got)
 	}

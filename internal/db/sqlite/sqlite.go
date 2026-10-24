@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -38,10 +39,10 @@ type Conn struct {
 
 // Path is the file spec names: ~ at its start is the home directory, a
 // relative one is relative to where sqlmux started; ?mode=ro and the like are
-// the driver's, which Config passes on.
+// the driver's, which Config passes on. Both separators are taken on windows.
 func Path(spec string) (path, query string, err error) {
 	path, query, _ = strings.Cut(spec, "?")
-	if rest, ok := strings.CutPrefix(path, "~"); ok && (rest == "" || rest[0] == '/') {
+	if rest, ok := strings.CutPrefix(path, "~"); ok && (rest == "" || rest[0] == '/' || rest[0] == '\\' && runtime.GOOS == "windows") {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", "", err
@@ -50,6 +51,15 @@ func Path(spec string) (path, query string, err error) {
 	}
 	path, err = filepath.Abs(path)
 	return path, query, err
+}
+
+// slashPath is the windows drive path in the shape a file: URL takes: C:\x.db
+// is the path /C:/x.db there. Unix paths already are that shape.
+func slashPath(p string) string {
+	if runtime.GOOS != "windows" {
+		return p
+	}
+	return "/" + strings.TrimPrefix(filepath.ToSlash(p), "/")
 }
 
 // DSN is spec as the driver takes it: the file with its parameters, a busy
@@ -70,7 +80,7 @@ func DSN(spec string) (path, dsn string, err error) {
 	if !q.Has("mode") { // a file there is not is no new database: a path mistyped; mode=rwc says it
 		q.Set("mode", "rw")
 	}
-	u := url.URL{Scheme: "file", Path: path, RawQuery: q.Encode()}
+	u := url.URL{Scheme: "file", Path: slashPath(path), RawQuery: q.Encode()}
 	return path, u.String(), nil
 }
 

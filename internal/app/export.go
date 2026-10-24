@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -199,7 +200,7 @@ func (a *App) export(src exportSrc, at int) tea.Cmd {
 	if all && src.all != nil {
 		base = src.all.base
 	}
-	f, path, err := createExport(fileSafe.Replace(base) + ext)
+	f, path, err := createExport(fileSafe(base) + ext)
 	if err != nil {
 		return a.showToast(err.Error())
 	}
@@ -267,9 +268,17 @@ func (a *App) gotExport(m exportDone) tea.Cmd {
 	return a.showToast(i18n.T("已导出 %s · %d 行", m.path, m.rows))
 }
 
-// fileSafe keeps a table's name, which anyone with CREATE rights chose, from
-// naming a place: it is the file's, in the current directory.
-var fileSafe = strings.NewReplacer("/", "_", "\\", "_")
+// fileSafe is name as an export's file name: a character a windows file
+// name cannot hold, or a control character, is an underscore, on every
+// platform (§7.6, F18.2e) — hash:big exports as hash_big.csv.
+func fileSafe(name string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || strings.ContainsRune(`<>:"/\|?*`, r) {
+			return '_'
+		}
+		return r
+	}, name)
+}
 
 // createExport makes the file name, or name-2, name-3 before the extension
 // when there is one already, which is not touched; it is made with the

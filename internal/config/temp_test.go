@@ -2,12 +2,13 @@ package config
 
 import (
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestTempConnection(t *testing.T) {
-	for target, want := range map[string]Connection{
+	targets := map[string]Connection{
 		"./x.db":                          {Name: "x", Engine: "sqlite", DSN: "./x.db", Temp: true},
 		"/tmp/data/my.app.sqlite?mode=ro": {Name: "my.app", Engine: "sqlite", DSN: "/tmp/data/my.app.sqlite?mode=ro", Temp: true},
 		"~/notes":                         {Name: "notes", Engine: "sqlite", DSN: "~/notes", Temp: true},
@@ -15,7 +16,12 @@ func TestTempConnection(t *testing.T) {
 		"postgresql://localhost/app":               {Name: "app@localhost", Engine: "postgres", DSN: "postgresql://localhost/app", Temp: true},
 		"mysql://root@127.0.0.1:3306/":             {Name: "127.0.0.1", Engine: "mysql", DSN: "mysql://root@127.0.0.1:3306/", Temp: true},
 		"mysql:///tmp/sock":                        {Name: "mysql", Engine: "mysql", DSN: "mysql:///tmp/sock", Temp: true},
-	} {
+		`D:/x.db`:                                  {Name: "x", Engine: "sqlite", DSN: `D:/x.db`, Temp: true}, // a windows drive, both separators taken
+	}
+	if runtime.GOOS == "windows" { // unix's filepath.Base does not cut at a backslash
+		targets[`C:\data\a.db`] = Connection{Name: "a", Engine: "sqlite", DSN: `C:\data\a.db`, Temp: true}
+	}
+	for target, want := range targets {
 		got, err := TempConnection(target, nil)
 		if err != nil || !reflect.DeepEqual(got, want) {
 			t.Errorf("%s: %+v %v, want %+v", target, got, err, want)

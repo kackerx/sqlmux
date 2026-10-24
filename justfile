@@ -118,7 +118,7 @@ generate:
     go generate ./internal/editor
 
 # start PG 17 and MySQL 8.4 of docker-compose.yml, seeded on their first start;
-# Redis is not here (an image that cannot be pulled would fail this): `docker compose up -d redis`,
+# Redis is not here (an image that cannot be pulled would fail this): `docker compose up -d redis redis-seed`,
 # or a redis-server --port 56379 given testdata/seed/redis.txt with redis-cli
 db-up:
     docker compose up -d --wait postgres mysql

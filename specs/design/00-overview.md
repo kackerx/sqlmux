@@ -97,7 +97,7 @@ sqlmux/
 │  ├─ keymap/                 键位记法解析（含 keymaps.toml 的键位语法 ParseKeys，M13 F13.15 起）、作用域 trie、次数前缀、用户映射、冲突检测、提示查询、default.toml（embed）；不 import config / ui
 │  ├─ editor/                 vim 编辑器的纯逻辑，不 import ui 和 bubbletea；testdata/ 放 nvim 差分用例
 │  ├─ sqlkit/                 词法扫描、分句、读写判定、自动 LIMIT、WHERE 拼接校验、补全上下文、格式化（内嵌 sql-formatter）
-│  ├─ db/                     Conn / Engine / Source 接口、Worker、postgres/、mysql/、sqlite/（M14 F14.1，modernc.org/sqlite，纯 Go）、redis/（M16，go-redis v9：连接、SCAN 树、键 tab 的数据源、控制台的命令词法与 COMMAND DOCS 补全）、exec/（M17 F17.7：外部执行器，子进程当连接，§8.8）、catalog 查询
+│  ├─ db/                     Conn / Engine / Source 接口、Worker、postgres/、mysql/、sqlite/（M14 F14.1，modernc.org/sqlite，纯 Go）、mssql/（M18 F18.6，microsoft/go-mssqldb，纯 Go）、redis/（M16，go-redis v9：连接、SCAN 树、键 tab 的数据源、控制台的命令词法与 COMMAND DOCS 补全）、exec/（M17 F17.7：外部执行器，子进程当连接，§8.8）、catalog 查询
 │  ├─ config/                 config / connections / state / 布局文件的读写与 XDG 路径
 │  └─ i18n/                   界面文案的翻译：T(中文, 参数…)，en 表
 ├─ e2e/                       tester 的黑盒测试脚本，从 e2e 分支合并进来

@@ -19,7 +19,7 @@ import (
 // queryFile writes a query file with text in it.
 func queryFile(t *testing.T, name, text string) {
 	t.Helper()
-	if err := os.MkdirAll(config.QueryPath(name)[:strings.LastIndex(config.QueryPath(name), "/")], 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(config.QueryPath(name)), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := config.WriteQuery(config.QueryPath(name), text); err != nil {
@@ -171,18 +171,14 @@ func TestOpenQueryFileConnection(t *testing.T) {
 func TestDeleteQueryFileFails(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	a := sized(160, 45, "nerd")
-	queryFile(t, "query_2", "two\n")
-	a.state.Queries = map[string]config.QueryState{"query_2": {Conn: "doraemon"}}
 	if os.Geteuid() == 0 {
 		t.Skip("root deletes in a read-only directory")
 	}
-	dir := filepath.Dir(config.QueryPath("x"))
-	if err := os.Chmod(dir, 0o500); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chmod(dir, 0o700) //nolint:errcheck // the temp dir goes next
+	a := sized(160, 45, "nerd")
+	queryFile(t, "query_2", "two\n")
+	a.state.Queries = map[string]config.QueryState{"query_2": {Conn: "doraemon"}}
 	queryNode(t, a, "query_2")
+	blockDelete(t, config.QueryPath("query_2"))
 	feed(t, a, "dd<CR>")
 	if a.toast == "" || !config.QueryExists("query_2") || a.state.Queries["query_2"].Conn != "doraemon" {
 		t.Errorf("toast %q, file %v, state %v", a.toast, config.QueryExists("query_2"), a.state.Queries)
@@ -386,12 +382,8 @@ func TestDeleteQueryFailsKeepsTransaction(t *testing.T) {
 	main := &saveDB{}
 	first.conn.Main, first.conn.tx = db.NewWorker(main), 'T'
 	queryFile(t, "query_77", "x\n")
-	dir := filepath.Dir(config.QueryPath("x"))
-	if err := os.Chmod(dir, 0o500); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chmod(dir, 0o700) //nolint:errcheck // the temp dir goes next
 	queryNode(t, a, "query_77")
+	blockDelete(t, config.QueryPath("query_77"))
 	feed(t, a, "dd<CR>y")
 	if a.toast == "" || len(report.queries()) != 1 || slices.Contains(main.sqls, "rollback []") || !config.QueryExists("query_77") {
 		t.Errorf("toast %q, %d queries, sent %q", a.toast, len(report.queries()), main.sqls)

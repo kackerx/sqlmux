@@ -231,13 +231,15 @@ func TestKeyTabViews(t *testing.T) {
 	if a.openDDL(true) != nil || a.ddl != nil {
 		t.Error("a key has no column DDL")
 	}
-	// an export that reads more than the budget says it is a part
+	// an export that reads more than the budget says it is a part; the
+	// colon of hash:big is a windows-safe underscore in the file's name
+	// (F18.2e)
 	big := openKey(t, a, c, "hash:big")
 	exportAt(t, a, exportCSVAll)
 	if toast := a.toast; !strings.Contains(toast, db.ErrTruncated.Error()) {
 		t.Errorf("toast %q", toast)
 	}
-	files, _ := filepath.Glob(filepath.Join(dir, "hash:big*.csv"))
+	files, _ := filepath.Glob(filepath.Join(dir, "hash_big*.csv"))
 	if len(files) != 1 {
 		t.Fatalf("files %v", files)
 	}

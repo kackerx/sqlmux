@@ -1,3 +1,8 @@
+//go:build !windows
+
+// The fake the engine is tested through is a /bin/sh script; the engine
+// itself runs whatever argv it is given, on windows as anywhere.
+
 package exec
 
 import (

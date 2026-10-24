@@ -9,6 +9,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -90,10 +91,15 @@ func Default() *Config {
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
-// Unix, macOS included (§14).
+// Unix, macOS included, and %APPDATA%\sqlmux on windows (§14).
 func Dir() string {
 	if d := os.Getenv("XDG_CONFIG_HOME"); d != "" {
 		return filepath.Join(d, "sqlmux")
+	}
+	if runtime.GOOS == "windows" {
+		if d, err := os.UserConfigDir(); err == nil {
+			return filepath.Join(d, "sqlmux")
+		}
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".config", "sqlmux")

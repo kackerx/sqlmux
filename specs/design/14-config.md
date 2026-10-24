@@ -6,6 +6,8 @@
 
 所有 Unix 平台都遵循 XDG 规范：优先读 `$XDG_CONFIG_HOME`、`$XDG_STATE_HOME`、`$XDG_DATA_HOME`，未设置时分别用 `~/.config`、`~/.local/state`、`~/.local/share`。macOS 上也用 `~/.config`，不用 `~/Library/Application Support`，这是终端工具的惯例。
 
+**Windows**（M18，用户 2026-10-19 定：Windows Terminal 里的 PowerShell / cmd 能正常简单使用就行，WSL 等于 Linux）：`XDG_*` 设了照旧优先；没设时配置在 `%APPDATA%\sqlmux`，data 和 state（history.jsonl、state.json、布局文件）在 `%LOCALAPPDATA%\sqlmux`（`os.UserConfigDir` / `os.UserCacheDir`）。起子进程的三处（`password_cmd`、`C-o` 用 `$VISUAL` / `$EDITOR` 开 query 文件、`gq` 的 formatprg）走一个共用的 helper：非 Windows `sh -c <line>`，Windows `%COMSPEC% /c <line>`（没设 `COMSPEC` 用 `cmd`）；`$EDITOR` 没设时 Windows 默认 `notepad`，路径用引号拼进命令行（路径里有引号的不处理，已知上限）。sqlite 的 DSN 认盘符：一个字母加冒号开头的是路径不是 URL 的 scheme。state.json 的锁在 Windows 上是 `LockFileEx`（`golang.org/x/sys/windows`），阻塞语义同 `flock`。钥匙串只在 macOS，Windows 和 Linux 一样用明文或 `password_cmd`（Credential Manager 是候选）。老 conhost 不支持，只认 Windows Terminal（真彩色、鼠标、OSC 52）。
+
 **文件格式**：
 
 - **配置文件用 TOML**。配置是用户手写的，需要能写注释；键位的分层表（如 `[keys.grid]`、`[map.query.normal]`）写成 TOML 的表最自然。lazysql、Helix、Alacritty 用的也是 TOML。
@@ -118,7 +120,7 @@ H = "0"
 # connections.toml
 [[connection]]
 name         = "doraemon"
-engine       = "postgres"        # postgres | mysql | sqlite（M14 F14.1；sqlite 的 dsn 是文件路径）| redis（M16；dsn 是 redis:// 或 rediss:// URL，db 号在路径里）| exec（M17；见下面的例子）
+engine       = "postgres"        # postgres | mysql | sqlite（M14 F14.1；sqlite 的 dsn 是文件路径）| mssql（M18 F18.6；dsn 是 sqlserver://user:pass@host:1433?database=x，本地容器加 &TrustServerCertificate=true）| redis（M16；dsn 是 redis:// 或 rediss:// URL，db 号在路径里）| exec（M17；见下面的例子）
 dsn          = "postgres://ctw@localhost:5432/doraemon?sslmode=disable"
 password_cmd = "security find-generic-password -s sqlmux-doraemon -w"
 read_only    = false

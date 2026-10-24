@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -47,7 +48,7 @@ func TestState(t *testing.T) {
 		t.Fatalf("got %+v %v", got, err)
 	}
 	info, _ := os.Stat(filepath.Join(StateDir(), "state.json"))
-	if info.Mode().Perm() != 0o600 {
+	if info.Mode().Perm() != 0o600 && runtime.GOOS != "windows" { // windows has no group/other bits to strip
 		t.Errorf("mode %v", info.Mode().Perm())
 	}
 	path := filepath.Join(StateDir(), "state.json")
@@ -128,7 +129,7 @@ func TestLayoutFile(t *testing.T) {
 	if err := SaveLayout(LastPath(), want); err != nil {
 		t.Fatal(err)
 	}
-	if info, _ := os.Stat(LastPath()); info.Mode().Perm() != 0o600 {
+	if info, _ := os.Stat(LastPath()); info.Mode().Perm() != 0o600 && runtime.GOOS != "windows" { // windows has no group/other bits to strip
 		t.Errorf("mode %v", info.Mode().Perm())
 	}
 	got, err := LoadLayout(LastPath())

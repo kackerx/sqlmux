@@ -242,6 +242,9 @@ func hasHit(a *App, want ui.Target) bool {
 // and only then the old item is taken out; the cached password of both names
 // is dropped (F8.16).
 func TestConnManagerRenameMovesPassword(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managed(t)
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	withOwnPassword(t, a)
@@ -282,6 +285,9 @@ func TestConnManagerRenameMovesPassword(t *testing.T) {
 // A password typed again under the same name replaces the item: it is not
 // taken out after (F8.16).
 func TestConnManagerRetypedPassword(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managed(t)
 	withOwnPassword(t, a)
 	a.run("conn.manage", 0)
@@ -300,6 +306,9 @@ func TestConnManagerRetypedPassword(t *testing.T) {
 // another connection has since been given is found out first, and a
 // keychain that refuses leaves the file as it was (F8.16).
 func TestConnManagerStoresOnlyWhatTheFileTakes(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managed(t)
 	a.run("conn.manage", 0)
 	feed(t, a, "j<Tab>")
@@ -522,6 +531,9 @@ func longList(t *testing.T, width int) {
 // (one not there is no error), the tabs closed on it, the session's way back
 // to it, the password kept for the name (F8.16).
 func TestConnManagerDeleteTakesWhatIsItsOwn(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managed(t)
 	withOwnPassword(t, a)
 	second := a.sess.Conns[1]
@@ -647,6 +659,9 @@ func editSecond(t *testing.T, a *App, pw, keys string) {
 // touched: the item the file names keeps its password, a rename makes no new
 // item (F8.16).
 func TestConnManagerUnwritableFileLeavesKeychain(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	for label, keys := range map[string]string{"retyped": "", "renamed": "<C-u>third"} {
 		a := managed(t)
 		withOwnPassword(t, a)
@@ -671,6 +686,9 @@ func TestConnManagerUnwritableFileLeavesKeychain(t *testing.T) {
 // as it is, the typed one replaces it; a command of the user's is not
 // meddled with (F8.16).
 func TestConnManagerPasswordSources(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managed(t)
 	setSecondCmd(t, a, "pass show second")
 	editSecond(t, a, "pw", "")
@@ -709,6 +727,9 @@ func TestConnManagerPasswordSources(t *testing.T) {
 
 // A save of one that is no rename asks nothing of the keychain (F8.16).
 func TestConnManagerNoRenameNoKeychain(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managed(t)
 	withOwnPassword(t, a)
 	_ = os.Remove(filepath.Join(os.Getenv("FAKE"), "log"))
@@ -724,6 +745,9 @@ func TestConnManagerNoRenameNoKeychain(t *testing.T) {
 // A rename of a connection whose item is not in the keychain is refused, and
 // says what to do; a password typed then goes under the new name (F8.16).
 func TestConnManagerRenameMissingItem(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managed(t)
 	withOwnPassword(t, a)
 	_ = os.Remove(filepath.Join(os.Getenv("FAKE"), map[bool]string{true: "svc-sqlmux-second", false: "svc-second"}[runtime.GOOS == "darwin"]))
@@ -747,6 +771,9 @@ func TestConnManagerRenameMissingItem(t *testing.T) {
 // stored, and the password_env a keychain password's file would have is
 // cleared with it (F8.16).
 func TestConnManagerKeychainPassword(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managed(t)
 	file := strings.Replace(managerFile, `dsn = "u:p@tcp(m:3306)/s"`, "dsn = \"u:p@tcp(m:3306)/s\"\n\"password_cmd\" = \"pass show x\"", 1)
 	if err := os.WriteFile(filepath.Join(config.Dir(), "connections.toml"), []byte(file), 0o644); err != nil {
@@ -773,6 +800,9 @@ func TestConnManagerKeychainPassword(t *testing.T) {
 // With no tool for this system's keychain, a rename whose password could be
 // read leaves it where it is: not in the file in plaintext (F8.16).
 func TestConnManagerRenameWithoutTool(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managed(t)
 	host, other := "secret-tool", "security"
 	file, cmd := "svc-sqlmux-second", "security find-generic-password -a sqlmux -s 'sqlmux-second' -w"
@@ -798,6 +828,9 @@ func TestConnManagerRenameWithoutTool(t *testing.T) {
 // A refusal of the keychain to delete says so, whether it is the old item
 // after a rename or a deleted connection's (F8.16).
 func TestConnManagerKeychainDeleteFails(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	a := managedWith(t, "locked")
 	setSecondCmd(t, a, config.KeychainCmd("second", "pw"))
 	a.run("conn.manage", 0)

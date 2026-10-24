@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -128,6 +129,9 @@ func TestStorePasswordNoToolOrFailing(t *testing.T) {
 		if cmd, stored, err := StorePassword("x", "pw"); cmd != "" || stored || err != nil {
 			t.Errorf("%s with no tool: %q %v %v", goos, cmd, stored, err)
 		}
+	}
+	if runtime.GOOS == "windows" { // the fake tool is a /bin/sh script; the keychain is not windows' (§14)
+		return
 	}
 	bin := isolated(t)
 	hostOS = "darwin"

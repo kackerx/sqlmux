@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -377,11 +378,26 @@ func yankSel(y editor.Yank) ui.Sel {
 // matter; with none the terminal is asked over OSC 52 (F3.38). nvim's
 // xclip -quiet and xsel --nodetach keep the process it waits on as the
 // selection's owner; without them the tools fork one off and exit.
-var clipTools = []clipTool{
-	{"", []string{"pbcopy"}, []string{"pbpaste"}},
-	{"WAYLAND_DISPLAY", []string{"wl-copy", "--type", "text/plain"}, []string{"wl-paste", "--no-newline"}},
-	{"DISPLAY", []string{"xclip", "-i", "-selection", "clipboard"}, []string{"xclip", "-o", "-selection", "clipboard"}},
-	{"DISPLAY", []string{"xsel", "-i", "-b"}, []string{"xsel", "-o", "-b"}},
+var clipTools = clipTable()
+
+// clipTable is clipTools of the platform: the unix tools, and the windows
+// row, clip writing and PowerShell reading, after them, on windows only
+// (§7.8); the windows read's \r\n is normalized in clipPaste.
+func clipTable() []clipTool {
+	tools := []clipTool{
+		{"", []string{"pbcopy"}, []string{"pbpaste"}},
+		{"WAYLAND_DISPLAY", []string{"wl-copy", "--type", "text/plain"}, []string{"wl-paste", "--no-newline"}},
+		{"DISPLAY", []string{"xclip", "-i", "-selection", "clipboard"}, []string{"xclip", "-o", "-selection", "clipboard"}},
+		{"DISPLAY", []string{"xsel", "-i", "-b"}, []string{"xsel", "-o", "-b"}},
+	}
+	if runtime.GOOS == "windows" { // both PowerShell with UTF-8 said out loud: clip reads the console code page, bare Get-Clipboard writes OEM and ends with a CRLF (§7.8)
+		tools = append(tools, clipTool{
+			"",
+			[]string{"powershell", "-NoProfile", "-Command", "[Console]::InputEncoding=[Text.Encoding]::UTF8;Set-Clipboard -Value ([Console]::In.ReadToEnd())"},
+			[]string{"powershell", "-NoProfile", "-Command", "[Console]::OutputEncoding=[Text.Encoding]::UTF8;[Console]::Out.Write((Get-Clipboard -Raw))"},
+		})
+	}
+	return tools
 }
 
 type clipTool struct {
@@ -423,6 +439,9 @@ func clipCopy(text string) tea.Cmd {
 func clipPaste() tea.Msg {
 	if c := clipCmd(true); c != nil {
 		if out, err := c.Output(); err == nil {
+			if runtime.GOOS == "windows" { // the windows read's lines end in \r\n
+				out = bytes.ReplaceAll(out, []byte("\r\n"), []byte("\n"))
+			}
 			return tea.ClipboardMsg{Content: string(out), Selection: 'c'}
 		}
 	}

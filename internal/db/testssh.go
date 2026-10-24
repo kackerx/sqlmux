@@ -4,14 +4,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 // FakeSSH puts an `ssh` on the PATH of the test that runs script, which is
 // given the arguments the program gave ssh; they are written to the file that
-// is returned (F15.2).
+// is returned (F15.2). The script is a /bin/sh one: no windows.
 func FakeSSH(t *testing.T, script string) (args string) {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake ssh is a /bin/sh script")
+	}
 	dir := t.TempDir()
 	args = filepath.Join(dir, "args")
 	body := "#!/bin/sh\nprintf '%s\\n' \"$*\" >" + args + "\n" + script + "\n"

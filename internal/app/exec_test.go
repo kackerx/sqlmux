@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -39,6 +40,9 @@ esac
 // A connection that is a command dials, loads its catalog into the tree, runs a query,
 // and takes no write: read only is all it is (F17.7, §8.8).
 func TestExecConnection(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake exec command is a /bin/sh script")
+	}
 	a, q := inQuery(t, "", "")
 	c := a.sess.Conns[0]
 	spec := fakeExec(t)
@@ -111,6 +115,9 @@ esac
 // the driver: its tree has the keys the command's SCAN gave, its icon is Redis's, it is
 // read only, and what the command refused of COMMAND says every command writes (F17.8).
 func TestExecRedisConnection(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake exec command is a /bin/sh script")
+	}
 	a, _ := inQuery(t, "", "")
 	c := a.sess.Conns[0]
 	spec := fakeExecRedis(t)

@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"os/exec"
 	"slices"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/editor"
 	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/sqlkit"
@@ -95,7 +95,7 @@ func format(sql string, d sqlkit.Dialect, prg string, o sqlkit.Options) (string,
 func runPrg(sql, prg string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sqlkit.FormatTimeout)
 	defer cancel()
-	c := exec.CommandContext(ctx, "sh", "-c", prg)
+	c := config.ShellCommand(ctx, prg)
 	c.WaitDelay = 100 * time.Millisecond // a child of sh keeps stdout open: it is not waited for
 	var out, stderr bytes.Buffer
 	c.Stdin, c.Stdout, c.Stderr = strings.NewReader(sql), &out, &stderr

@@ -94,6 +94,9 @@ func connections() string {
 // into the keychain: connections.toml holds the command that reads it, not
 // the password (§13, F7.3).
 func TestConnFormPassword(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the keychain fakes are /bin/sh scripts")
+	}
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	pw := keychain(t, "ok")
 	a, _ := withSessions()
@@ -121,10 +124,13 @@ func TestConnFormPasswordElsewhere(t *testing.T) {
 	a, _ := withSessions()
 	feed(t, a, "<C-p>conn.new<CR>play<Tab><Tab><Tab>h<Tab><Tab>u<Tab>secret<Tab>d<CR>")
 	info, err := os.Stat(filepath.Join(config.Dir(), "connections.toml"))
-	if err != nil || a.form != nil || !strings.Contains(connections(), `password = "secret"`) || info.Mode().Perm() != 0o600 || a.toast != "没有钥匙串工具，密码以明文存进了 connections.toml" {
+	if err != nil || a.form != nil || !strings.Contains(connections(), `password = "secret"`) || (info.Mode().Perm() != 0o600 && runtime.GOOS != "windows") || a.toast != "没有钥匙串工具，密码以明文存进了 connections.toml" { // windows has no group/other bits
 		t.Errorf("no tool: form %v, err %v, toast %q, file:\n%s", a.form, err, a.toast, connections())
 	}
 
+	if runtime.GOOS == "windows" { // the keychain fakes from here on are /bin/sh scripts
+		t.Skip("the keychain flows")
+	}
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	keychain(t, "locked")
 	a, _ = withSessions()
@@ -436,7 +442,7 @@ func TestConnFormPlainPasswordMode(t *testing.T) {
 	}
 	a, _ := withSessions()
 	feed(t, a, "<C-p>conn.new<CR>play<Tab><Tab><Tab>h<Tab><Tab>u<Tab>secret<Tab>d<CR>")
-	if info, err := os.Stat(path); err != nil || a.form != nil || info.Mode().Perm() != 0o644 {
+	if info, err := os.Stat(path); err != nil || a.form != nil || (info.Mode().Perm() != 0o644 && runtime.GOOS != "windows") { // windows has no group/other bits
 		t.Errorf("mode %v, %v, form %v", info.Mode(), err, a.form)
 	}
 }

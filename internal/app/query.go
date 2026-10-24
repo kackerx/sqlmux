@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"slices"
 	"strings"
 	"time"
@@ -420,7 +419,8 @@ type externalDone struct {
 }
 
 // external opens the focused query's file in $VISUAL, $EDITOR or vi
-// (§11), written first; what it holds after is one undo step.
+// (notepad on windows) (§11), written first; what it holds after is one
+// undo step.
 func (a *App) external() tea.Cmd {
 	t := queryOf(a.focused())
 	if t == nil {
@@ -429,9 +429,7 @@ func (a *App) external() tea.Cmd {
 	if err := t.flush(); err != nil {
 		return a.saveFailed(err)
 	}
-	ed := cmp.Or(os.Getenv("VISUAL"), os.Getenv("EDITOR"), "vi")
-	c := exec.Command("sh", "-c", ed+` "$1"`, "sh", t.path)
-	return tea.ExecProcess(c, func(err error) tea.Msg { return externalDone{t, err} })
+	return tea.ExecProcess(editorCmd(t.path), func(err error) tea.Msg { return externalDone{t, err} })
 }
 
 func (a *App) gotExternal(msg externalDone) tea.Cmd {
