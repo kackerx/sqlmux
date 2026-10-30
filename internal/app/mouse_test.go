@@ -350,9 +350,14 @@ func TestGoldenTabBarOverflow(t *testing.T) {
 // paneButtons are the four buttons of a window's pane title (F19.3, §7.8).
 var paneButtons = []string{"pane.split.right", "pane.split.below", "pane.zoom", "pane.close"}
 
+func buttonRect(t *testing.T, a *App, pane int, action string) uv.Rectangle {
+	t.Helper()
+	return find(t, a, ui.Target{Kind: ui.KindHint, Pane: pane, Action: action})
+}
+
 func buttonAt(t *testing.T, a *App, pane int, action string) uv.Position {
 	t.Helper()
-	return find(t, a, ui.Target{Kind: ui.KindHint, Pane: pane, Action: action}).Min
+	return buttonRect(t, a, pane, action).Min
 }
 
 // A pane's button acts on that pane, not on the one with the focus.
@@ -367,7 +372,13 @@ func TestPaneButtonsActOnTheirPane(t *testing.T) {
 			switch action {
 			case "pane.split.right", "pane.split.below":
 				if len(after) != len(before)+1 || after[2] != before[2] || after[1] == before[1] || a.win().Focus == 2 {
-					t.Errorf("pane 1 should split, 2 stay: %v -> %v, focus %d", before, after, a.win().Focus)
+					t.Fatalf("pane 1 should split, 2 stay: %v -> %v, focus %d", before, after, a.win().Focus)
+				}
+				old, now := after[1], after[a.win().Focus] // the new pane is beside the old, or under it
+				beside := now.Min.X >= old.Max.X && now.Min.Y == old.Min.Y
+				under := now.Min.Y >= old.Max.Y && now.Min.X == old.Min.X
+				if action == "pane.split.right" && !beside || action == "pane.split.below" && !under {
+					t.Errorf("%s: the new pane is at %v, the old at %v", action, now, old)
 				}
 			case "pane.zoom":
 				if a.win().Zoom != 1 {
@@ -426,6 +437,38 @@ func TestPaneButtonsPlacement(t *testing.T) {
 	for id := range narrow.layout() {
 		if id != narrow.win().Tree.ID && id != narrow.win().Result.ID && hasButtons(narrow, id) {
 			t.Errorf("pane %d at %v is too narrow for the four", id, narrow.layout()[id])
+		}
+	}
+}
+
+// A button is its icon and the column after it, for the hit and for the
+// hover (§7.8): glyphs spill into it, and the last one's is the gap before
+// the corner.
+func TestPaneButtonsCoverTheNextColumn(t *testing.T) {
+	for _, icons := range []string{"nerd", "ascii"} {
+		for _, action := range paneButtons {
+			a := sized(220, 45, icons)
+			a.win().focus(2)
+			r := buttonRect(t, a, 1, action)
+			icon := map[string]ui.Icon{"pane.split.right": a.icons.SplitRight, "pane.split.below": a.icons.SplitBelow, "pane.zoom": a.icons.Zoom, "pane.close": a.icons.Close}[action]
+			if want := ui.Width(icon.Text) + 1; r.Dx() != want {
+				t.Errorf("%s %s: the region is %d columns, want %d", icons, action, r.Dx(), want)
+			}
+			a.Update(tea.MouseMotionMsg{X: r.Min.X, Y: r.Min.Y})
+			g := a.render()
+			if got := g.Buf.CellAt(r.Min.X, r.Min.Y).String(); got != string([]rune(icon.Text)[:1]) { // the icon drawn is the action's
+				t.Errorf("%s %s: draws %q, want %q", icons, action, got, icon.Text)
+			}
+			for x := r.Min.X - 2; x < r.Max.X+2; x++ {
+				if lit := g.Buf.CellAt(x, r.Min.Y).Style.Bg == a.theme.Select; lit != (x >= r.Min.X && x < r.Max.X) {
+					t.Errorf("%s %s: column %d lit %v, the region is %v", icons, action, x, lit, r)
+				}
+			}
+			before := len(a.layout())
+			click(a, uv.Pos(r.Max.X-1, r.Min.Y)) // the column after the icon does the same
+			if action == "pane.zoom" && a.win().Zoom != 1 || (action == "pane.close" || strings.HasPrefix(action, "pane.split")) && len(a.layout()) == before {
+				t.Errorf("%s %s: a click on the column after the icon did nothing", icons, action)
+			}
 		}
 	}
 }

@@ -378,6 +378,9 @@ func TestZoomedPaneIsMarked(t *testing.T) {
 		if want := a.icons.Number(2) + " " + a.icons.Zoom.Text + " "; !strings.Contains(top, want) {
 			t.Errorf("%s: title %q lacks %q", icons, top, want)
 		}
+		if !strings.Contains(top, a.icons.Unzoom.Text) || strings.Count(top, a.icons.Zoom.Text) != 1 { // the pane's button turns into the way back, so the zoom icon is the state's alone (F19.3)
+			t.Errorf("%s: title %q: want the unzoom button and one zoom icon", icons, top)
+		}
 		glyph, _ := utf8.DecodeRuneInString(a.icons.Zoom.Text)
 		for x := range r.Dx() { // the icon is drawn in the zoom color too
 			if c := f.Buf.CellAt(x, 0); c.String() == string(glyph) {

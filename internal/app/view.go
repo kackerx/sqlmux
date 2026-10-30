@@ -322,7 +322,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 			icon   ui.Icon
 			action string
 		}{{a.icons.SplitRight, "pane.split.right"}, {a.icons.SplitBelow, "pane.split.below"}, {zoom, "pane.zoom"}, {a.icons.Close, "pane.close"}} {
-			b.Hints = append(b.Hints, ui.Hint{Label: bt.icon.Text, Action: bt.action, Prio: 4, Group: 4})
+			b.Hints = append(b.Hints, ui.Hint{Label: bt.icon.Text, Action: bt.action, Prio: 4, Group: 4, Padded: true})
 		}
 	}
 	paneRegions(f, p.ID, r)

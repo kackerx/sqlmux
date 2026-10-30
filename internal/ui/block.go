@@ -17,6 +17,10 @@ type Hint struct {
 	Prio       int         // title hints: lower is placed first when space runs out
 	Attached   bool        // key text of the hint before it: shown only with it (§7.8); needs a higher Prio than that hint
 	Group      int         // title hints sharing one but 0 stay or give way together, as one at the first one's Prio
+	// Padded makes the column after the hint part of its button: the hit
+	// region and the hover color cover it (the pane buttons, §7.8). The
+	// space the layout puts there anyway is drawn by the hint, not the loop.
+	Padded bool
 }
 
 // titleText is how a hint reads on a border: "Label Key". It must match what
@@ -106,11 +110,15 @@ func (b Block) Draw(f *Frame, r uv.Rectangle) uv.Rectangle {
 	}
 	if len(hints) > 0 {
 		x := x1 - 1 - hintsWidth(hints) - 1
-		for _, h := range hints {
-			x = f.Text(x, y0, x1, " ", bs)
+		for i, h := range hints {
+			if i == 0 || !hints[i-1].Padded {
+				x = f.Text(x, y0, x1, " ", bs)
+			}
 			x = drawTitleHint(f, x, y0, x1, h, b.Pane)
 		}
-		f.Text(x, y0, x1, " ", bs)
+		if !hints[len(hints)-1].Padded {
+			f.Text(x, y0, x1, " ", bs)
+		}
 	}
 	y1 := r.Max.Y - 1
 	return uv.Rect(x0+1, y0+1, x1-x0-1, y1-y0-1)
@@ -224,12 +232,19 @@ func hintsWidth(hs []Hint) int {
 // and it lights up under the pointer.
 func drawTitleHint(f *Frame, x, y, right int, h Hint, pane int) int {
 	th := f.Theme
-	hover := h.Action != "" && f.Region(uv.Rect(x, y, min(Width(h.titleText()), right-x), 1), Target{Kind: KindHint, Pane: pane, Action: h.Action})
+	w := Width(h.titleText())
+	if h.Padded {
+		w++
+	}
+	hover := h.Action != "" && f.Region(uv.Rect(x, y, min(w, right-x), 1), Target{Kind: KindHint, Pane: pane, Action: h.Action})
 	bg := th.PaneBg
 	if hover {
 		bg = th.Select
 	}
 	dim := uv.Style{Fg: th.Dim, Bg: bg}
+	if h.Padded { // a label only: its text, then the column that is its too
+		return f.Text(f.Text(x, y, right, h.Label, dim), y, right, " ", dim)
+	}
 	if h.Button {
 		st := uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
 		if hover {
