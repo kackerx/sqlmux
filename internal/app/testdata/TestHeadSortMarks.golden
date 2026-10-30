@@ -1,4 +1,4 @@
-┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ①  t_order ───────────────────────────────────────────────┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
+┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ①  t_order ─────────────────────────────────────     ─┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
 │  15 tables                 │ │ WHERE                                                C-r ▾ │ │   1                                                         │
 │──────────────────────────────│ │  ORDER amount ↓, status ↑    LIMIT 100                   │ │                                                             │
 │ ▾  doraemon                 │ │     │  id │ status 2 │ amount 1 │ paid │ meta            │ │                                                             │

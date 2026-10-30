@@ -1,4 +1,4 @@
-┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ①  t_order ───────────────────────────────────────────────┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
+┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ①  t_order ─────────────────────────────────────     ─┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
 │  15 tables                 │ │ WHERE                                                C-r ▾ │ │   1                                                         │
 │──────────────────────────────│ │  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7   JSON        │ │                                                             │
 │ ▾  doraemon                 │ │   1 [                                                       │ │                                                             │

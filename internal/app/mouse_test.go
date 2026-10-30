@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -344,4 +345,87 @@ func TestGoldenTabBarOverflow(t *testing.T) {
 	}
 	feed(t, a, "8gt")
 	golden.RequireEqual(t, a.render().String())
+}
+
+// paneButtons are the four buttons of a window's pane title (F19.3, §7.8).
+var paneButtons = []string{"pane.split.right", "pane.split.below", "pane.zoom", "pane.close"}
+
+func buttonAt(t *testing.T, a *App, pane int, action string) uv.Position {
+	t.Helper()
+	return find(t, a, ui.Target{Kind: ui.KindHint, Pane: pane, Action: action}).Min
+}
+
+// A pane's button acts on that pane, not on the one with the focus.
+func TestPaneButtonsActOnTheirPane(t *testing.T) {
+	for _, action := range paneButtons {
+		t.Run(action, func(t *testing.T) {
+			a := twoPanes(160, 45)
+			a.win().focus(2)
+			before := a.layout()
+			click(a, buttonAt(t, a, 1, action))
+			after := a.layout()
+			switch action {
+			case "pane.split.right", "pane.split.below":
+				if len(after) != len(before)+1 || after[2] != before[2] || after[1] == before[1] || a.win().Focus == 2 {
+					t.Errorf("pane 1 should split, 2 stay: %v -> %v, focus %d", before, after, a.win().Focus)
+				}
+			case "pane.zoom":
+				if a.win().Zoom != 1 {
+					t.Errorf("zoom %d, want pane 1", a.win().Zoom)
+				}
+			case "pane.close":
+				if _, ok := after[1]; ok || len(after) != len(before)-1 || a.win().Focus != 2 {
+					t.Errorf("pane 1 should close and 2 stay: %v, focus %d", after, a.win().Focus)
+				}
+			}
+			if action != "pane.close" && a.win().Focus == 2 && action != "pane.zoom" {
+				t.Errorf("the click should focus the pane it is on")
+			}
+		})
+	}
+}
+
+func TestPaneButtonsPlacement(t *testing.T) {
+	hasButtons := func(a *App, pane int) bool {
+		a.View()
+		n := 0
+		for _, h := range a.hits {
+			if h.Target.Kind == ui.KindHint && h.Target.Pane == pane && slices.Contains(paneButtons, h.Target.Action) {
+				n++
+			}
+		}
+		if n != 0 && n != len(paneButtons) {
+			t.Errorf("pane %d: %d of the four buttons, all or none", pane, n)
+		}
+		return n > 0
+	}
+	a := twoPanes(220, 45) // wide enough for the query's title to keep them
+	if !hasButtons(a, 1) || !hasButtons(a, 2) {
+		t.Error("the data and the query pane have the buttons")
+	}
+	if hasButtons(a, a.win().Tree.ID) || hasButtons(a, a.resultPane(a.win()).ID) {
+		t.Error("the sidebar and the result area have none")
+	}
+	a.splitPane(Horiz) // the new one is empty: the buttons act on the pane, not on a tab
+	if p := a.focused(); len(p.Tabs) != 0 || !hasButtons(a, p.ID) {
+		t.Errorf("an empty pane: %d tabs, buttons %v", len(p.Tabs), hasButtons(a, p.ID))
+	}
+	if n := a.render().String(); !strings.Contains(n, a.icons.Zoom.Text) || strings.Contains(n, a.icons.Unzoom.Text) {
+		t.Error("not zoomed: expand, not compress")
+	}
+	a.toggleZoom()
+	if n := a.render().String(); !strings.Contains(n, a.icons.Unzoom.Text) {
+		t.Error("zoomed: the pane's button is compress")
+	}
+	if !hasButtons(a, a.focused().ID) {
+		t.Error("the zoomed pane keeps the buttons")
+	}
+	a.toggleZoom()
+	narrow := twoPanes(60, 24)
+	narrow.resultPane(narrow.win())
+	for id := range narrow.layout() {
+		if id != narrow.win().Tree.ID && id != narrow.win().Result.ID && hasButtons(narrow, id) {
+			t.Errorf("pane %d at %v is too narrow for the four", id, narrow.layout()[id])
+		}
+	}
 }

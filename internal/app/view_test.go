@@ -396,7 +396,7 @@ func TestZoomedPaneIsMarked(t *testing.T) {
 		if got := g.Buf.CellAt(0, 0).Style.Fg; got == a.theme.Zoom {
 			t.Errorf("%s: the border keeps the zoom color", icons)
 		}
-		if top := strings.Split(g.String(), "\n")[0]; strings.Contains(top, a.icons.Zoom.Text) {
+		if top := strings.Split(g.String(), "\n")[0]; strings.Contains(top, a.icons.Number(2)+" "+a.icons.Zoom.Text) { // the button stays (F19.3)
 			t.Errorf("%s: the zoom icon stays: %q", icons, top)
 		}
 	}
