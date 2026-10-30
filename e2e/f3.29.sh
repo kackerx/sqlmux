@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # F3.29 SPC b 展开树时定位到当前 tab（specs/m3-console/task.md F3.29；tech-design §7.8「schema 侧栏」）
+# F20.4 起光标要 `[tree] follow = true` 才落到当前 tab 的节点。
 # 默认布局：⓪ 树 | ① | ② query_1。树收起后 SPC b 展开，焦点到树上，光标落在焦点 pane 当前 tab 对应的节点。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
+C=$(mktemp "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); trap 'e2e_stop; rm -f "$C"' EXIT; printf '[tree]\nfollow = true\n' >"$C"   # F20.4：光标落到当前 tab 的节点要写 follow = true，默认不跳（f20.4.sh）
 
 SELECT=#364a82
 cur() { e2e_rows 2 31 4 $(( $(H) - 4 )) 3 | awk -F'|' -v s=$SELECT '$2 == s { print $1 }' | python3 -c 'import sys; print(" ".join("".join(c for c in sys.stdin.read() if not (0xE000 <= ord(c) <= 0xF8FF) and c not in "▸▾").split()))'; }   # 光标行（select 底）的文字
@@ -10,7 +12,7 @@ sub_of() { e2e_rows 2 31 4 $(( $(H) - 4 )) 3 | cut -d'|' -f1 | sed -n "/$1/,\$p"
 toggle() { key Space; e2e_type b; sleep 0.4; }
 tree_shown() { [[ -n $(geom 0) ]]; }
 
-start; open_table t_order; wait_for 8 settled
+start -c "$C"; open_table t_order; wait_for 8 settled
 key C-h; key /; key Escape; key g g; key 3 j; key h                          # 把 public 折起来：t_order 不在可见节点里
 check "准备：public 折起来了，树上看不到 t_order 表节点" eval '! e2e_rows 2 31 4 $(( $(H) - 4 )) 3 | grep -q "t_order .*6.0k"'
 key C-l; toggle; toggle
@@ -23,7 +25,7 @@ toggle
 check "树展开时 SPC b：照旧收起" eval '! tree_shown'
 
 # ---- 树正在过滤、目标被滤掉：什么都不改；清掉过滤后，原来手动折叠的节点仍是折叠的（5514975）
-start; open_table t_order; wait_for 8 settled
+start -c "$C"; open_table t_order; wait_for 8 settled
 key C-h; key g g; key 3 j; key h                                             # 手动把 public 折起来
 key /; e2e_type sku; sleep 0.3; key Enter
 check "准备：过滤 sku，光标在 t_sku" eval '[[ $(cur) == "t_sku 20" ]] || { echo "  cursor on \"$(cur)\""; false; }'
