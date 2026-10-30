@@ -29,6 +29,25 @@ open_table t_user; wait_for 8 settled
 check "t_user（50 行 < LIMIT）：不用加 WHERE，窄 pane 里就是「50 行」" eval 'qbar | grep -q "50 行" || { qbar; false; }'
 e2e_stop
 
+# ---- 不满一页不发 COUNT：经一个记下客户端发了什么的代理（slowproxy.py 往日志里写，PG 的 SQL 在线路上是明文）
+read -r PU PW PH PP <<<"$(python3 -c 'import sys, urllib.parse as u; p = u.urlsplit(sys.argv[1]); print(p.username, p.password, p.hostname, p.port)' "$SQLMUX_TEST_PG")"
+SP=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+python3 "$(dirname "$0")/slowproxy.py" "$SP" "$PP" 0 "$D/wire.log" >"$D/px.log" 2>&1 & PX=$!
+trap 'e2e_stop; kill $PX 2>/dev/null; rm -rf "$D"' EXIT
+for i in $(seq 30); do grep -q '^up' "$D/px.log" 2>/dev/null && break; sleep 0.1; done
+mkdir -p "$D/c"
+(umask 077; printf '[[connection]]\nname = "play"\nengine = "postgres"\ndsn = "postgres://%s:%s@127.0.0.1:%s/sqlmux?sslmode=disable"\n' "$PU" "$PW" "$SP" >"$D/c/connections.toml")
+counts() { LC_ALL=C tr -c '[:print:]' '\n' <"$D/wire.log" | grep -ci 'count(' ; }
+start -C "$D/c" -S "$D/st3"; sleep 1
+open_table t_order; wait_for 15 eval 'qbar | grep -q "PAGE 1/60"'; sleep 0.5
+C0=$(counts)
+check "（准备）t_order 满一页：打开时发了 COUNT（线路上有 count(）" eval '(( C0 >= 1 ))'
+run "id < 4"; sleep 0.5
+check "WHERE id < 4（不满一页）：查询条有「3 行」，而且没有再发 COUNT（线路上 count( 的次数没涨）" eval 'qbar | grep -q "3 行" && [[ $(counts) == "$C0" ]] || { echo "  count( before $C0, now $(counts)"; false; }'
+edit; key Enter; wait_for 8 settled; sleep 1
+check "清掉 WHERE（满一页）：照旧发 COUNT（count( 的次数涨了），PAGE 1/60" eval '(( $(counts) > C0 )) && qbar | grep -q "PAGE 1/60" || { echo "  count( before $C0, now $(counts)"; false; }'
+e2e_stop
+
 # ---- 宽的 pane：放得下全文，不缩
 start -x 220 -S "$D/st2"; sleep 1; solo
 open_table t_user; wait_for 8 settled

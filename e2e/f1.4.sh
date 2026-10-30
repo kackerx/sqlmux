@@ -160,7 +160,7 @@ key gc; key a; key Escape
 
 # ---- 计数（§8.5、§8.3）：取数之后才计数，先 …；3 秒超时 ?；大表不带 WHERE 用估计值 ~n；不算 busy
 key /; clear_in; e2e_type "pg_sleep(0.001) is not null"; sleep 0.4; key Enter; sleep 0.4; key Enter   # F8.1：第一个 ↵ 只接受 null，第二个才执行
-check "计数中：先显示 …，状态栏没有 busy" eval 'wait_for 3 eval "[[ \$(cnt) == … ]]" && [[ $(bar) != *busy* && -n $(grid_y) ]]'
+check "计数中：先显示三点转圈（F19.2，原来是静态的 …），状态栏没有 busy" eval 'wait_for 3 eval "qb | grep -qE \"auto · [●•]{3}\"" && [[ $(bar) != *busy* && -n $(grid_y) ]]'
 check "3 秒超时：显示 ?，PAGE 1/?" eval 'wait_for 6 eval "[[ \$(cnt) == \"?\" ]]" && qb_has "PAGE 1/?"'
 where ""
 key /; clear_in; e2e_type "pg_sleep(0.001) is not null and id < 500"; sleep 0.2; e2e_keys Enter; sleep 0.05; e2e_keys ']'

@@ -114,11 +114,13 @@ check "按其他键（:）：只关闭编号，不打开命令行" eval 'focus_i
 # ---- 折叠侧栏（§7.8）：3 列细栏，» 下面不画文字（F10.9）；再按恢复
 start; two_panes
 L b
-check "SPC b：侧栏折叠成 3 列宽的细栏" eval '[[ $(e2e_text 1 3 1) == "┌─┐" && $(e2e_text 1 3 44) == "└─┘" ]] && geom_is 1 "5 1 78 44"'
+check "SPC b（F19.5）：焦点在 ① 时只把焦点给树，侧栏还在（32 列）" eval 'geom_is 0 "1 1 32 44" && focus_is 0'
+L b
+check "再 SPC b：侧栏折叠成 3 列宽的细栏" eval '[[ $(e2e_text 1 3 1) == "┌─┐" && $(e2e_text 1 3 44) == "└─┘" ]] && geom_is 1 "5 1 78 44"'
 check "细栏：顶部 »，下面没有文字" eval 's=""; for y in $(seq 2 16); do s+=$(e2e_text 2 2 $y); done; s=${s// /}; [[ $s == "»" ]] || { echo "  got: $s"; false; }'
 key C-h; check "折叠后 C-h 进不去侧栏" focus_is 1
 L q; e2e_type 0; sleep 0.3; check "折叠后 SPC q 0 也跳不过去" focus_is 1
-L b; check "再 SPC b：恢复 32 列" eval 'geom_is 0 "1 1 32 44" && geom_is 1 "34 1 63 44"'
-key C-h; L b; check "焦点在侧栏时折叠：焦点移到主区域" eval '[[ $(focused) == 1 ]]'
+L b; check "再 SPC b：恢复 32 列，焦点到树（F19.5）" eval 'geom_is 0 "1 1 32 44" && geom_is 1 "34 1 63 44" && focus_is 0'
+L b; check "焦点在侧栏时折叠：焦点回到进树之前的 ①" eval '[[ $(focused) == 1 ]]'
 
 e2e_done

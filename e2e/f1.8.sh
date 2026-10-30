@@ -64,7 +64,7 @@ check "t_log：ORDER —，查询条上没有方向图标" eval '[[ $(qb) == *"O
 # ---- 放不下的 chip 整个让位，不画半截（F3.23，§7.8「第二行放不下时谁让位」；原来截断的 chip 上的命中区见 fdd2b79）
 start -x 70 -y 24 -C "$D/own"; open_table t_event; wait_for 8 settled; two_panes
 g=($(e2e_panes | awk '$1 == 1 { print $2, $3, $4, $5 }')); last=$((g[0] + g[2] - 2))
-check "70 列、三个 pane：① 只有 10 列，连 ORDER chip 也让位，第二行是空的" eval '[[ -z $(e2e_text $((g[0] + 1)) $last 3 | tr -d " ") ]] || { echo "  $(e2e_text ${g[0]} $((last + 1)) 3)"; false; }'
+check "70 列、三个 pane：① 只有 10 列，连 ORDER chip 也让位，第二行只剩「N 行」（F19.4：不满一页的行数常驻）" eval '[[ $(e2e_text $((g[0] + 1)) $last 3 | tr -d " ") =~ ^[0-9]+行$ ]] || { echo "  $(e2e_text ${g[0]} $((last + 1)) 3)"; false; }'
 e2e_move "$last" 3; sleep 0.3; e2e_click "$last" 3; sleep 0.3
 check "点那一行：没有命中区，不开下拉框" eval '[[ -z $(dd) ]] && ! lit $last'
 

@@ -37,7 +37,8 @@ check "有结果区时从 ② 起：② → ③ → 树 → ① → ②（各 pa
 e2e_keys Space; e2e_type r; sleep 0.4
 check "SPC r 收起结果区：③ 不算在内；① 回到整高，和树在同一水平线，角度相同按编号：② → 树 → ① → ②" eval '[[ $(panes) == "0 1 2 " && $(orbit 3) == "0 1 2 " ]] || { echo "  $(panes) | $(orbit 0)"; false; }'
 e2e_keys Space; e2e_type b; sleep 0.4
-check "再收起树（SPC b）：只剩 ① 和 ②，F2 在两个之间来回" eval 'o=$(orbit 4); [[ $o == "1 2 1 2 " ]] || { echo "  $o"; false; }'
+e2e_keys Space; e2e_type b; sleep 0.4   # F19.5：第一个 SPC b 聚焦树，第二个才收起、焦点回 ②
+check "再收起树（SPC b 两次）：只剩 ① 和 ②，F2 在两个之间来回" eval 'o=$(orbit 4); [[ $o == "1 2 1 2 " ]] || { echo "  $o"; false; }'
 
 # 一排满高 [树|1|2|3]：树 → 1 → 2 → 3 → 树（同一水平线上，右边的 ②③ 先，左边的树 ① 后，各自按编号）
 begin; key C-l; e2e_keys Space; e2e_type %; sleep 0.6

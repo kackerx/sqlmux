@@ -37,6 +37,23 @@ key Escape; key Escape; sleep 0.3
 quit_app; e2e_stop
 check "退出没有写 last.toml：内容和 mtime 都和之前一样" eval 'cmp -s "$(lastf)" "$D/last.orig" && [[ $(stat -f %m "$(lastf)") == $M0 ]]'
 
+# ---- 只取一次：--where 带着开表，不先不带条件取一遍（经记下客户端 SQL 的代理看线路）
+read -r PU PW PH PP <<<"$(python3 -c 'import sys, urllib.parse as u; p = u.urlsplit(sys.argv[1]); print(p.username, p.password, p.hostname, p.port)' "$SQLMUX_TEST_PG")"
+SP=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+python3 "$(dirname "$0")/slowproxy.py" "$SP" "$PP" 0 "$D/wire.log" >"$D/px.log" 2>&1 & PX=$!
+trap 'e2e_stop; redis_stop; kill $PX 2>/dev/null; rm -rf "$D"' EXIT
+for i in $(seq 30); do grep -q '^up' "$D/px.log" 2>/dev/null && break; sleep 0.1; done
+mkdir -p "$D/cw"
+(umask 077; printf '[[connection]]\nname = "play"\nengine = "postgres"\ndsn = "postgres://%s:%s@127.0.0.1:%s/sqlmux?sslmode=disable"\n' "$PU" "$PW" "$SP" >"$D/cw/connections.toml")
+page_selects() { LC_ALL=C tr -c '[:print:]' '\n' <"$D/wire.log" | grep -E 'select \* from "public"."t_order"'; }
+e2e_start -C "$D/cw" -S "$D/st4" "$E2E_BIN --table t_order --where 'id < 11'"; wait_for 6 flag_is alternate_on 1; wait_for 15 settled; sleep 1.5
+check "--where 带着开表只取一次：线路上 t_order 的取数语句只有一条，而且带着 where（没有先不带条件取一遍）" eval '[[ $(page_selects | wc -l | tr -d " ") == 1 ]] && page_selects | grep -q "where" || { page_selects; false; }'
+e2e_stop
+: >|"$D/wire.log"
+e2e_start -C "$D/cw" -S "$D/st4" "$E2E_BIN --table t_order"; wait_for 6 flag_is alternate_on 1; wait_for 15 settled; sleep 1.5
+check "（对照）不给 --where：取数语句一条，没有 where" eval '[[ $(page_selects | wc -l | tr -d " ") == 1 ]] && ! page_selects | grep -q "where" || { page_selects; false; }'
+e2e_stop
+
 # ---- 参数在连接名前面、不给 where、schema.表
 tstart "--table t_order --where 'id < 4' play"
 check "参数在连接名前面也认：t_order、WHERE id < 4、只有 id 1 2 3 三行" eval 'tabs_are 1 "1:t_order*" && where_in | grep -q "id < 4" && e2e_plain | grep -qE "│ +3 │ +3 │" && ! e2e_plain | grep -qE "│ +4 │ +4 │" || { where_in; false; }'

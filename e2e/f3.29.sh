@@ -13,12 +13,12 @@ tree_shown() { [[ -n $(geom 0) ]]; }
 start; open_table t_order; wait_for 8 settled
 key C-h; key /; key Escape; key g g; key 3 j; key h                          # 把 public 折起来：t_order 不在可见节点里
 check "准备：public 折起来了，树上看不到 t_order 表节点" eval '! e2e_rows 2 31 4 $(( $(H) - 4 )) 3 | grep -q "t_order .*6.0k"'
-key C-l; toggle
-check "SPC b：树收起" eval '! tree_shown && focus_is 1'
+key C-l; toggle; toggle
+check "SPC b（F19.5：先聚焦树）再 SPC b：树收起，焦点回到 ①" eval '! tree_shown && focus_is 1'
 toggle
 check "焦点在 t_order 的 tab 上时 SPC b：树展开，焦点到树上，光标在 public 下的 t_order 节点，折着的 public、Tables 也展开了" eval 'tree_shown && focus_is 0 && [[ $(cur) == "t_order 6.0k" ]] || { echo "  cursor on \"$(cur)\""; false; }'
-key C-l; key C-l; toggle; toggle
-check "在 ② 的 query 上按：光标在工作区的 query_1 节点" eval 'focus_is 0 && [[ $(cur) == "② query_1" ]] && [[ -n $(sub_of 工作区 | grep query_1) ]] || { echo "  cursor on \"$(cur)\""; false; }'
+key C-l; key C-l; toggle
+check "在 ② 的 query 上按（树开着，F19.5：只聚焦树、不收起）：光标在工作区的 query_1 节点" eval 'focus_is 0 && [[ $(cur) == "② query_1" ]] && [[ -n $(sub_of 工作区 | grep query_1) ]] || { echo "  cursor on \"$(cur)\""; false; }'
 toggle
 check "树展开时 SPC b：照旧收起" eval '! tree_shown'
 
@@ -27,8 +27,8 @@ start; open_table t_order; wait_for 8 settled
 key C-h; key g g; key 3 j; key h                                             # 手动把 public 折起来
 key /; e2e_type sku; sleep 0.3; key Enter
 check "准备：过滤 sku，光标在 t_sku" eval '[[ $(cur) == "t_sku 20" ]] || { echo "  cursor on \"$(cur)\""; false; }'
-key C-l; toggle; toggle
-check "焦点在 t_order 上 SPC b 收起再展开：t_order 被滤掉了，光标不动（还在 t_sku）" eval '[[ $(cur) == "t_sku 20" ]] || { echo "  cursor on \"$(cur)\""; false; }'
+key C-l; toggle; toggle; toggle
+check "焦点在 t_order 上 SPC b 聚焦、收起、再展开：t_order 被滤掉了，光标不动（还在 t_sku）" eval '[[ $(cur) == "t_sku 20" ]] || { echo "  cursor on \"$(cur)\""; false; }'
 key C-h; key /; key Escape
 check "清掉过滤：public 还是折叠的（没有被定位展开）" eval '! e2e_rows 2 31 4 $(( $(H) - 4 )) 3 | grep -qE "t_order .*6.0k|t_sku .*20"'
 
