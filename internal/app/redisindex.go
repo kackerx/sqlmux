@@ -1,7 +1,9 @@
 package app
 
 import (
+	"cmp"
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/kackerx/sqlmux/internal/db/redis"
 	"github.com/kackerx/sqlmux/internal/editor"
 	"github.com/kackerx/sqlmux/internal/i18n"
+	"github.com/kackerx/sqlmux/internal/ui"
 )
 
 // keyIndex is the names of the keys of a db, kept here for the completion of
@@ -209,4 +212,130 @@ func (a *App) keyCandidates(t *queryTab, partial string) (found []candidate, foo
 		found = append(found, candidate{label: n, insert: redis.Quote(n), note: i18n.T("键"), space: true, kind: kindKey})
 	}
 	return found, "", cmds
+}
+
+// keyList is the keys of the Redis dbs the palette lists, made once for what the dbs
+// have read, and what the last query matched of them, which the next one that goes
+// on from it matches among (F20.3).
+type keyList struct {
+	sig   string // what the dbs had read: the list is made again when it changes
+	items []paletteItem
+	texts []string
+	query string // cand are the items it matches, in their order
+	cand  []int
+	top   []paletteItem // the best keyListed of them, best first
+	ms    []ui.Match    // of top
+}
+
+// keyListed is how many matching keys the palette keeps: no list shows more than the
+// best of a hundred thousand.
+const keyListed = 500
+
+// keySig is what the dbs have read, in a line: the list of keys is that and nothing
+// else, so it is made again when a db reads more.
+func (a *App) keySig() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%p", a.icons)
+	for _, c := range a.sess.conns() {
+		if !c.sql() && c.State == connReady {
+			fmt.Fprintf(&b, "|%s %p %p", c.tableKey(db.Table{Kind: "k"}), c.index, c.scan)
+			if c.index != nil {
+				fmt.Fprintf(&b, " %v %d", c.index.done, len(c.index.names))
+			}
+			if c.scan != nil {
+				fmt.Fprintf(&b, " %d", len(c.scan.keys))
+			}
+		}
+	}
+	return b.String()
+}
+
+// keyItems are the keys of the Redis dbs the palette lists with the tables and the
+// queries: the names the index of a db has and the keys the tree read, whichever the
+// db has; none for a db of neither. It never asks the server (§12, F20.3).
+func (a *App) keyItems() (items []paletteItem) {
+	for _, c := range a.sess.conns() {
+		if c.sql() || c.State != connReady {
+			continue
+		}
+		where := c.Spec.Name + "/" + dbText(cmp.Or(c.Spec.Database, c.DB))
+		known := map[string]string{} // the type of what the tree read
+		var names []string
+		if c.scan != nil {
+			for _, k := range c.scan.keys {
+				known[k.Name] = k.Type
+				names = append(names, k.Name)
+			}
+		}
+		if c.index != nil && c.index.done {
+			for _, n := range c.index.names {
+				if _, in := known[n]; !in {
+					names = append(names, n)
+				}
+			}
+		}
+		for _, n := range names {
+			icon := a.icons.Key
+			if typ := known[n]; typ != "" {
+				icon = a.icons.KeyType(typ)
+			}
+			items = append(items, paletteItem{itemRedisKey, c.tableKey(db.Table{Name: n, Kind: "k"}), icon, n, where})
+		}
+	}
+	return items
+}
+
+// keyMatches are the best keys that query matches, with their matches, indexes into
+// the items returned: the list of keys is made again only when the dbs read more,
+// and a query that goes on from the last one looks among what that matched.
+func (a *App) keyMatches(query string) ([]paletteItem, []ui.Match) {
+	kl := a.palette.keys
+	if sig := a.keySig(); kl == nil || kl.sig != sig {
+		kl = &keyList{sig: sig, items: a.keyItems()}
+		for _, it := range kl.items {
+			kl.texts = append(kl.texts, it.name+" "+it.where)
+		}
+		a.palette.keys = kl
+	}
+	if kl.query != query {
+		narrow := kl.query != "" && strings.HasPrefix(query, kl.query) // among what the last query matched
+		texts := kl.texts
+		if narrow {
+			texts = make([]string, len(kl.cand))
+			for i, ix := range kl.cand {
+				texts[i] = kl.texts[ix]
+			}
+		}
+		ms, from := ui.Filter(query, texts), kl.cand
+		kl.cand = make([]int, len(ms))
+		for i, m := range ms {
+			if narrow {
+				m.Index = from[m.Index]
+			}
+			ms[i], kl.cand[i] = m, m.Index
+		}
+		slices.Sort(kl.cand)
+		slices.SortStableFunc(ms, func(x, y ui.Match) int { return cmp.Or(y.Score-x.Score, x.Index-y.Index) })
+		kl.query, kl.top, kl.ms = query, []paletteItem{}, nil
+		for _, m := range ms[:min(len(ms), keyListed)] {
+			kl.top = append(kl.top, kl.items[m.Index])
+			m.Index = len(kl.top) - 1
+			kl.ms = append(kl.ms, m)
+		}
+	}
+	return kl.top, kl.ms
+}
+
+// keyByID is the db and the key of a palette item's id, <connection>/db<n>/<key>:
+// a name has no /, so the first two parts tell the db.
+func (a *App) keyByID(id string) (*Conn, string, bool) {
+	for _, c := range a.sess.conns() {
+		if c.sql() {
+			continue
+		}
+		if key, ok := strings.CutPrefix(id, c.Spec.Name+"/"+dbText(cmp.Or(c.Spec.Database, c.DB))+"/"); ok {
+			return c, key, true
+		}
+	}
+	return nil, "", false
 }

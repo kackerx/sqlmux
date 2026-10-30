@@ -49,6 +49,7 @@ type palette struct {
 	quick *quickSQL
 	hint  *queryTab        // what a Redis command's key and field names are asked for by (F17.2)
 	asked map[tableID]bool // tables whose columns were fetched for completion
+	keys  *keyList         // the Redis keys it lists, with what they were last matched for (F20.3)
 }
 
 // itemKind is what a palette row stands for (K-03), in the order an empty
@@ -63,13 +64,14 @@ const (
 	itemTable
 	itemQuery // a query of the Queries node (F12.10)
 	itemCommand
-	itemSQL // a quick SQL from the history
-	itemTip // a line of the status bar's tips, which runs the action it is about (F15.4)
+	itemSQL      // a quick SQL from the history
+	itemTip      // a line of the status bar's tips, which runs the action it is about (F15.4)
+	itemRedisKey // a Redis key of a db the index of key names or the tree has read (F20.3)
 )
 
 // itemTags name a row's kind. The SQL history, a list of one kind, has
 // none (§12).
-var itemTags = [...]string{itemSession: i18n.N("会话"), itemWindow: i18n.N("窗口"), itemPane: "Pane", itemTab: "Tab", itemTable: i18n.N("表"), itemQuery: "Query", itemCommand: i18n.N("命令"), itemSQL: "", itemTip: i18n.N("提示")}
+var itemTags = [...]string{itemSession: i18n.N("会话"), itemWindow: i18n.N("窗口"), itemPane: "Pane", itemTab: "Tab", itemTable: i18n.N("表"), itemQuery: "Query", itemCommand: i18n.N("命令"), itemSQL: "", itemTip: i18n.N("提示"), itemRedisKey: "Key"}
 
 // scopes are the palette's tabs (K-02). The prefix typed in the input is the
 // only scope state: Tab rewrites it, and palette.command is `>` typed (§12).
@@ -83,12 +85,12 @@ type scopeTab struct {
 const tipPrefix = "?"
 
 var scopes = []scopeTab{
-	{i18n.N("所有"), "", []itemKind{itemSession, itemWindow, itemPane, itemTab, itemTable, itemQuery, itemCommand}}, // not the SQL history (§12)
+	{i18n.N("所有"), "", []itemKind{itemSession, itemWindow, itemPane, itemTab, itemTable, itemRedisKey, itemQuery, itemCommand}}, // not the SQL history (§12)
 	{i18n.N("会话"), "$", []itemKind{itemSession}},
 	{i18n.N("窗口·Pane"), "%", []itemKind{itemWindow, itemPane, itemTab}},
 	{i18n.N("窗口"), "&", []itemKind{itemWindow}},
 	{"Tab", "#", []itemKind{itemTab}},
-	{i18n.N("表"), "@", []itemKind{itemTable, itemQuery}},
+	{i18n.N("表"), "@", []itemKind{itemTable, itemRedisKey, itemQuery}},
 	{i18n.N("命令"), ">", []itemKind{itemCommand}},
 	{"SQL", ";", []itemKind{itemSQL}},              // what follows the ; is SQL, the history while there is none
 	{i18n.N("提示"), tipPrefix, []itemKind{itemTip}}, // the tips of the status bar, ↵ does what one is about (F15.4); the last: not a tab
@@ -118,7 +120,7 @@ func (it paletteItem) key() itemKey { return itemKey{it.kind, it.id} }
 func (it paletteItem) recent() config.Recent {
 	// never kept for SQL (the history is its own) nor for a tab or a
 	// session (paletteRun), but paletteItems sorts them too
-	kind := [...]string{itemSession: "session", itemWindow: "window", itemPane: "pane", itemTab: "tab", itemTable: "table", itemQuery: "query", itemCommand: "command", itemSQL: "sql", itemTip: "tip"}[it.kind]
+	kind := [...]string{itemSession: "session", itemWindow: "window", itemPane: "pane", itemTab: "tab", itemTable: "table", itemQuery: "query", itemCommand: "command", itemSQL: "sql", itemTip: "tip", itemRedisKey: "key"}[it.kind]
 	return config.Recent{Kind: kind, ID: it.id}
 }
 
@@ -269,6 +271,14 @@ func (a *App) paletteMatches() (items []paletteItem, ms []ui.Match) {
 		texts[i] = it.name + " " + it.where
 	}
 	ms = ui.Filter(query, texts)
+	if slices.Contains(scopes[scope].kinds, itemRedisKey) && strings.TrimSpace(query) != "" { // the keys come matched and cut, after what is not a key (F20.3)
+		kitems, kms := a.keyMatches(query)
+		for _, m := range kms {
+			m.Index += len(items)
+			ms = append(ms, m)
+		}
+		items = append(items, kitems...)
+	}
 	slices.SortStableFunc(ms, func(x, y ui.Match) int { // not the shorter first: a table of the current schema before its namesakes
 		return cmp.Or(y.Score-x.Score, x.Index-y.Index)
 	})
@@ -321,7 +331,7 @@ func (a *App) paletteView() ui.Palette {
 		p.Enter = bound(ui.Hint{Key: run, Label: label, Action: "palette.run"})
 	case a.palette.sel < len(ms):
 		it := items[ms[a.palette.sel].Index]
-		enter := [...]string{itemSession: i18n.T("切换"), itemWindow: i18n.T("切换"), itemPane: i18n.T("聚焦"), itemTab: i18n.T("切换"), itemTable: i18n.T("打开"), itemQuery: i18n.T("打开"), itemCommand: i18n.T("执行"), itemSQL: i18n.T("执行"), itemTip: i18n.T("执行")}[it.kind]
+		enter := [...]string{itemSession: i18n.T("切换"), itemWindow: i18n.T("切换"), itemPane: i18n.T("聚焦"), itemTab: i18n.T("切换"), itemTable: i18n.T("打开"), itemQuery: i18n.T("打开"), itemCommand: i18n.T("执行"), itemSQL: i18n.T("执行"), itemTip: i18n.T("执行"), itemRedisKey: i18n.T("打开")}[it.kind]
 		if it.kind == itemCommand && actions[it.id].On != nil {
 			enter = i18n.T("切换")
 		}
@@ -768,7 +778,7 @@ func (a *App) paletteRun(i int, newTab bool) tea.Cmd {
 	if newTab && it.kind != itemTable {
 		return nil
 	}
-	if it.kind == itemTab || it.kind == itemSession || it.kind == itemTip { // a tip is a way to run an action, not a pick to remember; ponytail: not kept among the recent: a pane's ID, a tab's place and a session's name change from run to run
+	if it.kind == itemTab || it.kind == itemSession || it.kind == itemTip || it.kind == itemRedisKey { // a tip is a way to run an action, not a pick to remember; ponytail: not kept among the recent: a pane's ID, a tab's place and a session's name change from run to run, and a key of a hundred thousand is no list the recent ones go first in
 		return a.paletteDo(it)
 	}
 	r := it.recent()
@@ -793,6 +803,14 @@ func (a *App) paletteDo(it paletteItem) tea.Cmd {
 		return a.run(it.id, 0)
 	case itemTable:
 		if c, t, ok := a.tableByID(it.id); ok {
+			if into != nil {
+				return a.openTableIn(into, c, t)
+			}
+			return a.openTable(c, t)
+		}
+	case itemRedisKey:
+		if c, key, ok := a.keyByID(it.id); ok {
+			t := db.Table{Name: key, Kind: "k"} // as the tree's ↵ opens it
 			if into != nil {
 				return a.openTableIn(into, c, t)
 			}
