@@ -59,6 +59,7 @@ var en = map[string]string{
 	"没有读视图定义的权限":                             "No permission to read the view's definition",
 	"表已不存在，按 R 刷新":                           "The table no longer exists: R reloads",
 	"函数已不存在，按 R 刷新":                          "The function no longer exists: R reloads",
+	"%s：没有表 %s":                              "%s: no table %s",
 	"%s 里没有表 %s":                             "%s has no table %s",
 	"加列…":                                    "Add column…",
 	"加索引…":                                   "Add index…",

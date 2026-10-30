@@ -101,8 +101,9 @@ type App struct {
 
 	toast     string
 	toastSeq  int
-	quitToast int    // toastSeq of the "press C-c again" toast
-	warning   string // shown as a toast on start
+	quitToast int         // toastSeq of the "press C-c again" toast
+	warning   string      // shown as a toast on start
+	want      *startTable // the command line's table, to open when its catalog is in (F19.1)
 
 	// Mouse (§7.4).
 	hits        []ui.Hit     // the last frame's hit table

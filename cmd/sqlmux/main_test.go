@@ -213,6 +213,42 @@ func TestRunArguments(t *testing.T) {
 	}
 }
 
+// The options are read before and after the connection, and what they say
+// that cannot be is an error (F19.1).
+func TestParseArgs(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		want cli
+		err  string
+	}{
+		{[]string{"play", "--table", "t"}, cli{name: "play", table: "t"}, ""},
+		{[]string{"--table", "t", "play"}, cli{name: "play", table: "t"}, ""},
+		{[]string{"--table", "t", "--where", "a = 1", "play"}, cli{name: "play", table: "t", where: "a = 1"}, ""},
+		{[]string{"play", "--table", "s.t", "--where", "a = 1"}, cli{name: "play", table: "s.t", where: "a = 1"}, ""},
+		{[]string{"--table=t", "./x.db", "--where=a"}, cli{name: "./x.db", table: "t", where: "a"}, ""},
+		{[]string{"--table", "t"}, cli{table: "t"}, ""},
+		{[]string{"play", "--layout", "x"}, cli{name: "play", layout: "x"}, "--layout"},
+		{[]string{"--where", "a"}, cli{}, "--where needs --table"},
+		{[]string{"play", "--where", "a"}, cli{}, "--where needs --table"},
+		{[]string{"--table", "t", "--layout", "x"}, cli{}, "--table or --layout"},
+		{[]string{"a", "b"}, cli{}, "usage"},
+		{[]string{"a", "--table", "t", "b"}, cli{}, "usage"},
+		{[]string{"a", "--nope"}, cli{}, "nope"},
+		{[]string{"play", "--version"}, cli{name: "play", version: true}, ""},
+	} {
+		got, err := parseArgs(tc.args)
+		if tc.err != "" {
+			if err == nil || !strings.Contains(err.Error(), tc.err) {
+				t.Errorf("%v: error %v, want one with %q", tc.args, err, tc.err)
+			}
+			continue
+		}
+		if err != nil || got != tc.want {
+			t.Errorf("%v: %+v, %v; want %+v", tc.args, got, err, tc.want)
+		}
+	}
+}
+
 // With no connections.toml, or none in it, the program starts with an empty
 // session, also when last.toml is there; a connection asked for, or a
 // --layout, is still an error naming the file (§14「启动时找不到连接」).
