@@ -228,6 +228,24 @@ func KeyHints(ctx context.Context, c db.Conn, prefix string, want int) (keys []s
 	return keys[:min(len(keys), want)], err
 }
 
+// ScanBatch is one SCAN of the db c is on from cursor, with COUNT count: the
+// names it gave, which may repeat what an earlier round gave, and the cursor to
+// go on from, 0 at the end. The index of key names is built a batch at a time,
+// each one a request of its own (§9.8).
+func ScanBatch(ctx context.Context, c db.Conn, cursor uint64, count int) (names []string, next uint64, err error) {
+	err = Use(ctx, c, func(cl *goredis.Client) (err error) {
+		names, next, err = cl.Scan(ctx, cursor, "*", int64(count)).Result()
+		return err
+	})
+	return names, next, err
+}
+
+// DBSize is how many keys the db c is on holds.
+func DBSize(ctx context.Context, c db.Conn) (n int64, err error) {
+	err = Use(ctx, c, func(cl *goredis.Client) (err error) { n, err = cl.DBSize(ctx).Result(); return err })
+	return n, err
+}
+
 // HashFields are the fields of the hash key when it has no more than limit of them
 // (HKEYS reads them all); none for a longer one, a key that is not a hash, or none.
 func HashFields(ctx context.Context, c db.Conn, key string, limit int) (fields []string, err error) {

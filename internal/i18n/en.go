@@ -460,6 +460,7 @@ var en = map[string]string{
 	"还在读 %s 的命令列表":     "Still reading the commands of %s",
 	"这条命令不是只读的，不重跑":    "This command is not read only, it is not sent again",
 	"参数":               "argument",
+	"已索引 %d / 共 %d 键":  "%d of %d keys indexed",
 	"键":                "key",
 	"字段":               "field",
 	"已导出 %s · %d 行，%s": "Exported %s · %d rows, %s",

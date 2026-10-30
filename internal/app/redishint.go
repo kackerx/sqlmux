@@ -11,7 +11,6 @@ import (
 
 	"github.com/kackerx/sqlmux/internal/db"
 	"github.com/kackerx/sqlmux/internal/db/redis"
-	"github.com/kackerx/sqlmux/internal/editor"
 	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/ui"
 )
@@ -74,6 +73,7 @@ func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*
 	start := len(before) - len(partial)
 	var groups [][]candidate
 	var cmds []tea.Cmd
+	var foot string // what the list says under it (F20.1)
 	switch doc, _, rest, ok := c.docOf(words); {
 	case len(words) == 0:
 		groups = [][]candidate{c.commandNames()}
@@ -99,18 +99,19 @@ func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*
 			case place.Leaf.Name == "field" && len(words) >= 2 && slices.Contains(hashCommands, strings.ToLower(words[0])):
 				kind, arg = "fields", words[1]
 			}
-			if kind != "" {
+			switch kind {
+			case "keys":
+				found, f, ask := a.keyCandidates(t, partial)
+				foot, cmds = f, append(cmds, ask...)
+				groups = append(groups, found)
+			case "fields":
 				var have bool
 				if names, have = c.hints[kind+"\x00"+arg]; !have {
 					cmds = append(cmds, a.askHints(t, kind, arg))
 				}
 				var found []candidate
-				ck := kindKey
-				if kind == "fields" {
-					ck = kindColumn
-				}
 				for _, n := range names {
-					found = append(found, candidate{label: n, insert: redis.Quote(n), note: map[string]string{"keys": i18n.T("键"), "fields": i18n.T("字段")}[kind], space: true, kind: ck})
+					found = append(found, candidate{label: n, insert: redis.Quote(n), note: i18n.T("字段"), space: true, kind: kindColumn})
 				}
 				groups = append(groups, found)
 			}
@@ -119,6 +120,7 @@ func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*
 	comp := ranked(text, len(text), partial, start, groups...)
 	if comp != nil {
 		comp.start += pos - len(before)
+		comp.items, comp.foot = comp.items[:min(len(comp.items), redisShown)], foot
 	}
 	return comp, cmds
 }
@@ -144,7 +146,8 @@ func (c *Conn) commandNames() (out []candidate) {
 // Redis connection that ran, writes: they may be others now (§9.8).
 func (c *Conn) forgetHints(stmt string) {
 	if !c.sql() && c.lang().Writes(stmt) {
-		c.hints = nil
+		c.forgetNames()
+		c.treeStale = true
 	}
 }
 
@@ -204,14 +207,5 @@ func (a *App) gotHints(m hintMsg) tea.Cmd {
 		m.conn.hints = map[string][]string{}
 	}
 	m.conn.hints[m.kind+"\x00"+m.arg] = m.names
-	var cmds []tea.Cmd
-	for _, t := range a.queries() {
-		if t.conn == m.conn && t.ed.Mode() == editor.Insert {
-			cmds = append(cmds, a.queryComplete(t, t.wait != nil && t.wait.manual))
-		}
-	}
-	if p := a.palette; p != nil && p.conn == m.conn && p.hint != nil { // the quick SQL's
-		cmds = append(cmds, a.completeSQL())
-	}
-	return tea.Batch(cmds...)
+	return a.recomplete(m.conn)
 }

@@ -42,11 +42,12 @@ type Config struct {
 	// Tips is whether the status bar carries a line about a feature (`[ui]
 	// tips`, §7.8, F15.4).
 	Tips bool
-	// RedisDelimiter, RedisScanKeys and RedisLoadAll are `[redis]`'s: what the
-	// tree splits a key's name by, how many keys a db's scan reads, and the
-	// length up to which a hash, set or zset is read whole (§8.7, F16.1).
-	RedisDelimiter              string
-	RedisScanKeys, RedisLoadAll int
+	// RedisDelimiter, RedisScanKeys, RedisLoadAll and RedisIndexKeys are
+	// `[redis]`'s: what the tree splits a key's name by, how many keys a db's
+	// scan reads, the length up to which a hash, set or zset is read whole
+	// (§8.7, F16.1), and how many names the completion indexes (§9.8, F20.1).
+	RedisDelimiter                              string
+	RedisScanKeys, RedisLoadAll, RedisIndexKeys int
 	// HistoryMax is how many statements history.jsonl keeps, the oldest cut
 	// at the start (`[query] history_max`, §11).
 	HistoryMax int
@@ -91,7 +92,7 @@ type Config struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -174,6 +175,7 @@ func Parse(data string) (*Config, error) {
 			Delimiter *string `toml:"delimiter"`
 			ScanKeys  *int    `toml:"scan_keys"`
 			LoadAll   *int    `toml:"load_all"`
+			IndexKeys *int    `toml:"index_keys"`
 		} `toml:"redis"`
 		Tree struct {
 			Width  *int  `toml:"width"`
@@ -284,6 +286,12 @@ func Parse(data string) (*Config, error) {
 			return nil, fmt.Errorf("[redis] scan_keys = %d: must be greater than 0", *n)
 		}
 		c.RedisScanKeys = *n
+	}
+	if n := raw.Redis.IndexKeys; n != nil {
+		if *n <= 0 {
+			return nil, fmt.Errorf("[redis] index_keys = %d: must be greater than 0", *n)
+		}
+		c.RedisIndexKeys = *n
 	}
 	if n := raw.Redis.LoadAll; n != nil {
 		if *n <= 0 {
