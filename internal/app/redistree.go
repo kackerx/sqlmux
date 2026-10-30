@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -114,6 +115,10 @@ func (a *App) keyNodes(dc *Conn, name string, add func(node) bool, open func(str
 		return
 	}
 	delim := a.delimiter(dc)
+	lit := a.win().tree.filter.Text // what the filter asked for, in the names it found (F20.2)
+	if strings.ContainsAny(lit, "*?[") {
+		lit = ""
+	}
 	dbID := dbNode(dc.root(), name)
 	ic, th := a.icons, a.theme
 	var walk func(t *keyTree, path []string, depth int)
@@ -122,7 +127,7 @@ func (a *App) keyNodes(dc *Conn, name string, add func(node) bool, open func(str
 			child, parts := t.spaces[p], append(slices.Clone(path), p)
 			id := dbID + "/ns:" + strings.Join(parts, delim)
 			n := node{id: id, kind: nodeNamespace, conn: dc, prefix: strings.Join(parts, delim) + delim, TreeNode: ui.TreeNode{
-				Depth: depth, Branch: true, Open: open(id, false), Icon: ic.Schema, IconFg: th.PK, Text: nameText(p), Note: strconv.Itoa(child.n), NoteFg: th.Border,
+				Depth: depth, Branch: true, Open: open(id, false), Icon: ic.Schema, IconFg: th.PK, Text: nameText(p), Pos: substringPos(p, lit), Note: strconv.Itoa(child.n), NoteFg: th.Border,
 			}}
 			if add(n) {
 				walk(child, parts, depth+1)
@@ -133,7 +138,7 @@ func (a *App) keyNodes(dc *Conn, name string, add func(node) bool, open func(str
 		for _, k := range keys {
 			_, leaf := cutLast(k.Name, delim)
 			add(node{id: dbID + "/key:" + k.Name, kind: nodeRedisKey, conn: dc, redisKey: k, TreeNode: ui.TreeNode{
-				Depth: depth, Icon: ic.KeyType(k.Type), IconFg: a.keyColor(k.Type), Text: nameText(leaf),
+				Depth: depth, Icon: ic.KeyType(k.Type), IconFg: a.keyColor(k.Type), Text: nameText(leaf), Pos: substringPos(leaf, lit),
 			}})
 		}
 	}
@@ -142,6 +147,32 @@ func (a *App) keyNodes(dc *Conn, name string, add func(node) bool, open func(str
 		add(node{id: dbID + "/more", kind: nodeNote, conn: dc, TreeNode: ui.TreeNode{
 			Depth: 2, Text: i18n.T("已扫描 %d / %s，用 / 过滤", len(s.keys), ui.Magnitude(float64(s.total))), TextFg: th.Dim,
 		}})
+	}
+}
+
+// substringPos are the runes of s that lit covers, each place it is in s, as the
+// server's *lit* matched it (case counts): where a part of a key's name is lit
+// when the filter is typed (F20.2). A hit that crosses the delimiter is in no part
+// whole, so none is found.
+// ponytail: a filter with glob characters is not lit, as what it matches is not
+// a place in a name, nor is a hit across the delimiter; upgrade to a match of the
+// glob per part if either is missed.
+func substringPos(s, lit string) (pos []int) {
+	if lit == "" {
+		return nil
+	}
+	s = strings.ToValidUTF8(s, "�") // as the node shows it
+	n, from := utf8.RuneCountInString(lit), 0
+	for {
+		i := strings.Index(s[from:], lit)
+		if i < 0 {
+			return pos
+		}
+		start := utf8.RuneCountInString(s[:from+i])
+		for k := range n {
+			pos = append(pos, start+k)
+		}
+		from += i + len(lit)
 	}
 }
 
