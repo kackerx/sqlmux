@@ -236,7 +236,8 @@ func (a *App) gotKeys(m keysMsg) tea.Cmd {
 	if a.sessionOf(c) == nil {
 		return nil
 	}
-	c.hints = nil // the keys are not the ones the completion was told of
+	c.forgetNames() // the keys are not the ones the completion was told of
+	c.treeStale = false
 	if m.err != nil {
 		a.dropPending(c)
 		return a.showToast(i18n.T("%s：%s", c.label(), m.err))

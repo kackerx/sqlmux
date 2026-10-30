@@ -28,10 +28,11 @@ import (
 // typed (§9.7, §12).
 type completion struct {
 	items []candidate
-	sel   int  // the first as it opens: ↵ takes it; -1 when nothing is typed and it came up on its own, ↵ then is the input's (§9.7, F8.17)
-	start int  // where the text it replaces starts in the input
-	moved bool // the user moved the selection: a list made again for columns that came keeps the pick
-	top   int  // the first candidate shown, held while the selection is in view (F13.10)
+	sel   int    // the first as it opens: ↵ takes it; -1 when nothing is typed and it came up on its own, ↵ then is the input's (§9.7, F8.17)
+	start int    // where the text it replaces starts in the input
+	moved bool   // the user moved the selection: a list made again for columns that came keeps the pick
+	top   int    // the first candidate shown, held while the selection is in view (F13.10)
+	foot  string // a dim row under the list: the index of key names stops short of the db (F20.1)
 }
 
 // candKind is what a candidate is, which the icon before it says (F16.11).
@@ -313,9 +314,9 @@ func atWordStart(pattern, s string, pos []int) []int {
 }
 
 // wordStart reports whether rune i of rs starts a word: the first, one
-// after _ . - or $, or an upper case after a lower case.
+// after _ . - $ or : (a Redis key's namespaces, F20.1), or an upper case after a lower case.
 func wordStart(rs []rune, i int) bool {
-	return i == 0 || strings.ContainsRune("_.-$", rs[i-1]) || unicode.IsLower(rs[i-1]) && unicode.IsUpper(rs[i])
+	return i == 0 || strings.ContainsRune("_.-$:", rs[i-1]) || unicode.IsLower(rs[i-1]) && unicode.IsUpper(rs[i])
 }
 
 // ident is name as SQL text on c: quoted when it has to be (F15.11).
@@ -920,7 +921,11 @@ func (a *App) completeView(c *completion, at uv.Position) (ui.Complete, uv.Recta
 		v.Items = append(v.Items, ui.CompleteItem{Icon: icon, Text: cd.label, Pos: cd.pos, Note: cd.note})
 		w = max(w, ui.Width(icon.Text+" "+cd.label+"  "+cd.note)+4)
 	}
-	box, rows := ui.CompleteBox(a.window(), at, w, len(v.Items), 0, ui.CompleteRows)
+	foot := 0
+	if c.foot != "" {
+		v.Foot, foot, w = []ui.Hint{{Key: c.foot}}, 1, max(w, ui.Width(c.foot)+4)
+	}
+	box, rows := ui.CompleteBox(a.window(), at, w, len(v.Items), foot, ui.CompleteRows)
 	_, c.top = ui.ListView(c.sel, c.top, len(v.Items), rows)
 	v.Top = c.top
 	return v, box, rows

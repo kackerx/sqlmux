@@ -138,6 +138,7 @@ func TestRedisConsoleCompletes(t *testing.T) {
 		command(t, c, "SET", k, "x")
 	}
 	command(t, c, "HSET", "hash:user", "name", "Ann", "age", "30")
+	settle(a, a.loadKeys(c)) // R on the db: the tree is read again, and the index is the tree's keys (F20.1)
 	a.run("query.new", 0)
 	q := a.sess.queries()[0]
 	q.conn = c

@@ -54,23 +54,23 @@ type App struct {
 
 	tabWidth int // the queries' (§14)
 	maxRows  int // a query run keeps of each result (§11)
-	// redisDelim, scanKeys and loadAll are `[redis]`'s (§8.7); filterSeq numbers
+	// redisDelim, scanKeys, indexKeys and loadAll are `[redis]`'s (§8.7); filterSeq numbers
 	// the changes of the tree's filter that wait to be asked of the servers (F16.2)
-	redisDelim        string
-	scanKeys, loadAll int
-	filterSeq         int
-	resultHeight      float64   // the share the result area first takes
-	treeWidth         int       // config [tree] width: the sidebar's default width (§7.8)
-	fullWidth         int       // the grid's columns up to this wide are not squeezed (§7.6)
-	border            uv.Border // the boxes' lines (§7.1)
-	newDesc           bool      // a table opened anew sorts descending, and shows transposed (§14)
-	newTurned         bool
-	keywordCase       string // gq's (§9.5)
-	formatPrg         string
-	autoPairs         bool // a query's INSERT, a WHERE and the quick SQL (§7.9)
-	valueHints        bool // a query's line of the field its value goes in (§11, F15.3)
-	tipsOn            bool // the status bar's line about a feature (§7.8, F15.4)
-	tip               tipState
+	redisDelim                   string
+	scanKeys, loadAll, indexKeys int
+	filterSeq                    int
+	resultHeight                 float64   // the share the result area first takes
+	treeWidth                    int       // config [tree] width: the sidebar's default width (§7.8)
+	fullWidth                    int       // the grid's columns up to this wide are not squeezed (§7.6)
+	border                       uv.Border // the boxes' lines (§7.1)
+	newDesc                      bool      // a table opened anew sorts descending, and shows transposed (§14)
+	newTurned                    bool
+	keywordCase                  string // gq's (§9.5)
+	formatPrg                    string
+	autoPairs                    bool // a query's INSERT, a WHERE and the quick SQL (§7.9)
+	valueHints                   bool // a query's line of the field its value goes in (§11, F15.3)
+	tipsOn                       bool // the status bar's line about a feature (§7.8, F15.4)
+	tip                          tipState
 	// confirmDangerous asks before a run that would delete or drop, and a
 	// save that deletes rows (§13).
 	confirmDangerous bool
@@ -145,7 +145,7 @@ var whichKeyDelay = 400 * time.Millisecond
 // not "", shows as a toast on start.
 func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, warning string) *App {
 	a := &App{
-		theme: cfg.Theme, icons: cfg.Icons, baseIcons: cfg.BaseIcons, plain: !cfg.Vim, themeName: cfg.ThemeName, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, redisDelim: cfg.RedisDelimiter, scanKeys: cfg.RedisScanKeys, loadAll: cfg.RedisLoadAll, resultHeight: cfg.ResultHeight, fullWidth: cfg.GridFullWidth, treeWidth: cfg.TreeWidth, border: cfg.Border, newDesc: cfg.GridDesc, newTurned: cfg.GridTranspose,
+		theme: cfg.Theme, icons: cfg.Icons, baseIcons: cfg.BaseIcons, plain: !cfg.Vim, themeName: cfg.ThemeName, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, redisDelim: cfg.RedisDelimiter, scanKeys: cfg.RedisScanKeys, indexKeys: cfg.RedisIndexKeys, loadAll: cfg.RedisLoadAll, resultHeight: cfg.ResultHeight, fullWidth: cfg.GridFullWidth, treeWidth: cfg.TreeWidth, border: cfg.Border, newDesc: cfg.GridDesc, newTurned: cfg.GridTranspose,
 		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg, autoPairs: cfg.AutoPairs, valueHints: cfg.Hints, tipsOn: cfg.Tips, tip: tipState{cur: -1, pick: rand.IntN}, confirmDangerous: cfg.ConfirmDangerous, previewSave: cfg.PreviewSave,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess, sessions: []*Session{sess},
 		mouse: uv.Pos(-1, -1), warning: JoinNotes(warning, sess.warning), state: st,
@@ -295,6 +295,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotHintDue(msg)
 	case hintMsg:
 		return a, a.gotHints(msg)
+	case indexMsg:
+		return a, a.gotIndex(msg)
 	case namespaceFound:
 		return a, a.gotNamespaceFound(msg)
 	case pageMsg:

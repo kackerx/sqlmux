@@ -402,6 +402,7 @@ func TestRedisCompletion(t *testing.T) {
 	a, c := redisConsole(t, &execDB{}, someCommands(), "")
 	conn := a.sess.Conns[0]
 	conn.docs, conn.hints = someDocs(), map[string][]string{"keys\x00us": {"user:1", "user:two words"}, "fields\x00h": {"field1", "other", "Field2"}}
+	conn.index = &keyIndex{} // being built: the completion goes on with the names it was told of
 	for _, tc := range []struct {
 		typed  string
 		manual bool
@@ -459,6 +460,7 @@ func TestGoldenRedisHints(t *testing.T) {
 	a, c := redisConsole(t, &execDB{}, someCommands(), "")
 	conn := a.sess.Conns[0]
 	conn.docs, conn.hints = someDocs(), map[string][]string{"keys\x00us": {"user:1", "user:2"}}
+	conn.index = &keyIndex{} // being built: the completion goes on with the names it was told of
 	a.valueHints = true
 	pane := func() string {
 		r := a.layout()[a.focused().ID]
