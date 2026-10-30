@@ -10,7 +10,7 @@
 
 ---
 
-## F19.1 命令行直接开一张表：`--table` / `--where` · 状态：todo
+## F19.1 命令行直接开一张表：`--table` / `--where` · 状态：passed（d4cc68a；e2e 56d00dc）
 
 - **依赖**：M14 F14.1（命令行给库）、M6 F6.5（启动和布局）
 - **涉及**：`cmd/sqlmux`、`internal/app`（启动后开表）、`internal/i18n`
@@ -26,7 +26,7 @@
 - [ ] 单测：参数解析的表驱动（`conn --table t`、`--table t conn`、`--table t --where x conn`、只有 `--table t`、`--where` 单独、`--table` 加 `--layout`），走 `run` 或它解析参数的那一段；schema 缺省和精确匹配；mutation。
 - [ ] e2e：`sqlmux play --table t_order --where "id < 11"` 开出 t_order、WHERE 已执行、10 行；`sqlmux --table t_order` 用第一个连接；没有的表 toast；Redis `--table hash:user` 开键 tab；退出后 last.toml 没变（mtime）。
 
-## F19.2 执行中的转圈 · 状态：todo
+## F19.2 执行中的转圈 · 状态：passed（d4cc68a；e2e 56d00dc）
 
 - **依赖**：§8.3 的 busy、§11 的占位
 - **涉及**：`internal/app`、`internal/ui`（statusline、querybar、树）
@@ -59,7 +59,7 @@
 - [ ] golden：默认布局的 data / query 标题、空 pane、缩放中的 pane、ascii 图标。
 - [ ] e2e：点 ① 的往右分割出现新 pane；点缩放、再点还原；点关闭关掉；点不在焦点的 pane 的关闭，关的是它。
 
-## F19.4 结果不满一页时行数常驻 · 状态：todo
+## F19.4 结果不满一页时行数常驻 · 状态：passed（d4cc68a；e2e 56d00dc）
 
 - **依赖**：M1 F1.4（查询条）、M10 F10.7（让位顺序）
 - **涉及**：`internal/app`（grid 的查询条内容）、`internal/ui`（querybar 的让位）
@@ -73,7 +73,7 @@
 - [ ] golden：63 列默认布局里一张 3 行的表、一张 1203 行的表，转置视图各一张。
 - [ ] e2e：默认布局 WHERE `id < 4` 后查询条有 `3 行`；清掉 WHERE（满一页）后照旧。
 
-## F19.5 `tree.toggle` 照 DataGrip 带焦点 · 状态：todo
+## F19.5 `tree.toggle` 照 DataGrip 带焦点 · 状态：passed（d4cc68a；e2e 56d00dc）
 
 - **依赖**：M10 F10.9（侧栏的收起）
 - **涉及**：`internal/app`（action、focus）、`internal/i18n`、`internal/app/tips.go`
@@ -88,7 +88,7 @@
 - [ ] 单测：三种情况各一条（侧栏状态和焦点），回到的是进树前的 pane 而不是第一个 pane；那个 pane 关了以后的退路；缩放中；点 `«` / `»`；mutation。
 - [ ] e2e：焦点在 ②，`SPC b` 焦点到树、侧栏还在；再按收起、焦点回 ②；收起时按展开并在树上（`j` 移动的是树的光标）。
 
-## F19.6 brew / npm 的包描述加上 SQL Server · 状态：todo
+## F19.6 brew / npm 的包描述加上 SQL Server · 状态：passed（d4cc68a；e2e 56d00dc）
 
 - **依赖**：M18（SQL Server）
 - **涉及**：`.github/scripts/tap-formula.sh`、`npm/sqlmux/package.json`
