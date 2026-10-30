@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"slices"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -26,6 +27,13 @@ type keyIndex struct {
 	started bool // the first batch is asked for: it asks DBSIZE too
 	done    bool // names is all of the db, or all that index_keys keeps room for
 	capped  bool // the db has more
+	// last is what the pattern before matched of cands, in the order they matched:
+	// what a longer pattern matches is among it, so typing on matches in that and
+	// not in all of them (§9.8).
+	last struct {
+		pattern string
+		cands   []candidate
+	}
 }
 
 // indexBatchCount is the COUNT of each SCAN that builds the index (§9.8).
@@ -74,6 +82,30 @@ func (ix *keyIndex) makeCands() {
 	ix.cands = make([]candidate, len(ix.names))
 	for i, n := range ix.names {
 		ix.cands[i] = candidate{label: n, insert: redis.Quote(n), note: i18n.T("键"), space: true, kind: kindKey}
+	}
+}
+
+// ponytail: the first key typed looks at every name, 85ms of the fzf matcher when
+// nearly all of a hundred thousand match (BenchmarkKeyIndexComplete); the ones
+// after it look at what the one before matched. Match off the main loop if that is
+// still felt.
+
+// narrowed is the candidates partial can match among: those the pattern typed
+// before it matched, when it goes on from it, else every name.
+func (ix *keyIndex) narrowed(partial string) []candidate {
+	if p := strings.ToLower(partial); ix.last.pattern != "" && strings.HasPrefix(p, ix.last.pattern) {
+		return ix.last.cands
+	}
+	return ix.cands
+}
+
+// remember keeps what partial matched, the keys among items, for the next key typed.
+func (ix *keyIndex) remember(partial string, items []candidate) {
+	ix.last.pattern, ix.last.cands = strings.ToLower(partial), ix.last.cands[:0]
+	for _, it := range items {
+		if it.kind == kindKey {
+			ix.last.cands = append(ix.last.cands, it)
+		}
 	}
 }
 
@@ -164,7 +196,7 @@ func (a *App) keyCandidates(t *queryTab, partial string) (found []candidate, foo
 		if ix.capped {
 			foot = i18n.T("已索引 %d / 共 %d 键", len(ix.names), ix.total)
 		}
-		return ix.cands, foot, nil
+		return ix.narrowed(partial), foot, nil
 	}
 	if start := a.startIndex(c); start != nil {
 		cmds = append(cmds, start)
