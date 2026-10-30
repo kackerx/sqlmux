@@ -28,6 +28,7 @@ type Config struct {
 	ThemeName  string    // the theme in use: `theme`, or tokyonight-storm
 	Language   string    // `language = "en" | "zh"` (§14「界面语言」)
 	Border     uv.Border // `border = "single" | "rounded" | "double" | "bold" | "hidden"`: the boxes' lines (§7.1)
+	Clipboard  string    // `clipboard`: "" or "unnamedplus", the editors' unnamed register on the system clipboard (§11, F20.5)
 	Vim        bool      // `vim = false`: query and WHERE are plain editors, the grid and tree get arrow keys too (§6.9)
 	Timeoutlen int       // ms to wait on an ambiguous key sequence
 	TabWidth   int       // the query's indent, and the formatter's (§14)
@@ -153,6 +154,7 @@ func Parse(data string) (*Config, error) {
 		Language   *string  `toml:"language"`
 		Border     *string  `toml:"border"`
 		Vim        *bool    `toml:"vim"`
+		Clipboard  *string  `toml:"clipboard"`
 		Timeoutlen *int     `toml:"timeoutlen"`
 		TabWidth   *int     `toml:"tab_width"`
 		Height     *float64 `toml:"result_height"`
@@ -220,6 +222,13 @@ func Parse(data string) (*Config, error) {
 	}
 	if raw.Vim != nil {
 		c.Vim = *raw.Vim
+	}
+	if v := raw.Clipboard; v != nil {
+		if *v == "" || *v == "unnamedplus" {
+			c.Clipboard = *v
+		} else { // told like a key nothing reads: the value is the one nothing reads (F20.5)
+			c.Unknown = append(c.Unknown, fmt.Sprintf("clipboard = %q", *v))
+		}
 	}
 	if raw.Theme != nil {
 		c.theme = *raw.Theme

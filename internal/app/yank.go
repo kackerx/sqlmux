@@ -437,13 +437,30 @@ func clipCopy(text string) tea.Cmd {
 // clipPaste asks for what the system clipboard holds: it comes as a
 // ClipboardMsg, from the tool or else the terminal, or never.
 func clipPaste() tea.Msg {
+	if text, ok := clipToolText(); ok {
+		return tea.ClipboardMsg{Content: text, Selection: 'c'}
+	}
+	return tea.ReadClipboard()
+}
+
+// clipPasteLocal is clipPaste for a put that named no register
+// (`clipboard = "unnamedplus"`, F20.5): with no tool, or a failing one, the
+// text comes empty, at once, not by an OSC 52 query the terminal may never
+// answer; the editor puts its unnamed register then.
+func clipPasteLocal() tea.Msg {
+	text, _ := clipToolText()
+	return tea.ClipboardMsg{Content: text, Selection: 'c'}
+}
+
+// clipToolText is what the clipboard tool reads, !ok when there is none or it fails.
+func clipToolText() (string, bool) {
 	if c := clipCmd(true); c != nil {
 		if out, err := c.Output(); err == nil {
 			if runtime.GOOS == "windows" { // the windows read's lines end in \r\n
 				out = bytes.ReplaceAll(out, []byte("\r\n"), []byte("\n"))
 			}
-			return tea.ClipboardMsg{Content: string(out), Selection: 'c'}
+			return string(out), true
 		}
 	}
-	return tea.ReadClipboard()
+	return "", false
 }

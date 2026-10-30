@@ -307,7 +307,11 @@ func (a *App) vimCmds(eff editor.Effect, put func(text string, p editor.ClipPut)
 	}
 	if p := eff.Paste; p != nil {
 		a.clipWait = func(text string) tea.Cmd { return put(text, *p) }
-		cmds = append(cmds, clipPaste)
+		if p.Implicit() {
+			cmds = append(cmds, clipPasteLocal)
+		} else {
+			cmds = append(cmds, clipPaste)
+		}
 	}
 	if eff.Error != "" {
 		cmds = append(cmds, a.showToast(eff.Error))

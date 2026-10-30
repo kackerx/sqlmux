@@ -261,6 +261,20 @@ func TestTreeFollow(t *testing.T) {
 	}
 }
 
+// clipboard is "" or "unnamedplus"; another value is told like a key nothing
+// reads and leaves the default (F20.5).
+func TestClipboard(t *testing.T) {
+	for in, want := range map[string]string{"": "", `clipboard = "unnamedplus"`: "unnamedplus", `clipboard = ""`: "", `clipboard = "unnamed"`: ""} {
+		c, err := Parse(in)
+		if err != nil || c.Clipboard != want {
+			t.Errorf("%q: %q %v", in, c.Clipboard, err)
+		}
+		if bad := strings.Contains(in, `"unnamed"`); bad != (len(c.Unknown) == 1 && c.Unknown[0] == `clipboard = "unnamed"`) {
+			t.Errorf("%q: unknown %q", in, c.Unknown)
+		}
+	}
+}
+
 // A key nothing reads, misspelt, is said at the start, with the connection it
 // is in: it is no error (F13.5).
 func TestUnknownKeys(t *testing.T) {

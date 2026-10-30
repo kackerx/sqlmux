@@ -211,10 +211,21 @@ type cmd struct {
 	op    string // the operator waiting for the motion: "d", "gU"
 	name  string // the motion, text object or command: "w", "iw", "gg", "f"
 	arg   string // the character f, t, r take
+	// implicit: no register was typed and `clipboard = "unnamedplus"` made it "+.
+	implicit bool
 }
+
+// UnnamedPlus is nvim's `clipboard=unnamedplus`: a command with no register
+// named takes "+, the system clipboard (§11, F20.5). Set once at start, from
+// config.toml's `clipboard`.
+var UnnamedPlus bool
 
 // ClipPut is a "+p or "+P waiting for the system clipboard's text.
 type ClipPut struct{ c cmd }
+
+// Implicit is whether the put named no register, and `clipboard` made it "+: an
+// empty or unreadable clipboard then puts the unnamed register, not nothing.
+func (p ClipPut) Implicit() bool { return p.c.implicit }
 
 func (c cmd) n() int { return max(c.count, 1) }
 
@@ -233,6 +244,9 @@ func (e *Editor) normal() {
 		return
 	}
 	e.keys = nil
+	if UnnamedPlus && c.reg == "" {
+		c.reg, c.implicit = "+", true
+	}
 	if st == complete && (c.reg == "" || c.reg == "+") { // a register of the others: none here (§11)
 		e.yanked = false
 		e.run(c)
@@ -249,8 +263,9 @@ func (e *Editor) normal() {
 
 // PutClip is the put p asked the clipboard for, text what it holds: put as
 // a register charwise, or linewise when it ends in a newline, as vim takes
-// the clipboard; empty, nothing is put (vim's E353), nor once the editor
-// left NORMAL or has keys pending. The unnamed register
+// the clipboard; empty, nothing is put (vim's E353), but for an Implicit
+// put, which puts the unnamed register; nor once the editor left NORMAL or
+// has keys pending. The unnamed register
 // stays as it was, but for one a "+ yank or delete filled: that stands for
 // "+ in vim, and so holds what came.
 func (e *Editor) PutClip(text string, p ClipPut) Effect {
@@ -258,17 +273,20 @@ func (e *Editor) PutClip(text string, p ClipPut) Effect {
 	if e.mode != Normal || len(e.keys) > 0 { // come too late: the editor went on
 		return e.eff
 	}
+	own := p.c.implicit && text == "" // no clipboard to read: the unnamed register as it is (nvim's fallback)
 	kept := e.reg
-	e.reg = register{text: text, kind: 'v'}
-	switch {
-	case text == "":
-		e.reg = register{}
-	case strings.HasSuffix(text, "\n"):
-		e.reg.kind = 'V'
+	if !own {
+		e.reg = register{text: text, kind: 'v'}
+		switch {
+		case text == "":
+			e.reg = register{}
+		case strings.HasSuffix(text, "\n"):
+			e.reg.kind = 'V'
+		}
 	}
 	p.c.reg = ""
 	e.run(p.c)
-	if !e.regClip {
+	if !own && !e.regClip {
 		e.reg = kept
 	}
 	e.settle()
