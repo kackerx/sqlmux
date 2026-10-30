@@ -1,10 +1,13 @@
 package app
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db/redis"
 )
 
@@ -48,6 +51,9 @@ func TestKeyIndexMatches(t *testing.T) {
 	a.queryComplete(c, false)
 	if c.comp == nil || !slices.Equal(c.comp.items[0].pos, []int{11, 12, 13, 14, 15, 16}) { // "i18n_agent:" is 11 columns
 		t.Errorf("lit: %+v", c.comp)
+	}
+	if tierOf("user", "App:USER_1") != 2 || tierOf("user", "USER_1") != 1 || tierOf("user", "xuser") != 3 {
+		t.Error("the case of a name does not count, a word start does")
 	}
 	if tierOf("expert", "i18n:expert") != 2 || tierOf("expert", "expert:i18n") != 1 {
 		t.Error(": is not a word start")
@@ -194,5 +200,64 @@ func TestKeyIndexOfTheTree(t *testing.T) {
 	a.gotKeys(keysMsg{conn: conn, scan: &keyScan{keys: []redis.KeyInfo{{Name: "u:1"}, {Name: "u:9"}}, total: 2}})
 	if ix := conn.indexed(); ix == nil || len(ix.names) != 2 {
 		t.Errorf("the tree of after R: %+v", ix)
+	}
+}
+
+// BenchmarkKeyIndexComplete is the keystrokes of "user_123" over an index of
+// index_keys (100000) names, each a completion that goes on from what the one
+// before matched: the slowest is the first, which looks at all of them; past
+// 30ms the matching wants more than that (§9.8).
+func BenchmarkKeyIndexComplete(b *testing.B) {
+	var names []string
+	for i := range 100000 {
+		names = append(names, fmt.Sprintf("app%d:user_%d:session:%d", i%40, i%997, i))
+	}
+	conn := newConn(config.Connection{Name: "r", Engine: "redis"})
+	conn.docs = someDocs()
+	conn.index = &keyIndex{names: names, done: true}
+	conn.index.makeCands()
+	a := &App{}
+	t := &queryTab{conn: conn}
+	var first, slowest time.Duration
+	for b.Loop() {
+		conn.index.last.pattern = ""
+		for n := 1; n <= len("user_123"); n++ {
+			typed := "get " + "user_123"[:n]
+			start := time.Now()
+			a.redisComplete(t, typed, len(typed), false)
+			d := time.Since(start)
+			if n == 1 {
+				first = d
+			}
+			slowest = max(slowest, d)
+		}
+	}
+	b.ReportMetric(float64(first.Milliseconds()), "first-ms")
+	b.ReportMetric(float64(slowest.Milliseconds()), "slowest-ms")
+}
+
+// A key typed after another matches among what the one before matched, and finds
+// what matching them all finds, in the same order; a pattern that is not an
+// extension of it starts over (§9.8).
+func TestKeyIndexNarrows(t *testing.T) {
+	var names []string
+	for i := range 300 {
+		names = append(names, fmt.Sprintf("app%d:user_%d:s%d", i%7, i%13, i))
+	}
+	a, c, conn := keyConsole(t, names...)
+	typed := func(text string) []string { return typedAt(t, a, c, text, false) }
+	for _, text := range []string{"get u", "get us", "get user_1", "get user_12", "get user_2", "get a", "get app3:u", "get User_1"} {
+		got := typed(text)
+		conn.index.last.pattern = ""
+		if want := typed(text); !slices.Equal(got, want) {
+			t.Errorf("%q: %d names narrowed, %d matching all", text, len(got), len(want))
+		}
+	}
+	typed("get user_1")
+	if all := len(conn.index.cands); len(conn.index.narrowed("user_12")) >= all || len(conn.index.narrowed("USER_12")) >= all {
+		t.Error("an extension of the last pattern looks at all of them")
+	}
+	if len(conn.index.narrowed("ser_1")) != len(conn.index.cands) || len(conn.index.narrowed("u")) != len(conn.index.cands) {
+		t.Error("what does not extend it does not start from its matches")
 	}
 }

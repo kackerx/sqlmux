@@ -73,7 +73,8 @@ func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*
 	start := len(before) - len(partial)
 	var groups [][]candidate
 	var cmds []tea.Cmd
-	var foot string // what the list says under it (F20.1)
+	var foot string       // what the list says under it (F20.1)
+	var indexed *keyIndex // the index the keys came from, if one did
 	switch doc, _, rest, ok := c.docOf(words); {
 	case len(words) == 0:
 		groups = [][]candidate{c.commandNames()}
@@ -102,7 +103,7 @@ func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*
 			switch kind {
 			case "keys":
 				found, f, ask := a.keyCandidates(t, partial)
-				foot, cmds = f, append(cmds, ask...)
+				foot, cmds, indexed = f, append(cmds, ask...), c.indexed()
 				groups = append(groups, found)
 			case "fields":
 				var have bool
@@ -118,6 +119,13 @@ func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*
 		}
 	}
 	comp := ranked(text, len(text), partial, start, groups...)
+	if indexed != nil && partial != "" { // what it matched is where the next key typed looks (F20.1)
+		var items []candidate
+		if comp != nil {
+			items = comp.items
+		}
+		indexed.remember(partial, items)
+	}
 	if comp != nil {
 		comp.start += pos - len(before)
 		comp.items, comp.foot = comp.items[:min(len(comp.items), redisShown)], foot
