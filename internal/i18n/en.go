@@ -170,7 +170,8 @@ var en = map[string]string{
 	"执行 WHERE":                  "Run the WHERE",
 	"执行":                        "Run",
 	"折叠 / 到上一级":                 "Collapse / up a level",
-	"折叠 / 展开 schema 树":          "Show / hide the schema tree",
+	"打开 / 聚焦 / 收起侧栏":            "Open / focus / fold the sidebar",
+	"收起侧栏":                      "Fold the sidebar",
 	"按编号跳转":                     "Jump by number",
 	"提交":                        "Commit",
 	"撤回这一格的修改":                  "Undo this cell's change",
@@ -619,7 +620,7 @@ var en = map[string]string{
 	"{key} 放大当前 pane，再按一次还原":               "{key} zooms the pane, again to restore it",
 	"{key} 向右分屏，把两张表并排对照":                  "{key} splits to the right: two tables side by side",
 	"{key} 显示或隐藏结果区":                       "{key} shows or hides the result area",
-	"{key} 显示或隐藏侧栏":                        "{key} shows or hides the sidebar",
+	"{key} 打开 / 聚焦 / 收起侧栏":                 "{key} opens, focuses or folds the sidebar",
 	"{key} 新建 window，一件事一个 window":         "{key} opens a window: one window for one task",
 	"{key} 切换或新建 session":                  "{key} switches or creates a session",
 

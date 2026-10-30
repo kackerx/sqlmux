@@ -943,7 +943,7 @@ func TestPaneNumbers(t *testing.T) {
 func TestFoldSidebar(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	a.win().Focus = 0
-	at := find(t, a, ui.Target{Kind: ui.KindHint, Pane: 0, Action: "tree.toggle"}).Min
+	at := find(t, a, ui.Target{Kind: ui.KindHint, Pane: 0, Action: "tree.fold"}).Min
 	if cell := a.render().Buf.CellAt(at.X, at.Y); cell == nil || cell.Content != "«" || cell.Style.Fg != a.theme.Dim {
 		t.Errorf("the « on the title is %+v, want dim", cell)
 	}
@@ -978,6 +978,84 @@ func TestFoldSidebar(t *testing.T) {
 	}
 }
 
+// tree.toggle as DataGrip's tool windows: open with the focus on the tree it
+// folds and the focus goes back to the pane it came from, whichever way it
+// came, or the window's current one when that pane is gone; open with the
+// focus elsewhere it only takes the focus; folded it opens with the focus on
+// it; a zoom ends first (§7.8, F19.5).
+func TestTreeToggleFocus(t *testing.T) {
+	state := func(a *App) (open bool, focus int) { return a.win().TreeOpen, a.win().Focus }
+	a := sized(160, 45, "nerd")
+	a.win().focus(2)
+	a.run("tree.toggle", 0)
+	if open, focus := state(a); !open || focus != 0 {
+		t.Fatalf("open, focus on a pane: open %v focus %d", open, focus)
+	}
+	a.run("tree.toggle", 0)
+	if open, focus := state(a); open || focus != 2 {
+		t.Fatalf("open, focus on the tree: open %v focus %d, want folded and ② (not the first pane)", open, focus)
+	}
+	a.run("tree.toggle", 0)
+	if open, focus := state(a); !open || focus != 0 {
+		t.Fatalf("folded: open %v focus %d", open, focus)
+	}
+
+	a.win().focus(1) // by a click: the way back is the same
+	click(a, uv.Pos(1, 1))
+	a.win().focus(2)
+	click(a, find(t, a, ui.Target{Kind: ui.KindTreeEdge}).Min.Sub(uv.Pos(10, 0))) // the tree's own area
+	if a.win().Focus != 0 {
+		t.Fatalf("a click on the tree: focus %d", a.win().Focus)
+	}
+	a.run("tree.toggle", 0)
+	if open, focus := state(a); open || focus != 2 {
+		t.Fatalf("after a click: open %v focus %d", open, focus)
+	}
+
+	a = sized(160, 45, "nerd") // the pane it came from is closed meanwhile: the one focused last of the others
+	a.win().focus(2)
+	a.splitPane(Horiz) // ③ right of ②, focused
+	a.run("tree.toggle", 0)
+	a.removePane(3) // focus goes to the heir, ②; the tree takes it back, as closing from its menu leaves it
+	a.win().Focus = 0
+	a.run("tree.toggle", 0)
+	if open, focus := state(a); open || focus != 2 {
+		t.Fatalf("its pane closed: open %v focus %d, want ②", open, focus)
+	}
+
+	a = sized(160, 45, "nerd") // the result area is a pane it can come from
+	res := a.resultPane(a.win())
+	a.win().focus(res.ID)
+	a.run("tree.toggle", 0)
+	a.run("tree.toggle", 0)
+	if open, focus := state(a); open || focus != res.ID {
+		t.Fatalf("from the result area: open %v focus %d, want %d", open, focus, res.ID)
+	}
+
+	a = sized(160, 45, "nerd") // a zoomed pane hides the sidebar: the zoom ends, then it is the focus that moves
+	a.win().focus(2)
+	a.run("pane.zoom", 0)
+	a.run("tree.toggle", 0)
+	if open, focus := state(a); !open || focus != 0 || a.win().Zoom != 0 {
+		t.Fatalf("zoomed: open %v focus %d zoom %d", open, focus, a.win().Zoom)
+	}
+
+	a = sized(160, 45, "nerd") // « folds, wherever the focus is, and moves it only off the tree; » opens with the focus on it
+	a.win().focus(2)
+	click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: 0, Action: "tree.fold"}).Min)
+	if open, focus := state(a); open || focus != 2 {
+		t.Fatalf("« with the focus on ②: open %v focus %d", open, focus)
+	}
+	click(a, uv.Pos(1, 1))
+	if open, focus := state(a); !open || focus != 0 {
+		t.Fatalf("»: open %v focus %d", open, focus)
+	}
+	click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: 0, Action: "tree.fold"}).Min)
+	if open, focus := state(a); open || focus != 2 {
+		t.Fatalf("« with the focus on the tree: open %v focus %d, want ②", open, focus)
+	}
+}
+
 // SPC b unfolding the tree puts the focus on it, its cursor on the node of
 // the tab focused before, the nodes above it opened: a table's under its
 // schema, a query's in the workspace (F3.29). Filtered out, nothing
@@ -987,11 +1065,11 @@ func TestFoldSidebarReveals(t *testing.T) {
 	loadOrders(t, a, 3)
 	a.sess.open[schemaNode(a.sess.Conns[0], "public")] = false // folded by hand
 	a.win().tree.filter = ui.Input{Text: "planner"}
-	if feed(t, a, "<Space>b<Space>b"); a.sess.open[schemaNode(a.sess.Conns[0], "public")] {
+	if feed(t, a, "<Space>b"); a.sess.open[schemaNode(a.sess.Conns[0], "public")] {
 		t.Fatal("filtered out, t_order's schema opens")
 	}
 	a.win().tree.filter = ui.Input{}
-	feed(t, a, "<C-l><Space>b<Space>b")
+	feed(t, a, "<C-l><Space>b")
 	if n, _ := a.treeNode(); a.win().Focus != 0 || n.kind != nodeTable || n.table.Name != "t_order" {
 		t.Fatalf("t_order's: focus %d, node %+v", a.win().Focus, n.TreeNode)
 	}

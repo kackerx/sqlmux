@@ -393,7 +393,7 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 		Icon:        a.icons.Conn,
 		Object:      a.sess.Name,
 		ObjectFirst: true,
-		Hints:       []ui.Hint{{Label: "«", Action: "tree.toggle"}},
+		Hints:       []ui.Hint{{Label: "«", Action: "tree.fold"}},
 		Focused:     win.Focus == win.Tree.ID,
 		Pane:        win.Tree.ID,
 	}
