@@ -6,12 +6,13 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 - 目录结构见 tech-design §4。增删目录是设计变更，由决策者改 §4。
 - 常规操作走 `just`：`just --list` 看全部入口；`just check` 是提交前的全部检查（vet、单测、集成测试、lint、gofmt、tidy）。
 
-## 六个角色、四个工作区
+## 角色和工作区
 
 | 角色 | 会话名 | 启动命令 | 规则 |
 |---|---|---|---|
 | 决策者 | `sqlmux-orchestrator` | `claude -n sqlmux-orchestrator --agent orchestrator --effort high` | [`specs/roles/orchestrator.md`](specs/roles/orchestrator.md) |
 | worker | `sqlmux-fullstack-dev` | `claude -n sqlmux-fullstack-dev --agent fullstack-dev --effort high` | [`specs/roles/worker.md`](specs/roles/worker.md) |
+| 并行 worker | `sqlmux-fullstack-dev-2` | 决策者按 task.md 起的后台会话：在 `/Users/ctw/proj/sqlmux-dev2` 里 `claude --bg -n sqlmux-fullstack-dev-2 --agent fullstack-dev --effort high`，只做 task.md 分给它的 feature，见下面「并行开发」 | 同 worker |
 | reviewer | `sqlmux-code-reviewer` | `claude -n sqlmux-code-reviewer --agent code-reviewer --effort xhigh` | [`specs/roles/reviewer.md`](specs/roles/reviewer.md) |
 | tester | `sqlmux-test-engineer` | 同上格式，`--agent test-engineer --effort high`，在 `/Users/ctw/proj/sqlmux-e2e` 里起 | [`specs/roles/tester.md`](specs/roles/tester.md) |
 | pruner | `sqlmux-pruner` | `claude -n sqlmux-pruner`，用户按需启动，不是必经步骤 | [`specs/roles/pruner.md`](specs/roles/pruner.md) |
@@ -22,6 +23,7 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 | 工作区 | 使用者 | 分支 |
 |---|---|---|
 | `/Users/ctw/proj/sqlmux` | 决策者、worker、reviewer、oss 的会话都在这里起；只有 worker（修剪期间是 pruner）在这里改代码，oss 只改 `README.md`、`docs/`、`CHANGELOG.md`、`assets/`（和决策者一样 `git commit --only -- <路径>`） | `main` |
+| `/Users/ctw/proj/sqlmux-dev2` | 并行 worker（只在有并行 feature 时存在，决策者 `git worktree add` 建、合完删） | task.md 写的 feature 分支，如 `f19.3` |
 | `/Users/ctw/proj/sqlmux-e2e` | tester | `e2e` |
 | `/Users/ctw/proj/sqlmux-review` | reviewer 跑测试 | detached |
 | `/Users/ctw/proj/sqlmux-verify` | 决策者编验收版给用户 | detached |
@@ -39,6 +41,11 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 **里程碑结束**：最后一个节点通过、tester 跑完完整回归后暂停，用户体验并提意见；决策者把反馈写成新 feature 追加进 task.md；用户验收通过后 worker 打 tag、推送。暂停期间 worker 不写代码，只可以起草下一个里程碑的清单发给决策者。
 
 **全仓审计**：用户按需让 reviewer 做一次只读的全仓工程质量审计（做法在 `specs/roles/reviewer.md`），每条发现带一个探针，结果发决策者排成一个里程碑（第一次是 M13）。探针和仓库副本放在 worktree 外面（`/Users/ctw/proj/sqlmux-aud/`）：i18n 的单测遍历整个 worktree，未跟踪的 `.go` 副本也会被扫到。
+
+**并行开发**（用户 2026-10-30 定）：task.md 里有和别的 feature 完全隔离的，决策者可以把它分给并行 worker，在 task.md 的审查节点那一行写明「节点 N 由 `sqlmux-fullstack-dev-2` 在分支 `<名字>` 上做」，每个 feature 的标题后面写 `· 负责：dev-2`。一个 feature 只归一个 worker，没写归属的都是 worker 的；谁也不做不归自己的 feature，做着发现要碰对方正在改的东西就停下问决策者。
+- **什么算隔离**：不改同一个函数，不依赖对方还没提交的改动，不动 `go.mod` / `go.sum`（新依赖只有 worker 加；并行 worker 要用新依赖先问决策者）、`justfile`、`.golangci.yml`、`testdata/seed/`。同一个文件里不同的函数可以并行；golden 文件两边都会动，不算冲突的理由，按下面的办法合。
+- **并行 worker 的流程**：分支从当时的 `main` 拉，只在自己的 worktree 里提交，规矩同 worker（`just check`、相关 e2e、commit 前缀）。集成测试照「集成测试环境」直接连主工作区的容器，不 `up`。到节点先 `git merge main` 进自己的分支、解决冲突（golden 冲突不手合：取 `main` 的那份后重新生成，逐个看 diff 只差自己这条 feature 的改动），`just check` 绿了再送审，范围写 `main..<分支头>`；reviewer 在 `sqlmux-review` 里检出这个 sha 审，tester 在分支头跑全量回归（同 M18 的 `windows-compat`）。退回、提测、结论照常，结论发给决策者和两个 worker。
+- **合入**：节点通过后由 worker 在主工作区 `git merge --no-ff <分支>`（合的就是通过的那个 sha）。这期间 `main` 又往前走了、合并有冲突时，交回并行 worker 再 `merge main` 一次，reviewer 只审这次合并的解决，tester 只跑相关脚本。合完决策者填状态、删 worktree 和分支。
 
 **消息只发四类**：spec 问题（→ 决策者）、退回（reviewer / tester → worker）、批次提测（worker → reviewer → tester）、批次结论（tester → 决策者和 worker）。oss 多两类：发版后的安装验证结论（oss → 决策者）、issue 里能复现的 bug 和需求（oss → 决策者，决策者转成 feature 或测试用例）。不发「收到」、抄送、改状态、回报 sha。spec 改了，决策者只给相关角色一行指针（「docs <sha> 改了 §7.8」），reviewer 和 tester 按 commit 里的 spec 工作。
 
