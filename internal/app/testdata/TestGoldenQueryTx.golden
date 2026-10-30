@@ -1,6 +1,6 @@
-┌─ ②  query_1 ─────────── Tx: 手动 ▾ ✓ ↺ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
+┌─ ②  query_1 ─── Tx: 手动 ▾ ✓ ↺ doraemon · doraemon.public ▾  ▶ run  ↵     ─┐
  doraemon ▾  0: data*                                                                                                                                     ·     doraemon · pg@localhost:5432  NORMAL 
-┌─ ②  query_1 ─────────── Tx: 手动 ▾ ✓ ↺ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
+┌─ ②  query_1 ─── Tx: 手动 ▾ ✓ ↺ doraemon · doraemon.public ▾  ▶ run  ↵     ─┐
  doraemon ▾  0: data*                                                                                                                             ·     doraemon · pg@localhost:5432  事务中  NORMAL 
-┌─ ②  query_1 ───────────── Tx: 自动 ▾ doraemon  · doraemon.public ▾  ▶ run  ↵ ─┐
+┌─ ②  query_1 ───── Tx: 自动 ▾ doraemon  · doraemon.public ▾  ▶ run  ↵     ─┐
  doraemon ▾  0: data*                                                                                                                           ·     doraemon · pg@localhost:5432  事务出错  NORMAL 

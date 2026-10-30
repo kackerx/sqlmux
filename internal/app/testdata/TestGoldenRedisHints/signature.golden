@@ -1,4 +1,4 @@
-┌─ ②  query_1 ─────── Tx: 自动 ▾ doraemon · db0 ▾  ▶ run  ↵ ─┐
+┌─ ②  query…  Tx: 自动 ▾ doraemon · db0 ▾  ▶ run  ↵     ─┐
 │▶  1 set k                                                   │
 │      SET key value [NX | XX] [EX seconds]                   │
 │                                                             │

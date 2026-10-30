@@ -313,6 +313,18 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 			ui.Hint{Key: a.keys.Hint("json.leave", "jsonview"), Label: i18n.T("回表格"), Action: "json.leave close"},
 		)
 	}
+	if p != a.win().Result { // the buttons of a window's pane: last to stay, all or none (§7.8)
+		zoom := a.icons.Zoom
+		if b.Zoomed {
+			zoom = a.icons.Unzoom
+		}
+		for _, bt := range []struct {
+			icon   ui.Icon
+			action string
+		}{{a.icons.SplitRight, "pane.split.right"}, {a.icons.SplitBelow, "pane.split.below"}, {zoom, "pane.zoom"}, {a.icons.Close, "pane.close"}} {
+			b.Hints = append(b.Hints, ui.Hint{Label: bt.icon.Text, Action: bt.action, Prio: 4, Group: 4, Padded: true})
+		}
+	}
 	paneRegions(f, p.ID, r)
 	in := b.Draw(f, r)
 	if in.Empty() {
