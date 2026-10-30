@@ -78,7 +78,8 @@
 - [ ] b. 配置值只认 `""` 和 `"unnamedplus"`，别的值同未知键的 toast。
 
 **验收**
-- [ ] 单测：两种取值下 `yy` / `dd` / `x` / `p` 走的寄存器（用假的剪贴板工具）；读失败退回无名寄存器；WHERE 和值编辑器也生效；mutation。
+- [ ] **nvim 对照用例**（用户 2026-10-31：要保证符合 neovim 用户的直觉）：`cases.txt` 加一组 `:set clipboard=unnamedplus` 的用例，生成脚本里给 nvim 一个假的 `g:clipboard`（copy / paste 存取一个变量，`cache_enabled = 1`，就是 provider 那份带 regtype 的缓存），期望结果由 nvim 跑出来，不手写；Go 侧把这条 ex 当成打开 `UnnamedPlus` 加假剪贴板（同 `set noma` 的做法）。至少覆盖：`yy` / `yiw` / 块 `<C-v>…y` 后 `p` 和 `P`（块还是块）、`dd` / `x` / `cw` 之后 `p`（删掉的进剪贴板）、`"_dd` 不动剪贴板、`"+p` 显式、带 count 的 `3p`、外面写进剪贴板的文字（和缓存不同）按行 / 按字符贴。nvim 和编辑器不一致的，先报决策者，不改用例迁就实现。
+- [ ] 单测：两种取值下 `yy` / `dd` / `x` / `p` 走的寄存器（用假的剪贴板工具）；读失败退回无名寄存器；没有本地工具时不发 OSC 52 查询；WHERE 和值编辑器也生效；mutation。
 - [ ] e2e：`clipboard = "unnamedplus"` 时 query 里 `yy`，假 `pbpaste` 读到这一行；缺省时读不到。
 
 ## F20.6 间隙跟 `pane_bg`、`border_focus`、默认边框调亮 · 负责：dev-2 · 状态：todo
