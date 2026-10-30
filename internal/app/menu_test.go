@@ -281,6 +281,7 @@ func TestDropTableClosesItsTabs(t *testing.T) {
 	}
 	c.cols[idOf(user)] = db.Columns{}
 	report.Conns[0].cols[idOf(user)] = db.Columns{}
+	a.spinOn = true // no tick of the dots among the commands counted below
 	_, cmd := a.Update(dropped{c, user, nil})
 	if got := tabs(first); !slices.Equal(got, []string{"doraemon.agentable", "other.public"}) {
 		t.Errorf("first session: %v", got)

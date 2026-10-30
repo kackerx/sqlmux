@@ -56,14 +56,17 @@ func ordersTable(n int) (db.Table, db.Columns, db.Result) {
 
 // loadOrders opens ordersTable(n) in the focused data pane through the
 // real path, answering the fetch it starts as the database would.
-func loadOrders(t testing.TB, a *App, n int) *dataTab {
+func loadOrders(t testing.TB, a *App, n int) *dataTab { return loadOrdersNext(t, a, n, true) }
+
+// loadOrdersNext is loadOrders with next, whether a page is left after it.
+func loadOrdersNext(t testing.TB, a *App, n int, next bool) *dataTab {
 	t.Helper()
 	table, cols, page := ordersTable(n)
 	if a.openTable(a.sess.Conns[0], table) == nil {
 		t.Fatal("opening a table fetches it")
 	}
 	tab := dataOf(a.focused())
-	a.Update(pageMsg{tab: tab, seq: tab.seq, cols: cols, page: page, next: true})
+	a.Update(pageMsg{tab: tab, seq: tab.seq, cols: cols, page: page, next: next})
 	return tab
 }
 
@@ -100,6 +103,29 @@ func TestGoldenQueryBarNarrow(t *testing.T) {
 	tab.note = ui.Note{Head: "已保存 1 行 · 3ms"}
 	rows = append(rows, row())
 	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")
+}
+
+// In the default layout ① is too narrow for "auto · 3 行 · 12ms": a table
+// under a page says "3 行" in what is left, a longer one has the count go
+// first as it did; transposed it is the same bar (§7.8「查询条」, F19.4).
+func TestGoldenQueryBarUnderAPage(t *testing.T) {
+	var out []string
+	for _, turn := range []bool{false, true} {
+		for _, rows := range []int{3, 1203} {
+			a := sized(160, 45, "nerd")
+			tab := loadOrdersNext(t, a, min(rows, 60), rows != 3)
+			if rows != 3 {
+				tab.count, tab.counted = int64(rows), countDone
+			}
+			if turn {
+				feed(t, a, "T")
+			}
+			r := a.layout()[a.focused().ID]
+			lines := strings.Split(a.render().String(), "\n")
+			out = append(out, fmt.Sprintf("%d rows, transposed %v", rows, turn), ansi.Cut(lines[r.Min.Y+1], r.Min.X, r.Max.X), ansi.Cut(lines[r.Min.Y+2], r.Min.X, r.Max.X))
+		}
+	}
+	golden.RequireEqual(t, strings.Join(out, "\n")+"\n")
 }
 
 // Transposed, every value is left-aligned, numbers too: a column mixes
@@ -195,7 +221,7 @@ func TestGridFetch(t *testing.T) {
 	table, cols, page := ordersTable(3)
 	a.openTable(a.sess.Conns[0], table)
 	tab := dataOf(a.focused())
-	if a.sess.Conns[0].busy != 1 || !strings.Contains(statusRow(a), " busy · C-c 取消 ") {
+	if a.sess.Conns[0].busy != 1 || !strings.Contains(statusRow(a), " busy ●•• · C-c 取消 ") {
 		t.Fatalf("while fetching: busy %d, status %q", a.sess.Conns[0].busy, statusRow(a))
 	}
 	a.Update(pageMsg{tab: tab, seq: tab.seq - 1, cols: cols, page: page})

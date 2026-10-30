@@ -20,8 +20,8 @@ done
 e2e_resize 160 45; sleep 0.4
 
 # ---- 侧栏折叠（SPC b）
-e2e_keys Space; e2e_type b; sleep 0.5
-check "（准备）SPC b 折叠了侧栏（只剩 3 列的细栏 »）" eval '[[ $(e2e_panes | awk "\$1 == \"-\" { print \$4 }") == 3 ]]'
+e2e_keys Space; e2e_type b; sleep 0.5; e2e_keys Space; e2e_type b; sleep 0.5   # F19.5：第一个聚焦树，第二个折叠
+check "（准备）SPC b（两次）折叠了侧栏（只剩 3 列的细栏 »）" eval '[[ $(e2e_panes | awk "\$1 == \"-\" { print \$4 }") == 3 ]]'
 check "侧栏折叠后：① 和 ② 仍然等宽（折叠的细栏和分隔线没有算进左边）" even
 e2e_keys Space; e2e_type b; sleep 0.5
 check "再展开：等宽" even

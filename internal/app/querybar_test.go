@@ -495,7 +495,7 @@ func TestCount(t *testing.T) {
 	right := func() string {
 		return a.queryBar(a.focused(), tab).Right
 	}
-	if !strings.HasPrefix(right(), "auto · … 行 · ") {
+	if !strings.HasPrefix(right(), "auto · ●•• 行 · ") {
 		t.Fatalf("counting: %q", right())
 	}
 	a.Update(countMsg{tab: tab, seq: tab.countSeq, n: 6000})

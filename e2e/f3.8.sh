@@ -100,7 +100,7 @@ check "CSV 内容与 psql 的 copy 一致（NULL 写空串）" eval '[[ $(cat "$
 # ---- 执行中：占位每秒刷新、状态栏 busy、再按 ↵ 忽略、C-c 取消（§11、§8.3）
 setsql "select pg_sleep(8)"
 key Enter; sleep 1.3
-secs() { rrow 1 | sed -nE 's/^执行中 · ([0-9]+)s · C-c 取消$/\1/p'; }
+secs() { rrow 1 | sed -nE 's/^执行中 [●•]{3} · ([0-9]+)s · C-c 取消$/\1/p'; }
 check "执行中：内容区第一行是 dim 色的「执行中 · Ns · C-c 取消」，状态栏 busy" eval '[[ -n $(secs) && $(bar) == *busy* ]] && x=$(e2e_find 执行中 28 | cut -d" " -f1) && style_has $x 28 fg=$DIM || { echo "  $(rrow 1)"; false; }'
 s1=$(secs); sleep 1.1
 check "每秒刷新：秒数在涨" eval '(( $(secs) > s1 )) || { echo "  $s1 → $(rrow 1)"; false; }'

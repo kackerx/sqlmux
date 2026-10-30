@@ -306,6 +306,7 @@ func TestRedialTransactionLost(t *testing.T) {
 func TestRedialEventOfAClosedSession(t *testing.T) {
 	a, _ := withConns()
 	gone := newConn(config.Connection{Name: "gone", Engine: "postgres"})
+	a.spinOn = true // the dots' tick is not what the event asks for
 	if _, cmd := a.Update(connEvent{gone, false, db.Event{Err: errors.New("x")}}); cmd != nil || a.toast != "" || gone.down() != nil {
 		t.Errorf("toast %q, down %v", a.toast, gone.down())
 	}

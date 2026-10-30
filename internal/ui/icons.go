@@ -204,6 +204,21 @@ var ASCIIIcons = &Icons{
 	Labeled:     true,
 }
 
+// The three dots of what is under way, a frame each 150ms (§7.8「转圈」).
+var (
+	nerdSpin  = [...]string{"●••", "•●•", "••●", "•●•"}
+	asciiSpin = [...]string{"o..", ".o.", "..o", ".o."}
+)
+
+// Spinner is frame n of the animation of a request on its way: the same
+// width every frame, so nothing around it moves.
+func (ic *Icons) Spinner(n int) string {
+	if ic.Labeled {
+		return asciiSpin[n%len(asciiSpin)]
+	}
+	return nerdSpin[n%len(nerdSpin)]
+}
+
 // IconSet maps the config value `icons = "nerd" | "ascii"`.
 func IconSet(name string) *Icons {
 	if name == "ascii" {

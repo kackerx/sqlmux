@@ -156,7 +156,7 @@ func run(args []string) error {
 	if temp != nil { // a file or a URL: its own connection and its own session, kept nowhere
 		sess = app.OpenTemp(*temp)
 	} else {
-		if l, err = startLayout(name, layout, &warning); err != nil {
+		if l, err = startLayout(name, layout, opts.table != "", &warning); err != nil {
 			return err
 		}
 		if sess, restored, err = startSession(name, layout, l); err != nil {
@@ -258,13 +258,13 @@ func startNotes(cfg *config.Config) string {
 
 // startLayout is the layout the program starts from, nil for the default
 // one (§14「启动」): --layout's, which has to be there; else last.toml when no
-// connection is named, which is kept aside, said in warning, when it does
-// not read.
-func startLayout(name, layout string, warning *string) (*config.Layout, error) {
+// connection is named and no table asked for, which is kept aside, said in
+// warning, when it does not read.
+func startLayout(name, layout string, table bool, warning *string) (*config.Layout, error) {
 	switch {
 	case layout != "":
 		return config.LoadLayout(config.LayoutArg(layout))
-	case name != "":
+	case name != "" || table: // a table of the command line is in the default layout (F19.1)
 		return nil, nil
 	}
 	l, err := config.LoadLayout(config.LastPath())

@@ -23,8 +23,8 @@ check "ldflags 注入了版本、commit、日期（GoReleaser / brew 的做法�
 gb -ldflags "-X main.version=v1.2.3 -X main.commit=abc1234" -buildvcs=false -o "$D/part"
 check "只注入了 commit（没有日期）：括号里只有 commit，不打 unknown" eval '[[ $("$D/part" --version) == "sqlmux v1.2.3 (abc1234)" ]] || { "$D/part" --version; false; }'
 
-# ---- a. 描述写四种引擎
-want="PostgreSQL, MySQL, SQLite and Redis"
+# ---- a. 描述写五种引擎（F17.5 四种，F19.6 加了 SQL Server）
+want="PostgreSQL, MySQL, SQLite, SQL Server and Redis"   # F19.6 added SQL Server
 check "npm 壳包的 description：…for $want" eval 'python3 -c "import json,sys; d=json.load(open(\"npm/sqlmux/package.json\"))[\"description\"]; sys.exit(0 if d.endswith(\"$want\") else 1)"' || python3 -c 'import json; print(json.load(open("npm/sqlmux/package.json"))["description"])'
 .github/scripts/tap-formula.sh v0.5.1 0000000000000000000000000000000000000000000000000000000000000000 abc1234 2026-10-18T00:00:00Z >"$D/formula.rb"
 check "formula 的 desc：…for $want" eval 'grep -q "^  desc \".*for $want\"" "$D/formula.rb"' || grep desc "$D/formula.rb"

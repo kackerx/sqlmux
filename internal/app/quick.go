@@ -276,10 +276,10 @@ func (a *App) rerunQuick(rt *resultTab) tea.Cmd {
 	r.done, r.start = false, time.Now()
 	r.conn.busy++
 	sql, quick := r.sql, quickOn(r.conn, r.schema)
-	return tea.Batch(func() tea.Msg {
+	return func() tea.Msg {
 		res, err := quick(sql)
 		return quickRerun{rt, res, err}
-	}, a.runTick(r))
+	}
 }
 
 // gotQuickRerun shows what rerunQuick got: the rows, or a failure in the

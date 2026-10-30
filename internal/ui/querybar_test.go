@@ -136,6 +136,57 @@ func TestQueryBarYieldOrder(t *testing.T) {
 	t.Error("no width has ORDER and the save group alone")
 }
 
+// A result under a page keeps its count: where "auto · 3 行 · 12ms" does not
+// fit it is "3 行", and the chips and the buttons, ORDER last, give way for
+// it; a note takes the place of both (F19.4).
+func TestQueryBarKeepsTheCount(t *testing.T) {
+	btn := func(action string) Button { return Button{Icon: Icon{Text: "x"}, Action: action} }
+	bar := func(keep string, note Note) QueryBar {
+		return QueryBar{
+			Chips: []Chip{
+				{Label: "ORDER", Value: "id", Action: "order", Stay: 7},
+				{Label: "LIMIT", Value: "100", Action: "limit", Stay: 5},
+				{Label: "PAGE", Value: "1/?", Action: "page", Stay: 4},
+			},
+			Buttons: []ButtonGroup{{Buttons: []Button{btn("add"), btn("del")}, Stay: 2}, {Buttons: []Button{btn("save")}, Stay: 6}},
+			Right:   "auto · 3 行 · 12ms", Keep: keep, Note: note,
+		}
+	}
+	row := func(q QueryBar, w int) string {
+		f := NewFrame(w, 2, TokyonightStorm)
+		q.Draw(f, uv.Rect(0, 0, w, 2))
+		return strings.TrimRight(strings.Split(f.String(), "\n")[1], " ")
+	}
+	short, order := 0, 0
+	for w := 120; w >= 14; w-- {
+		r := row(bar("3 行", Note{}), w)
+		full, kept, hasOrder := strings.HasSuffix(r, "auto · 3 行 · 12ms"), strings.HasSuffix(r, " 3 行"), strings.Contains(r, "ORDER")
+		if hasOrder && !full && !kept {
+			t.Fatalf("width %d: ORDER is there and the count not: %q", w, r)
+		}
+		if kept && !full && short == 0 {
+			short = w
+		}
+		if !hasOrder && order == 0 {
+			order = w
+		}
+	}
+	if short == 0 || order == 0 || short < order {
+		t.Errorf("the short count first shows at width %d, ORDER gives way at %d", short, order)
+	}
+	for w := 14; w < 60; w++ { // without a Keep the count just goes, as it did
+		if r := row(bar("", Note{}), w); strings.HasSuffix(r, "3 行") && !strings.HasSuffix(r, "12ms") {
+			t.Fatalf("width %d: a cut count with no Keep: %q", w, r)
+		}
+	}
+	for w := 14; w < 120; w++ { // a note in their place: the same bar with a Keep or without
+		n := Note{Head: "已保存 1 行"}
+		if got, want := row(bar("3 行", n), w), row(bar("", n), w); got != want {
+			t.Fatalf("width %d, a note and the count: %q, without it %q", w, got, want)
+		}
+	}
+}
+
 // With an Info row over it the WHERE is on the second row, its text and its
 // cursor, where InputRect says; the chips are the third, untouched (F18.10).
 func TestQueryBarInfoRowInput(t *testing.T) {

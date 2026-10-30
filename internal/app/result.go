@@ -146,7 +146,6 @@ type (
 		set string // the SET of search_path, MySQL's USE, when it is what failed
 		tx  byte   // where Main's transaction was as the run ended (F5.11)
 	}
-	runTick struct{ r *run }
 )
 
 // queryRun is ↵ in a query (§11「执行」), a click on a ▶ on line arg:
@@ -316,7 +315,7 @@ func (a *App) startRun(t *queryTab, conn *Conn, schema, name, sql string, base, 
 	if !conn.sql() { // a reply is held whole, and paged in memory (§11)
 		maxRows = 0
 	}
-	return tea.Batch(func() tea.Msg { return mainRun(r, texts, maxRows, manual, resets) }, a.runTick(r))
+	return func() tea.Msg { return mainRun(r, texts, maxRows, manual, resets) }
 }
 
 // mainRunner is the way a request of the statements texts goes on Main: one in
@@ -395,14 +394,6 @@ func (s *Conn) mainSetup(ctx context.Context, c db.Conn, schema string) (set str
 		}
 	}
 	return "", nil
-}
-
-// runTickEvery is how often a placeholder's time is redrawn while its run
-// goes on (§11).
-var runTickEvery = time.Second
-
-func (a *App) runTick(r *run) tea.Cmd {
-	return tea.Tick(runTickEvery, func(time.Time) tea.Msg { return runTick{r} })
 }
 
 // placeRun puts tabs in the result area of r's window in place of the

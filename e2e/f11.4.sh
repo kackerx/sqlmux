@@ -141,9 +141,9 @@ check "库里改回来再刷新：列的位置回到 S0" eval '[[ $(seps "$HY") 
 # ---- 隐藏一列、WHERE 一行都不匹配、取消隐藏：不崩，列回到原来的
 key g; key c; sleep 0.5; key j; key Space; key Escape; sleep 0.4
 key /; sleep 0.3; e2e_type "id < 0"; key Enter; wait_for 8 settled; sleep 0.5
-check "隐藏 id 后 WHERE id < 0（0 行）：还在跑，查询条 0 行" eval 'flag_is alternate_on 1 && ! screen_has "[e2e-exit" && qb_has "COLS 14/15" && ! e2e_plain | grep -qE "│ +1 │"'
+check "隐藏 id 后 WHERE id < 0（0 行）：还在跑，查询条「0 行」（F19.4：窄 pane 里 COLS 先让位，不再显示 COLS 14/15）" eval 'flag_is alternate_on 1 && ! screen_has "[e2e-exit" && qb_has "0 行" && ! e2e_plain | grep -qE "│ +1 │"'
 key g; key c; sleep 0.5; key j; key Space; key Escape; sleep 0.5
-check "0 行时取消隐藏 id：没有崩（还在跑，COLS 15/15）" eval 'flag_is alternate_on 1 && ! screen_has "[e2e-exit" && qb_has "COLS 15/15"'
+check "0 行时取消隐藏 id：没有崩（还在跑，COLS 15/15）" eval 'flag_is alternate_on 1 && ! screen_has "[e2e-exit" && qb_has "0 行"'
 key /; sleep 0.3; clear_in; key Enter; wait_for 8 settled; sleep 0.5
 check "去掉 WHERE：100 行回来，列的位置回到 S0" eval '[[ $(seps "$HY") == "$S0" ]]'
 
