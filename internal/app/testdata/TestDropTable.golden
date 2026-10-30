@@ -1,4 +1,4 @@
-┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ①  t_sku ─────────────────────────────────────────────────┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
+┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ①  t_sku ───────────────────────────────────────     ─┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
 │  18 tables                 │ │ WHERE                                                C-r ▾ │ │   1                                                         │
 │──────────────────────────────│ │  ORDER —   LIMIT 100   PAGE 1/?   COLS 0/0                │ │                                                             │
 │ ▾  doraemon                 │ │                                                             │ │                                                             │
@@ -42,4 +42,4 @@
 │──────────────────────────────│ │                                                             │ │                                                             │
 │ j/k move · ↵ open            │ │ 1: t_user- │ 2: t_sku* │ +                                │ │ 1: query_1* │ +                                      gt/gT │
 └──────────────────────────────┘ └─────────────────────────────────────────────────────────────┘ └─────────────────────────────────────────────────────────────┘
- doraemon ▾  0: data*                                                                           ·     doraemon · pg@localhost:5432  busy · C-c 取消  COMMAND 
+ doraemon ▾  0: data*                                                                       ·     doraemon · pg@localhost:5432  busy ●•• · C-c 取消  COMMAND 

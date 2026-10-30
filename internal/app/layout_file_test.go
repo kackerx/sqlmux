@@ -784,3 +784,93 @@ func TestLayoutRestoresOnlyWidths(t *testing.T) {
 		t.Errorf("widths %v, records %v", d.colWidth, d.transposeWidths)
 	}
 }
+
+// The table of the command line opens in the data pane once the catalog is
+// in, with its WHERE, in the connection's schema or the schema it names, and
+// leaves the layout as it was when there is none (F19.1).
+func TestOpenAtStart(t *testing.T) {
+	catalog := func(a *App) tea.Msg {
+		c := a.sess.start
+		return catalogMsg{conn: c, schemas: c.Schemas, current: "public", tables: c.Tables}
+	}
+	data := func(a *App) *Pane { return a.win().Root.Leaves()[0] }
+	for _, tc := range []struct {
+		name, table, where string
+		want               string // the data pane's tab, "" for none
+		schema             string
+		toast              string
+	}{
+		{"default schema", "t_order", "id < 11", "t_order", "public", ""},
+		{"schema.table", "agentable.planner", "", "planner", "agentable", ""},
+		{"not in the default schema", "planner", "", "", "", "doraemon：没有表 planner"},
+		{"exact name", "T_ORDER", "", "", "", "doraemon：没有表 T_ORDER"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := sized(160, 45, "nerd")
+			if err := a.OpenAtStart(tc.table, tc.where); err != nil {
+				t.Fatal(err)
+			}
+			if len(data(a).Tabs) != 0 {
+				t.Fatal("opened before the catalog")
+			}
+			a.win().focus(2) // typed on the way: it still opens in the data pane
+			a.Update(catalog(a))
+			p := data(a)
+			if tc.want == "" {
+				if len(p.Tabs) != 0 || a.toast != tc.toast || a.want != nil {
+					t.Errorf("tabs %d, toast %q", len(p.Tabs), a.toast)
+				}
+				return
+			}
+			d := p.tab().Data
+			if len(p.Tabs) != 1 || d == nil || p.tab().Name != a.sess.start.tabName(d.table) || d.table.Name != tc.want || d.table.Schema != tc.schema || d.applied != tc.where || d.where.Text != tc.where || d.seq == 0 || d.pending {
+				t.Fatalf("tabs %d, %+v", len(p.Tabs), d)
+			}
+			if a.focused() != p || a.want != nil {
+				t.Errorf("focus %v, want %v", a.focused(), a.want)
+			}
+			if h := a.tableState(d).History; tc.where == "" && len(h) != 0 || tc.where != "" && (len(h) != 1 || h[0].Where != tc.where) {
+				t.Errorf("the WHERE history: %+v, after --where %q", h, tc.where)
+			}
+			a.Update(catalog(a)) // a refresh does not open it again
+			if len(p.Tabs) != 1 {
+				t.Errorf("tabs after a refresh: %d", len(p.Tabs))
+			}
+		})
+	}
+
+	t.Run("the catalog fails", func(t *testing.T) {
+		a := sized(160, 45, "nerd")
+		_ = a.OpenAtStart("t_order", "")
+		a.Update(catalogMsg{conn: a.sess.start, err: errors.New("boom")})
+		a.Update(catalog(a))
+		if len(data(a).Tabs) != 0 {
+			t.Error("opened by a later catalog")
+		}
+	})
+
+	t.Run("redis", func(t *testing.T) {
+		c := newConn(config.Connection{Name: "cache", Engine: "redis", DSN: "redis://localhost"})
+		c.State, c.Main, c.Meta = connReady, db.NewWorker(noDB{}), db.NewWorker(noDB{})
+		a := sized(160, 45, "nerd")
+		a.sess = newSession("cache", []*Conn{c}, c, config.QueryName(1))
+		if err := a.OpenAtStart("hash:user", "x = 1"); err == nil {
+			t.Error("--where on a Redis connection is no usage")
+		}
+		if err := a.OpenAtStart("hash:user", ""); err != nil {
+			t.Fatal(err)
+		}
+		_ = a.resolvePending(c)
+		d := a.sess.Windows[0].Root.Leaves()[0].tab().Data
+		if d == nil || d.table.Name != "hash:user" || d.table.Kind != "k" {
+			t.Errorf("key tab: %+v", d)
+		}
+	})
+
+	t.Run("no connection", func(t *testing.T) {
+		a := emptyApp(t)
+		if err := a.OpenAtStart("t", ""); err == nil {
+			t.Error("a table of no connection")
+		}
+	})
+}

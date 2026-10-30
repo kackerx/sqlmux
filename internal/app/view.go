@@ -313,6 +313,18 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 			ui.Hint{Key: a.keys.Hint("json.leave", "jsonview"), Label: i18n.T("回表格"), Action: "json.leave close"},
 		)
 	}
+	if p != a.win().Result { // the buttons of a window's pane: last to stay, all or none (§7.8)
+		zoom := a.icons.Zoom
+		if b.Zoomed {
+			zoom = a.icons.Unzoom
+		}
+		for _, bt := range []struct {
+			icon   ui.Icon
+			action string
+		}{{a.icons.SplitRight, "pane.split.right"}, {a.icons.SplitBelow, "pane.split.below"}, {zoom, "pane.zoom"}, {a.icons.Close, "pane.close"}} {
+			b.Hints = append(b.Hints, ui.Hint{Label: bt.icon.Text, Action: bt.action, Prio: 4, Group: 4, Padded: true})
+		}
+	}
 	paneRegions(f, p.ID, r)
 	in := b.Draw(f, r)
 	if in.Empty() {
@@ -393,7 +405,7 @@ func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 		Icon:        a.icons.Conn,
 		Object:      a.sess.Name,
 		ObjectFirst: true,
-		Hints:       []ui.Hint{{Label: "«", Action: "tree.toggle"}},
+		Hints:       []ui.Hint{{Label: "«", Action: "tree.fold"}},
 		Focused:     win.Focus == win.Tree.ID,
 		Pane:        win.Tree.ID,
 	}
@@ -502,7 +514,7 @@ func (a *App) drawResult(f *ui.Frame, p *Pane, rt *resultTab, r uv.Rectangle) {
 	case rt.run == nil:
 		ui.Log{Lines: a.win().log, Top: rt.top}.Draw(f, r)
 	case !rt.run.done:
-		s := fmt.Sprintf(i18n.T("执行中 · %ds"), int(time.Since(rt.run.start).Seconds()))
+		s := fmt.Sprintf(i18n.T("执行中 %s · %ds"), a.icons.Spinner(a.spin), int(time.Since(rt.run.start).Seconds()))
 		if k := a.keys.Hint("cancel", "global"); k != "" {
 			s += " · " + i18n.T("%s 取消", k)
 		}
@@ -603,7 +615,7 @@ func (a *App) statusLine() ui.StatusLine {
 			s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: i18n.T(" 事务出错 "), Style: bar(th.Error)}}})
 		}
 		if c.busy > 0 { // a click cancels it, as C-c does (§8.3)
-			busy := " busy "
+			busy := " busy " + ic.Spinner(a.spin) + " "
 			if k := a.keys.Hint("cancel", "global"); k != "" {
 				busy += "· " + i18n.T("%s 取消 ", k)
 			}

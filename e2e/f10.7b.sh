@@ -44,7 +44,8 @@ key g g; key v
 e2e_click 36 "$(row_y 4)"; sleep 0.4
 check "VISUAL 里单击第 4 行的序号格：范围扩到第 1–4 行（「已选 4」）" eval 'mode_is VISUAL && hl_is "1,2,3,4," && sel_is 4'
 e2e_keys Space; e2e_type b; sleep 0.6
-check "VISUAL 里 SPC b：normal 层照常，侧栏收起，仍是 VISUAL，选中不变" eval '[[ -z $(geom 0) ]] && mode_is VISUAL && sel_is 4'
+e2e_keys Space; e2e_type b; sleep 0.6   # F19.5：第一个 SPC b 聚焦树，第二个才收起
+check "VISUAL 里 SPC b（两次，F19.5）：normal 层照常，侧栏收起，仍是 VISUAL，选中不变" eval '[[ -z $(geom 0) ]] && mode_is VISUAL && sel_is 4'
 e2e_keys Space; e2e_type b; sleep 0.6
 check "再 SPC b：侧栏回来（展开时焦点到树上，选中不变）" eval '[[ -n $(geom 0) ]]'
 key C-l; sleep 0.3; key Escape; key Escape; sleep 0.3

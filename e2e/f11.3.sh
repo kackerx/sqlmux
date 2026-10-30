@@ -45,7 +45,7 @@ for pl in win32-arm64 win32-x64; do
 done
 check "壳包的 bin/sqlmux.js 在 win32 上找 sqlmux.exe，别的平台找 sqlmux（F18.4）" eval 'grep -q "win32\" ? \"sqlmux.exe\" : \"sqlmux\"" $S/bin/sqlmux.js'
 check "七个包里都有 LICENSE，和仓库根的一样（MIT 要附副本，F17.5）" eval 'for d in sqlmux sqlmux-darwin-arm64 sqlmux-darwin-x64 sqlmux-linux-arm64 sqlmux-linux-x64 sqlmux-win32-arm64 sqlmux-win32-x64; do cmp -s LICENSE "$D/out/$d/LICENSE" || { echo "  $d: LICENSE missing or different"; exit 1; }; done'
-check "壳包的 package.json：files 有 LICENSE，description 写四种引擎（F17.5）" eval '[[ $(js $S/package.json "p.files.join()") == "bin,LICENSE" && $(js $S/package.json "p.description") == *"PostgreSQL, MySQL, SQLite and Redis" ]]'
+check "壳包的 package.json：files 有 LICENSE，description 写五种引擎（F17.5，F19.6 加了 SQL Server）" eval '[[ $(js $S/package.json "p.files.join()") == "bin,LICENSE" && $(js $S/package.json "p.description") == *"PostgreSQL, MySQL, SQLite, SQL Server and Redis" ]]'
 
 # ---- 装、跑
 mkdir -p "$D/tgz"; for d in "$S" "$D/out/sqlmux-$os-$cpu"; do (cd "$d" && npm pack --pack-destination "$D/tgz" >/dev/null 2>&1); done

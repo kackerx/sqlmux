@@ -42,7 +42,7 @@ var tips = []tip{
 	{"pane.zoom", "normal", i18n.N("{key} 放大当前 pane，再按一次还原")},
 	{"pane.split.right", "normal", i18n.N("{key} 向右分屏，把两张表并排对照")},
 	{"result.toggle", "normal", i18n.N("{key} 显示或隐藏结果区")},
-	{"tree.toggle", "normal", i18n.N("{key} 显示或隐藏侧栏")},
+	{"tree.toggle", "normal", i18n.N("{key} 打开 / 聚焦 / 收起侧栏")},
 	{"window.new", "normal", i18n.N("{key} 新建 window，一件事一个 window")},
 	{"session.list", "normal", i18n.N("{key} 切换或新建 session")},
 }

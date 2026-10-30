@@ -57,7 +57,9 @@ type Icons struct {
 	Result, Pin, Export, Log Icon // the result area's (§11)
 	Close                    Icon
 	Star, History            Icon // a WHERE's favorites and history (§9.7)
-	Zoom                     Icon // after the number of the pane zoomed (F9.6)
+	Zoom                     Icon // after the number of the pane zoomed (F9.6), and its button
+	SplitRight, SplitBelow   Icon // the pane buttons (F19.3); with Zoom, Unzoom and Close
+	Unzoom                   Icon
 	// The connection form's rows (F7.4); it also has Postgres, MySQL, Key,
 	// Lock and Query
 	Tag, Host, Port, User Icon
@@ -110,6 +112,9 @@ var NerdIcons = &Icons{
 	Log:         Icon{Text: "\uf0f6"},     // nf-fa-file_text_o
 	Star:        Icon{Text: "\uf005"},     // nf-fa-star
 	Zoom:        Icon{Text: "\uf065"},     // nf-fa-expand
+	Unzoom:      Icon{Text: "\uf066"},     // nf-fa-compress
+	SplitRight:  Icon{Text: "\ueb56"},     // nf-cod-split_horizontal: a line between left and right
+	SplitBelow:  Icon{Text: "\ueb57"},     // nf-cod-split_vertical: a line between top and bottom
 	History:     Icon{Text: "\uf1da"},     // nf-fa-history
 	Tag:         Icon{Text: "\uf02b"},     // nf-fa-tag
 	Host:        Icon{Text: "\uf233"},     // nf-fa-server
@@ -172,6 +177,9 @@ var ASCIIIcons = &Icons{
 	Log:         Icon{Text: "L"},
 	Star:        Icon{Text: "*"},
 	Zoom:        Icon{Text: "[Z]"},
+	Unzoom:      Icon{Text: "[z]"},
+	SplitRight:  Icon{Text: "|"},
+	SplitBelow:  Icon{Text: "="},
 	History:     Icon{Text: "h"},
 	Tag:         Icon{Text: "#"},
 	Host:        Icon{Text: "@"},
@@ -194,6 +202,21 @@ var ASCIIIcons = &Icons{
 	Rename:      Icon{Text: "r"},
 	Hide:        Icon{Text: "-"},
 	Labeled:     true,
+}
+
+// The three dots of what is under way, a frame each 150ms (§7.8「转圈」).
+var (
+	nerdSpin  = [...]string{"●••", "•●•", "••●", "•●•"}
+	asciiSpin = [...]string{"o..", ".o.", "..o", ".o."}
+)
+
+// Spinner is frame n of the animation of a request on its way: the same
+// width every frame, so nothing around it moves.
+func (ic *Icons) Spinner(n int) string {
+	if ic.Labeled {
+		return asciiSpin[n%len(asciiSpin)]
+	}
+	return nerdSpin[n%len(nerdSpin)]
 }
 
 // IconSet maps the config value `icons = "nerd" | "ascii"`.
@@ -262,7 +285,7 @@ func (ic *Icons) byName() map[string]*Icon {
 		"row_add": &ic.RowAdd, "row_delete": &ic.RowDelete, "auto_refresh": &ic.AutoRefresh, "stop": &ic.Stop,
 		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column, "lock": &ic.Lock,
 		"result": &ic.Result, "pin": &ic.Pin, "export": &ic.Export, "close": &ic.Close,
-		"pane": &ic.Pane, "log": &ic.Log, "star": &ic.Star, "history": &ic.History, "zoom": &ic.Zoom,
+		"pane": &ic.Pane, "log": &ic.Log, "star": &ic.Star, "history": &ic.History, "zoom": &ic.Zoom, "unzoom": &ic.Unzoom, "split_right": &ic.SplitRight, "split_below": &ic.SplitBelow,
 		"tag": &ic.Tag, "host": &ic.Host, "port": &ic.Port, "user": &ic.User, "database": &ic.Database,
 		"advanced": &ic.Advanced, "link": &ic.Link, "group": &ic.Group,
 		"index": &ic.Index, "func": &ic.Func, "sequence": &ic.Sequence,

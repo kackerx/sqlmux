@@ -313,8 +313,7 @@ func TestSelectVisualKeepsNormal(t *testing.T) {
 		t.Errorf("? in VISUAL")
 	}
 	a.keyHelp = nil
-	open := a.win().TreeOpen
-	if feed(t, a, "<Space>b"); a.win().TreeOpen == open {
+	if feed(t, a, "<Space>b"); a.win().Focus != a.win().Tree.ID {
 		t.Errorf("SPC b in VISUAL")
 	}
 }

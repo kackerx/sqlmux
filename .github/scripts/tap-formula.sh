@@ -7,7 +7,7 @@ set -eu
 tag=$1 sha=$2 commit=${3:-none} date=${4:-unknown}
 cat <<RUBY
 class Sqlmux < Formula
-  desc "Tmux-style terminal database client for PostgreSQL, MySQL, SQLite and Redis"
+  desc "Tmux-style terminal database client for PostgreSQL, MySQL, SQLite, SQL Server and Redis"
   homepage "https://github.com/kackerx/sqlmux"
   url "https://github.com/kackerx/sqlmux/archive/refs/tags/${tag}.tar.gz"
   sha256 "${sha}"

@@ -2,6 +2,7 @@ package app
 
 import (
 	"cmp"
+	"errors"
 	"maps"
 	"os"
 	"slices"
@@ -362,11 +363,63 @@ func (a *App) connectsNow() []tea.Cmd {
 	return cmds
 }
 
+// startTable is the table (or the key) the command line asks to open, once
+// its connection's catalog is in (F19.1).
+type startTable struct {
+	conn        *Conn
+	name, where string
+}
+
+// OpenAtStart has the program open table name of the start's connection
+// as it begins, with the condition where on it: a Redis connection's is a key's
+// name, with no condition. Before the program runs only; the error is what is
+// wrong with the asking.
+func (a *App) OpenAtStart(name, where string) error {
+	c := a.sess.start
+	switch {
+	case c == nil:
+		return errors.New("--table needs a connection, and there is none in connections.toml")
+	case !c.sql() && where != "":
+		return errors.New("--where is for the tables of SQL connections, not for the keys of " + c.Spec.Name)
+	}
+	a.want = &startTable{c, name, where}
+	return nil
+}
+
+// openWanted opens what the command line asked for in the first pane, the
+// data pane of the default layout, as the tree's ↵ does: the table of the
+// name in the connection's schema, or of schema.name; the key of a Redis
+// connection is not looked up. No such table is said, the layout stays.
+func (a *App) openWanted(w *startTable) tea.Cmd {
+	c, t := w.conn, db.Table{Name: w.name, Kind: "k"}
+	if c.sql() {
+		i := slices.IndexFunc(c.Tables, func(t db.Table) bool {
+			return t.Schema == c.Schema && t.Name == w.name || t.Schema+"."+t.Name == w.name
+		})
+		if i < 0 {
+			return a.showToast(i18n.T("%s：没有表 %s", c.label(), w.name))
+		}
+		t = c.Tables[i]
+	}
+	r := newDataTab(c, t).request
+	r.applied, r.desc = w.where, a.newDesc
+	p := a.win().Root.Leaves()[0]
+	open := a.openTableAs(p, c, t, &r, a.newTurned)
+	if d := dataOf(p); w.where != "" && d != nil { // the pane is empty at a start: the table is a new tab
+		return tea.Batch(open, a.rememberWhere(d)) // as if it was typed (§9.7)
+	}
+	return open
+}
+
 // resolvePending runs once c's catalog is in: a table tab waiting for it
 // gets its table and fetches; one whose table is not in it is closed, said
-// (§14「恢复」).
+// (§14「恢复」); so is the table of the command line opened.
 func (a *App) resolvePending(c *Conn) []tea.Cmd {
 	var cmds []tea.Cmd
+	if w := a.want; w != nil && w.conn == c {
+		a.want = nil
+		cmds = append(cmds, a.openWanted(w))
+	}
 	for _, s := range a.sessions {
 		for _, p := range s.panes() {
 			for i := len(p.Tabs) - 1; i >= 0; i-- {
@@ -404,6 +457,9 @@ func (a *App) resolvePending(c *Conn) []tea.Cmd {
 // dropPending closes the table tabs waiting on connection c, whose catalog
 // is not to be had, without a word: the catalog's own toast says it (§14).
 func (a *App) dropPending(c *Conn) {
+	if a.want != nil && a.want.conn == c {
+		a.want = nil
+	}
 	for _, s := range a.sessions {
 		for _, p := range s.panes() {
 			for i := len(p.Tabs) - 1; i >= 0; i-- {

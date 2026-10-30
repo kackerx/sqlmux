@@ -493,7 +493,7 @@ func (a *App) treeNodes() (ns []node, matches int) {
 		}
 		switch c.State {
 		case connConnecting:
-			cn.Aside = strings.TrimSpace(cn.Aside + " …")
+			cn.Aside = strings.TrimSpace(cn.Aside + " " + a.icons.Spinner(a.spin))
 		case connFailed:
 			cn.TextFg = th.Error
 		case connIdle, connReady: // the name as it is
@@ -537,7 +537,7 @@ func (a *App) treeNodes() (ns []node, matches int) {
 			}
 			switch dc.State {
 			case connConnecting:
-				dn.Aside = "…"
+				dn.Aside = a.icons.Spinner(a.spin)
 			case connFailed:
 				dn.TextFg = th.Error
 			case connIdle, connReady:

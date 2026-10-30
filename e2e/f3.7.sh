@@ -19,7 +19,7 @@ psql_n() { psql "$E2E_DB" -At -c "$1"; }
 cell_edit() { key i; local i; for ((i = 0; i < 12; i++)); do e2e_keys BSpace; done; e2e_type "$1"; sleep 0.2; key Enter; }   # 改当前格
 
 start -C "$D/own"
-check "没有 tab 的 ① 显示引导页：两个按钮带键位 t / c，标题只有 ①" eval 'landing 1 && [[ $(title 1) =~ ^┌─\ ①\ ─+┐$ ]]'
+check "没有 tab 的 ① 显示引导页：两个按钮带键位 t / c，标题只有 ①" eval 'landing 1 && [[ $(title 1 | noicon) =~ ^┌─\ ①\ ─+\ *─┐$ ]]'
 read x y <<<"$(btn 1 打开表)"; e2e_move $x $y; sleep 0.3
 check "悬停「打开表」：select 底" style_has $x $y bg=$SELECT
 e2e_click $x $y; sleep 0.4
@@ -64,7 +64,7 @@ check "最近聚焦的是 ②（当前 tab 是 query）：表开到 ② 的新 t
 
 # ---- 分割出的新 pane 显示引导页
 key Space; e2e_type %; sleep 0.3
-check "SPC % 分出的新 pane（焦点在 ②，新的是 ③）：引导页，标题只有 ⟨n⟩" eval 'landing 3 && [[ $(title 3) =~ ^┌─\ ③\ ─+┐$ ]] && focus_is 3'
+check "SPC % 分出的新 pane（焦点在 ②，新的是 ③）：引导页，标题只有 ⟨n⟩" eval 'landing 3 && [[ $(title 3 | noicon) =~ ^┌─\ ③\ ─+\ *─┐$ ]] && focus_is 3'
 key Space; e2e_type x; sleep 0.3
 
 # ---- :wq（§11「文件」）：表 tab 上先保存，成功后才关闭；失败时 tab 留着，不弹丢弃确认

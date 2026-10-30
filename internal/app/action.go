@@ -237,8 +237,9 @@ func init() {
 		"pane.zoom": {Title: i18n.N("缩放 / 还原"), Run: do(func(a *App, _ Args) { a.toggleZoom() }),
 			On: func(a *App) bool { return a.win().Zoom != 0 }},
 		"pane.number": {Title: i18n.N("按编号跳转"), Run: do(func(a *App, _ Args) { a.paneNumbers = true })},
-		"tree.toggle": {Title: i18n.N("折叠 / 展开 schema 树"), Run: do(func(a *App, _ Args) { a.toggleTree() }),
+		"tree.toggle": {Title: i18n.N("打开 / 聚焦 / 收起侧栏"), Run: do(func(a *App, _ Args) { a.toggleTree() }),
 			On: func(a *App) bool { return a.win().TreeOpen }},
+		"tree.fold":     {Title: i18n.N("收起侧栏"), Local: true, Run: do(func(a *App, _ Args) { a.foldTree() })}, // the « on its title
 		"tree.down":     {Title: i18n.N("下移"), Run: do(func(a *App, args Args) { a.treeMove(max(args.Count, 1)) })},
 		"tree.up":       {Title: i18n.N("上移"), Run: do(func(a *App, args Args) { a.treeMove(-max(args.Count, 1)) })},
 		"tree.top":      {Title: i18n.N("第一项"), Run: do(func(a *App, _ Args) { a.treeGo(0) })},

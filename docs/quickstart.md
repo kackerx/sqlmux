@@ -42,7 +42,7 @@ To keep a connection, add it to `~/.config/sqlmux/connections.toml`:
 ```toml
 [[connection]]
 name         = "local"
-engine       = "postgres"          # postgres | mysql | sqlite | redis
+engine       = "postgres"          # postgres | mysql | sqlite | mssql | redis
 dsn          = "postgres://me@localhost:5432/app?sslmode=disable"
 password_env = "PGPASSWORD"        # or password_cmd = "…", or password = "…"
 ```
@@ -51,6 +51,7 @@ and open it by name:
 
 ```sh
 sqlmux local
+sqlmux local --table orders --where "user_id = 42"   # straight to one table, already filtered
 ```
 
 Running `sqlmux` with no connections opens a form instead (name, engine, host, port, user, password, database); its password goes to the OS keychain. All the connection fields are in [Configuration](config.md#connectionstoml).

@@ -54,7 +54,7 @@ check "状态栏的地址块是启动时的连接：doraemon · sqlmux@localhost
 
 # ---- 展开 seed：去连（password_cmd 在后台跑），连上后展开 current_schema() 和 Tables
 click_node seed
-check "单击 seed：连接中，名字后面跟 dim 色的 …，界面照常能动" eval 'y=$(nth_row seed 1); x=$(e2e_find "…" "$y" | cut -d" " -f1); [[ -n $x ]] && (( x < 32 )) && style_has "$x" "$y" fg=$DIM && running'
+check "单击 seed：连接中，名字后面跟 dim 色的三点转圈（F19.2，原来是 …），界面照常能动" eval 'y=$(nth_row seed 1); x=$(e2e_plain | sed -n "${y}p" | python3 -c "import re, sys; m = re.search(\"[●•]{3}\", sys.stdin.read()); print(m.start() + 1 if m else \"\")"); [[ -n $x ]] && (( x < 32 )) && style_has "$x" "$y" fg=$DIM && running || { echo "  y=$y x=$x row=[$(e2e_plain | sed -n ${y}p | cut -c1-40)] style=$(e2e_style "${x:-0}" "$y")"; false; }'
 # 树光标停在连接中的 seed 上，当前连接沿用 doraemon；这时打开的面板就按 doraemon，seed 在面板开着时连上也不换（审查时定）
 pal '\;'; e2e_type "select current_setting('application_name') as app"; sleep 0.3
 check "连接中：面板照常能打开、能输入" eval 'is_open && [[ $(input) == ";select current_setting('"'application_name'"') as app" ]]'

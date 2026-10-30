@@ -164,16 +164,16 @@ func TestStartLayout(t *testing.T) {
 	}
 	var warning string
 
-	if l, err := startLayout("", mine, &warning); err != nil || l == nil || l.Sessions[0].Name != "s" {
+	if l, err := startLayout("", mine, false, &warning); err != nil || l == nil || l.Sessions[0].Name != "s" {
 		t.Errorf("--layout path: %v %v", l, err)
 	}
-	if _, err := startLayout("", "nope", &warning); !errors.Is(err, fs.ErrNotExist) || !strings.Contains(err.Error(), "nope.toml") {
+	if _, err := startLayout("", "nope", false, &warning); !errors.Is(err, fs.ErrNotExist) || !strings.Contains(err.Error(), "nope.toml") {
 		t.Errorf("--layout that is not there: %v", err)
 	}
-	if l, err := startLayout("play", "", &warning); l != nil || err != nil {
+	if l, err := startLayout("play", "", false, &warning); l != nil || err != nil {
 		t.Errorf("a connection name starts the default: %v %v", l, err)
 	}
-	if l, err := startLayout("", "", &warning); l != nil || err != nil || warning != "" {
+	if l, err := startLayout("", "", false, &warning); l != nil || err != nil || warning != "" {
 		t.Errorf("no last.toml: %v %v %q", l, err, warning)
 	}
 
@@ -183,17 +183,20 @@ func TestStartLayout(t *testing.T) {
 	if err := os.WriteFile(config.LastPath(), []byte(oneSession), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if l, err := startLayout("", "", &warning); l == nil || err != nil {
+	if l, err := startLayout("", "", false, &warning); l == nil || err != nil {
 		t.Errorf("last.toml: %v %v", l, err)
 	}
-	if l, err := startLayout("play", "", &warning); l != nil || err != nil {
+	if l, err := startLayout("play", "", false, &warning); l != nil || err != nil {
 		t.Errorf("a connection name does not restore last: %v %v", l, err)
+	}
+	if l, err := startLayout("", "", true, &warning); l != nil || err != nil {
+		t.Errorf("nor does a table of the command line: the default layout on the first connection: %v %v", l, err)
 	}
 	if err := os.WriteFile(config.LastPath(), []byte("{"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	warning = "config.toml: unknown keys x" // said before: the last.toml's joins it (F13.5)
-	if l, err := startLayout("", "", &warning); l != nil || err != nil || !strings.Contains(warning, "last.toml") || !strings.Contains(warning, "unknown keys x") {
+	if l, err := startLayout("", "", false, &warning); l != nil || err != nil || !strings.Contains(warning, "last.toml") || !strings.Contains(warning, "unknown keys x") {
 		t.Errorf("a last.toml that does not read: %v %v %q", l, err, warning)
 	}
 	if _, err := os.Stat(config.LastPath() + ".broken"); err != nil {
@@ -210,6 +213,42 @@ func TestRunArguments(t *testing.T) {
 	}
 	if err := run([]string{"a", "b"}); err == nil || !strings.Contains(err.Error(), "usage") {
 		t.Errorf("two connections: %v", err)
+	}
+}
+
+// The options are read before and after the connection, and what they say
+// that cannot be is an error (F19.1).
+func TestParseArgs(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		want cli
+		err  string
+	}{
+		{[]string{"play", "--table", "t"}, cli{name: "play", table: "t"}, ""},
+		{[]string{"--table", "t", "play"}, cli{name: "play", table: "t"}, ""},
+		{[]string{"--table", "t", "--where", "a = 1", "play"}, cli{name: "play", table: "t", where: "a = 1"}, ""},
+		{[]string{"play", "--table", "s.t", "--where", "a = 1"}, cli{name: "play", table: "s.t", where: "a = 1"}, ""},
+		{[]string{"--table=t", "./x.db", "--where=a"}, cli{name: "./x.db", table: "t", where: "a"}, ""},
+		{[]string{"--table", "t"}, cli{table: "t"}, ""},
+		{[]string{"play", "--layout", "x"}, cli{name: "play", layout: "x"}, "--layout"},
+		{[]string{"--where", "a"}, cli{}, "--where needs --table"},
+		{[]string{"play", "--where", "a"}, cli{}, "--where needs --table"},
+		{[]string{"--table", "t", "--layout", "x"}, cli{}, "--table or --layout"},
+		{[]string{"a", "b"}, cli{}, "usage"},
+		{[]string{"a", "--table", "t", "b"}, cli{}, "usage"},
+		{[]string{"a", "--nope"}, cli{}, "nope"},
+		{[]string{"play", "--version"}, cli{name: "play", version: true}, ""},
+	} {
+		got, err := parseArgs(tc.args)
+		if tc.err != "" {
+			if err == nil || !strings.Contains(err.Error(), tc.err) {
+				t.Errorf("%v: error %v, want one with %q", tc.args, err, tc.err)
+			}
+			continue
+		}
+		if err != nil || got != tc.want {
+			t.Errorf("%v: %+v, %v; want %+v", tc.args, got, err, tc.want)
+		}
 	}
 }
 

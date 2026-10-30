@@ -163,7 +163,7 @@ check "锁放开、迟到的应答回来：doraemon 里没有提示、没有 bus
 
 # ---- 关掉有连接正在建连的 session：建好的连接随即关掉，不留在库里
 sl; new_session 1; y=$(nrow slow); e2e_click "$(e2e_find slow "$y" | cut -d' ' -f1)" "$y"; sleep 0.3   # 1 里点 slow：password_cmd 睡 2 秒
-check "（准备）1 里 slow 在建连，库里还没有它的连接" eval '[[ $(e2e_text 1 32 "$(nrow slow)") == *…* && $(conns "$APP3") == 0 ]]'
+check "（准备）1 里 slow 在建连，库里还没有它的连接" eval '[[ $(e2e_text 1 32 "$(nrow slow)") =~ [●•]{3} && $(conns "$APP3") == 0 ]]'
 sl; e2e_type x; sleep 4
 check "这时关掉 1：slow 迟到的连接随即关掉，库里没有 slow 的连接；doraemon 里没有提示" eval '[[ $(conns "$APP3") == 0 && $(toast_row) != *"slow："* ]] && sname_is doraemon'
 key Escape

@@ -1,4 +1,4 @@
-┌─ ⟨0⟩ @ doraemon ───────── « ─┐ ┌─ ⟨1⟩ + table · t_order ─────────────────────────────────────┐ ┌─ ⟨2⟩ > query · qu…  doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
+┌─ ⟨0⟩ @ doraemon ───────── « ─┐ ┌─ ⟨1⟩ + table · t_order ───────────────────────── | = [Z] x ─┐ ┌─ ⟨2⟩ > query · qu…  doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
 │ ? / 15 tables              + │ │ WHERE                                               h C-r ▾ │ │   1                                                         │
 │──────────────────────────────│ │  ORDER id ↑   LIMIT 100   PAGE 1/?    [S]  [R]              │ │                                                             │
 │ ▾ pg doraemon                │ │     │ * id │ status  │ amount │ paid │ meta                 │ │                                                             │

@@ -54,9 +54,11 @@ ok=1; for i in 1 2 3 4 5 6 7 8 9; do key Tab; input_is "?" >/dev/null 2>&1 && ok
 check "Tab 转一圈不会停在 ? 作用域上" eval '(( ok == 1 ))'
 key Escape; sleep 0.3
 pal '?'; sleep 0.4; e2e_type "侧栏"; sleep 0.5
-check "? 后再打「侧栏」：过滤到「{key} 显示或隐藏侧栏」" eval 'list | head -3 | grep -q "显示或隐藏侧栏"' || list
+check "? 后再打「侧栏」：过滤到「{key} 打开 / 聚焦 / 收起侧栏」（F19.5 改了文字）" eval 'list | head -3 | grep -q "聚焦 / 收起侧栏"' || list
 key Enter; sleep 0.6
-check "↵：执行 tree.toggle，侧栏收起来了（树里的 Tables 没有了）" eval '! screen_has "Tables (" && closed' || e2e_cap | head -8
+check "↵：执行 tree.toggle：侧栏开着、焦点到树上，不收起（F19.5）" eval 'screen_has "Tables (" && [[ $(focused) == 0 ]]' || e2e_cap | head -8
+e2e_keys Space; e2e_type b; sleep 0.6
+check "再 SPC b：侧栏收起来了（树里的 Tables 没有了）" eval '! screen_has "Tables (" && closed' || e2e_cap | head -8
 pal; sleep 0.5
 check "执行过的提示不进「最近」：面板刚打开时的列表里没有「提示」类的行" eval '! list | grep -qE "  提示\|"' || list
 key Escape; sleep 0.3

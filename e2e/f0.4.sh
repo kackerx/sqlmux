@@ -29,7 +29,7 @@ cmd q
 check "唯一的 pane 关掉最后一个 tab：保留为空 pane，标题只有 ①（F3.7：没有 tab 就没有图标）" text_is 34 39 1 "┌─ ① ─"
 check "空 pane：显示引导页（F3.7）" eval 'screen_has "打开表" && screen_has "新建 query"'
 check "空 pane：tab 栏只有 +，前面没有 │，右侧没有提示" text_is 34 160 43 "$EMPTY_TABS"
-check "空 pane：标题栏右侧没有任何提示（§7.8 空 pane）" eval '[[ $(e2e_text 34 160 1) =~ ^┌─\ ①\ ─+┐$ ]] || { echo "  title: $(e2e_text 34 160 1)"; false; }'
+check "空 pane：标题栏右侧没有文字提示，只有 pane 的四个按钮（§7.8 空 pane，F19.3；图标在 e2e_text 里是空格）" eval '[[ $(e2e_text 34 160 1 | noicon) =~ ^┌─\ ①\ ─+\ *─┐$ ]] || { echo "  title: $(e2e_text 34 160 1)"; false; }'
 check "空 pane：程序不退出" running
 cmd q
 check "空 pane 上再 :q：不退出、画面不变" eval 'running && text_is 34 160 43 "$EMPTY_TABS"'

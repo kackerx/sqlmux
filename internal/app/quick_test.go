@@ -403,7 +403,10 @@ func TestQuickSQLToResult(t *testing.T) {
 	if cmd == nil || a.sess.Conns[0].busy != 1 || resultOf(res).run.done {
 		t.Fatalf("R: busy %d", a.sess.Conns[0].busy)
 	}
-	if cmd().(tea.BatchMsg)[0](); !slices.Contains(rec.args, `"public"`) {
+	if batch, ok := cmd().(tea.BatchMsg); ok { // the rerun and the dots' tick, when none is on its way; else the rerun ran
+		batch[0]()
+	}
+	if !slices.Contains(rec.args, `"public"`) {
 		t.Errorf("R's search_path: %v", rec.args)
 	}
 	feed(t, a, "gj") // the JSON view stays, the rows in it are the new ones (F14.5)

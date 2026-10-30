@@ -79,38 +79,74 @@ func main() {
 	}
 }
 
-// run is `sqlmux [--layout name-or-path] [connection | file | url]`. Whatever fails before
-// the UI is up ends the program with the error on the terminal (§14「启动时找不到连接」).
-func run(args []string) error {
+// usage is the line a wrong command line is answered with.
+const usage = "usage: sqlmux [--version] [--layout name-or-path] [--table [schema.]table [--where condition]] [connection | file | url]"
+
+// cli is what the command line says.
+type cli struct {
+	layout, table, where, name string
+	version                    bool
+}
+
+// parseArgs reads the command line with the options before or after the
+// connection: flag stops at the first argument that is no option, so what
+// follows it is read once more (F19.1). What is wrong with the options alone
+// is said here, before anything is read from the disk.
+func parseArgs(args []string) (cli, error) {
+	var c cli
 	flags := flag.NewFlagSet("sqlmux", flag.ContinueOnError)
-	layout := flags.String("layout", "", "open this layout (a name or a path)")
-	showVersion := flags.Bool("version", false, "print the version and exit")
+	flags.StringVar(&c.layout, "layout", "", "open this layout (a name or a path)")
+	flags.StringVar(&c.table, "table", "", "open this table, or this key of a Redis connection ([schema.]table)")
+	flags.StringVar(&c.where, "where", "", "the WHERE condition of --table")
+	flags.BoolVar(&c.version, "version", false, "print the version and exit")
 	if err := flags.Parse(args); err != nil {
+		return c, err
+	}
+	rest := flags.Args()
+	if len(rest) > 0 {
+		if err := flags.Parse(rest[1:]); err != nil {
+			return c, err
+		}
+		rest = append(rest[:1], flags.Args()...)
+	}
+	if len(rest) > 1 {
+		return c, errors.New(usage)
+	}
+	if len(rest) == 1 {
+		c.name = rest[0]
+	}
+	switch {
+	case c.name != "" && c.layout != "":
+		return c, errors.New("give a connection name or --layout, not both")
+	case c.where != "" && c.table == "":
+		return c, errors.New("--where needs --table")
+	case c.table != "" && c.layout != "":
+		return c, errors.New("give --table or --layout, not both")
+	}
+	return c, nil
+}
+
+// run is `sqlmux [--layout name-or-path] [--table t [--where w]] [connection | file | url]`.
+// Whatever fails before the UI is up ends the program with the error on the
+// terminal (§14「启动时找不到连接」).
+func run(args []string) error {
+	opts, err := parseArgs(args)
+	if err != nil {
 		return err
 	}
-	if *showVersion {
+	if opts.version {
 		info, _ := debug.ReadBuildInfo()
 		fmt.Println(versionLine(info))
 		return nil
 	}
-	name := ""
-	switch flags.NArg() {
-	case 0:
-	case 1:
-		name = flags.Arg(0)
-	default:
-		return errors.New("usage: sqlmux [--version] [--layout name-or-path] [connection | file | url]")
-	}
-	if name != "" && *layout != "" {
-		return errors.New("give a connection name or --layout, not both")
-	}
+	name, layout := opts.name, opts.layout
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
 	i18n.Set(cfg.Language) // from here on, what is shown follows it (§14)
 	warning := startNotes(cfg)
-	temp, err := tempConnection(name, *layout, os.Getenv("DATABASE_URL"))
+	temp, err := tempConnection(name, layout, os.Getenv("DATABASE_URL"))
 	if err != nil {
 		return err
 	}
@@ -120,10 +156,10 @@ func run(args []string) error {
 	if temp != nil { // a file or a URL: its own connection and its own session, kept nowhere
 		sess = app.OpenTemp(*temp)
 	} else {
-		if l, err = startLayout(name, *layout, &warning); err != nil {
+		if l, err = startLayout(name, layout, opts.table != "", &warning); err != nil {
 			return err
 		}
-		if sess, restored, err = startSession(name, *layout, l); err != nil {
+		if sess, restored, err = startSession(name, layout, l); err != nil {
 			return err
 		}
 	}
@@ -136,7 +172,11 @@ func run(args []string) error {
 	if restored != nil {
 		a.Adopt(restored)
 	}
-	if temp == nil {
+	if opts.table != "" { // a look at one table leaves last.toml as it was (F19.1)
+		if err := a.OpenAtStart(opts.table, opts.where); err != nil {
+			return err
+		}
+	} else if temp == nil {
 		a.SaveLayoutOnExit(config.LastPath())
 	}
 	a.KeyProblems(problems)
@@ -218,13 +258,13 @@ func startNotes(cfg *config.Config) string {
 
 // startLayout is the layout the program starts from, nil for the default
 // one (§14「启动」): --layout's, which has to be there; else last.toml when no
-// connection is named, which is kept aside, said in warning, when it does
-// not read.
-func startLayout(name, layout string, warning *string) (*config.Layout, error) {
+// connection is named and no table asked for, which is kept aside, said in
+// warning, when it does not read.
+func startLayout(name, layout string, table bool, warning *string) (*config.Layout, error) {
 	switch {
 	case layout != "":
 		return config.LoadLayout(config.LayoutArg(layout))
-	case name != "":
+	case name != "" || table: // a table of the command line is in the default layout (F19.1)
 		return nil, nil
 	}
 	l, err := config.LoadLayout(config.LastPath())

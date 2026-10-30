@@ -325,6 +325,11 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	t.col = max(min(t.col, len(t.shownCols())-1), 0)
 	if t.recount {
 		t.recount = false
+		if t.fits() { // all there is is on the page: its rows are the count, none is asked for (F19.4)
+			t.count, t.counted = int64(len(t.page.Rows)), countDone
+			t.countSeq++ // what an earlier count answers is of another WHERE
+			return nil
+		}
 		return a.count(t)
 	}
 	return nil
@@ -378,6 +383,12 @@ func (a *App) gotCount(m countMsg) {
 			t.counted = countLost
 		}
 	}
+}
+
+// fits is whether the first page has every row there is, a table's: what the
+// query bar says is the rows of the page, and keeps saying when it is narrow (F19.4).
+func (t *dataTab) fits() bool {
+	return t.table.Kind != "k" && t.page.Cols != nil && t.shown.pageNo == 0 && !t.next
 }
 
 // pages is how many pages t's count makes, and whether that is known.
@@ -680,17 +691,19 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	if t.typing == "page" {
 		page.Input, page.Suffix = &t.pageIn, "/"+pages
 	}
-	rows := "…"
-	switch t.counted {
-	case countLost:
+	rows := a.icons.Spinner(a.spin)
+	switch {
+	case t.counted == countLost:
 		rows = "?"
-	case countDone:
+	case t.counted == countDone:
 		rows = strconv.FormatInt(t.count, 10)
-	case estimated:
+	case t.counted == estimated:
 		rows = "~" + ui.Magnitude(float64(t.count))
-	case counting: // the placeholder stays
 	}
-	right := i18n.T("auto · %s 行", rows)
+	right, keep := i18n.T("auto · %s 行", rows), "" // keep: what stays of it on a narrow bar, under a page (F19.4)
+	if t.fits() {
+		keep = i18n.T("%s 行", strconv.Itoa(len(t.page.Rows)))
+	}
 	if t.page.Cols != nil {
 		right += " · " + t.page.Took.Round(time.Millisecond).String()
 	}
@@ -717,7 +730,7 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	}
 	bar := ui.QueryBar{
 		Selected: selected, SelectedStay: staySelected,
-		Where: where, Typing: t.typing == "where", Pane: p.ID, Right: right, Note: t.note, Names: names, Dialect: t.conn.dialect(),
+		Where: where, Typing: t.typing == "where", Pane: p.ID, Right: right, Keep: keep, Note: t.note, Names: names, Dialect: t.conn.dialect(),
 		History: ic.History, HistKey: a.keys.Hint("where.history", "input"),
 		Chips:   chips,
 		Buttons: a.toolButtons(t),

@@ -294,7 +294,7 @@ where_in() { e2e_text 42 159 2 | sed -E 's/ {2,}(([^ ]+) ){0,2}▾ *$//; s/ *$//
 qb() { e2e_text 35 159 3; }                                             # the query bar's second row
 qb_has() { [[ $(qb) == *"$1"* ]] || { echo "  query bar: '$(qb)', want '$1'"; false; }; }
 cnt() { qb | grep -oE 'auto · [^ ]+ 行' | awk '{ print $3 }'; }
-settled() { [[ $(bar) != *busy* && $(cnt) != "…" ]]; }
+settled() { [[ $(bar) != *busy* && $(cnt) != "…" && $(cnt) != [●•]* ]]; }   # F19.2: the count in flight is the dots
 clear_in() { local i; for ((i = 0; i < 80; i++)); do e2e_keys BSpace; done; sleep 0.2; }
 order_by() { e2e_keys g o; sleep 0.5; e2e_keys /; sleep 0.2; e2e_type "$1"; sleep 0.3; e2e_keys Enter; sleep 0.3; e2e_keys Enter; }   # NAME: ORDER 列表（F12.9）里 / 过滤到这一列、↵ 回列表、↵ 只按这一列并关闭；在唯一的排序列上就是翻转
 hy() { echo $(( $(grid_y) - 1 )); }                                     # the grid's header row

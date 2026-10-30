@@ -96,6 +96,7 @@ type Window struct {
 	tree        treeState
 	Root        *Node
 	Focus       int // pane ID
+	beforeTree  int // the pane focus came from into the sidebar, the way back (F19.5)
 	Zoom        int // zoomed pane ID; 0 = none (P-03)
 	lastID      int // highest pane ID handed out
 
@@ -113,6 +114,9 @@ func (w *Window) focus(id int) {
 		w.focusedAt = map[int]int{}
 	}
 	w.focusTick++
+	if id == w.Tree.ID && w.Focus != id {
+		w.beforeTree = w.Focus
+	}
 	w.Focus, w.focusedAt[id] = id, w.focusTick
 	if id != w.Tree.ID {
 		w.tree.filtering = false
@@ -1408,17 +1412,36 @@ func (a *App) toggleZoom() {
 	}
 }
 
-// toggleTree is SPC b: the sidebar folded, or open with the focus on it,
-// its cursor on the node of the tab focused before (§7.8, F3.29).
+// toggleTree is SPC b, as DataGrip's tool windows: the sidebar open with the
+// focus on it folds, the focus going back to the pane it came from; open with
+// the focus elsewhere it is the focus that goes to it; folded it opens with the
+// focus on it, its cursor on the node of the tab focused before (§7.8, F3.29,
+// F19.5). A zoomed pane hides it: the zoom ends first.
 func (a *App) toggleTree() {
 	win := a.win()
-	switch win.TreeOpen = !win.TreeOpen; {
-	case win.TreeOpen:
-		a.revealTab(a.focused())
-		win.focus(win.Tree.ID)
-	case win.Focus == win.Tree.ID:
-		win.focus(win.Root.Leaves()[0].ID)
+	win.Zoom = 0
+	if win.TreeOpen && win.Focus == win.Tree.ID {
+		a.foldTree()
+		return
 	}
+	win.TreeOpen = true
+	a.revealTab(a.focused())
+	win.focus(win.Tree.ID)
+}
+
+// foldTree folds the sidebar; the focus on it goes back to the pane it came
+// from, the window's current one when that is closed (§7.8, F19.5).
+func (a *App) foldTree() {
+	win := a.win()
+	win.TreeOpen = false
+	if win.Focus != win.Tree.ID {
+		return
+	}
+	if p := win.pane(win.beforeTree); win.beforeTree != win.Tree.ID && p != nil {
+		win.focus(p.ID)
+		return
+	}
+	win.focus(a.openTarget().ID)
 }
 
 // jumpToPane is SPC q's second key: a digit picks ⟨n⟩, anything else just

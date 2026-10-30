@@ -132,7 +132,7 @@ waiting() { psql "$E2E_DB" -At -c "select count(*) from pg_stat_activity where a
 open_table t_order
 e2e_lock t_user
 key C-p; e2e_type "@t_user"; sleep 0.3; key Enter
-check "取数中：状态栏在模式块左边显示 warn 色的 busy · C-c 取消" eval '[[ $(bar) == *" busy · C-c 取消  NORMAL " ]] && c=$(e2e_find "busy" $(H)) && style_has ${c%% *} $(H) fg=$WARN || { echo "  $(bar)"; false; }'
+check "取数中：状态栏在模式块左边显示 warn 色的 busy · C-c 取消" eval '[[ $(bar) =~ \ busy\ [●•]{3}\ ·\ C-c\ 取消\ \ NORMAL\ $ ]] && c=$(e2e_find "busy" $(H)) && style_has ${c%% *} $(H) fg=$WARN || { echo "  $(bar)"; false; }'
 check "取数中：不画「加载中」占位（↵ 新开了 t_user 的 tab，第一次打开，内容区空白）" eval '[[ -z $(grid_y) && -z $(e2e_text 35 159 4 | tr -d " ") && $(e2e_text 34 160 1) == *" t_user ─"* ]]'
 check "服务端确实在等锁" eval '[[ $(waiting) == 1 ]]'
 key C-c
