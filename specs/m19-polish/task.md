@@ -52,6 +52,7 @@
 - [ ] a. 图标 `split_right`、`split_below`、`unzoom` 加进图标表和主题可覆盖的名字，ascii 照 §7.7；两个分割图标在终端里对照字形确认方向。
 - [ ] b. 标题提示的最后一项，走已有的「按优先级摆提示」那一处，不另写摆法；空 pane 也画。
 - [ ] c. 命中区：点哪个 pane 的按钮作用于那个 pane（先聚焦再执行），Action 就是现有的四个。
+- [ ] d. 发版前 oss 在 `docs/config.md` 的图标名清单补 `split_right`、`split_below`、`unzoom`（dev-2 2026-10-30 提，oss 的文件，worker 不碰）。
 
 **验收**
 - [ ] 单测：四个按钮的命中区各自执行对应 Action、作用于被点的 pane 而不是焦点 pane；窄 pane 整组不画；空 pane 有；缩放中画 `unzoom`；mutation。
