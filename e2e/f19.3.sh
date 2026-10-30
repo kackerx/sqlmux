@@ -25,13 +25,23 @@ check "① 的标题右端有四个按钮，从左到右：往右分割 U+EB56�
 check "侧栏（⓪）的标题没有按钮，只有 «" none 0
 check "② 的标题已被 query 的工具占满：整组不画（要么四个都在要么都不在，不画半组）" eval 'none 2 || all4 2'
 
+# ---- 命中区和悬停：每个按钮是图标加它后面那 1 列（共 2 列），最后一个按钮后面那列一起亮
+SELECT=#364a82
+read sx sy <<<"$(btn "$SR" 1)"; read cx cy <<<"$(btn "$CL" 1)"
+e2e_move $((sx + 1)) $sy; sleep 0.4
+check "鼠标停在往右分割后面那一列：这个按钮的图标和后面那列都是 select 底，前一列不是" eval 'style_has $sx $sy bg=$SELECT && style_has $((sx + 1)) $sy bg=$SELECT && ! style_has $((sx - 1)) $sy bg=$SELECT'
+e2e_move $((cx + 1)) $cy; sleep 0.4
+check "鼠标停在关闭后面那一列（离右上角的空隙）：关闭的图标和这一列都亮" eval 'style_has $cx $cy bg=$SELECT && style_has $((cx + 1)) $cy bg=$SELECT'
+e2e_move 10 30; sleep 0.3
+
 # ---- 点 ① 的往右分割：多一个 pane，原来的 ① 变窄
-w0=$(pinfo 1 | cut -d' ' -f3)
-click_btn "$SR" 1
-check "点 ① 的往右分割：多出一个 pane（4 个），① 变窄了" eval '[[ $(pn) == 4 ]] && (( $(pinfo 1 | cut -d" " -f3) < w0 )) || { e2e_panes; false; }'
+w0=$(pinfo 1 | cut -d' ' -f3); x0=$(pinfo 1 | cut -d' ' -f1)
+e2e_click $((sx + 1)) $sy; sleep 0.7   # 点的是图标后面那一列
+check "点 ① 往右分割按钮后面那一列也执行：多出一个 pane（4 个），① 变窄了，焦点在新 pane，新 pane 在 ① 的右边、同一行" eval '[[ $(pn) == 4 ]] && (( $(pinfo 1 | cut -d" " -f3) < w0 )) && f=$(focused) && g=($(pinfo $f)) && (( g[0] > x0 )) && (( g[1] == 1 )) || { e2e_panes; false; }'
 # ---- 往下分割
+h0=$(pinfo 1 | cut -d' ' -f4); x1=$(pinfo 1 | cut -d' ' -f1)
 click_btn "$SB" 1
-check "点 ① 的往下分割：又多一个 pane（5 个），① 的高度变矮了" eval '[[ $(pn) == 5 ]] || { e2e_panes; false; }'
+check "点 ① 的往下分割：又多一个 pane（5 个），① 的高度变矮了，焦点在新 pane，新 pane 在 ① 的下边、同一列" eval '[[ $(pn) == 5 ]] && (( $(pinfo 1 | cut -d" " -f4) < h0 )) && f=$(focused) && g=($(pinfo $f)) && (( g[1] > 1 )) && (( g[0] == x1 )) || { e2e_panes; false; }'
 # ---- 关闭
 n0=$(pn); click_btn "$CL" 1
 check "点 ① 的关闭：少一个 pane" eval '[[ $(pn) == $((n0 - 1)) ]] || { e2e_panes; false; }'
@@ -73,5 +83,7 @@ e2e_stop
 # ---- ascii 图标：| = [Z] x
 mkdir -p "$D/c"; printf 'icons = "ascii"\n' >"$D/c/config.toml"
 start -C "$D/c"; sleep 1
-check "icons = ascii：① 的标题右端是 | = [Z] x" eval 't=$(e2e_plain | sed -n 1p); [[ $t == *" | = [Z] x "* || $t == *" | = ✛ x "* ]] || [[ $t =~ \ \|\ =\ [^\ ]+\ x\  ]] || { echo "  [$t]"; false; }'
+check "icons = ascii：① 的标题右端是 | = [Z] x" eval 't=$(e2e_plain | sed -n 1p); [[ $t == *" | = [Z] x "* ]] || { echo "  [$t]"; false; }'
+click_btn "[Z]" 1
+check "ascii 下缩放中：右端变成 | = [z] x（还原是小写 [z]），编号后面的 [Z] 状态图标照旧在左边" eval 't=$(e2e_plain | sed -n 1p); [[ $t == *"⟨1⟩ [Z] "*" | = [z] x "* ]] || { echo "  [$t]"; false; }'
 e2e_done
