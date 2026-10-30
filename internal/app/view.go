@@ -502,7 +502,7 @@ func (a *App) drawResult(f *ui.Frame, p *Pane, rt *resultTab, r uv.Rectangle) {
 	case rt.run == nil:
 		ui.Log{Lines: a.win().log, Top: rt.top}.Draw(f, r)
 	case !rt.run.done:
-		s := fmt.Sprintf(i18n.T("执行中 · %ds"), int(time.Since(rt.run.start).Seconds()))
+		s := fmt.Sprintf(i18n.T("执行中 %s · %ds"), a.icons.Spinner(a.spin), int(time.Since(rt.run.start).Seconds()))
 		if k := a.keys.Hint("cancel", "global"); k != "" {
 			s += " · " + i18n.T("%s 取消", k)
 		}
@@ -603,7 +603,7 @@ func (a *App) statusLine() ui.StatusLine {
 			s.Right = append(s.Right, ui.Segment{Runs: []ui.Run{{Text: i18n.T(" 事务出错 "), Style: bar(th.Error)}}})
 		}
 		if c.busy > 0 { // a click cancels it, as C-c does (§8.3)
-			busy := " busy "
+			busy := " busy " + ic.Spinner(a.spin) + " "
 			if k := a.keys.Hint("cancel", "global"); k != "" {
 				busy += "· " + i18n.T("%s 取消 ", k)
 			}

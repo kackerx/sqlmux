@@ -380,6 +380,15 @@ func (a *App) gotCount(m countMsg) {
 	}
 }
 
+// fits is whether the first page has every row there is, a table's: what the
+// query bar says is the rows of the page, and keeps saying when it is narrow (F19.4).
+func (t *dataTab) fits() bool {
+	return t.table.Kind != "k" && t.page.Cols != nil && t.shown.pageNo == 0 && !t.next
+}
+
+// counting is whether the query bar shows the dots where the count will be.
+func (t *dataTab) counting() bool { return t.counted == counting && !t.fits() }
+
 // pages is how many pages t's count makes, and whether that is known.
 func (t *dataTab) pages() (int64, bool) {
 	if t.counted != countDone && t.counted != estimated {
@@ -680,15 +689,17 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	if t.typing == "page" {
 		page.Input, page.Suffix = &t.pageIn, "/"+pages
 	}
-	rows := "…"
-	switch t.counted {
-	case countLost:
+	rows, keep := a.icons.Spinner(a.spin), ""
+	switch {
+	case t.fits(): // all there is is on the page: no count to wait for, and the part of the bar that stays (F19.4)
+		rows = strconv.Itoa(len(t.page.Rows))
+		keep = i18n.T("%s 行", rows)
+	case t.counted == countLost:
 		rows = "?"
-	case countDone:
+	case t.counted == countDone:
 		rows = strconv.FormatInt(t.count, 10)
-	case estimated:
+	case t.counted == estimated:
 		rows = "~" + ui.Magnitude(float64(t.count))
-	case counting: // the placeholder stays
 	}
 	right := i18n.T("auto · %s 行", rows)
 	if t.page.Cols != nil {
@@ -717,7 +728,7 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	}
 	bar := ui.QueryBar{
 		Selected: selected, SelectedStay: staySelected,
-		Where: where, Typing: t.typing == "where", Pane: p.ID, Right: right, Note: t.note, Names: names, Dialect: t.conn.dialect(),
+		Where: where, Typing: t.typing == "where", Pane: p.ID, Right: right, Keep: keep, Note: t.note, Names: names, Dialect: t.conn.dialect(),
 		History: ic.History, HistKey: a.keys.Hint("where.history", "input"),
 		Chips:   chips,
 		Buttons: a.toolButtons(t),

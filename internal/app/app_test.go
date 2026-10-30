@@ -33,7 +33,7 @@ var testData string
 
 func TestMain(m *testing.M) {
 	// feed runs the Cmds keys return, the ticks too: they must not hold it up
-	whichKeyDelay, quitWindow, toastTTL, autosaveDelay, runTickEvery, yankFlashFor, previewDelay = time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond
+	whichKeyDelay, quitWindow, toastTTL, autosaveDelay, spinEvery, yankFlashFor, previewDelay = time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond, time.Millisecond
 	i18n.Set("zh")  // the tests read the Chinese texts, not the default, English (F7.6)
 	clipTools = nil // OSC 52: the user's clipboard stays theirs
 	dir, _ := os.MkdirTemp("", "sqlmux-app-test")

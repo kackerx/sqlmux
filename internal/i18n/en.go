@@ -328,11 +328,12 @@ var en = map[string]string{
 	"关":       "off",
 	"关键字":     "keyword",
 	"写进 config.toml 的 theme 才会保留": "Only a theme written in config.toml is kept",
-	"布局名：":      "Layout name: ",
-	"手动":        "Manual",
-	"执行中 · %ds": "Running · %ds",
-	"自动":        "Auto",
-	"视图":        "view",
+	"布局名：":         "Layout name: ",
+	"手动":           "Manual",
+	"%s 行":         "%s rows",
+	"执行中 %s · %ds": "Running %s · %ds",
+	"自动":           "Auto",
+	"视图":           "view",
 
 	// Cells, saving, and what asks before it loses something
 	"将删除 %d 行，确定保存？":            "%d row(s) will be deleted. Save?",

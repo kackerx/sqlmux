@@ -107,7 +107,7 @@ func TestRedisConsoleRunsAndCancels(t *testing.T) {
 	}
 	blocked := runText("BLPOP nolist 0")
 	done := make(chan tea.Msg, 1)
-	go func() { done <- blocked().(tea.BatchMsg)[0]() }()
+	go func() { done <- blocked() }()
 	time.Sleep(300 * time.Millisecond)
 	start := time.Now()
 	c.cancel()
