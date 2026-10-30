@@ -94,8 +94,9 @@ func (a *App) openIndexDDL(c *Conn, t db.Table, ix db.Index) {
 }
 
 // openRef is ↵ on a foreign key: the table it points at opens, found as a
-// query finds one (SQLite's T_USER is t_user), its schema and Tables opened in
-// the tree; one that is not in the catalog says so (F14.3).
+// query finds one (SQLite's T_USER is t_user), with `[tree] follow` its schema
+// and Tables opened in the tree (F20.4); one that is not in the catalog says so
+// (F14.3).
 func (a *App) openRef(c *Conn, ref *db.Ref) tea.Cmd {
 	t, ok := c.table(ref.Schema, ref.Table)
 	if !ok {

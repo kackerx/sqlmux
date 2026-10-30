@@ -61,7 +61,7 @@ type App struct {
 	filterSeq         int
 	resultHeight      float64   // the share the result area first takes
 	treeWidth         int       // config [tree] width: the sidebar's default width (§7.8)
-	treeFollow        bool      // config [tree] follow: opening the sidebar puts its cursor on the current tab's node (F20.4)
+	treeFollow        bool      // config [tree] follow: opening the sidebar, or a table opened from a foreign key, puts the tree's cursor on the tab's node (F20.4)
 	fullWidth         int       // the grid's columns up to this wide are not squeezed (§7.6)
 	border            uv.Border // the boxes' lines (§7.1)
 	newDesc           bool      // a table opened anew sorts descending, and shows transposed (§14)

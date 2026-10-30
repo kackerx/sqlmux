@@ -218,6 +218,8 @@ type cmd struct {
 // UnnamedPlus is nvim's `clipboard=unnamedplus`: a command with no register
 // named takes "+, the system clipboard (§11, F20.5). Set once at start, from
 // config.toml's `clipboard`.
+// ponytail: one switch for the process, not per editor; upgrade if two configs
+// ever live in one process.
 var UnnamedPlus bool
 
 // ClipPut is a "+p or "+P waiting for the system clipboard's text.

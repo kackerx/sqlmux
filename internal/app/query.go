@@ -306,6 +306,8 @@ func (a *App) vimCmds(eff editor.Effect, put func(text string, p editor.ClipPut)
 		cmds = append(cmds, clipCopy(*eff.Clip))
 	}
 	if p := eff.Paste; p != nil {
+		// ponytail: the write of a yank in the same batch and this read are not ordered; a `p` typed
+		// within a pbcopy's run of an `x` reads the old clipboard
 		a.clipWait = func(text string) tea.Cmd { return put(text, *p) }
 		if p.Implicit() {
 			cmds = append(cmds, clipPasteLocal)
