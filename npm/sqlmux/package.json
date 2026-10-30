@@ -1,7 +1,7 @@
 {
   "name": "sqlmux",
   "version": "0.0.0",
-  "description": "Tmux-style terminal database client for PostgreSQL, MySQL, SQLite and Redis",
+  "description": "Tmux-style terminal database client for PostgreSQL, MySQL, SQLite, SQL Server and Redis",
   "license": "MIT",
   "repository": "github:kackerx/sqlmux",
   "homepage": "https://github.com/kackerx/sqlmux",
