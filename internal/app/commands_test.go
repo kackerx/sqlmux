@@ -40,7 +40,7 @@ func TestFocusNext(t *testing.T) {
 	if got := order(0, 5); !slices.Equal(got, []int{1, 2, 3, 0, 1}) {
 		t.Errorf("a row: %v", got)
 	}
-	a.toggleTree()
+	a.foldTree()
 	if got := order(1, 4); !slices.Equal(got, []int{2, 3, 1, 2}) {
 		t.Errorf("sidebar folded: %v", got)
 	}
@@ -270,7 +270,6 @@ func TestTabReopenQueryElsewhere(t *testing.T) {
 func TestSuperKeys(t *testing.T) {
 	a, c := inQuery(t, "", "[keys.global]\n\"<D-w>\" = \"tree.toggle\"\n")
 	feed(t, a, "iselect abc<Esc>")
-	open := a.win().TreeOpen
 	press := func(code rune) { a.Update(tea.KeyPressMsg{Code: code, Mod: tea.ModSuper}) }
 	press('x')
 	feed(t, a, "i")
@@ -279,7 +278,7 @@ func TestSuperKeys(t *testing.T) {
 	if text(c) != "select abc" {
 		t.Errorf("typed: %q", text(c))
 	}
-	if press('w'); a.win().TreeOpen == open {
+	if press('w'); a.win().Focus != a.win().Tree.ID {
 		t.Error("<D-w> did not run")
 	}
 }

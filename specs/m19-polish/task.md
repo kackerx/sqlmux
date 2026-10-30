@@ -18,8 +18,8 @@
 
 **开发**（§14「启动」）
 - [ ] a. 解析：`--table`、`--where` 和已有的 `--layout`、`--version` 放在位置参数前后都认；位置参数仍然最多一个。usage 行补上两个参数。不手写一个参数解析器：先 `flag.Parse`，再对剩下的参数里第一个位置参数之后的部分再 `Parse` 一次，或者等价的最少写法。
-- [ ] b. 不给连接用 connections.toml 的第一个连接；给了连接名、文件、URL 照现在的规则。usage 错误（`--where` 没有 `--table`、`--table` 加 `--layout`、Redis 加 `--where`）在 `config.Load` 之前或刚读完连接时英文报错退出。Redis 要读完连接才知道引擎，放在读连接之后。
-- [ ] c. 开表：默认布局，连上、catalog 到了以后把表开成 data pane 的聚焦 tab（同树上 `↵` 开表，走同一个函数），`--where` 在这个 tab 上照 WHERE 输入执行（同一个入口，不另拼 SQL）；schema 缺省用连接的当前 schema；catalog 里没有这张表 toast「<连接名>：没有表 <名字>」（i18n）。Redis 开键 tab。连不上照现在启动连接失败的处理。
+- [ ] b. 不给连接用 connections.toml 的第一个连接，一个连接都没有时英文报错退出（§14）；给了连接名、文件、URL 照现在的规则。usage 错误（`--where` 没有 `--table`、`--table` 加 `--layout`、Redis 加 `--where`）在 `config.Load` 之前或刚读完连接时英文报错退出。Redis 要读完连接才知道引擎，放在读连接之后。
+- [ ] c. 开表：默认布局，连上、catalog 到了以后把表开成 data pane 的聚焦 tab（同树上 `↵` 开表，走同一个函数），`--where` 预置成这个 tab 的 WHERE、开表时带着它只取一次（同恢复布局时预置的做法，不先不带条件取一遍；reviewer 2026-10-30 问，决策者定），并用手输执行记历史的那个函数记进 WHERE 历史；不读 `last.toml`；schema 缺省用连接的当前 schema；catalog 里没有这张表 toast「<连接名>：没有表 <名字>」（i18n）。Redis 开键 tab。连不上照现在启动连接失败的处理。
 - [ ] d. 退出不写 `last.toml`（同临时连接，`SaveLayoutOnExit` 不调）。
 
 **验收**
@@ -52,6 +52,7 @@
 - [ ] a. 图标 `split_right`、`split_below`、`unzoom` 加进图标表和主题可覆盖的名字，ascii 照 §7.7；两个分割图标在终端里对照字形确认方向。
 - [ ] b. 标题提示的最后一项，走已有的「按优先级摆提示」那一处，不另写摆法；空 pane 也画。
 - [ ] c. 命中区：点哪个 pane 的按钮作用于那个 pane（先聚焦再执行），Action 就是现有的四个。
+- [ ] d. 发版前 oss 在 `docs/config.md` 的图标名清单补 `split_right`、`split_below`、`unzoom`（dev-2 2026-10-30 提，oss 的文件，worker 不碰）。
 
 **验收**
 - [ ] 单测：四个按钮的命中区各自执行对应 Action、作用于被点的 pane 而不是焦点 pane；窄 pane 整组不画；空 pane 有；缩放中画 `unzoom`；mutation。

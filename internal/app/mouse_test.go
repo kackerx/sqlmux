@@ -97,9 +97,9 @@ func TestClickThinBarUnfolds(t *testing.T) {
 // Hints are buttons: clicking one runs its action, like pressing its key.
 func TestClickHints(t *testing.T) {
 	a := sized(160, 45, "nerd")
-	click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: 0, Action: "tree.toggle"}).Min)
+	click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: 0, Action: "tree.fold"}).Min)
 	if a.win().TreeOpen {
-		t.Fatal("clicking SPC b should fold the sidebar")
+		t.Fatal("clicking « should fold the sidebar")
 	}
 	find(t, a, ui.Target{Kind: ui.KindButton, Action: "palette.open"}) // the status bar's C-p is a button too
 
@@ -113,7 +113,7 @@ func TestClickHints(t *testing.T) {
 		}
 	}
 	click(a, find(t, a, ui.Target{Kind: ui.KindItem, I: b}).Min)
-	if a.win().TreeOpen || a.whichKey || len(a.res.Pending()) != 0 {
+	if a.win().Focus != 0 || a.whichKey || len(a.res.Pending()) != 0 {
 		t.Fatal("clicking which-key's b should do SPC b")
 	}
 }
@@ -230,7 +230,7 @@ func TestDragSidebarEdge(t *testing.T) {
 	if main := a.layout()[1]; main.Min.X != 41 {
 		t.Errorf("the panes start right of the gap: %v", main)
 	}
-	feed(t, a, `<Space>%<Space>z<Space>z<Space>b<Space>b`)
+	feed(t, a, `<Space>%<Space>z<Space>z<Space>b<Space>b<Space>b`)
 	if got := a.sidebarRect().Dx(); got != 40 {
 		t.Errorf("after split, zoom and fold: %d wide, want 40", got)
 	}
