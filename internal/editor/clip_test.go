@@ -74,7 +74,7 @@ func TestClipboardRegister(t *testing.T) {
 
 // Y in VISUAL yanks the lines, a block as y does (v_visop).
 func TestVisualY(t *testing.T) {
-	for ks, want := range map[string]string{`wvl"+Y`: "one two\n", `Vj"+Y`: "one two\nthree\n", `0<C-v>jl"+Y`: "on\nth"} {
+	for ks, want := range map[string]string{`wvl"+Y`: "one two\n", `Vj"+Y`: "one two\nthree\n", `0<C-v>jl"+Y`: "on\nth\n"} {
 		e := New("one two\nthree\nfour")
 		var clip *string
 		for _, k := range keys(t, ks) {
@@ -129,7 +129,7 @@ func TestUnnamedPlus(t *testing.T) {
 			t.Errorf("%s, off: p asks the clipboard", name)
 		}
 		UnnamedPlus = true
-		for ks, want := range map[string]string{"yy": "one two\n", "yw": "one ", "x": "o", "2x": "on", "dd": "one two\n", "cwx<Esc>": "one", "wD": "two", "vey": "one", `""yy`: "one two\n"} {
+		for ks, want := range map[string]string{"yy": "one two\n", "yw": "one ", "x": "o", "2x": "on", "dd": "one two\n", "cwx<Esc>": "one", "wD": "two", "vey": "one"} {
 			eff := run(mk(), ks)
 			switch {
 			case name == "read only" && strings.ContainsAny(ks[:1], "x2dcw"): // changes the text: not run
@@ -143,8 +143,10 @@ func TestUnnamedPlus(t *testing.T) {
 		if eff := run(mk(), "p"); name == "read only" == (eff.Paste != nil) || eff.Paste != nil && !eff.Paste.Implicit() {
 			t.Errorf("%s, on: p: %+v", name, eff)
 		}
-		if run(mk(), `"ayy`).Clip != nil {
-			t.Errorf(`%s: "ayy`, name)
+		for _, ks := range []string{`"ayy`, `""yy`} { // a named register, and the unnamed typed: not the clipboard's
+			if run(mk(), ks).Clip != nil {
+				t.Errorf("%s: %s", name, ks)
+			}
 		}
 	}
 	e := New("one two\nthree")
@@ -156,8 +158,11 @@ func TestUnnamedPlus(t *testing.T) {
 		t.Errorf("the clipboard's: %q", e.Lines())
 	}
 	eff = run(e, "jp")
-	if e.PutClip("", *eff.Paste); e.Lines()[1] != "threeCLIP " { // the unnamed register, which the last put left as the clipboard's
+	if f := e.PutClip("", *eff.Paste); f.Changed { // an empty clipboard is nothing to put, as nvim's E353
 		t.Errorf("empty clipboard: %q", e.Lines())
+	}
+	if e.PutClip("", eff.Paste.Missing()); e.Lines()[1] != "threeone " { // no clipboard to read: the unnamed register, the yw's, the put of the clipboard's text left it
+		t.Errorf("no clipboard: %q", e.Lines())
 	}
 	eff = run(e, `"+p`) // typed, it is still nothing when empty
 	if f := e.PutClip("", *eff.Paste); f.Changed || eff.Paste.Implicit() {

@@ -110,6 +110,10 @@ type Editor struct {
 
 	yanked  bool // the command running put text in reg
 	regClip bool // reg is what a "+ yank or delete took: vim's unnamed register points at "+
+	// clipText is what the editor last wrote on the system clipboard, clipReg that
+	// register with its type: nvim's provider cache (§11)
+	clipText string
+	clipReg  register
 
 	vstart     Pos // where VISUAL started: the other end of the selection
 	lastVisual visualArea
@@ -212,7 +216,8 @@ type cmd struct {
 	name  string // the motion, text object or command: "w", "iw", "gg", "f"
 	arg   string // the character f, t, r take
 	// implicit: no register was typed and `clipboard = "unnamedplus"` made it "+.
-	implicit bool
+	// missing: the put found no clipboard to read (ClipPut.Missing).
+	implicit, missing bool
 }
 
 // UnnamedPlus is nvim's `clipboard=unnamedplus`: a command with no register
@@ -225,9 +230,13 @@ var UnnamedPlus bool
 // ClipPut is a "+p or "+P waiting for the system clipboard's text.
 type ClipPut struct{ c cmd }
 
-// Implicit is whether the put named no register, and `clipboard` made it "+: an
-// empty or unreadable clipboard then puts the unnamed register, not nothing.
+// Implicit is whether the put named no register, and `clipboard` made it "+.
 func (p ClipPut) Implicit() bool { return p.c.implicit }
+
+// Missing is p for a clipboard that could not be read, no tool or a failing
+// one: PutClip puts the unnamed register then, as nvim does without a provider
+// (an empty clipboard is no such thing: nothing is put).
+func (p ClipPut) Missing() ClipPut { p.c.missing = true; return p }
 
 func (c cmd) n() int { return max(c.count, 1) }
 
@@ -246,10 +255,19 @@ func (e *Editor) normal() {
 		return
 	}
 	e.keys = nil
-	if UnnamedPlus && c.reg == "" {
+	switch {
+	case c.reg == `"`: // typed, the unnamed register stays the editor's whatever `clipboard` says (nvim)
+		c.reg = ""
+	case UnnamedPlus && c.reg == "":
 		c.reg, c.implicit = "+", true
 	}
-	if st == complete && (c.reg == "" || c.reg == "+") { // a register of the others: none here (§11)
+	if c.reg == "_" && st == complete { // the black hole: the command runs, no register is touched, a put has nothing to put
+		if c.name != "p" && c.name != "P" {
+			kept, keptClip := e.reg, e.regClip
+			e.run(c)
+			e.reg, e.regClip = kept, keptClip
+		}
+	} else if st == complete && (c.reg == "" || c.reg == "+") { // a register of the others: none here (§11)
 		e.yanked = false
 		e.run(c)
 		if e.yanked {
@@ -257,7 +275,10 @@ func (e *Editor) normal() {
 		}
 		if c.reg == "+" && e.yanked { // the unnamed register too, as vim's
 			clip := e.reg.text
-			e.eff.Clip = &clip
+			if e.reg.kind == blockKind { // as nvim's provider gets it: every line ends, the last too
+				clip += "\n"
+			}
+			e.eff.Clip, e.clipText, e.clipReg = &clip, clip, e.reg
 		}
 	}
 	e.settle()
@@ -265,21 +286,25 @@ func (e *Editor) normal() {
 
 // PutClip is the put p asked the clipboard for, text what it holds: put as
 // a register charwise, or linewise when it ends in a newline, as vim takes
-// the clipboard; empty, nothing is put (vim's E353), but for an Implicit
-// put, which puts the unnamed register; nor once the editor left NORMAL or
-// has keys pending. The unnamed register
-// stays as it was, but for one a "+ yank or delete filled: that stands for
-// "+ in vim, and so holds what came.
+// the clipboard; under UnnamedPlus text the editor wrote itself last comes
+// back with the type it had, a block still a block (nvim's provider cache);
+// empty, nothing is put (vim's E353), but for a put p says is Missing, which
+// puts the unnamed register; nor once the editor left NORMAL or has keys pending. The
+// unnamed register stays as it was, but for one a "+ yank or delete filled:
+// that stands for "+ in vim, and so holds what came, unless the put named no
+// register, where nvim keeps its own.
 func (e *Editor) PutClip(text string, p ClipPut) Effect {
 	e.eff = Effect{}
 	if e.mode != Normal || len(e.keys) > 0 { // come too late: the editor went on
 		return e.eff
 	}
-	own := p.c.implicit && text == "" // no clipboard to read: the unnamed register as it is (nvim's fallback)
+	own := p.c.missing // no clipboard to read: the unnamed register as it is (nvim's fallback)
 	kept := e.reg
 	if !own {
 		e.reg = register{text: text, kind: 'v'}
 		switch {
+		case UnnamedPlus && text == e.clipText: // nvim's provider uses its cache for the type only then
+			e.reg = e.clipReg
 		case text == "":
 			e.reg = register{}
 		case strings.HasSuffix(text, "\n"):
@@ -288,7 +313,7 @@ func (e *Editor) PutClip(text string, p ClipPut) Effect {
 	}
 	p.c.reg = ""
 	e.run(p.c)
-	if !own && !e.regClip {
+	if !e.regClip || p.c.implicit { // nvim's unnamed register is not what a put of the clipboard read
 		e.reg = kept
 	}
 	e.settle()
@@ -323,6 +348,7 @@ func parse(keys []string, visual bool) (c cmd, st status) {
 		case r == "+" || r == "*":
 			c.reg = "+"
 		case r == `"`:
+			c.reg = `"`
 		case len(r) == 1 && strings.Contains(registers, r): // one of vim's others: read whole, not run (normal)
 			c.reg = r
 		default: // "<Esc>: no register, the command goes, as in vim

@@ -303,17 +303,16 @@ func (a *App) vimCmds(eff editor.Effect, put func(text string, p editor.ClipPut)
 		cmds = append(cmds, a.flashYank(yankFlash{pane: a.focused().ID, text: yankSel(*eff.Yank)}))
 	}
 	if eff.Clip != nil {
-		cmds = append(cmds, clipCopy(*eff.Clip))
+		cmds = append(cmds, a.clipCopy(*eff.Clip))
 	}
 	if p := eff.Paste; p != nil {
-		// ponytail: the write of a yank in the same batch and this read are not ordered; a `p` typed
-		// within a pbcopy's run of an `x` reads the old clipboard
-		a.clipWait = func(text string) tea.Cmd { return put(text, *p) }
-		if p.Implicit() {
-			cmds = append(cmds, clipPasteLocal)
-		} else {
-			cmds = append(cmds, clipPaste)
+		a.clipWait = func(text string, ok bool) tea.Cmd {
+			if !ok {
+				return put(text, p.Missing())
+			}
+			return put(text, *p)
 		}
+		cmds = append(cmds, a.clipRead(p.Implicit()))
 	}
 	if eff.Error != "" {
 		cmds = append(cmds, a.showToast(eff.Error))

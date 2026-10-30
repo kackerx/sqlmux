@@ -302,7 +302,7 @@ func TestQueryUnnamedPlus(t *testing.T) {
 			for _, c := range m {
 				deliver(a, c)
 			}
-		case tea.ClipboardMsg:
+		case tea.ClipboardMsg, clipMissing:
 			_, next := a.Update(m)
 			deliver(a, next)
 		}
@@ -334,8 +334,13 @@ func TestQueryUnnamedPlus(t *testing.T) {
 		t.Errorf("p puts the clipboard's: %q", text(c))
 	}
 	clipTools = []clipTool{{"", []string{"false"}, []string{"false"}}} // fails: no OSC 52, the unnamed register
-	if feed(t, a, "p"); text(c) != "ab\next\next" || a.clipWait != nil {
+	// a failing tool: no OSC 52 query for the p of no register, the unnamed register, the yy's
+	if feed(t, a, "p"); text(c) != "ab\next\nab" || a.clipWait != nil {
 		t.Errorf("p with a failing tool: %q, waiting %v", text(c), a.clipWait != nil)
+	}
+	// "+p names its register: the terminal is asked, and the put waits for the answer
+	if feed(t, a, `"+p`); text(c) != "ab\next\nab" || a.clipWait == nil {
+		t.Errorf(`"+p with a failing tool: %q, waiting %v`, text(c), a.clipWait != nil)
 	}
 }
 
