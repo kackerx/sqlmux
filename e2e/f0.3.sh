@@ -84,7 +84,7 @@ tui '[keys.normal]\n"<Space>b" = ""\n"<C-b>" = "tree.toggle"\n'; check "改绑 t
 tui '[keys]\nleader = "<C-a>"\n'; check "leader = <C-a>：侧栏标题仍只有 «" eval '[[ $(e2e_text 1 32 1) == *" « ─┐" && $(e2e_text 1 32 1) != *C-a* ]]'
 tui '[keys.normal]\n"<Leader>b" = ""\n'; check "解绑 tree.toggle：侧栏标题照样是 «（点击还能收起）" eval '[[ $(e2e_text 1 32 1) == *"doraemon ───"*" « ─┐" && $(e2e_text 1 32 1) != *SPC* ]]'
 tui '[keys.query]\n"<CR>" = ""\n"R" = "query.run"\n'; e2e_resize 200 45; sleep 0.4   # 160 宽下 F5.3 的事务控件把键位文字挤掉了
-check "改绑 query.run 为 R：② query 标题显示 ▶ run R" text_ends 1 200 1 "▶ run  R ─┐"
+check "改绑 query.run 为 R：② query 标题显示 ▶ run R" eval '[[ $(e2e_text 1 200 1) == *"▶ run  R "*"─┐" ]]'
 tui '[keys.grid]\n"T" = ""\n'; two_tabs; check "解绑 grid.transpose：tab 栏不显示「转置」" eval '[[ $(e2e_text 34 160 43) != *转置* && $(e2e_text 34 160 43) == *"↵ edit"* ]]'
 # 侧栏提示行（§6.7、§7.8）：未绑定的整项不显示；放不下时整项省略（F3.37 起没有 t tab，t 和 ↵ 一样是打开）
 side_hints() { local c; c=$(e2e_find ┐ 1); text_is 1 "${c%% *}" 43 "$1"; }

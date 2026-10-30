@@ -99,7 +99,7 @@ if skipped:
 PY
 }
 SOLO= start -x 200
-check "200 宽：对象名完整，Tx: 自动 ▾、doraemon · sqlmux.public ▾ 依次在 ▶ run ↵ 左边，↵ dim，①:② 约为 1:1（F8.9）" eval 't=$(query_title); [[ $t == "┌─ ② $NF_CONSOLE query_1 ─"*"─ Tx: 自动 ▾ doraemon · sqlmux.public ▾  ▶ run  ↵ ─┐" ]] && at "↵ ─┐" 1 fg=$DIM && set -- $(e2e_find ┌ 1) $(e2e_find ┐ 1) && dw=$(($5 - $2 + 1)) cw=$(($6 - $3 + 1)) && ((dw - cw <= 1 && cw - dw <= 1)) || { echo "  $t"; false; }'
+check "200 宽：对象名完整，Tx: 自动 ▾、doraemon · sqlmux.public ▾ 依次在 ▶ run ↵ 左边（F19.3：↵ 后面是 pane 的四个按钮），↵ dim，①:② 约为 1:1（F8.9）" eval 't=$(query_title); [[ $t == "┌─ ② $NF_CONSOLE query_1 ─"*"─ Tx: 自动 ▾ doraemon · sqlmux.public ▾  ▶ run  ↵ "*"─┐" ]] && at "↵ " 1 fg=$DIM && set -- $(e2e_find ┌ 1) $(e2e_find ┐ 1) && dw=$(($5 - $2 + 1)) cw=$(($6 - $3 + 1)) && ((dw - cw <= 1 && cw - dw <= 1)) || { echo "  $t"; false; }'
 SOLO= start -x 140; check "140 宽：提示都在，对象名截成 quer…" title_ends "② $NF_CONSOLE quer…  doraemon · sqlmux.public ▾  ▶ run  ↵ ─┐"
 SOLO= start -x 110; check "110 宽：连接和 schema 的下拉框（算一项）放不下被跳过，放得下的事务控件和 ▶ run ↵ 在，对象名回来一点" title_ends "② $NF_CONSOLE query…  Tx: 自动 ▾  ▶ run  ↵ ─┐"
 SOLO= start -x 100; check "100 宽：下拉框放不下被跳过，事务控件和 ▶ run ↵ 在，对象名放不下不显示" title_ends "② $NF_CONSOLE ── Tx: 自动 ▾  ▶ run  ↵ ─┐"
