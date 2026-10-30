@@ -403,7 +403,12 @@ func (a *App) openWanted(w *startTable) tea.Cmd {
 	}
 	r := newDataTab(c, t).request
 	r.applied, r.desc = w.where, a.newDesc
-	return a.openTableAs(a.win().Root.Leaves()[0], c, t, &r, a.newTurned)
+	p := a.win().Root.Leaves()[0]
+	open := a.openTableAs(p, c, t, &r, a.newTurned)
+	if d := dataOf(p); w.where != "" && d != nil { // the pane is empty at a start: the table is a new tab
+		return tea.Batch(open, a.rememberWhere(d)) // as if it was typed (§9.7)
+	}
+	return open
 }
 
 // resolvePending runs once c's catalog is in: a table tab waiting for it

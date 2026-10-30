@@ -164,16 +164,16 @@ func TestStartLayout(t *testing.T) {
 	}
 	var warning string
 
-	if l, err := startLayout("", mine, &warning); err != nil || l == nil || l.Sessions[0].Name != "s" {
+	if l, err := startLayout("", mine, false, &warning); err != nil || l == nil || l.Sessions[0].Name != "s" {
 		t.Errorf("--layout path: %v %v", l, err)
 	}
-	if _, err := startLayout("", "nope", &warning); !errors.Is(err, fs.ErrNotExist) || !strings.Contains(err.Error(), "nope.toml") {
+	if _, err := startLayout("", "nope", false, &warning); !errors.Is(err, fs.ErrNotExist) || !strings.Contains(err.Error(), "nope.toml") {
 		t.Errorf("--layout that is not there: %v", err)
 	}
-	if l, err := startLayout("play", "", &warning); l != nil || err != nil {
+	if l, err := startLayout("play", "", false, &warning); l != nil || err != nil {
 		t.Errorf("a connection name starts the default: %v %v", l, err)
 	}
-	if l, err := startLayout("", "", &warning); l != nil || err != nil || warning != "" {
+	if l, err := startLayout("", "", false, &warning); l != nil || err != nil || warning != "" {
 		t.Errorf("no last.toml: %v %v %q", l, err, warning)
 	}
 
@@ -183,17 +183,20 @@ func TestStartLayout(t *testing.T) {
 	if err := os.WriteFile(config.LastPath(), []byte(oneSession), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if l, err := startLayout("", "", &warning); l == nil || err != nil {
+	if l, err := startLayout("", "", false, &warning); l == nil || err != nil {
 		t.Errorf("last.toml: %v %v", l, err)
 	}
-	if l, err := startLayout("play", "", &warning); l != nil || err != nil {
+	if l, err := startLayout("play", "", false, &warning); l != nil || err != nil {
 		t.Errorf("a connection name does not restore last: %v %v", l, err)
+	}
+	if l, err := startLayout("", "", true, &warning); l != nil || err != nil {
+		t.Errorf("nor does a table of the command line: the default layout on the first connection: %v %v", l, err)
 	}
 	if err := os.WriteFile(config.LastPath(), []byte("{"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	warning = "config.toml: unknown keys x" // said before: the last.toml's joins it (F13.5)
-	if l, err := startLayout("", "", &warning); l != nil || err != nil || !strings.Contains(warning, "last.toml") || !strings.Contains(warning, "unknown keys x") {
+	if l, err := startLayout("", "", false, &warning); l != nil || err != nil || !strings.Contains(warning, "last.toml") || !strings.Contains(warning, "unknown keys x") {
 		t.Errorf("a last.toml that does not read: %v %v %q", l, err, warning)
 	}
 	if _, err := os.Stat(config.LastPath() + ".broken"); err != nil {

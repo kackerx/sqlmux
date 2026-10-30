@@ -1047,13 +1047,19 @@ func (a *App) runWhere(t *dataTab) tea.Cmd {
 	fetch := a.fetch(t, true)
 	cmds := []tea.Cmd{fetch}
 	if t.applied != "" && fetch != nil { // not one fetch refuses
-		st := a.tableState(t)
-		q := t.savedQuery(t.applied)
-		st.History = slices.Insert(slices.DeleteFunc(st.History, func(h config.Query) bool { return h.Key() == q.Key() }), 0, q)
-		st.History = st.History[:min(len(st.History), config.WhereRows)]
-		cmds = append(cmds, a.saveState())
+		cmds = append(cmds, a.rememberWhere(t))
 	}
 	return tea.Batch(cmds...)
+}
+
+// rememberWhere puts t's WHERE, with its ORDER and LIMIT, on top of the
+// table's history; the one already there moves up (§9.7).
+func (a *App) rememberWhere(t *dataTab) tea.Cmd {
+	st := a.tableState(t)
+	q := t.savedQuery(t.applied)
+	st.History = slices.Insert(slices.DeleteFunc(st.History, func(h config.Query) bool { return h.Key() == q.Key() }), 0, q)
+	st.History = st.History[:min(len(st.History), config.WhereRows)]
+	return a.saveState()
 }
 
 // savedQuery is where, with the ORDER and LIMIT the tab has, as the history and the

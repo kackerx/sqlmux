@@ -829,6 +829,9 @@ func TestOpenAtStart(t *testing.T) {
 			if a.focused() != p || a.want != nil {
 				t.Errorf("focus %v, want %v", a.focused(), a.want)
 			}
+			if h := a.tableState(d).History; tc.where == "" && len(h) != 0 || tc.where != "" && (len(h) != 1 || h[0].Where != tc.where) {
+				t.Errorf("the WHERE history: %+v, after --where %q", h, tc.where)
+			}
 			a.Update(catalog(a)) // a refresh does not open it again
 			if len(p.Tabs) != 1 {
 				t.Errorf("tabs after a refresh: %d", len(p.Tabs))
