@@ -48,6 +48,7 @@ Then open something:
 ```sh
 sqlmux ./app.db                                       # a SQLite file
 sqlmux "postgres://me@localhost:5432/app?sslmode=disable"   # or mysql://…
+sqlmux local --table orders --where "user_id = 42"    # straight to one table of a saved connection
 sqlmux                                                # no connections yet: a form to add one
 ```
 

@@ -6,6 +6,20 @@ All notable changes to sqlmux are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-31
+
+### Added
+
+- Open one table straight from the command line: `sqlmux [connection | file | URL] --table [schema.]table [--where "user_id = 42"]`. The flags go before or after the connection; without one, the first connection in `connections.toml` is used. The WHERE runs as if you had typed it and goes into the table's history, and quitting does not overwrite the layout `sqlmux` restores. On a Redis connection `--table` opens a key. ([#6](https://github.com/kackerx/sqlmux/pull/6), idea by MrLiuX)
+- Buttons at the right of every pane's title: split right, split below, zoom / unzoom and close. A click acts on that pane, focused or not. Their icons can be themed as `split_right`, `split_below`, `unzoom` (and the existing `zoom`, `close`).
+- A running request shows moving dots (`●••`, or `o..` with ASCII icons): in the status bar's busy block, in a running query's result tab, in a table's row count while it is being counted, and on a connection that is connecting. Nothing redraws while sqlmux is idle.
+
+### Changed
+
+- `tree.toggle` (`SPC b`) works like DataGrip's tool windows: from a pane it focuses the sidebar, opening it if folded; from the sidebar it folds it and goes back to the pane you came from. The `«` in the sidebar's title folds it, the `»` of the folded sidebar opens and focuses it. `tree.fold` folds without the rest, for your own key.
+- A table whose first page holds fewer rows than LIMIT knows its row count at once: no `COUNT` query is sent, PAGE says `1/1`, and in a narrow pane the count stays visible as `N rows` while the other parts give way.
+- The Homebrew and npm package descriptions name SQL Server.
+
 ## [0.7.0] - 2026-10-26
 
 ### Added
@@ -229,7 +243,8 @@ Note: `go install github.com/kackerx/sqlmux/...` does not work for this version 
 - Every key can be rebound per pane type in `keymaps.toml` (`SPC` is the leader). `sqlmux keys` lists every action and `sqlmux keys --check` reports conflicts. Key help (`?`), which-key hints and full mouse support are built in, and `vim = false` gives plain editors and arrow-key navigation.
 - Themes, border styles, Nerd Font or ASCII icons, and an English or Chinese UI (`language = "zh"`).
 
-[Unreleased]: https://github.com/kackerx/sqlmux/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/kackerx/sqlmux/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/kackerx/sqlmux/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/kackerx/sqlmux/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/kackerx/sqlmux/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/kackerx/sqlmux/compare/v0.5.1...v0.6.0

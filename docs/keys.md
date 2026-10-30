@@ -1,6 +1,6 @@
 # Keys
 
-Every default key of sqlmux v0.7.0, generated from `sqlmux keys --format toml` by `docs/keys.py`; do not edit by hand.
+Every default key of sqlmux v0.8.0, generated from `sqlmux keys --format toml` by `docs/keys.py`; do not edit by hand.
 The leader is `<Space>`. Keys use vim notation (`<C-p>` is Ctrl+P, `<CR>` Enter, `<lt>` the `<` key, `<Leader>c` the leader then `c`).
 An action with no key runs from the command palette (`<C-p>`, then `>`), or bind it yourself in `keymaps.toml`:
 see [Configuration](config.md#keymapstoml).
@@ -38,7 +38,7 @@ NORMAL mode, the focus in any pane
 | `<Leader>z` | `pane.zoom` | Zoom / restore |
 | `<Leader>x` | `pane.close` | Close pane |
 | `<Leader>q` | `pane.number` | Jump by number |
-| `<Leader>b` | `tree.toggle` | Show / hide the schema tree |
+| `<Leader>b` | `tree.toggle` | Open / focus / fold the sidebar |
 | `<Leader>r` | `result.toggle` | Show / hide the results |
 | `?`, `<Leader>?` | `keyhelp.open` | Key help |
 | `<Esc>` | `pane.error.close` | Close error bar |
@@ -153,6 +153,7 @@ The focus on the schema tree (NORMAL)
 | `s` | `jump.start` | Jump to a character on the screen |
 | `:` | `palette.open` | Command palette |
 | `;` | `palette.sql` | Quick SQL |
+| — | `tree.fold` | Fold the sidebar |
 | — | `tree.pick` | Pick databases / schemas… |
 
 ## grid
