@@ -30,7 +30,7 @@ func (a *App) spinning() bool {
 		}
 	}
 	for _, p := range win.Root.Leaves() {
-		if t := dataOf(p); t != nil && t.counting() {
+		if t := dataOf(p); t != nil && t.counted == counting {
 			return true
 		}
 	}

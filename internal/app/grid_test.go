@@ -56,14 +56,17 @@ func ordersTable(n int) (db.Table, db.Columns, db.Result) {
 
 // loadOrders opens ordersTable(n) in the focused data pane through the
 // real path, answering the fetch it starts as the database would.
-func loadOrders(t testing.TB, a *App, n int) *dataTab {
+func loadOrders(t testing.TB, a *App, n int) *dataTab { return loadOrdersNext(t, a, n, true) }
+
+// loadOrdersNext is loadOrders with next, whether a page is left after it.
+func loadOrdersNext(t testing.TB, a *App, n int, next bool) *dataTab {
 	t.Helper()
 	table, cols, page := ordersTable(n)
 	if a.openTable(a.sess.Conns[0], table) == nil {
 		t.Fatal("opening a table fetches it")
 	}
 	tab := dataOf(a.focused())
-	a.Update(pageMsg{tab: tab, seq: tab.seq, cols: cols, page: page, next: true})
+	a.Update(pageMsg{tab: tab, seq: tab.seq, cols: cols, page: page, next: next})
 	return tab
 }
 
@@ -110,10 +113,8 @@ func TestGoldenQueryBarUnderAPage(t *testing.T) {
 	for _, turn := range []bool{false, true} {
 		for _, rows := range []int{3, 1203} {
 			a := sized(160, 45, "nerd")
-			tab := loadOrders(t, a, min(rows, 60))
-			if rows == 3 {
-				tab.next = false
-			} else {
+			tab := loadOrdersNext(t, a, min(rows, 60), rows != 3)
+			if rows != 3 {
 				tab.count, tab.counted = int64(rows), countDone
 			}
 			if turn {
