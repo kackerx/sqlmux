@@ -325,6 +325,11 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	t.col = max(min(t.col, len(t.shownCols())-1), 0)
 	if t.recount {
 		t.recount = false
+		if t.fits() { // all there is is on the page: its rows are the count, none is asked for (F19.4)
+			t.count, t.counted = int64(len(t.page.Rows)), countDone
+			t.countSeq++ // what an earlier count answers is of another WHERE
+			return nil
+		}
 		return a.count(t)
 	}
 	return nil
@@ -385,9 +390,6 @@ func (a *App) gotCount(m countMsg) {
 func (t *dataTab) fits() bool {
 	return t.table.Kind != "k" && t.page.Cols != nil && t.shown.pageNo == 0 && !t.next
 }
-
-// counting is whether the query bar shows the dots where the count will be.
-func (t *dataTab) counting() bool { return t.counted == counting && !t.fits() }
 
 // pages is how many pages t's count makes, and whether that is known.
 func (t *dataTab) pages() (int64, bool) {
@@ -689,11 +691,8 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	if t.typing == "page" {
 		page.Input, page.Suffix = &t.pageIn, "/"+pages
 	}
-	rows, keep := a.icons.Spinner(a.spin), ""
+	rows := a.icons.Spinner(a.spin)
 	switch {
-	case t.fits(): // all there is is on the page: no count to wait for, and the part of the bar that stays (F19.4)
-		rows = strconv.Itoa(len(t.page.Rows))
-		keep = i18n.T("%s 行", rows)
 	case t.counted == countLost:
 		rows = "?"
 	case t.counted == countDone:
@@ -701,7 +700,10 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 	case t.counted == estimated:
 		rows = "~" + ui.Magnitude(float64(t.count))
 	}
-	right := i18n.T("auto · %s 行", rows)
+	right, keep := i18n.T("auto · %s 行", rows), "" // keep: what stays of it on a narrow bar, under a page (F19.4)
+	if t.fits() {
+		keep = i18n.T("%s 行", strconv.Itoa(len(t.page.Rows)))
+	}
 	if t.page.Cols != nil {
 		right += " · " + t.page.Took.Round(time.Millisecond).String()
 	}

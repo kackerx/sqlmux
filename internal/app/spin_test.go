@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/kackerx/sqlmux/internal/db"
 	"github.com/kackerx/sqlmux/internal/ui"
 )
 
@@ -71,11 +72,16 @@ func TestSpinningWhere(t *testing.T) {
 	if !a.spinning() || !strings.Contains(a.render().String(), "auto · ●•• 行") {
 		t.Errorf("counting: spinning %v", a.spinning())
 	}
-	tab.next = false // all of it is on the page: nothing to count, nothing spins (F19.4)
+	tab.recount = true // the same table asked again, now all of it fits on a page: nothing to count, nothing spins (F19.4)
+	a.Update(pageMsg{tab: tab, seq: tab.seq, cols: tab.cols, page: tab.page, next: false})
 	if a.spinning() || strings.Contains(a.render().String(), "●••") {
 		t.Errorf("a table under a page: spinning %v", a.spinning())
 	}
-	tab.next = true
+	tab.recount = true
+	a.Update(pageMsg{tab: tab, seq: tab.seq, cols: tab.cols, page: tab.page, next: true})
+	if !a.spinning() {
+		t.Fatal("counting again")
+	}
 	a.Update(countMsg{tab: tab, seq: tab.countSeq, n: 6000})
 	if a.spinning() {
 		t.Error("counted")
@@ -119,38 +125,90 @@ func TestSpinAscii(t *testing.T) {
 	}
 }
 
-// What is under a page keeps its count: "auto · 3 行" in the query bar, and
-// "3 行" where that does not fit; a page that is not the whole table keeps
-// the count on its way (F19.4).
-func TestQueryBarRowsUnderAPage(t *testing.T) {
-	a := sized(160, 45, "nerd")
-	tab := loadOrders(t, a, 3)
-	bar := func() ui.QueryBar { return a.queryBar(a.focused(), tab) }
-	if r := bar(); !strings.HasPrefix(r.Right, "auto · ●•• 行") || r.Keep != "" {
-		t.Fatalf("more pages: %q, keep %q", r.Right, r.Keep)
+// A first page under LIMIT is the count: no COUNT is asked for, PAGE is 1/1
+// at once, and the query bar keeps "3 行" where the full count does not fit;
+// a page with another after it counts as before, and a count that was on its
+// way for the table asked before is no answer (F19.4).
+func TestFirstPageUnderLimitIsTheCount(t *testing.T) {
+	a := wide(160, 45)
+	more := loadOrders(t, a, 3)
+	if more.counted != counting || more.out != 1 || a.queryBar(a.focused(), more).Keep != "" {
+		t.Fatalf("a page with more after it: counted %v, %d on its way, keep %q", more.counted, more.out, a.queryBar(a.focused(), more).Keep)
 	}
-	tab.next = false
-	if r := bar(); !strings.HasPrefix(r.Right, "auto · 3 行") || r.Keep != "3 行" {
-		t.Fatalf("under a page: %q, keep %q", r.Right, r.Keep)
+	stale := more.countSeq
+	more.recount, more.out = true, more.out+1 // asked again, the first count still out
+	a.Update(pageMsg{tab: more, seq: more.seq, cols: more.cols, page: more.page, next: false})
+	bar := a.queryBar(a.focused(), more)
+	if more.counted != countDone || more.count != 3 || more.out != 1 || !strings.HasPrefix(bar.Right, "auto · 3 行") || bar.Keep != "3 行" {
+		t.Fatalf("all of it on the page: counted %v, count %d, %d on its way, %q, keep %q", more.counted, more.count, more.out, bar.Right, bar.Keep)
 	}
-	tab.shown.pageNo = 1 // the last page is not the table
-	if r := bar(); r.Keep != "" {
-		t.Errorf("page 2: keep %q", r.Keep)
+	if n, ok := more.pages(); !ok || n != 1 || !strings.Contains(a.render().String(), " PAGE 1/1 ") {
+		t.Errorf("pages %d %v", n, ok)
 	}
-	tab.shown.pageNo = 0
-	if tab.table.Kind = "k"; bar().Keep != "" { // a Redis key's bar is not a table's
-		t.Errorf("a key: keep %q", bar().Keep)
+	a.Update(countMsg{tab: more, seq: stale, n: 9999}) // the earlier one answers
+	if more.count != 3 || more.counted != countDone || more.out != 0 {
+		t.Errorf("the earlier count came in: %d, %v, %d on its way", more.count, more.counted, more.out)
 	}
-	tab.table.Kind = ""
-	tab.page.Rows = nil // a WHERE that keeps nothing
-	if r := bar(); r.Keep != "0 行" || !strings.HasPrefix(r.Right, "auto · 0 行") {
-		t.Errorf("no rows: %q, keep %q", r.Right, r.Keep)
+	more.shown.pageNo = 1 // the second page is not the table
+	if bar := a.queryBar(a.focused(), more); bar.Keep != "" {
+		t.Errorf("page 2: keep %q", bar.Keep)
+	}
+	more.shown.pageNo = 0
+	if more.table.Kind = "k"; a.queryBar(a.focused(), more).Keep != "" { // a Redis key's bar is not a table's
+		t.Error("a key keeps a count")
+	}
+	more.table.Kind = ""
+	more.recount, more.out = true, more.out+1
+	a.Update(pageMsg{tab: more, seq: more.seq, cols: more.cols, page: db.Result{Cols: more.page.Cols}, next: false}) // a WHERE that keeps nothing
+	if bar := a.queryBar(a.focused(), more); bar.Keep != "0 行" || !strings.HasPrefix(bar.Right, "auto · 0 行") {
+		t.Errorf("no rows: %q, keep %q", bar.Right, bar.Keep)
 	}
 	for _, w := range []int{160, 90, 70, 62} { // narrow: the bar still says how many
 		a.Update(tea.WindowSizeMsg{Width: w, Height: 45})
-		tab.page.Rows = tab.page.Rows[:0]
 		if !strings.Contains(a.render().String(), " 0 行") {
 			t.Errorf("width %d: no count in\n%s", w, a.render().String())
 		}
 	}
+}
+
+// Every place that has the dots moves them on the one tick: the status bar,
+// the run's placeholder, the count, a connection and a database in the tree
+// (§7.8「转圈」).
+func TestSpinFramesMove(t *testing.T) {
+	var a *App
+	frame := func(want string, in ...string) {
+		t.Helper()
+		screen := a.render().String()
+		for _, s := range in {
+			if !strings.Contains(screen, strings.ReplaceAll(s, "•••", want)) {
+				t.Errorf("frame %q: no %q on\n%s", want, s, screen)
+			}
+		}
+	}
+	a = sized(160, 45, "nerd")
+	a.sess.Conns[0].State = connConnecting
+	frame("●••", "doraemon  •••")
+	a.Update(spinTick{})
+	frame("•●•", "doraemon  •••")
+
+	a = wide(160, 45)
+	loadOrders(t, a, 60)
+	frame("●••", "auto · ••• 行")
+	a.Update(spinTick{})
+	frame("•●•", "auto · ••• 行")
+
+	a, _ = inRun(t, &execDB{}, "select 1")
+	a.Update(teaKey("<CR>"))
+	frame("●••", "执行中 ••• · ", " busy ••• · ")
+	a.Update(spinTick{})
+	frame("•●•", "执行中 ••• · ", " busy ••• · ")
+	a.Update(spinTick{})
+	frame("••●", "执行中 ••• · ", " busy ••• · ")
+
+	var alpha *Conn // a database of the connection, connecting
+	a, _, alpha = withAlpha(t)
+	alpha.State = connConnecting
+	frame("●••", "alpha  •••")
+	a.Update(spinTick{})
+	frame("•●•", "alpha  •••")
 }
