@@ -471,7 +471,7 @@ func TestKillSessionUnderWay(t *testing.T) {
 	con := a.sess.queries()[0]
 	run := a.runSQL(con, con.conn, con.schema, con.name, "select pg_sleep(3)", 0, con.ver)
 	ran := make(chan tea.Msg, 1)
-	go func() { ran <- run().(tea.BatchMsg)[0]() }()
+	go func() { ran <- run() }()
 	time.Sleep(300 * time.Millisecond)
 	feed(t, a, "<Space>s")
 	_, kill := a.Update(teaKey("x"))

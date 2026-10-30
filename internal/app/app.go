@@ -103,6 +103,8 @@ type App struct {
 	toastSeq  int
 	quitToast int         // toastSeq of the "press C-c again" toast
 	warning   string      // shown as a toast on start
+	spin      int         // the frame of every spinner (§7.8「转圈」)
+	spinOn    bool        // a spinTick is on its way
 	want      *startTable // the command line's table, to open when its catalog is in (F19.1)
 
 	// Mouse (§7.4).
@@ -234,7 +236,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	a.plainQueries()
 	a.sess.last = a.conn() // where the focus goes next may name none (§5)
 	a.sess.touch(a.focused().tab())
-	return a, tea.Batch(cmd, a.wantCols(), a.wantDDL(), a.wantPopupDDL())
+	return a, tea.Batch(cmd, a.wantCols(), a.wantDDL(), a.wantPopupDDL(), a.spinStart())
 }
 
 // stillOver is whether msg changed nothing the last frame shows: a pointer
@@ -339,10 +341,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotResultPage(msg)
 	case formatDone:
 		return a, a.gotFormat(msg)
-	case runTick:
-		if !msg.r.done {
-			return a, a.runTick(msg.r)
-		}
+	case spinTick:
+		return a, a.spinNext()
 	case stateErr:
 		return a, a.showToast(msg.err.Error())
 	case tipTick:

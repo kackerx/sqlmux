@@ -102,6 +102,31 @@ func TestGoldenQueryBarNarrow(t *testing.T) {
 	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")
 }
 
+// In the default layout ① is too narrow for "auto · 3 行 · 12ms": a table
+// under a page says "3 行" in what is left, a longer one has the count go
+// first as it did; transposed it is the same bar (§7.8「查询条」, F19.4).
+func TestGoldenQueryBarUnderAPage(t *testing.T) {
+	var out []string
+	for _, turn := range []bool{false, true} {
+		for _, rows := range []int{3, 1203} {
+			a := sized(160, 45, "nerd")
+			tab := loadOrders(t, a, min(rows, 60))
+			if rows == 3 {
+				tab.next = false
+			} else {
+				tab.count, tab.counted = int64(rows), countDone
+			}
+			if turn {
+				feed(t, a, "T")
+			}
+			r := a.layout()[a.focused().ID]
+			lines := strings.Split(a.render().String(), "\n")
+			out = append(out, fmt.Sprintf("%d rows, transposed %v", rows, turn), ansi.Cut(lines[r.Min.Y+1], r.Min.X, r.Max.X), ansi.Cut(lines[r.Min.Y+2], r.Min.X, r.Max.X))
+		}
+	}
+	golden.RequireEqual(t, strings.Join(out, "\n")+"\n")
+}
+
 // Transposed, every value is left-aligned, numbers too: a column mixes
 // types (§7.6, F5.7).
 func TestGoldenTableTransposed160x45(t *testing.T) {
@@ -195,7 +220,7 @@ func TestGridFetch(t *testing.T) {
 	table, cols, page := ordersTable(3)
 	a.openTable(a.sess.Conns[0], table)
 	tab := dataOf(a.focused())
-	if a.sess.Conns[0].busy != 1 || !strings.Contains(statusRow(a), " busy · C-c 取消 ") {
+	if a.sess.Conns[0].busy != 1 || !strings.Contains(statusRow(a), " busy ●•• · C-c 取消 ") {
 		t.Fatalf("while fetching: busy %d, status %q", a.sess.Conns[0].busy, statusRow(a))
 	}
 	a.Update(pageMsg{tab: tab, seq: tab.seq - 1, cols: cols, page: page})

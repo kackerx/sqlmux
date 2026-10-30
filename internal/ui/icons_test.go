@@ -77,3 +77,24 @@ func TestCandidateGlyphs(t *testing.T) {
 		t.Errorf("keyword %+q value %+q snippet %+q", NerdIcons.Keyword.Text, NerdIcons.Value.Text, NerdIcons.Snippet.Text)
 	}
 }
+
+// The three dots go round in four frames, each as wide as the others, in
+// ascii too (§7.8「转圈」).
+func TestSpinnerFrames(t *testing.T) {
+	for _, tc := range []struct {
+		ic   *Icons
+		want []string
+	}{
+		{NerdIcons, []string{"●••", "•●•", "••●", "•●•"}},
+		{ASCIIIcons, []string{"o..", ".o.", "..o", ".o."}},
+	} {
+		for n, want := range tc.want {
+			if got := tc.ic.Spinner(n); got != want || tc.ic.Spinner(n+4) != want {
+				t.Errorf("frame %d: %q, want %q", n, got, want)
+			}
+			if Width(want) != 3 {
+				t.Errorf("frame %q is %d wide", want, Width(want))
+			}
+		}
+	}
+}

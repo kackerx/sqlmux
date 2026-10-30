@@ -81,6 +81,10 @@ type QueryBar struct {
 	Chips   []Chip
 	Buttons []ButtonGroup // left to right (§7.8「工具按钮」)
 	Right   string        // "auto · 6000 行 · 12ms"
+	// Keep is Right cut short, "3 行": the last of the second row to give way,
+	// after ORDER, shown when Right does not fit (F19.4). A note stands in
+	// Right's place, and Keep with it.
+	Keep string
 	// Selected is the count of records selected, after the buttons and ahead
 	// of Right, which it does not go with: it gives way by SelectedStay as a
 	// chip or a group does (F10.7).
@@ -304,7 +308,12 @@ func (q QueryBar) Draw(f *Frame, r uv.Rectangle) uv.Position {
 			st.Fg = n.Fg
 		}
 	}
-	if rx := r.Max.X - 1 - Width(right); rx > x {
+	rx := r.Max.X - 1 - Width(right)
+	if k := q.keep(); rx <= x && k != "" {
+		right = k
+		rx = r.Max.X - 1 - Width(right)
+	}
+	if rx > x {
 		f.Text(rx, y, r.Max.X-1, right, st)
 	}
 	return cursor
@@ -339,6 +348,14 @@ func (q QueryBar) drawChip(f *Frame, c Chip, cr uv.Rectangle) uv.Position {
 	return cursor
 }
 
+// keep is the text of the second row that stays, none while a note stands.
+func (q QueryBar) keep() string {
+	if q.Note != (Note{}) {
+		return ""
+	}
+	return q.Keep
+}
+
 // shown is how many chips show, which groups of buttons and whether the
 // count selected does, left to right: all that fit, and a note, which goes
 // before them: a whole group, the last chip or the count gives way, the least
@@ -353,6 +370,9 @@ func (q QueryBar) shown(r uv.Rectangle) (chips int, groups []int, sel bool) {
 		need := note
 		if sel {
 			need += Width(q.Selected)
+		}
+		if k := q.keep(); k != "" {
+			need += Width(k) + 1
 		}
 		if q.end(r, chips, groups)+need < r.Max.X-1 {
 			break
