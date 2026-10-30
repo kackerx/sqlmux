@@ -253,6 +253,14 @@ func TestTreeWidth(t *testing.T) {
 	}
 }
 
+func TestTreeFollow(t *testing.T) {
+	for in, want := range map[string]bool{"": false, "[tree]\nfollow = true": true, "[tree]\nfollow = false": false} {
+		if c, err := Parse(in); err != nil || c.TreeFollow != want {
+			t.Errorf("%q: %v %v", in, c.TreeFollow, err)
+		}
+	}
+}
+
 // A key nothing reads, misspelt, is said at the start, with the connection it
 // is in: it is no error (F13.5).
 func TestUnknownKeys(t *testing.T) {

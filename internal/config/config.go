@@ -63,6 +63,9 @@ type Config struct {
 	// TreeWidth is the sidebar's width in columns, borders included, for a
 	// window whose sidebar has not been dragged (§7.8).
 	TreeWidth int
+	// TreeFollow is `[tree] follow`: opening or focusing the sidebar puts its
+	// cursor on the node of the current tab (§7.8, F20.4).
+	TreeFollow bool
 	// GridDesc is `[grid] order = "desc"` and GridTranspose `[grid]
 	// transpose`: what a table opened anew starts with (§14).
 	GridDesc, GridTranspose bool
@@ -171,7 +174,8 @@ func Parse(data string) (*Config, error) {
 			LoadAll   *int    `toml:"load_all"`
 		} `toml:"redis"`
 		Tree struct {
-			Width *int `toml:"width"`
+			Width  *int  `toml:"width"`
+			Follow *bool `toml:"follow"`
 		} `toml:"tree"`
 		Grid struct {
 			FullWidth *int    `toml:"full_width"`
@@ -289,6 +293,9 @@ func Parse(data string) (*Config, error) {
 	}
 	if n := raw.Tree.Width; n != nil { // held to 16 and half the window where it is used, whatever it is
 		c.TreeWidth = *n
+	}
+	if raw.Tree.Follow != nil {
+		c.TreeFollow = *raw.Tree.Follow
 	}
 	if n := raw.Grid.FullWidth; n != nil {
 		if *n <= 0 {
