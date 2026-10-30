@@ -19,7 +19,7 @@ check "一行一条：<c-b> 与 <C-b> 同键、nosuch 没有这个表" eval 'e2e
 check "按钮显示 confirm.yes 的键（默认 y）：「y 知道了」" eval 'e2e_plain | grep -q "y 知道了"'
 key Enter
 check "↵ 关掉浮层，界面正常（树、①、②、状态栏都在）" eval '! overlay && running' 2>/dev/null || { overlay && echo "  overlay still open"; false; }
-check "关掉后键位正常：SPC b 还能收起树（没有被冲突的行影响）" eval 'e2e_keys Space; e2e_type b; sleep 0.4; [[ -z $(geom 0) ]]'
+check "关掉后键位正常：SPC b 还能收起树（没有被冲突的行影响；F19.5 起第一个聚焦、第二个收起）" eval 'e2e_keys Space; e2e_type b; sleep 0.4; e2e_keys Space; e2e_type b; sleep 0.4; [[ -z $(geom 0) ]]'
 e2e_stop; start -K "$D/conflict.toml"; sleep 1; key y
 check "y 也能关" eval '! overlay'
 e2e_stop; start -K "$D/conflict.toml"; sleep 1; key Escape
@@ -41,8 +41,8 @@ key Escape
 e2e_keys C-o; sleep 0.6
 check "命令面板：C-o 打开，C-p 解绑了不再打开" eval 'is_open && { key Escape; e2e_keys C-p; sleep 0.4; ! is_open; }'
 key Escape
-e2e_keys C-g; sleep 0.4
-check "C-g 收起树（新键生效）" eval '[[ -z $(geom 0) ]]'
+e2e_keys C-g; sleep 0.4; e2e_keys C-g; sleep 0.4   # F19.5：第一个聚焦树，第二个收起
+check "C-g 收起树（新键生效，两次）" eval '[[ -z $(geom 0) ]]'
 e2e_keys C-g; sleep 0.4
 e2e_keys C-c; sleep 0.4
 check "C-c 解绑后没有「再按一次」提示" eval '! screen_has "再按一次"'

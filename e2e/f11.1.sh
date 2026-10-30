@@ -19,7 +19,7 @@ go build -buildvcs=false -o "$D/dev0" ./cmd/sqlmux
 check "没注入、没有 vcs 信息（-buildvcs=false）：sqlmux dev，不打 (none, unknown)（F17.5）" eval '[[ $("$D/dev0" --version) == "sqlmux dev" ]] || { "$D/dev0" --version; false; }'
 go build -o "$D/dev" ./cmd/sqlmux
 check "没注入、在 git 检出里 go build：版本是 Go 记下的伪版本（v…-<时间>-<12 位 sha>），括号里是 vcs 的 revision 前 7 位和提交时间（F17.5），没有 none / unknown" eval 'got=$("$D/dev" --version); r12=$(git rev-parse --short=12 HEAD); r7=$(git rev-parse HEAD | cut -c1-7); [[ $got =~ ^sqlmux\ v[^\ ]+-$r12\ \($r7,\ [0-9T:-]+Z\)$ ]] || { echo "  $got"; false; }'
-check "参数多了：退出码 1，usage 里带 [--version]" eval '"$D/inj" a b >/dev/null 2>"$D/err"; [[ $? -eq 1 ]] && grep -qF "usage: sqlmux [--version] [--layout name-or-path] [connection | file | url]" "$D/err"'
+check "参数多了：退出码 1，usage 里带 [--version]" eval '"$D/inj" a b >/dev/null 2>"$D/err"; [[ $? -eq 1 ]] && grep -qF "usage: sqlmux [--version] [--layout name-or-path] [--table [schema.]table [--where condition]] [connection | file | url]" "$D/err"'
 check "README：Releases 页和 checksums.txt（oss 重写 README 后不再写压缩包名）" eval 'grep -q "releases" README.md && grep -q "checksums.txt" README.md'
 mkdir -p "$D/h" "$D/c" "$D/s" "$D/d"
 check "--version 不读配置、不建文件：空的 HOME / XDG 目录里跑完仍是空的（没有 connections.toml 也照常输出）" eval 'HOME=$D/h XDG_CONFIG_HOME=$D/c XDG_STATE_HOME=$D/s XDG_DATA_HOME=$D/d "$D/inj" --version >/dev/null && [[ -z $(find "$D/h" "$D/c" "$D/s" "$D/d" -mindepth 1) ]]'
