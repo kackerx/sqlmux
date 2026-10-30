@@ -59,6 +59,7 @@
 theme        = "tokyonight-storm"
 icons        = "nerd"            # nerd | ascii
 vim          = true              # false 时 query / WHERE 是普通编辑器，表格、树多一层方向键（§6.9，M6）
+clipboard    = ""                # M20 F20.5："unnamedplus" 时编辑器里不带寄存器的 y / d / p 同时走系统剪贴板，同 nvim（§11「寄存器」）
 language     = "en"              # en | zh，界面文案的语言（M6；默认 en，M7 F7.6）
 timeoutlen   = 1000
 result_height = 0.4              # 底部结果区默认所占的高度比例
@@ -74,6 +75,7 @@ tips         = true              # 状态栏里一条特性提示，5 分钟换�
 
 [tree]                           # M8 F8.22
 width        = 32                # 侧栏宽度（列，含边框）
+follow       = false             # M20 F20.4：打开 / 聚焦侧栏时光标跳到当前 tab 的节点（F3.29 的行为）；false 时光标不动
 
 [grid]                           # M8 F8.5 / F8.8
 full_width   = 22                # 期望宽度不超过它的列不收缩（22 放得下带整点时区的 timestamptz）
@@ -89,6 +91,7 @@ hints = true                     # M15 F15.3：query 里光标处的值是哪个
 delimiter = ":"                  # 树里按它切键名成命名空间（§7.8）；连接里的 delimiter 盖过它
 scan_keys = 10000                # 每个 db 的扫描预算：SCAN 到这么多键就停，节点尾注提示用 / 过滤（§8.7）
 load_all  = 5000                 # hash / set 长度不超过它就一次取全、本地翻页和排序；超过用 HSCAN / SSCAN 只能向前（§8.7）
+index_keys = 100000              # M20 F20.1：键名补全和面板 `@` 用的本地索引最多存这么多个键（§9.8）
 ```
 
 ```toml
