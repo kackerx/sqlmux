@@ -104,6 +104,13 @@ set_clip "ZZ"; key '$'; key p; sleep 0.5
 check "unnamedplus：WHERE 里 p 贴系统剪贴板的内容（ZZ）" eval '[[ $(where_in) == "abc defZZ"* ]] || { echo "  WHERE: [$(where_in)]"; false; }'
 key Escape; key Escape
 
+# ---- 值编辑器里同样（t_order 第 1 行的 user_id 格，值 2，只读不保存）
+rm -f "$E2E_TMP/clipboard"; key g g; key 0; key l; key e; sleep 0.8
+check "（准备）e 打开 user_id 格的值编辑器浮窗（内容 2）" eval 'e2e_plain | grep -q "user_id · bigint" && e2e_plain | grep -qE "│ +1 2 +│"'
+key y y; sleep 0.5
+check "unnamedplus：值编辑器里 yy 写系统剪贴板（这一行 2）" eval '[[ "$(clip)" == 2 ]]'
+e2e_type ":"; sleep 0.3; e2e_type "q"; key Enter; sleep 0.5
+
 # ---- 没有本地剪贴板工具（-P /bin）：不等 OSC 52，p 直接用无名寄存器
 start -P /bin -c "$D/plus.toml"; key C-l; setsql "$SQL"
 key y y; key j; key p; sleep 0.8
