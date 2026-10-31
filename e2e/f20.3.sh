@@ -18,14 +18,14 @@ mon() { : >"$D/mon.txt"; redis-cli -p "$RPORT" monitor >>"$D/mon.txt" 2>&1 & MON
 unmon() { kill "$MON" 2>/dev/null; wait "$MON" 2>/dev/null; }
 names() { list | sed 's/|.*//' | tr '\n' ';'; }                      # "name  location  label;" per row
 opal() { e2e_keys C-p; sleep 0.4; e2e_type "$1"; sleep 1.2; }          # open the palette with TEXT typed
-wopal() { opal "$1"; wait_for 4 eval '[[ -n $(names) ]]'; }            # the same, and wait for the list (the matching runs in a Cmd)
+wopal() { opal "$1"; wait_for 6 eval 'names | grep -q "Key;"'; sleep 0.3; }   # the same, and wait for keys in the list (the matching runs in a Cmd; the list keeps the last one's till it is done)
 cpal() { e2e_keys Escape; sleep 0.3; }
 ntabs() { e2e_plain | grep -oE "[0-9]:[^ ]* $1" | wc -l | tr -d " "; }          # how many tabs named KEY the screen shows
 
 e2e_start -C "$D/c" "$E2E_BIN"; wait_for 8 flag_is alternate_on 1; sleep 2
 mon
 wopal "@p:employees"
-check "@p:employees：两个键，名称是键名，位置 rd/db0，标签 Key；没有 p:other:1" eval '[[ $(names) == "p:employees:1  rd/db0  Key;p:employees:2  rd/db0  Key;" ]]' || names
+check "@p:employees：两个键，名称是键名，位置 rd/db0，标签 Key；没有 p:other:1（同分的先后随 SCAN 的顺序，不比）" eval '[[ $(names | tr ";" "\n" | sort | tr "\n" ";") == "p:employees:1  rd/db0  Key;p:employees:2  rd/db0  Key;" ]]' || names
 cpal; wopal "@pemp1"
 check "@pemp1：模糊匹配，p:employees:1 在里面" eval 'names | grep -q "p:employees:1  rd/db0  Key"' || names
 cpal; wopal "kaixuan"
