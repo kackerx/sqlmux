@@ -36,6 +36,15 @@ cpal
 unmon
 check "线路：打开面板、敲了几个查询，服务端没收到 SCAN / KEYS（面板自己不扫库）" eval '! grep -aqiE "\"(scan|keys)\"" "$D/mon.txt"' || grep -aiE '"(scan|keys)"' "$D/mon.txt" | head -3
 
+# ---- 没打字不列键；反向词 ! 每敲一个字重算（!pl 再 !pla：含 pl 但不含 pla 的键要出现）
+opal "@"
+check "@ 后什么都没打：不列键（只有 query 等）" eval '! names | grep -q "Key;"' || names
+cpal; opal "@!pl"; wait_for 4 eval 'names | grep -q "p:other:1  rd/db0  Key"'
+check "@!pl：含 pl 的键（p:employees:*）不在，不含 pl 的 p:other:1、team:kaixuan:x 在" eval 'names | grep -q "p:other:1  rd/db0  Key" && names | grep -q "team:kaixuan:x" && ! names | grep -q "p:employees"' || names
+e2e_type a; wait_for 4 eval 'names | grep -q "p:employees:1  rd/db0  Key"'
+check "再打一个 a（!pla）：含 pl 但不含 pla 的 p:employees:1、:2 出现了（不是在上一次 !pl 的结果里继续缩小）" eval 'names | grep -q "p:employees:1  rd/db0  Key" && names | grep -q "p:employees:2  rd/db0  Key"' || names
+cpal
+
 # ---- ↵：开键 tab
 wopal "@p:employees:2"; key Enter; sleep 1
 check "↵：当前 data pane（①）里开了 p:employees:2 的键 tab，面板关了" eval 'e2e_plain | head -3 | grep -q "p:employees:2" && closed' || { e2e_plain | sed -n 1,4p | cut -c30-150; }
@@ -44,6 +53,12 @@ wopal "@p:employees:2"; key Enter; sleep 1
 check "再来一次同一个键：聚焦已开的 tab，不再开第二个（tab 栏里还是一个 p:employees:2）" eval '[[ $(ntabs p:employees:2) == 1 ]] && closed' || { e2e_plain | sed -n 1,4p | cut -c30-150; }
 wopal "@p:employees:1"; key Enter; sleep 1
 check "另一个键：同一个 pane 里再开一个 tab（两个：p:employees:1、p:employees:2）" eval '[[ $(ntabs p:employees:1) == 1 && $(ntabs p:employees:2) == 1 ]]'
+
+ty=$(e2e_plain | awk '/[0-9]:[^ ]* p:employees:1/ { print NR; exit }')
+check "引导页：①最初是空的引导页，选键后键 tab 开在它上面（替换）：tab 栏是 1: p:employees:2 和 2: p:employees:1 两个，没有留下第三个空的" eval '[[ -n $ty ]] && [[ $(e2e_text 36 97 "$ty" | grep -oE "[0-9]:" | wc -l | tr -d " ") == 2 ]]' || e2e_text 36 97 "$ty"
+opal ""
+check "选过的键不进「最近」：空输入的面板列表里没有键（Key 标签）" eval '! list | grep -q "  Key|"' || list | head
+cpal
 
 # ---- 树读过的 db 才有：展开树上的 db1，它的键就在 @ 里了
 key C-h; sleep 0.3
