@@ -102,14 +102,24 @@ func (ix *keyIndex) narrowed(partial string) []candidate {
 	return ix.cands
 }
 
-// remember keeps what partial matched, the keys among items, for the next key typed.
+// remember keeps what partial matched, the keys among items, for the next key typed:
+// in the order of the names, as every match is of the names whole, so that what ties
+// is ordered the same whichever way it was typed.
 func (ix *keyIndex) remember(partial string, items []candidate) {
-	ix.last.pattern, ix.last.cands = strings.ToLower(partial), ix.last.cands[:0]
+	set := make(map[string]struct{}, len(items))
 	for _, it := range items {
 		if it.kind == kindKey {
-			ix.last.cands = append(ix.last.cands, it)
+			set[it.label] = struct{}{}
 		}
 	}
+	src := ix.narrowed(partial) // what it was matched among, in name order
+	kept := make([]candidate, 0, len(set))
+	for _, cd := range src {
+		if _, ok := set[cd.label]; ok {
+			kept = append(kept, cd)
+		}
+	}
+	ix.last.pattern, ix.last.cands = strings.ToLower(partial), kept
 }
 
 // startIndex starts the index of c's db, once, unless there is one or will not

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"slices"
 	"strings"
 	"testing"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db/redis"
+	"github.com/kackerx/sqlmux/internal/ui"
 )
 
 // keyConsole is a console of a Redis connection whose db has names, indexed.
@@ -259,5 +261,94 @@ func TestKeyIndexNarrows(t *testing.T) {
 	}
 	if len(conn.index.narrowed("ser_1")) != len(conn.index.cands) || len(conn.index.narrowed("u")) != len(conn.index.cands) {
 		t.Error("what does not extend it does not start from its matches")
+	}
+}
+
+// Names that tie in the match (the same score and length) come in the order of the
+// names, typed on from the last key or all at once (F20.1).
+func TestKeyIndexNarrowKeepsTies(t *testing.T) {
+	r := rand.New(rand.NewPCG(1, 2))
+	seen := map[string]bool{}
+	var names []string
+	for len(names) < 240 {
+		n := make([]byte, 4+r.IntN(3))
+		for i := range n {
+			n[i] = "ab_"[r.IntN(3)]
+		}
+		if !seen[string(n)] {
+			seen[string(n)] = true
+			names = append(names, string(n))
+		}
+	}
+	a, c, conn := keyConsole(t, names...)
+	for _, seq := range [][]string{{"b", "ba"}, {"a", "ab", "ab_"}, {"_", "_a", "_ab"}, {"ba", "baa"}} {
+		var got []string
+		for _, text := range seq {
+			got = typedAt(t, a, c, "get "+text, false)
+		}
+		conn.index.last.pattern = ""
+		if want := typedAt(t, a, c, "get "+seq[len(seq)-1], false); !slices.Equal(got, want) {
+			t.Errorf("%v: typed on %v, at once %v", seq, got, want)
+		}
+	}
+}
+
+// An index that is done while a key is being typed changes the open list to the
+// matches in it, not from the next key (§9.8, F20.1).
+func TestKeyIndexDoneRefreshesTheList(t *testing.T) {
+	a, c, conn := keyConsole(t)
+	conn.index = &keyIndex{started: true, seen: map[string]bool{}} // being built
+	conn.hints = map[string][]string{"keys\x00exp": {"exp:prefix"}}
+	c.ed.Load("get exp")
+	feed(t, a, "A")
+	a.queryComplete(c, false)
+	if c.comp == nil || c.comp.items[0].label != "exp:prefix" {
+		t.Fatalf("by the prefix till the index is done: %+v", c.comp)
+	}
+	a.gotIndex(indexMsg{conn: conn, ix: conn.index, names: []string{"i18n:expert:1", "other"}, total: 2})
+	var got []string
+	for _, it := range c.comp.items {
+		got = append(got, it.label)
+	}
+	if !slices.Equal(got, []string{"i18n:expert:1"}) {
+		t.Errorf("the open list after the index: %v", got)
+	}
+}
+
+// remember keeps the keys of a list and not the tokens that stood among them; an
+// index of a db that is not connected is not started (§9.8, F20.1).
+func TestKeyIndexRememberAndStart(t *testing.T) {
+	_, c, conn := keyConsole(t, "NX", "a:1", "a:2") // a key named as a token
+	ix := conn.index
+	ix.remember("a", []candidate{{label: "NX", kind: kindKeyword}, {label: "a:2", kind: kindKey}})
+	if len(ix.last.cands) != 1 || ix.last.cands[0].label != "a:2" {
+		t.Errorf("remembered %+v", ix.last.cands)
+	}
+	a := &App{indexKeys: 10}
+	conn.index = nil
+	conn.State = connConnecting
+	if cmd := a.startIndex(conn); cmd != nil || conn.index != nil {
+		t.Error("an index of a connection that is connecting is started")
+	}
+	_ = c
+}
+
+// The list says under it how many of the db the index has, in a row of the box of
+// its own: the items are not one fewer for it (F20.1).
+func TestKeyIndexFootHasItsRow(t *testing.T) {
+	var names []string
+	for i := range 20 {
+		names = append(names, fmt.Sprintf("key:%02d", i))
+	}
+	a, c, conn := keyConsole(t, names...)
+	conn.index.capped, conn.index.total = true, 99
+	feed(t, a, "i")
+	c.ed.Load("get ke")
+	feed(t, a, "A")
+	a.queryComplete(c, false)
+	screen := a.render().String()
+	rows := strings.Count(screen, "key:")
+	if !strings.Contains(screen, "已索引 20 / 共 99 键") || rows != ui.CompleteRows {
+		t.Errorf("%d key rows, foot shown %v:\n%s", rows, strings.Contains(screen, "已索引"), screen)
 	}
 }
