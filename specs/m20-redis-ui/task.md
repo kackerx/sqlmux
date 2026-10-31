@@ -5,7 +5,7 @@
 - **范围**：§9.8「键名的模糊补全」、§7.8「Redis 的树」（过滤高亮）、§12「Redis 键」、§7.8「`tree.toggle`」和 §6 的 `SPC b`（树光标）、§11「寄存器」（`clipboard`）、§7.3 主题 token `border` / `border_focus` / `gap` 和内置主题、§7.8「整体布局」、§14（`index_keys`、`[tree] follow`、`clipboard`）。都已写进各章（2026-10-31）。
 - **依赖**：M19 完成（v0.8.0）。
 - **完成标准**：四个节点全过；完整回归绿；用户体验验收后 worker 打 `m20` 和 `v0.9.0`，照 AGENTS.md 两步推送。
-- **审查节点和分工**（AGENTS.md「并行开发」）：1 = F20.1；2 = F20.2 + F20.3 —— 这两个节点是 worker 的，在 `main` 上做（三条都是 Redis，F20.3 依赖 F20.1 的索引）。3 = F20.4 + F20.5；4 = F20.6 + F20.7 —— **这两个节点由 `sqlmux-fullstack-dev-2` 在 `/Users/ctw/proj/sqlmux-dev2` 的分支 `f20-ui` 上做**，从决策者起这份清单的那个 commit 拉；节点 3 过了就由 worker `merge --no-ff` 进 `main`，节点 4 同样，dev-2 接着在合过之后的 `main` 上 `merge main` 继续。边界：`internal/sqlkit` 的匹配器、`internal/db/redis`、Redis 的树和补全、面板归 worker；`internal/editor`、主题（`internal/ui/theme.go` 和内置主题文件）、布局的间隙、树光标归 dev-2。两边都会往 config 的结构里加字段（`[redis] index_keys` 是 worker 的，`[tree] follow`、`clipboard` 是 dev-2 的），各加各的、不改对方的；golden 两边都会动（F20.6 会改几乎所有 golden），合入照 AGENTS.md 重新生成。
+- **审查节点和分工**（AGENTS.md「并行开发」）：1 = F20.1；2 = F20.2 + F20.3；5 = F20.8（用户 2026-10-31 加的增量索引和后台匹配，排在节点 2 之后）—— 这三个节点是 worker 的，在 `main` 上做（三条都是 Redis，F20.3 依赖 F20.1 的索引）。3 = F20.4 + F20.5；4 = F20.6 + F20.7 —— **这两个节点由 `sqlmux-fullstack-dev-2` 在 `/Users/ctw/proj/sqlmux-dev2` 的分支 `f20-ui` 上做**，从决策者起这份清单的那个 commit 拉；节点 3 过了就由 worker `merge --no-ff` 进 `main`，节点 4 同样，dev-2 接着在合过之后的 `main` 上 `merge main` 继续。边界：`internal/sqlkit` 的匹配器、`internal/db/redis`、Redis 的树和补全、面板归 worker；`internal/editor`、主题（`internal/ui/theme.go` 和内置主题文件）、布局的间隙、树光标归 dev-2。两边都会往 config 的结构里加字段（`[redis] index_keys` 是 worker 的，`[tree] follow`、`clipboard` 是 dev-2 的），各加各的、不改对方的；golden 两边都会动（F20.6 会改几乎所有 golden），合入照 AGENTS.md 重新生成。
 - **不做（留候选）**：Redis 树过滤改成模糊（仍是服务端子串，树要看全库）；索引按键类型分图标（要对每个键发 `TYPE`）；exec 连接的索引；`border_focus` 以外的按状态配边框样式（聚焦用粗线、未聚焦用细线）；Windows 上的剪贴板读（照 M18 的工具表，不另做）。M21 的命令行两条和 issue #4 见 plan.md。
 
 ---
@@ -111,3 +111,19 @@
 - [ ] 单测：`theme = "ristretto"` 没有用户文件时用内置的，有时用户文件优先；主题下拉里两个；mutation。
 - [ ] golden：ristretto 的默认布局。
 - [ ] 发版前 oss 在 README / `docs/config.md` 的主题一节补上它和一张截图。
+
+## F20.8 键名索引的增量更新与后台匹配 · 状态：todo
+
+- **依赖**：F20.1、F20.3
+- **涉及**：`internal/app`（Redis 补全、面板、写命令之后）、`internal/db/redis`（`EXISTS`）
+- 用户 2026-10-31：参考 DataGrip / JetBrains 的丝滑；写命令后每次全量重建怕有性能问题，能不能增量。
+
+**开发**（§9.8「索引的增量更新与后台匹配」）
+- [ ] a. 写命令成功后按 DOCS 的键位置取键、一条 `EXISTS` 增量改索引；`FLUSHDB` / `FLUSHALL` 清空；认不出键的才整份重建。替掉 F20.1 里「写命令后丢掉重扫」那一处，不另加第二条路。
+- [ ] b. 整份重建在后台、旧索引照用、建好一次换上（树上 `R` 也走它）。
+- [ ] c. 补全和面板 `@` 的匹配放进 Cmd，对不可变快照算，带序号丢过期结果，算的时候列表保留上一次的。
+
+**验收**
+- [ ] 单测：`SET` 新键、`DEL`、`RENAME a b`、`SET k v NX`（已存在）、`EXPIRE k 0`、`FLUSHDB` 后索引的内容和发出的 `EXISTS`；`EVAL` 认不出时重建且旧索引在重建期间可用；匹配 Cmd 的过期结果被丢；快照不被增量更新改到；mutation。
+- [ ] 基准：10 万键时 Update 处理一个按键的耗时（匹配不在里面了），送审附数字。
+- [ ] e2e：控制台 `SET m20:new 1` 后马上补全 `m20:n` 出它、没有整库 SCAN（slowproxy 日志里只有一条 EXISTS）；`DEL` 后补不出；树上 `R` 期间补全照常有结果。
