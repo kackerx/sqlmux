@@ -51,14 +51,18 @@ check "fntfp 的五个字母是 match 色（各段的首字母 f n t f p）" eva
 unmon
 check "线路：树读全了的 db，第一次补全起到敲完这几个补全，一条 SCAN 都没发（用树的键、不再每个前缀 SCAN）" eval '(( $(scans) == 0 )) || { grep -a scan "$D/mon.txt" | head -3; false; }'
 
-# ---- 写命令丢掉索引，重建
+# ---- 树上 R 丢掉索引重建（写命令后的更新方式 F20.8 改了，那边测）
 rc set ext:expert:x v >/dev/null
 typed "SMEMBERS expert"
 check "别处新建的键（不经过控制台）：索引没重建，补全里还没有 ext:expert:x" eval '! screen_has ext:expert:x'
 typed "SET zzz 1"; key Escape; key Enter; sleep 1.5
 check "（准备）SET zzz 1 在控制台跑了" eval '[[ $(rc get zzz) == 1 ]]'
+typed "GET zz"; sleep 1.5; typed "GET zz"
+check "控制台跑过写命令：补全里有新键 zzz（F20.1 写命令后重建；F20.8 起是增量更新，这条两种都成立）" eval 'screen_has zzz' || rows
+# 树上对这个 db 按 R：丢掉重建，别处写的 ext:expert:x 才进补全
+key C-h; y=$(e2e_plain | awk 'NR > 3 && index(substr($0, 1, 34), "db0") { print NR; exit }'); x=$(e2e_find db0 "$y" | cut -d' ' -f1); e2e_click "$x" "$y"; sleep 0.5; key R; sleep 2; key C-l                                   # 树 → ①；typed 再 C-l 到 ② 的控制台
 typed "SMEMBERS expert"; sleep 1.5; typed "SMEMBERS expert"
-check "控制台跑过写命令：索引丢掉重建，补全里有 ext:expert:x 了" eval 'screen_has ext:expert:x && screen_has i18n_agent:expert:zh' || rows
+check "树上对 db0 按 R：索引重建，补全里有 ext:expert:x 了" eval 'screen_has ext:expert:x && screen_has i18n_agent:expert:zh' || rows
 
 # ---- 截断：index_keys = 5000，db 里 12010 个键
 rc flushall >/dev/null; redis_big 0; for k in i18n:hello i18n_agent:expert:zh user:1 user:2 order:100; do rc set "$k" v >/dev/null; done
@@ -66,6 +70,7 @@ check "（准备）db0 有 12006 个键" eval '[[ $(rc dbsize) == 12006 ]]'
 sstart "$D/c5"; mon
 typed "SMEMBERS bulk:1"; sleep 2; n1=$(scans); typed "SMEMBERS bulk:1"; n2=$(scans)
 check "index_keys = 5000：补全框底部写「已索引 5000 / 共 12006 键」" eval 'screen_has "已索引 5000 / 共 12006 键"' || e2e_plain | sed -n 1,16p | cut -c30-165
+check "底部那一行是 dim 色（#565f89）" eval 'y=$(e2e_plain | awk "/已索引 5000/ { print NR; exit }"); x=$(e2e_find "已索引" "$y" | cut -d" " -f1); [[ -n $x ]] && [[ $(e2e_style "$x" "$y") == *"fg=#565f89"* ]] || { echo "  style: $(e2e_style "$x" "$y")"; false; }'
 check "截断后仍补出 bulk:1* 的候选（在已索引的 5000 个里匹配）" eval 'screen_has bulk:1'
 unmon
 check "线路：树被 scan_keys 截断了，索引自己 SCAN：每批 SCAN 0… MATCH * COUNT 1000，5000 个封顶 = 5 批；建好后再敲一遍没有新的 SCAN" eval 'n=$(grep -ac "\"match\" \"\*\" \"count\" \"1000\"" "$D/mon.txt"); [[ $n == 5 && $n1 == $n2 ]] || { echo "  index batches: $n, scans $n1 -> $n2"; grep -a scan "$D/mon.txt" | head -9; false; }'
