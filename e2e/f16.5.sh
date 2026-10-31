@@ -60,7 +60,7 @@ check "HGET hash:user n：候选是字段 name，右边写「字段」（键已�
 typed "HDEL hash:user "; key C-n; sleep 1
 check "HDEL hash:user ␣ C-n：四个字段 age email meta name" eval 'screen_has age && screen_has email && screen_has meta && screen_has name' || e2e_plain | sed -n 1,12p | cut -c34-165
 kill $MON 2>/dev/null; wait $MON 2>/dev/null
-check "服务端看到的：键名补全是 SCAN 0 MATCH str:p* COUNT <n>（1000，docs e1c5016），没有 KEYS；字段补全是 HKEYS hash:user" eval 'grep -qiE "\"scan\" \"[0-9]*\" \"match\" \"str:p\\*\" \"count\" \"[0-9]+\"" "$D/mon.txt" && ! grep -qi "\"keys\"" "$D/mon.txt" && grep -qi "\"hkeys\" \"hash:user\"" "$D/mon.txt"' || { grep -ai "scan\|keys" "$D/mon.txt" | head -5; }
+check "服务端看到的（F20.1）：键名补全不再每个前缀发 SCAN MATCH str:p*、没有 KEYS（树读全了的 db 直接用树的键）；字段补全是 HKEYS hash:user" eval '! grep -qiE "\"scan\".*\"match\" \"str:p" "$D/mon.txt" && ! grep -qi "\"keys\"" "$D/mon.txt" && grep -qi "\"hkeys\" \"hash:user\"" "$D/mon.txt"' || { grep -ai "scan\|keys" "$D/mon.txt" | head -5; }
 # 写命令之后键名补全看得到新键（缓存在写命令后清掉）
 reseed; sstart rd
 typed "GET zznew"

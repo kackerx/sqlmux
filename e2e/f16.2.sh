@@ -134,10 +134,10 @@ check "连接节点上右键：Redis 连接也有 编辑… / 删除…（F18.14
 key Escape; sleep 0.3
 quit_app; _e2e_kill
 
-# ---- 命令面板的「表」范围在 Redis 连接上不列键
+# ---- 命令面板的「表」范围在 Redis 连接上列键（F20.3 起：树读全了的 db 的键，位置 rd/db0，标签 Key）
 sstart rd
-pal "@plain"; sleep 0.5
-check "面板 @plain：Redis 连接上这个范围不列键（屏幕上除了输入行没有别的 plain）" eval '[[ $(e2e_plain | grep -c plain) == 1 ]]' || e2e_plain | grep -n plain
+pal "@plain"; sleep 1
+check "面板 @plain：Redis 连接上这个范围列键：str:plain（位置 rd/db0，标签 Key），set:binary 的成员 plain 不算（只列键名）" eval 'e2e_plain | grep -qE "str:plain +rd/db0 +Key" && [[ $(e2e_plain | grep -c "rd/db0") == 1 ]]' || e2e_plain | grep -n plain
 key Escape; sleep 0.3
 quit_app; _e2e_kill
 
