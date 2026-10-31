@@ -111,6 +111,19 @@ func TestPaletteRedisKeys(t *testing.T) {
 	feed(t, a, "<Esc><Esc>")
 }
 
+// With few names the palette matches them in place: nothing is asked of the
+// background (F20.8).
+func TestPaletteKeysFewAreMatchedInPlace(t *testing.T) {
+	a, _ := keyPalette(t, "")
+	a.openPalette("@employees") // no frame drawn: the list is not made yet
+	if cmd := a.keyListCmd(); cmd != nil {
+		t.Error("the background is asked for a few names")
+	}
+	if len(keyRows(a)) != 2 {
+		t.Errorf("%d keys listed in place", len(keyRows(a)))
+	}
+}
+
 // ↵ on a key opens its key tab in the data pane, and on one that is open focuses it;
 // it is kept among the recent picks; the preview is empty (§12, F20.3).
 func TestPaletteRedisKeyEnter(t *testing.T) {
@@ -219,6 +232,9 @@ func TestPaletteRedisKeysNarrow(t *testing.T) {
 // eleven times (F20.3): the first one makes the list of keys and matches it, the
 // next ones go on from the last match. Past 30ms for the first, to say in the review.
 func BenchmarkPaletteRedisKeys(b *testing.B) {
+	was := matchInline
+	matchInline = 1 << 30 // in place: it is the match that is timed, which the program does in the background
+	defer func() { matchInline = was }()
 	var names []string
 	for i := range 100000 {
 		names = append(names, fmt.Sprintf("app%d:user_%d:session:%d", i%40, i%997, i))

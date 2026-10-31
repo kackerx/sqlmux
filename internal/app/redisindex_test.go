@@ -8,8 +8,11 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db/redis"
+	"github.com/kackerx/sqlmux/internal/keymap"
 	"github.com/kackerx/sqlmux/internal/ui"
 )
 
@@ -64,39 +67,48 @@ func TestKeyIndexMatches(t *testing.T) {
 
 // The index is made a SCAN at a time the first time key names are asked for,
 // the names of one batch twice once, till the cursor comes round; with the db
-// it asks the size; one that came after the index was dropped is nothing, and a
-// batch that failed drops it for the next completion to start again (§9.8).
+// it asks the size; a batch of one that was let go is nothing, and a batch that
+// failed drops the one being made, the index there is staying (§9.8, F20.8).
 func TestKeyIndexBuilds(t *testing.T) {
 	a, c, conn := keyConsole(t)
 	conn.index = nil
-	if _, _, cmds := a.keyCandidates(c, "zz"); conn.index == nil || len(cmds) != 2 || !conn.index.started { // the index's first batch, and the prefix scan till it is
-		t.Fatalf("not started: %+v, %d commands", conn.index, len(cmds))
+	if _, _, cmds := a.keyCandidates(c, "zz"); conn.building == nil || len(cmds) != 2 || !conn.building.started { // the index's first batch, and the prefix scan till it is
+		t.Fatalf("not started: %+v, %d commands", conn.building, len(cmds))
 	}
-	ix := conn.index
+	ix := conn.building
 	if _, _, cmds := a.keyCandidates(c, "zz"); len(cmds) != 1 { // only the prefix's, the index being on its way
 		t.Errorf("started again: %d commands", len(cmds))
 	}
-	if cmd := a.gotIndex(indexMsg{conn: conn, ix: ix, names: []string{"a", "b", "a"}, next: 7, total: 5}); cmd == nil || len(ix.names) != 2 || ix.done || ix.total != 5 || ix.cursor != 7 {
+	if cmd := a.gotIndex(indexMsg{conn: conn, ix: ix, names: []string{"a", "b", "a"}, next: 7, total: 5}); cmd == nil || len(ix.names) != 2 || ix.done || ix.total != 5 || ix.cursor != 7 || conn.index != nil {
 		t.Fatalf("a batch: %+v", ix)
 	}
 	a.gotIndex(indexMsg{conn: conn, ix: ix, names: []string{"b", "c"}})
-	if !ix.done || ix.capped || !slices.Equal(ix.names, []string{"a", "b", "c"}) || len(ix.cands) != 3 || conn.indexed() != ix {
+	if !ix.done || ix.capped || !slices.Equal(ix.names, []string{"a", "b", "c"}) || len(ix.cands) != 3 || conn.indexed() != ix || conn.building != nil {
 		t.Fatalf("done: %+v", ix)
 	}
 	if _, foot, cmds := a.keyCandidates(c, "zz"); foot != "" || len(cmds) != 0 {
 		t.Errorf("an index that has it all: foot %q, %d commands", foot, len(cmds))
 	}
 
-	conn.index = nil
-	a.keyCandidates(c, "q")
-	old := conn.index
-	conn.forgetNames()
-	a.keyCandidates(c, "q")
-	if a.gotIndex(indexMsg{conn: conn, ix: old, names: []string{"x"}, next: 0}); len(old.names) != 0 || conn.index == old {
-		t.Error("a batch of an index that was dropped is taken")
+	// one made again: the index there is used meanwhile, one let go is nothing, a
+	// batch that failed leaves the index and drops the one being made
+	a.rebuildIndex(conn)
+	old := conn.building
+	a.rebuildIndex(conn)
+	if a.gotIndex(indexMsg{conn: conn, ix: old, names: []string{"x"}, next: 0}); len(old.names) != 0 || conn.index != ix {
+		t.Error("a batch of an index that was let go is taken")
 	}
-	if a.gotIndex(indexMsg{conn: conn, ix: conn.index, err: errBoom}); conn.index != nil {
-		t.Error("a failed batch leaves the index")
+	if conn.indexed() != ix || len(ix.names) != 3 {
+		t.Error("the index is not used while another is made")
+	}
+	if a.gotIndex(indexMsg{conn: conn, ix: conn.building, err: errBoom}); conn.building != nil || conn.index != ix {
+		t.Error("a failed batch takes the index with it")
+	}
+	a.rebuildIndex(conn)
+	next := conn.building
+	a.gotIndex(indexMsg{conn: conn, ix: next, names: []string{"n"}})
+	if conn.index != next || conn.building != nil || !slices.Equal(next.names, []string{"n"}) {
+		t.Errorf("the new index takes the place: %+v", conn.index)
 	}
 }
 
@@ -113,7 +125,7 @@ func TestKeyIndexCapped(t *testing.T) {
 	conn.index = nil
 	a.indexKeys = 3
 	a.keyCandidates(c, "q")
-	a.gotIndex(indexMsg{conn: conn, ix: conn.index, names: []string{"a", "b", "c", "d", "e"}, next: 9, total: 12})
+	a.gotIndex(indexMsg{conn: conn, ix: conn.building, names: []string{"a", "b", "c", "d", "e"}, next: 9, total: 12})
 	ix := conn.index
 	if !ix.done || !ix.capped || len(ix.names) != 3 {
 		t.Fatalf("capped: %+v", ix)
@@ -149,9 +161,9 @@ func TestKeyIndexShown(t *testing.T) {
 	}
 }
 
-// The tree's keys are the index when it read the whole db; when the budget
-// stopped it, the index is built. A write the console ran and an R on the db
-// drop it (§9.8).
+// The tree's keys are the index when it read the whole db, and again when R reads it
+// so; when the budget stopped it, the index is built, and an R makes it again in the
+// background, the index there is used till then (§9.8, F20.8).
 func TestKeyIndexOfTheTree(t *testing.T) {
 	a, c, conn := keyConsole(t)
 	conn.index = nil
@@ -169,39 +181,203 @@ func TestKeyIndexOfTheTree(t *testing.T) {
 	if conn.indexed() != nil {
 		t.Error("a tree that stopped at its budget is no index")
 	}
-	if a.startIndex(conn) != nil || conn.index != nil { // and a connection that is a command builds none
+	if a.startIndex(conn) != nil || conn.building != nil { // and a connection that is a command builds none
 		t.Error("an index of an exec connection is built")
 	}
 	conn.Spec.Engine = "redis"
 
-	conn.index = &keyIndex{done: true}
-	conn.forgetHints("GET u:1")
-	if conn.index == nil {
-		t.Error("a read drops the index")
+	// R: a tree that read it all is the index at once; one that did not makes the
+	// index there is again behind it; none, none
+	conn.index = &keyIndex{done: true, names: []string{"old"}}
+	conn.scan = nil
+	a.gotKeys(keysMsg{conn: conn, scan: &keyScan{keys: []redis.KeyInfo{{Name: "u:1"}, {Name: "u:9"}}, total: 2}})
+	if ix := conn.indexed(); ix == nil || !slices.Equal(ix.names, []string{"u:1", "u:9"}) || conn.building != nil {
+		t.Errorf("R with a whole tree: %+v", conn.index)
 	}
-	conn.forgetHints("SET u:3 1")
-	if conn.index != nil {
-		t.Error("a write keeps the index")
+	old := conn.index
+	if cmd := a.refreshIndex(conn); cmd != nil && conn.index == old {
+		t.Error("a tree that read it all is not the index anew")
 	}
-	conn.index = &keyIndex{done: true}
-	a.gotKeys(keysMsg{conn: conn, scan: &keyScan{}})
-	if conn.index != nil {
-		t.Error("R on the db keeps the index")
+	conn.index, conn.building = old, nil
+	if cmd := a.gotKeys(keysMsg{conn: conn, scan: &keyScan{keys: []redis.KeyInfo{{Name: "x"}}, total: 9, more: true}}); cmd == nil || conn.index != old || conn.building == nil || conn.building == old {
+		t.Errorf("R with a tree that stopped: index kept %v, building %v", conn.index == old, conn.building != nil)
+	}
+	conn.index, conn.building = nil, nil
+	a.gotKeys(keysMsg{conn: conn, scan: &keyScan{total: 9, more: true}})
+	if conn.index != nil || conn.building != nil {
+		t.Errorf("R with no index to make again makes one: %+v %+v", conn.index, conn.building)
+	}
+	// a tree that read it all while an index is being made: the tree's keys are the
+	// index and what was being made is let go
+	conn.building = &keyIndex{seen: map[string]bool{}}
+	let := conn.building
+	a.gotKeys(keysMsg{conn: conn, scan: &keyScan{keys: []redis.KeyInfo{{Name: "u:1"}}, total: 1}})
+	if conn.building != nil || conn.index == nil || len(conn.index.names) != 1 {
+		t.Errorf("a whole tree while one is made: index %v, building %v", conn.index, conn.building)
+	}
+	if a.gotIndex(indexMsg{conn: conn, ix: let, names: []string{"x", "y"}}); len(conn.index.names) != 1 {
+		t.Error("the batches of the one that was let go are taken")
+	}
+}
+
+// writeDocs are the docs of some commands with keys, as COMMAND DOCS has them.
+func writeDocs() redis.Docs {
+	key := redis.Arg{Name: "key", Type: "key"}
+	val := redis.Arg{Name: "value", Type: "string"}
+	return redis.Docs{
+		"set":     {Args: []redis.Arg{key, val, {Name: "condition", Type: "oneof", Optional: true, Args: []redis.Arg{{Name: "nx", Type: "pure-token", Token: "NX"}, {Name: "xx", Type: "pure-token", Token: "XX"}}}}},
+		"del":     {Args: []redis.Arg{{Name: "key", Type: "key", Multiple: true}}},
+		"rename":  {Args: []redis.Arg{{Name: "key", Type: "key"}, {Name: "newkey", Type: "key"}}},
+		"expire":  {Args: []redis.Arg{key, {Name: "seconds", Type: "integer"}}},
+		"mset":    {Args: []redis.Arg{{Name: "data", Type: "block", Multiple: true, Args: []redis.Arg{key, val}}}},
+		"get":     {Args: []redis.Arg{key}},
+		"eval":    {Args: []redis.Arg{{Name: "script", Type: "string"}, {Name: "numkeys", Type: "integer"}, {Name: "key", Type: "key", Optional: true, Multiple: true}}},
+		"flushdb": {},
+		"exec":    {},
+		"select":  {Args: []redis.Arg{{Name: "index", Type: "integer"}}},
+	}
+}
+
+// What the server's docs say are the keys of a command: the ones a write may make or
+// take away; a command that counts its keys first, or is not in the docs, has none
+// that can be told (§9.8, F20.8).
+func TestWriteKeys(t *testing.T) {
+	_, _, conn := keyConsole(t)
+	conn.docs = writeDocs()
+	for _, tc := range []struct {
+		line  string
+		keys  []string
+		known bool
+	}{
+		{"SET new 1", []string{"new"}, true},
+		{"set k v NX", []string{"k"}, true},
+		{`SET "a b" 1`, []string{"a b"}, true},
+		{"DEL a b c", []string{"a", "b", "c"}, true},
+		{"RENAME a b", []string{"a", "b"}, true},
+		{"EXPIRE k 0", []string{"k"}, true},
+		{"MSET a 1 b 2", []string{"a", "b"}, true},
+		{"SELECT 3", nil, true},
+		{"EVAL script 1 k", nil, false},
+		{"EXEC", nil, false},
+		{"NOSUCH k", nil, false},
+	} {
+		words, _ := redis.SplitLine(tc.line)
+		keys, known := conn.writeKeys(words)
+		if !slices.Equal(keys, tc.keys) || known != tc.known {
+			t.Errorf("%s: %q %v, want %q %v", tc.line, keys, known, tc.keys, tc.known)
+		}
+	}
+}
+
+// A write that ran changes the index by what the server says of its keys, in one
+// ask; FLUSHDB empties the db's and FLUSHALL every db's of the connection; a
+// command whose keys are not known makes the index again with the old one used
+// meanwhile; an answer for an index that was replaced is nothing, and one that
+// failed makes the index again. The slices an update leaves are new (§9.8, F20.8).
+func TestKeyIndexWrites(t *testing.T) {
+	cmds := someCommands()
+	for _, name := range []string{"del", "rename", "expire", "mset", "eval", "flushdb", "flushall"} {
+		cmds[name] = redis.Command{Flags: []string{"write"}}
+	}
+	a, _, conn := keyConsole(t, "a", "b", "k")
+	conn.docs, conn.cmds = writeDocs(), cmds
+	ix := conn.index
+	names := func() string { return strings.Join(conn.index.names, " ") }
+	step := func(line string, keys []string, found ...bool) {
+		t.Helper()
+		before, beforeC := slices.Clone(ix.names), slices.Clone(ix.cands)
+		snapNames, snapCands := ix.names, ix.cands
+		cmd := a.wrote(conn, line)
+		if cmd == nil {
+			t.Fatalf("%s asks nothing", line)
+		}
+		if got := a.gotDelta(indexDelta{conn: conn, ix: ix, keys: keys, found: found}); got != nil && a.palette == nil {
+			_ = got
+		}
+		if !slices.Equal(snapNames, before) || !slices.EqualFunc(snapCands, beforeC, func(x, y candidate) bool { return x.label == y.label }) {
+			t.Errorf("%s changed the slices a match may be going on over", line)
+		}
+		for i, n := range ix.names {
+			if ix.cands[i].label != n || ix.cands[i].insert != redis.Quote(n) {
+				t.Errorf("%s: name %q has candidate %q", line, n, ix.cands[i].label)
+			}
+		}
+	}
+	gen := ix.gen
+	step("SET new 1", []string{"new"}, true)
+	if names() != "a b k new" || ix.total != 4 || ix.gen != gen+1 {
+		t.Errorf("SET: %s, total %d, gen %d", names(), ix.total, ix.gen)
+	}
+	step("DEL a", []string{"a"}, false)
+	step("RENAME b z", []string{"b", "z"}, false, true)
+	if names() != "k new z" {
+		t.Errorf("DEL, RENAME: %s", names())
+	}
+	step("SET k v NX", []string{"k"}, true) // was there: not twice
+	step("EXPIRE new 0", []string{"new"}, false)
+	if names() != "k z" || ix.total != 2 {
+		t.Errorf("NX, EXPIRE 0: %s, total %d", names(), ix.total)
+	}
+	step("MSET m1 1 m2 2", []string{"m1", "m2"}, true, true)
+	if names() != "k m1 m2 z" {
+		t.Errorf("MSET: %s", names())
+	}
+	if cmd := a.wrote(conn, "GET k"); cmd != nil { // a read changes none
+		t.Error("a read asks")
+	}
+	if cmd := a.wrote(conn, "SELECT 2"); cmd != nil { // no key in it
+		t.Error("a command without a key asks")
 	}
 
-	// after a write the tree's keys are not what the db has: the index is built
-	// again from the server, till R reads the tree again
-	conn.scan = &keyScan{keys: []redis.KeyInfo{{Name: "u:1"}}, total: 1}
-	conn.forgetHints("SET u:9 1")
-	if conn.indexed() != nil {
-		t.Error("the tree of before the write is the index")
+	// the index of a db the tree read whole is made first, so that the new key is in
+	conn.index, conn.scan = nil, &keyScan{keys: []redis.KeyInfo{{Name: "t1"}}, total: 1}
+	if cmd := a.wrote(conn, "SET t2 1"); cmd == nil || conn.index == nil || len(conn.index.names) != 1 {
+		t.Errorf("a write over the tree's keys: %v", conn.index)
 	}
-	if _, _, cmds := a.keyCandidates(c, "u"); conn.index == nil || len(cmds) != 2 {
-		t.Errorf("no index is built after a write: %+v, %d commands", conn.index, len(cmds))
+	conn.index, conn.scan = nil, nil
+	if cmd := a.wrote(conn, "SET t2 1"); cmd != nil { // no index, none to keep: it will be made from the server
+		t.Error("a write with no index asks")
 	}
-	a.gotKeys(keysMsg{conn: conn, scan: &keyScan{keys: []redis.KeyInfo{{Name: "u:1"}, {Name: "u:9"}}, total: 2}})
-	if ix := conn.indexed(); ix == nil || len(ix.names) != 2 {
-		t.Errorf("the tree of after R: %+v", ix)
+
+	// an answer that is no use: the index was replaced; or it failed
+	ix = &keyIndex{done: true, names: []string{"x"}}
+	ix.makeCands()
+	conn.index = ix
+	stale := &keyIndex{done: true}
+	if a.gotDelta(indexDelta{conn: conn, ix: stale, keys: []string{"s"}, found: []bool{true}}); len(ix.names) != 1 || len(stale.names) != 0 {
+		t.Error("an answer for another index is taken")
+	}
+	if cmd := a.gotDelta(indexDelta{conn: conn, ix: ix, keys: []string{"s"}, err: errBoom}); cmd == nil || conn.building == nil || conn.index != ix {
+		t.Errorf("a failed answer: building %v", conn.building)
+	}
+
+	// what is not known: the index is made again, and used meanwhile
+	conn.building = nil
+	if cmd := a.wrote(conn, "EVAL script 1 k"); cmd == nil || conn.building == nil || conn.indexed() != ix || len(ix.names) != 1 {
+		t.Errorf("EVAL: building %v", conn.building)
+	}
+	conn.building = nil
+	if cmd := a.wrote(conn, "EXEC"); cmd == nil || conn.building == nil {
+		t.Error("EXEC does not make the index again")
+	}
+	conn.building = nil
+	if cmd := a.wrote(conn, "NOSUCH k"); cmd == nil || conn.building == nil { // not in the docs, and taken for a write
+		t.Error("a command the server does not list does not make the index again")
+	}
+
+	// FLUSHDB and FLUSHALL
+	conn.Spec.Engine = "redis"
+	other := conn.inDB("1")
+	other.State, other.Spec.Engine = connReady, "redis"
+	other.index = &keyIndex{done: true, names: []string{"o"}}
+	other.index.makeCands()
+	if cmd := a.wrote(conn, "FLUSHDB"); cmd != nil || len(conn.index.names) != 0 || !conn.index.done || len(other.index.names) != 1 {
+		t.Errorf("FLUSHDB: %v, other %v", conn.index.names, other.index.names)
+	}
+	conn.index.names = []string{"again"}
+	conn.building = &keyIndex{}
+	if cmd := a.wrote(conn, "FLUSHALL"); cmd != nil || len(conn.index.names) != 0 || len(other.index.names) != 0 || conn.building != nil {
+		t.Errorf("FLUSHALL: %v, other %v", conn.index.names, other.index.names)
 	}
 }
 
@@ -210,6 +386,9 @@ func TestKeyIndexOfTheTree(t *testing.T) {
 // before matched: the slowest is the first, which looks at all of them; past
 // 30ms the matching wants more than that (§9.8).
 func BenchmarkKeyIndexComplete(b *testing.B) {
+	was := matchInline
+	matchInline = 1 << 30 // in place: it is the match that is timed, which the program does in the background
+	defer func() { matchInline = was }()
 	var names []string
 	for i := range 100000 {
 		names = append(names, fmt.Sprintf("app%d:user_%d:session:%d", i%40, i%997, i))
@@ -297,7 +476,7 @@ func TestKeyIndexNarrowKeepsTies(t *testing.T) {
 // matches in it, not from the next key (§9.8, F20.1).
 func TestKeyIndexDoneRefreshesTheList(t *testing.T) {
 	a, c, conn := keyConsole(t)
-	conn.index = &keyIndex{started: true, seen: map[string]bool{}} // being built
+	conn.index, conn.building = nil, &keyIndex{started: true, seen: map[string]bool{}} // being built
 	conn.hints = map[string][]string{"keys\x00exp": {"exp:prefix"}}
 	c.ed.Load("get exp")
 	feed(t, a, "A")
@@ -305,7 +484,7 @@ func TestKeyIndexDoneRefreshesTheList(t *testing.T) {
 	if c.comp == nil || c.comp.items[0].label != "exp:prefix" {
 		t.Fatalf("by the prefix till the index is done: %+v", c.comp)
 	}
-	a.gotIndex(indexMsg{conn: conn, ix: conn.index, names: []string{"i18n:expert:1", "other"}, total: 2})
+	a.gotIndex(indexMsg{conn: conn, ix: conn.building, names: []string{"i18n:expert:1", "other"}, total: 2})
 	var got []string
 	for _, it := range c.comp.items {
 		got = append(got, it.label)
@@ -320,7 +499,7 @@ func TestKeyIndexDoneRefreshesTheList(t *testing.T) {
 func TestKeyIndexRememberAndStart(t *testing.T) {
 	_, c, conn := keyConsole(t, "NX", "a:1", "a:2") // a key named as a token
 	ix := conn.index
-	ix.remember("a", []candidate{{label: "NX", kind: kindKeyword}, {label: "a:2", kind: kindKey}})
+	ix.remember("a", []candidate{{label: "NX", kind: kindKeyword}, {label: "a:2", kind: kindKey}}, ix.cands)
 	if len(ix.last.cands) != 1 || ix.last.cands[0].label != "a:2" {
 		t.Errorf("remembered %+v", ix.last.cands)
 	}
@@ -350,5 +529,282 @@ func TestKeyIndexFootHasItsRow(t *testing.T) {
 	rows := strings.Count(screen, "key:")
 	if !strings.Contains(screen, "已索引 20 / 共 99 键") || rows != ui.CompleteRows {
 		t.Errorf("%d key rows, foot shown %v:\n%s", rows, strings.Contains(screen, "已索引"), screen)
+	}
+}
+
+// async makes every match of key names go in the background, for the test.
+func async(t *testing.T) {
+	t.Helper()
+	was := matchInline
+	matchInline = 0
+	t.Cleanup(func() { matchInline = was })
+}
+
+// matched runs the commands of a completion and gives the matches among their
+// answers, in the order they were asked.
+func matched(cmd tea.Cmd) (out []matchMsg) {
+	var walk func(c tea.Cmd)
+	walk = func(c tea.Cmd) {
+		if c == nil {
+			return
+		}
+		switch m := c().(type) {
+		case tea.BatchMsg:
+			for _, c := range m {
+				walk(c)
+			}
+		case matchMsg:
+			out = append(out, m)
+		}
+	}
+	walk(cmd)
+	return out
+}
+
+// With many names the match goes in the background over the names as they were, and
+// comes back with the number of its ask: the list stays the last one while it goes
+// on, ↵ in the meantime puts nothing, and an answer that is not the last ask's, or
+// whose place is gone (the text typed on, INSERT left), is dropped (§9.8, F20.8).
+func TestKeyMatchInBackground(t *testing.T) {
+	async(t)
+	a, c, conn := keyConsole(t, "i18n:expert:1", "i18n:expert:2", "user:1", "user:2")
+	c.ed.Load("get ")
+	feed(t, a, "A")
+	typed := func(keys ...string) (ms []matchMsg) { // as the program has them: a key, and what it asks for
+		t.Helper()
+		for _, k := range keys {
+			_, cmd := a.Update(teaKey(keymap.Key(k)))
+			ms = append(ms, matched(cmd)...)
+		}
+		return ms
+	}
+	ms := typed("e", "x", "p")
+	if len(ms) != 3 || !c.matching || c.comp != nil {
+		t.Fatalf("asked: %d matches, matching %v, list %v", len(ms), c.matching, c.comp)
+	}
+	a.Update(ms[0]) // an older ask's
+	if !c.matching || c.comp != nil {
+		t.Fatal("an answer that is not the last ask's is taken")
+	}
+	a.Update(ms[2])
+	if c.matching || c.comp == nil || len(c.comp.items) != 2 || c.comp.items[0].label != "i18n:expert:1" || conn.index.last.pattern != "exp" {
+		t.Fatalf("after the answer: matching %v, %+v, last %q", c.matching, c.comp, conn.index.last.pattern)
+	}
+	first := c.comp
+
+	// the list stays the last one while the next goes on, and ↵ puts nothing in
+	ms = typed("e")
+	if !c.matching || c.comp != first {
+		t.Fatalf("while it goes on: matching %v, the list kept %v", c.matching, c.comp == first)
+	}
+	before := strings.Join(c.ed.Lines(), "\n")
+	if a.queryAccept(c); strings.Join(c.ed.Lines(), "\n") != before || c.comp != first {
+		t.Error("a candidate of the list before is accepted while the next is made")
+	}
+	a.Update(ms[0])
+	if c.matching || c.comp == nil || len(c.comp.items) != 2 {
+		t.Errorf("the answer: %+v", c.comp)
+	}
+
+	// the text changed before it came: it is of no use
+	ms = typed("r")
+	c.ed.Load("get userx")
+	c.comp = first
+	a.Update(ms[0])
+	if c.comp != first {
+		t.Errorf("an answer for text that is gone is taken: %+v", c.comp)
+	}
+	c.ed.Load("get exp") // the same cursor and mode, an edit between (the version of the text)
+	feed(t, a, "A")
+	ms = typed("e")
+	c.ver++
+	c.comp = first
+	a.Update(ms[0])
+	if c.comp != first {
+		t.Error("an answer for an older version of the text is taken")
+	}
+	// INSERT was left
+	c.ed.Load("get exp")
+	feed(t, a, "A")
+	ms = typed("e")
+	feed(t, a, "<Esc>")
+	c.matchFor.cur = c.ed.Cursor() // where it was is where the cursor is: it is the mode alone that is not as it was
+	c.matching, c.comp = true, nil
+	a.Update(ms[0])
+	if c.comp != nil {
+		t.Error("an answer after INSERT was left opens a list")
+	}
+}
+
+// An update of the index is new slices: what a match going on in the background
+// has is the index as it was, and the next ask sees the update (F20.8).
+func TestKeyMatchSnapshot(t *testing.T) {
+	async(t)
+	a, c, conn := keyConsole(t, "k:a", "k:b")
+	c.ed.Load("get k:")
+	feed(t, a, "A")
+	ms := matched(a.queryComplete(c, false))
+	conn.index.update([]string{"k:c"}, nil) // after it was asked, before it ran
+	a.Update(ms[0])
+	var got []string
+	for _, it := range c.comp.items {
+		got = append(got, it.label)
+	}
+	if !slices.Equal(got, []string{"k:a", "k:b"}) {
+		t.Errorf("a match over the names as they were: %v", got)
+	}
+	ms = matched(a.queryComplete(c, false))
+	a.Update(ms[0])
+	if len(c.comp.items) != 3 {
+		t.Errorf("the next ask: %d candidates", len(c.comp.items))
+	}
+	if conn.index.last.pattern != "k:" || len(conn.index.last.cands) != 3 { // and what the stale answer matched was not kept to look among
+		t.Errorf("what is kept to look among: %q, %d", conn.index.last.pattern, len(conn.index.last.cands))
+	}
+}
+
+// The palette's keys with many names are made and matched in the background, over
+// a copy of the last list when the dbs are as they were, and the list is the
+// last one till the answer comes; an answer to an older ask is dropped (F20.8).
+func TestPaletteKeysInBackground(t *testing.T) {
+	async(t)
+	a, conn := keyPalette(t, "@employees")
+	rows := func() (names []string) {
+		for _, r := range keyRows(a) {
+			names = append(names, r.name)
+		}
+		slices.Sort(names)
+		return names
+	}
+	if len(rows()) != 0 {
+		t.Fatalf("matched before the background: %v", rows())
+	}
+	a.palette.keyAsked = "" // what the keys typed asked for went nowhere, as feed drops the commands
+	ask := func() keyListMsg {
+		t.Helper()
+		cmd := a.keyListCmd()
+		if cmd == nil {
+			t.Fatal("nothing asked")
+		}
+		return cmd().(keyListMsg)
+	}
+	first := ask()
+	if again := a.keyListCmd(); again != nil {
+		t.Error("the same query is asked again while it is on its way")
+	}
+	a.Update(first)
+	if got := rows(); !slices.Equal(got, []string{"p:employees:1", "p:employees:2"}) {
+		t.Fatalf("after the answer: %v", got)
+	}
+	if a.keyListCmd() != nil {
+		t.Error("asked for a query that is matched")
+	}
+
+	// the next query goes on from the last one's matches, and the list stays as it was meanwhile
+	a.palette.input.Text = "@employees:2"
+	list := a.palette.keys
+	second := ask()
+	if a.palette.keys != list || len(rows()) != 2 {
+		t.Error("the list changed before the answer")
+	}
+	a.palette.input.Text = "@employees:1"
+	third := ask() // a later ask: the second's answer is no use
+	a.Update(second)
+	if a.palette.keys != list {
+		t.Error("an answer to an older ask is taken")
+	}
+	a.Update(third)
+	if got := rows(); !slices.Equal(got, []string{"p:employees:1"}) {
+		t.Errorf("the last answer: %v", got)
+	}
+	if len(third.list.cand) != 1 || len(third.list.items) != len(list.items) {
+		t.Errorf("not over the same names: %d matched of %d, %d", len(third.list.cand), len(third.list.items), len(list.items))
+	}
+
+	// the dbs read more: made again, not over the old list; the old goes on till it is
+	conn.index.update([]string{"p:employees:7"}, nil)
+	a.palette.input.Text = "@employees"
+	again := ask()
+	if len(again.list.items) != len(list.items)+1 {
+		t.Errorf("the list after the update has %d keys, was %d", len(again.list.items), len(list.items))
+	}
+	if &third.list.items[0] != &list.items[0] { // a copy of the last list, over the same keys, as the dbs were as they were
+		t.Error("the list was made anew, not from a copy of the last one")
+	}
+	// the palette is closed meanwhile
+	closed, before := a.palette, a.palette.keys
+	feed(t, a, "<Esc><Esc>")
+	a.Update(again)
+	if a.palette != nil || closed.keys != before {
+		t.Error("an answer is taken after the palette is closed")
+	}
+}
+
+// BenchmarkKeyIndexKeystroke is what Update spends on a key typed in a console, over
+// an index of index_keys (100000) names: with the match in the background it is the
+// asking only (F20.8).
+func BenchmarkKeyIndexKeystroke(b *testing.B) {
+	var names []string
+	for i := range 100000 {
+		names = append(names, fmt.Sprintf("app%d:user_%d:session:%d", i%40, i%997, i))
+	}
+	for _, inline := range []int{matchInline, 1 << 30} {
+		b.Run(fmt.Sprintf("inline=%d", inline), func(b *testing.B) {
+			was := matchInline
+			matchInline = inline
+			defer func() { matchInline = was }()
+			t := &testing.T{}
+			a, c, _ := keyConsole(t, names...)
+			c.ed.Load("get ")
+			feed(t, a, "A")
+			b.ResetTimer()
+			for b.Loop() {
+				c.ed.Load("get user_")
+				feed(t, a, "A")
+				a.Update(teaKey("1"))
+				a.Update(teaKey("<BS>"))
+			}
+		})
+	}
+}
+
+// What a write adds to the index is found by the next completion, though the one
+// before had matched the names as they were: what was kept to look among goes with
+// the update (F20.8).
+func TestKeyIndexUpdateForgetsWhatWasMatched(t *testing.T) {
+	a, c, conn := keyConsole(t, "k:a", "k:b")
+	if got := typedAt(t, a, c, "get k:", false); len(got) != 2 || conn.index.last.pattern != "k:" {
+		t.Fatalf("before: %v", got)
+	}
+	conn.index.update([]string{"k:c"}, nil)
+	if got := typedAt(t, a, c, "get k:", false); len(got) != 3 {
+		t.Errorf("after the update: %v", got)
+	}
+}
+
+// The quick SQL's key completion goes in the background too: its list is the last
+// one while it goes on, and the answer is its list, moved past the ;, when what was
+// typed is as it was, else nothing (F20.8).
+func TestQuickKeyMatchInBackground(t *testing.T) {
+	async(t)
+	a, _ := keyPalette(t, ";get emp")
+	p := a.palette
+	ms := matched(a.completeSQL())
+	if len(ms) != 1 || !p.hint.matching || p.comp != nil {
+		t.Fatalf("asked: %d, matching %v, list %v", len(ms), p.hint.matching, p.comp)
+	}
+	a.Update(ms[0])
+	if p.comp == nil || p.comp.items[0].label != "p:employees:1" || p.comp.start != 5 { // ";get " is 5 columns
+		t.Fatalf("answer: %+v", p.comp)
+	}
+	first := p.comp
+	ms = matched(a.completeSQL())
+	if p.comp != first {
+		t.Error("the list is not the last one while the next is made")
+	}
+	p.input.Text += "x" // typed on, no completion asked for it yet
+	a.Update(ms[0])
+	if p.comp != first {
+		t.Error("an answer for an input that is gone is taken")
 	}
 }

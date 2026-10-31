@@ -267,8 +267,7 @@ func (a *App) gotKeys(m keysMsg) tea.Cmd {
 	if a.sessionOf(c) == nil {
 		return nil
 	}
-	c.forgetNames() // the keys are not the ones the completion was told of
-	c.treeStale = false
+	c.hints = nil // the keys are not the ones the completion was told of
 	if m.err != nil {
 		a.dropPending(c)
 		return a.showToast(i18n.T("%s：%s", c.label(), m.err))
@@ -282,7 +281,7 @@ func (a *App) gotKeys(m keysMsg) tea.Cmd {
 	}
 	c.scan = m.scan
 	a.clampTree()
-	return tea.Batch(append(a.resolvePending(c), a.findKeys(c))...)
+	return tea.Batch(append(a.resolvePending(c), a.findKeys(c), a.refreshIndex(c))...)
 }
 
 func atoiOr(s string) int { n, _ := strconv.Atoi(s); return n }

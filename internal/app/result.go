@@ -484,7 +484,7 @@ func (a *App) gotRun(m runDone) tea.Cmd {
 			tabs = append(tabs, Tab{Name: r.label(len(tabs) + 1), Result: rt})
 		}
 		ddl = ddl || r.conn.lang().DDL(stmt)
-		r.conn.forgetHints(stmt)
+		cmds = append(cmds, a.wrote(r.conn, stmt))
 	}
 	if m.err != nil {
 		s := r.stmts[len(m.rs)]

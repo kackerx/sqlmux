@@ -11,6 +11,7 @@ import (
 
 	"github.com/kackerx/sqlmux/internal/db"
 	"github.com/kackerx/sqlmux/internal/db/redis"
+	"github.com/kackerx/sqlmux/internal/editor"
 	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/ui"
 )
@@ -71,10 +72,12 @@ func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*
 	c := t.conn
 	text := before // the candidates are ranked against the line up to the cursor
 	start := len(before) - len(partial)
+	t.matchSeq++ // a match going on in the background for an earlier word is of no use now (F20.8)
 	var groups [][]candidate
 	var cmds []tea.Cmd
 	var foot string       // what the list says under it (F20.1)
 	var indexed *keyIndex // the index the keys came from, if one did
+	var big []candidate   // the names of an index too long to be matched here (F20.8)
 	switch doc, _, rest, ok := c.docOf(words); {
 	case len(words) == 0:
 		groups = [][]candidate{c.commandNames()}
@@ -104,7 +107,11 @@ func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*
 			case "keys":
 				found, f, ask := a.keyCandidates(t, partial)
 				foot, cmds, indexed = f, append(cmds, ask...), c.indexed()
-				groups = append(groups, found)
+				if indexed != nil && len(found) > matchInline {
+					big = found
+				} else {
+					groups = append(groups, found)
+				}
 			case "fields":
 				var have bool
 				if names, have = c.hints[kind+"\x00"+arg]; !have {
@@ -118,19 +125,17 @@ func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*
 			}
 		}
 	}
-	comp := ranked(text, len(text), partial, start, groups...)
-	if indexed != nil && partial != "" { // what it matched is where the next key typed looks (F20.1)
-		var items []candidate
-		if comp != nil {
-			items = comp.items
-		}
-		indexed.remember(partial, items)
+	if big != nil { // matched over the names as they are now, which an update does not change, and answered with the number of the ask (F20.8)
+		t.matching = true
+		seq, shift, gen := t.matchSeq, pos-len(before), indexed.gen
+		groups = slices.Clone(groups)
+		cmds = append(cmds, func() tea.Msg {
+			comp := ranked(text, len(text), partial, start, append(groups, big)...)
+			return matchMsg{t: t, seq: seq, comp: comp, ix: indexed, gen: gen, partial: partial, src: big, foot: foot, shift: shift}
+		})
+		return nil, cmds
 	}
-	if comp != nil {
-		comp.start += pos - len(before)
-		comp.items, comp.foot = comp.items[:min(len(comp.items), redisShown)], foot
-	}
-	return comp, cmds
+	return a.finishMatch(ranked(text, len(text), partial, start, groups...), indexed, partial, indexed.narrowedOf(partial), foot, pos-len(before)), cmds
 }
 
 // commandNames are the commands of the server as candidates: those its docs
@@ -148,15 +153,6 @@ func (c *Conn) commandNames() (out []candidate) {
 		}
 	}
 	return out
-}
-
-// forgetHints drops the names the completion was told of when stmt, a command of a
-// Redis connection that ran, writes: they may be others now (§9.8).
-func (c *Conn) forgetHints(stmt string) {
-	if !c.sql() && c.lang().Writes(stmt) {
-		c.forgetNames()
-		c.treeStale = true
-	}
 }
 
 // hintDue is a completion that waited for the typing to stop (§9.8): it asks if
@@ -216,4 +212,78 @@ func (a *App) gotHints(m hintMsg) tea.Cmd {
 	}
 	m.conn.hints[m.kind+"\x00"+m.arg] = m.names
 	return a.recomplete(m.conn)
+}
+
+// finishMatch is comp, the match of partial, kept: what it matched is where the next
+// key typed looks, the best redisShown are the list, with the foot of the index, and
+// the list is moved by shift, the cursor being there (F20.1).
+func (a *App) finishMatch(comp *completion, ix *keyIndex, partial string, src []candidate, foot string, shift int) *completion {
+	if ix != nil && partial != "" {
+		var items []candidate
+		if comp != nil {
+			items = comp.items
+		}
+		ix.remember(partial, items, src)
+	}
+	if comp != nil {
+		comp.start += shift
+		comp.items, comp.foot = comp.items[:min(len(comp.items), redisShown)], foot
+	}
+	return comp
+}
+
+// matchCtx is where a match in the background was asked for, to see that the
+// answer still has a place: a console's cursor and text, or the quick SQL's input
+// and where its text begins in it.
+type matchCtx struct {
+	cur    editor.Pos
+	ver    int
+	manual bool
+	p      *palette
+	input  string
+	shift  int
+}
+
+// matchMsg is a key completion that was matched in the background.
+type matchMsg struct {
+	t       *queryTab
+	seq     int
+	comp    *completion
+	ix      *keyIndex
+	gen     int // the index's as it was matched: an update since makes what it matched out of date
+	partial string
+	src     []candidate
+	foot    string
+	shift   int
+}
+
+// gotMatch makes the list of a match that came back, if it is the last one asked and
+// what it was asked for is as it was: the typing went on, a mode left, a palette
+// closed, and it is of no use (§9.8, F20.8).
+func (a *App) gotMatch(m matchMsg) {
+	t := m.t
+	if m.seq != t.matchSeq || !t.matching {
+		return
+	}
+	t.matching = false
+	ix := m.ix
+	if ix != nil && ix.gen != m.gen {
+		ix = nil // the names changed since: what it matched is not where the next key looks
+	}
+	comp := a.finishMatch(m.comp, ix, m.partial, m.src, m.foot, m.shift)
+	x := t.matchFor
+	if p := x.p; p != nil { // the quick SQL's
+		if a.palette != p || p.input.Text != x.input {
+			return
+		}
+		if comp != nil {
+			comp.start += x.shift
+		}
+		p.comp = comp
+		return
+	}
+	if t.ed.Mode() != editor.Insert || t.ver != x.ver || t.ed.Cursor() != x.cur {
+		return
+	}
+	t.comp, t.wait = comp, &compWait{x.cur, x.ver, x.manual}
 }

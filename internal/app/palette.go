@@ -50,6 +50,10 @@ type palette struct {
 	hint  *queryTab        // what a Redis command's key and field names are asked for by (F17.2)
 	asked map[tableID]bool // tables whose columns were fetched for completion
 	keys  *keyList         // the Redis keys it lists, with what they were last matched for (F20.3)
+	// what the background was last asked to make of them, and the number of the ask
+	// the answer of which counts (F20.8)
+	keyAsked, keyAskedSig string
+	keySeq                int
 }
 
 // itemKind is what a palette row stands for (K-03), in the order an empty

@@ -278,10 +278,11 @@ type Conn struct {
 	// hints are the key names and hash fields the server gave for the console's
 	// completion, by what they were asked for (§9.8)
 	hints map[string][]string
-	index *keyIndex // the db's key names, built when the completion first wants them (F20.1)
-	// treeStale is a write the console ran since the tree read the db: its keys
-	// are no index till R reads them again (F20.1)
-	treeStale bool
+	// index is the db's key names, there once the completion has wanted them or the tree
+	// read the whole db; building is one being made, the first or one to take the
+	// place of the index when the keys of a write are not known, or the tree had R:
+	// the index is used till it is done (F20.1, F20.8)
+	index, building *keyIndex
 }
 
 // inDB is the connection to database name: c itself for the one it is dialed

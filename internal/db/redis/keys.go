@@ -240,6 +240,28 @@ func ScanBatch(ctx context.Context, c db.Conn, cursor uint64, count int) (names 
 	return names, next, err
 }
 
+// Exists is whether each of keys is in the db c is on: one EXISTS for a key, and for
+// more a pipeline of them, one round trip, as EXISTS with several keys counts and
+// does not say which (§9.8, F20.8).
+func Exists(ctx context.Context, c db.Conn, keys []string) (found []bool, err error) {
+	err = Use(ctx, c, func(cl *goredis.Client) error {
+		cmds, err := cl.Pipelined(ctx, func(p goredis.Pipeliner) error {
+			for _, k := range keys {
+				p.Exists(ctx, k)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		for _, cmd := range cmds {
+			found = append(found, cmd.(*goredis.IntCmd).Val() > 0)
+		}
+		return nil
+	})
+	return found, err
+}
+
 // DBSize is how many keys the db c is on holds.
 func DBSize(ctx context.Context, c db.Conn) (n int64, err error) {
 	err = Use(ctx, c, func(cl *goredis.Client) (err error) { n, err = cl.DBSize(ctx).Result(); return err })

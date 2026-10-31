@@ -236,7 +236,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	a.plainQueries()
 	a.sess.last = a.conn() // where the focus goes next may name none (§5)
 	a.sess.touch(a.focused().tab())
-	return a, tea.Batch(cmd, a.wantCols(), a.wantDDL(), a.wantPopupDDL(), a.spinStart())
+	return a, tea.Batch(cmd, a.wantCols(), a.wantDDL(), a.wantPopupDDL(), a.spinStart(), a.keyListCmd())
 }
 
 // stillOver is whether msg changed nothing the last frame shows: a pointer
@@ -297,6 +297,12 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotHints(msg)
 	case indexMsg:
 		return a, a.gotIndex(msg)
+	case indexDelta:
+		return a, a.gotDelta(msg)
+	case keyListMsg:
+		a.gotKeyListed(msg)
+	case matchMsg:
+		a.gotMatch(msg)
 	case namespaceFound:
 		return a, a.gotNamespaceFound(msg)
 	case pageMsg:
@@ -306,7 +312,7 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case autoMsg:
 		return a, a.gotAuto(msg)
 	case quickMsg:
-		return a, a.gotQuick(msg)
+		return a, tea.Batch(a.gotQuick(msg), a.quickWrote(msg))
 	case previewDue:
 		return a, a.fetchDDL(msg)
 	case ddlMsg:

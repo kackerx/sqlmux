@@ -49,7 +49,7 @@ func (d *argDB) Query(_ context.Context, _ string, args ...db.Val) (db.Result, e
 
 // answerQuick hands the palette the quick SQL's answer.
 func answerQuick(a *App, r db.Result, err error) tea.Cmd {
-	_, cmd := a.Update(quickMsg{a.palette, a.sess.Conns[0], "public", r, err})
+	_, cmd := a.Update(quickMsg{a.palette, a.sess.Conns[0], "public", r, err, ""})
 	return cmd
 }
 
@@ -151,7 +151,7 @@ func TestQuickSQLCancel(t *testing.T) {
 	if feed(t, a, "<Esc>"); a.palette != nil {
 		t.Fatal("esc while running keeps the palette")
 	}
-	a.Update(quickMsg{p, a.sess.Conns[0], "public", quickResult(1), nil})
+	a.Update(quickMsg{p, a.sess.Conns[0], "public", quickResult(1), nil, ""})
 	if a.sess.Conns[0].busy != 0 || a.palette != nil {
 		t.Errorf("an answer to a closed palette: busy %d", a.sess.Conns[0].busy)
 	}

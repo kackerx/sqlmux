@@ -30,6 +30,7 @@ type keyIndex struct {
 	started bool // the first batch is asked for: it asks DBSIZE too
 	done    bool // names is all of the db, or all that index_keys keeps room for
 	capped  bool // the db has more
+	gen     int  // how many times a write changed it: what a list made of it goes by (F20.8)
 	// last is what the pattern before matched of cands, in the order they matched:
 	// what a longer pattern matches is among it, so typing on matches in that and
 	// not in all of them (§9.8).
@@ -56,26 +57,24 @@ type indexMsg struct {
 	err   error
 }
 
-// forgetNames drops what the completion was told of c's db: the names it was
-// handed and the index, which may be others now (§9.8).
-func (c *Conn) forgetNames() { c.hints, c.index = nil, nil }
-
 // indexed is c's index when it can be matched in: built, or the tree's keys when
 // it read them all; nil while there is none. A connection that is a command has
 // none of its own built, a scan of it being a run of a command each time (§9.8).
 func (c *Conn) indexed() *keyIndex {
-	if c.index == nil && c.scan != nil && !c.scan.more && !c.treeStale {
-		ix := &keyIndex{total: c.scan.total, done: true}
-		for _, k := range c.scan.keys {
-			ix.names = append(ix.names, k.Name)
-		}
-		ix.makeCands()
-		c.index = ix
+	if c.index == nil && c.scan != nil && !c.scan.more {
+		c.index = indexOfTree(c.scan)
 	}
-	if c.index != nil && c.index.done {
-		return c.index
+	return c.index
+}
+
+// indexOfTree is the index that the keys of a tree that read the whole db make.
+func indexOfTree(s *keyScan) *keyIndex {
+	ix := &keyIndex{total: s.total, done: true}
+	for _, k := range s.keys {
+		ix.names = append(ix.names, k.Name)
 	}
-	return nil
+	ix.makeCands()
+	return ix
 }
 
 // makeCands sorts the names, as the list of one match orders those that match alike,
@@ -90,8 +89,9 @@ func (ix *keyIndex) makeCands() {
 
 // ponytail: the first key typed looks at every name, 85ms of the fzf matcher when
 // nearly all of a hundred thousand match (BenchmarkKeyIndexComplete); the ones
-// after it look at what the one before matched. Match off the main loop if that is
-// still felt.
+// after it look at what the one before matched, and with more than matchInline
+// names the match goes on in the background (F20.8). Upgrade to a matcher of our
+// own if the first one is still too long to wait for.
 
 // narrowed is the candidates partial can match among: those the pattern typed
 // before it matched, when it goes on from it, else every name.
@@ -102,17 +102,24 @@ func (ix *keyIndex) narrowed(partial string) []candidate {
 	return ix.cands
 }
 
+// narrowedOf is narrowed for an index that may be none: no names.
+func (ix *keyIndex) narrowedOf(partial string) []candidate {
+	if ix == nil {
+		return nil
+	}
+	return ix.narrowed(partial)
+}
+
 // remember keeps what partial matched, the keys among items, for the next key typed:
 // in the order of the names, as every match is of the names whole, so that what ties
-// is ordered the same whichever way it was typed.
-func (ix *keyIndex) remember(partial string, items []candidate) {
+// is ordered the same whichever way it was typed. src is what it was matched among.
+func (ix *keyIndex) remember(partial string, items, src []candidate) {
 	set := make(map[string]struct{}, len(items))
 	for _, it := range items {
 		if it.kind == kindKey {
 			set[it.label] = struct{}{}
 		}
 	}
-	src := ix.narrowed(partial) // what it was matched among, in name order
 	kept := make([]candidate, 0, len(set))
 	for _, cd := range src {
 		if _, ok := set[cd.label]; ok {
@@ -125,11 +132,22 @@ func (ix *keyIndex) remember(partial string, items []candidate) {
 // startIndex starts the index of c's db, once, unless there is one or will not
 // be: the completion goes on with what it has till it is built.
 func (a *App) startIndex(c *Conn) tea.Cmd {
-	if c.index != nil || c.indexed() != nil || c.Spec.Engine == "exec" || c.State != connReady {
+	if c.building != nil || c.indexed() != nil {
 		return nil
 	}
-	c.index = &keyIndex{seen: map[string]bool{}}
-	return a.indexBatch(c, c.index)
+	return a.rebuildIndex(c)
+}
+
+// rebuildIndex makes a new index of c's db in the background, a SCAN batch at a
+// time: the one there is, if any, is used till the new one is done and takes its
+// place; one being made before is let go. A connection that is a command or not
+// connected makes none (F20.8).
+func (a *App) rebuildIndex(c *Conn) tea.Cmd {
+	if c.Spec.Engine == "exec" || c.State != connReady {
+		return nil
+	}
+	c.building = &keyIndex{seen: map[string]bool{}}
+	return a.indexBatch(c, c.building)
 }
 
 // indexBatch asks for the next batch of ix's names.
@@ -153,17 +171,17 @@ func (a *App) indexBatch(c *Conn, ix *keyIndex) tea.Cmd {
 	}
 }
 
-// gotIndex adds a batch to the index, and asks for the next until the cursor
-// comes round or index_keys names are in; one that came after the index was
-// dropped (a write, a refresh) is of no use. A failed batch drops the index: the
-// next completion starts it again.
+// gotIndex adds a batch to the index being built, and asks for the next until the
+// cursor comes round or index_keys names are in, when it takes the place of the one
+// there was; a batch of one that was let go is of no use. A failed batch drops the
+// one being built: the next completion starts it again, the old index stays.
 func (a *App) gotIndex(m indexMsg) tea.Cmd {
 	c, ix := m.conn, m.ix
-	if a.sessionOf(c) == nil || c.index != ix {
+	if a.sessionOf(c) == nil || c.building != ix {
 		return nil
 	}
 	if m.err != nil {
-		c.index = nil
+		c.building = nil
 		return nil
 	}
 	if ix.cursor == 0 && len(ix.names) == 0 {
@@ -181,6 +199,7 @@ func (a *App) gotIndex(m indexMsg) tea.Cmd {
 	}
 	ix.done, ix.capped, ix.seen = true, ix.cursor != 0, nil
 	ix.makeCands()
+	c.index, c.building = ix, nil
 	return a.recomplete(c)
 }
 
@@ -241,6 +260,52 @@ type keyList struct {
 // best of a hundred thousand.
 const keyListed = 500
 
+// keySource is what a Redis db has read of its keys, for the palette's list of them:
+// copies of the slices, which an update of the index replaces and does not change, so
+// that a list made in the background goes on over what was there when it began.
+type keySource struct {
+	where, idPrefix string // <connection>/db<n>, and what the ids of its keys start with
+	tree            []redis.KeyInfo
+	names           []string
+}
+
+// keySources are the dbs the palette lists keys of: the connected Redis ones.
+func (a *App) keySources() (srcs []keySource) {
+	for _, c := range a.sess.conns() {
+		if c.sql() || c.State != connReady {
+			continue
+		}
+		src := keySource{where: c.Spec.Name + "/" + dbText(cmp.Or(c.Spec.Database, c.DB))}
+		src.idPrefix = src.where + "/"
+		if c.scan != nil {
+			src.tree = c.scan.keys
+		}
+		if c.index != nil && c.index.done {
+			src.names = c.index.names
+		}
+		srcs = append(srcs, src)
+	}
+	return srcs
+}
+
+// keyCount is how many names the dbs have read, those of the tree and of the index
+// counted both: what decides whether matching them is done in place or in the
+// background.
+func (a *App) keyCount() (n int) {
+	for _, c := range a.sess.conns() {
+		if c.sql() || c.State != connReady {
+			continue
+		}
+		if c.scan != nil {
+			n += len(c.scan.keys)
+		}
+		if c.index != nil && c.index.done {
+			n += len(c.index.names)
+		}
+	}
+	return n
+}
+
 // keySig is what the dbs have read, in a line: the list of keys is that and nothing
 // else, so it is made again when a db reads more.
 func (a *App) keySig() string {
@@ -250,7 +315,7 @@ func (a *App) keySig() string {
 		if !c.sql() && c.State == connReady {
 			fmt.Fprintf(&b, "|%s %p %p", c.tableKey(db.Table{Kind: "k"}), c.index, c.scan)
 			if c.index != nil {
-				fmt.Fprintf(&b, " %v %d", c.index.done, len(c.index.names))
+				fmt.Fprintf(&b, " %v %d %d", c.index.done, len(c.index.names), c.index.gen)
 			}
 			if c.scan != nil {
 				fmt.Fprintf(&b, " %d", len(c.scan.keys))
@@ -260,80 +325,143 @@ func (a *App) keySig() string {
 	return b.String()
 }
 
-// keyItems are the keys of the Redis dbs the palette lists with the tables and the
-// queries: the names the index of a db has and the keys the tree read, whichever the
-// db has; none for a db of neither. It never asks the server (§12, F20.3).
-func (a *App) keyItems() (items []paletteItem) {
-	for _, c := range a.sess.conns() {
-		if c.sql() || c.State != connReady {
-			continue
-		}
-		where := c.Spec.Name + "/" + dbText(cmp.Or(c.Spec.Database, c.DB))
-		known := map[string]string{} // the type of what the tree read
-		var names []string
-		if c.scan != nil {
-			for _, k := range c.scan.keys {
-				known[k.Name] = k.Type
-				names = append(names, k.Name)
+// buildKeyList makes the list of the keys of srcs: the names the tree read and those of
+// the index that it did not, as palette items with the icon of the type the tree
+// knows. It touches nothing but its arguments (§12, F20.3).
+func buildKeyList(sig string, srcs []keySource, icons *ui.Icons) *keyList {
+	kl := &keyList{sig: sig}
+	for _, src := range srcs {
+		known := make(map[string]string, len(src.tree)) // the type of what the tree read
+		add := func(n, typ string) {
+			icon := icons.Key
+			if typ != "" {
+				icon = icons.KeyType(typ)
 			}
+			kl.items = append(kl.items, paletteItem{itemRedisKey, src.idPrefix + n, icon, n, src.where})
+			kl.texts = append(kl.texts, n+" "+src.where)
 		}
-		if c.index != nil && c.index.done {
-			for _, n := range c.index.names {
-				if _, in := known[n]; !in {
-					names = append(names, n)
-				}
-			}
+		for _, k := range src.tree {
+			known[k.Name] = k.Type
+			add(k.Name, k.Type)
 		}
-		for _, n := range names {
-			icon := a.icons.Key
-			if typ := known[n]; typ != "" {
-				icon = a.icons.KeyType(typ)
+		for _, n := range src.names {
+			if _, in := known[n]; !in {
+				add(n, "")
 			}
-			items = append(items, paletteItem{itemRedisKey, c.tableKey(db.Table{Name: n, Kind: "k"}), icon, n, where})
 		}
 	}
-	return items
+	return kl
+}
+
+// match makes kl the matches of query among its keys: among those the last query
+// matched when this one goes on from it, the best keyListed of them kept, best
+// first. It changes kl and nothing it shares with another list, so it may run in the
+// background over a copy.
+func (kl *keyList) match(query string) {
+	narrow := kl.query != "" && strings.HasPrefix(query, kl.query) // among what the last query matched
+	texts := kl.texts
+	if narrow {
+		texts = make([]string, len(kl.cand))
+		for i, ix := range kl.cand {
+			texts[i] = kl.texts[ix]
+		}
+	}
+	ms, from := ui.Filter(query, texts), kl.cand
+	kl.cand = make([]int, len(ms))
+	for i, m := range ms {
+		if narrow {
+			m.Index = from[m.Index]
+		}
+		ms[i], kl.cand[i] = m, m.Index
+	}
+	slices.Sort(kl.cand)
+	slices.SortStableFunc(ms, func(x, y ui.Match) int { return cmp.Or(y.Score-x.Score, x.Index-y.Index) })
+	kl.query, kl.top, kl.ms = query, []paletteItem{}, nil
+	for _, m := range ms[:min(len(ms), keyListed)] {
+		kl.top = append(kl.top, kl.items[m.Index])
+		m.Index = len(kl.top) - 1
+		kl.ms = append(kl.ms, m)
+	}
 }
 
 // keyMatches are the best keys that query matches, with their matches, indexes into
-// the items returned: the list of keys is made again only when the dbs read more,
-// and a query that goes on from the last one looks among what that matched.
+// the items returned. With few keys the list is made and matched here, once for what
+// the dbs have read and for each query; with many (matchInline) it is the one the
+// background made last, which keyListCmd asks for, and the list stays as it was while
+// the next is made (F20.8).
 func (a *App) keyMatches(query string) ([]paletteItem, []ui.Match) {
 	kl := a.palette.keys
-	if sig := a.keySig(); kl == nil || kl.sig != sig {
-		kl = &keyList{sig: sig, items: a.keyItems()}
-		for _, it := range kl.items {
-			kl.texts = append(kl.texts, it.name+" "+it.where)
+	if a.keyCount() > matchInline {
+		if kl == nil {
+			return nil, nil
 		}
+		return kl.top, kl.ms
+	}
+	if sig := a.keySig(); kl == nil || kl.sig != sig {
+		kl = buildKeyList(sig, a.keySources(), a.icons)
 		a.palette.keys = kl
 	}
 	if kl.query != query {
-		narrow := kl.query != "" && strings.HasPrefix(query, kl.query) // among what the last query matched
-		texts := kl.texts
-		if narrow {
-			texts = make([]string, len(kl.cand))
-			for i, ix := range kl.cand {
-				texts[i] = kl.texts[ix]
-			}
-		}
-		ms, from := ui.Filter(query, texts), kl.cand
-		kl.cand = make([]int, len(ms))
-		for i, m := range ms {
-			if narrow {
-				m.Index = from[m.Index]
-			}
-			ms[i], kl.cand[i] = m, m.Index
-		}
-		slices.Sort(kl.cand)
-		slices.SortStableFunc(ms, func(x, y ui.Match) int { return cmp.Or(y.Score-x.Score, x.Index-y.Index) })
-		kl.query, kl.top, kl.ms = query, []paletteItem{}, nil
-		for _, m := range ms[:min(len(ms), keyListed)] {
-			kl.top = append(kl.top, kl.items[m.Index])
-			m.Index = len(kl.top) - 1
-			kl.ms = append(kl.ms, m)
-		}
+		kl.match(query)
 	}
 	return kl.top, kl.ms
+}
+
+// matchInline is how many names are matched in place; more are matched in a Cmd, over
+// a snapshot, and the answer comes back with the number of the ask (§9.8, F20.8).
+// ponytail: a threshold, as a tab of a hundred names is no reason for a round trip
+// through the loop for each key; a thousand names match in about a millisecond.
+var matchInline = 2000
+
+// keyListMsg is the answer of the background's making and matching of the keys.
+type keyListMsg struct {
+	p    *palette
+	seq  int
+	list *keyList
+}
+
+// keyListCmd asks for the keys the palette lists to be made and matched for what is
+// typed, in the background, when the dbs have read more than matchInline names and
+// the list is not the one for the query already or on its way: over a copy of the
+// last one when the dbs are as they were (the next query goes on from its matches),
+// else made anew. Run at the end of every message (F20.8).
+func (a *App) keyListCmd() tea.Cmd {
+	p := a.palette
+	if p == nil {
+		return nil
+	}
+	scope, query := a.paletteScope()
+	if !slices.Contains(scopes[scope].kinds, itemRedisKey) || strings.TrimSpace(query) == "" || a.keyCount() <= matchInline {
+		return nil
+	}
+	sig := a.keySig()
+	if kl := p.keys; kl != nil && kl.sig == sig && kl.query == query || p.keyAsked == query && p.keyAskedSig == sig {
+		return nil
+	}
+	p.keySeq++
+	p.keyAsked, p.keyAskedSig = query, sig
+	var base *keyList
+	if kl := p.keys; kl != nil && kl.sig == sig {
+		cp := *kl
+		base = &cp
+	}
+	srcs, icons, seq := a.keySources(), a.icons, p.keySeq
+	return func() tea.Msg {
+		kl := base
+		if kl == nil {
+			kl = buildKeyList(sig, srcs, icons)
+		}
+		kl.match(query)
+		return keyListMsg{p, seq, kl}
+	}
+}
+
+// gotKeyListed takes the list the background made, unless a later ask was made or the
+// palette is gone.
+func (a *App) gotKeyListed(m keyListMsg) {
+	if a.palette == m.p && m.seq == m.p.keySeq {
+		m.p.keys = m.list
+	}
 }
 
 // keyByID is the db and the key of a palette item's id, <connection>/db<n>/<key>:
@@ -348,4 +476,176 @@ func (a *App) keyByID(id string) (*Conn, string, bool) {
 		}
 	}
 	return nil, "", false
+}
+
+// refreshIndex is what the tree's read of c's db (R, or the first) does to the
+// index: the keys of a tree that read the whole db are the index at once, else an
+// index there is, or one being made, is made again in the background, the old one
+// used till then; none, none is made before the completion asks (§9.8, F20.8).
+func (a *App) refreshIndex(c *Conn) tea.Cmd {
+	if s := c.scan; s != nil && !s.more {
+		c.index, c.building = indexOfTree(s), nil
+		return a.recomplete(c)
+	}
+	if c.index != nil || c.building != nil {
+		return a.rebuildIndex(c)
+	}
+	return nil
+}
+
+// wrote is what a command of a Redis connection that ran does to the key names:
+// those it may have made or taken away are asked of the server in one go and the
+// index follows; FLUSHDB empties the db's index and FLUSHALL every db's of the
+// connection; a command whose keys are not known (not in the server's docs, EXEC and
+// the ones that count their keys first) makes the index again in the background. The
+// names the console's completion was told of go too (§9.8, F20.8).
+func (a *App) wrote(c *Conn, stmt string) tea.Cmd {
+	words, err := redis.SplitLine(stmt)
+	if c.sql() || err != nil || len(words) == 0 {
+		return nil
+	}
+	name := strings.ToLower(words[0])
+	if !c.lang().Writes(stmt) && name != "exec" {
+		return nil
+	}
+	c.hints = nil
+	switch name {
+	case "flushdb":
+		a.clearIndex(c)
+		return nil
+	case "flushall":
+		for _, dc := range a.sess.conns() {
+			if dc.root() == c.root() && !dc.sql() {
+				a.clearIndex(dc)
+			}
+		}
+		return nil
+	}
+	keys, known := c.writeKeys(words)
+	switch {
+	case !known:
+		return a.rebuildIndex(c)
+	case len(keys) == 0 || c.indexed() == nil:
+		return nil // nothing it changes is in an index, or there is none to keep: it will be made from the server
+	}
+	return a.askExists(c, keys)
+}
+
+// clearIndex empties c's index, a FLUSH having emptied the db; what was being made
+// is let go.
+func (a *App) clearIndex(c *Conn) {
+	c.hints, c.building = nil, nil
+	if c.index != nil || c.scan != nil {
+		c.index = &keyIndex{done: true}
+		c.index.makeCands()
+	}
+}
+
+// writeKeys are the words of a command that the server's docs say are keys; known
+// is false when they can not be told: the command is not in the docs, or counts its
+// keys first (numkeys), or is EXEC, whose queued commands are not in the line.
+func (c *Conn) writeKeys(words []string) (keys []string, known bool) {
+	doc, _, rest, ok := c.docOf(words)
+	if !ok || strings.EqualFold(words[0], "exec") || hasArg(doc.Args, "numkeys") {
+		return nil, false
+	}
+	for i := range rest {
+		if p := doc.At(rest[:i]); p.Leaf != nil && p.Leaf.Type == "key" {
+			keys = append(keys, rest[i])
+		}
+	}
+	return keys, true
+}
+
+// hasArg is whether an argument of the name is among args, in a oneof or a block too.
+func hasArg(args []redis.Arg, name string) bool {
+	for _, a := range args {
+		if a.Name == name || hasArg(a.Args, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// indexDelta is what the server said of keys a write may have changed.
+type indexDelta struct {
+	conn  *Conn
+	ix    *keyIndex
+	keys  []string
+	found []bool
+	err   error
+}
+
+// askExists asks whether keys are in c's db, on Meta, one round trip.
+func (a *App) askExists(c *Conn, keys []string) tea.Cmd {
+	meta, ix := c.Meta, c.index
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
+		defer cancel()
+		m := indexDelta{conn: c, ix: ix, keys: keys}
+		m.err = meta.RunSafe(ctx, func(ctx context.Context, conn db.Conn) (err error) {
+			m.found, err = redis.Exists(ctx, conn, keys)
+			return err
+		})
+		return m
+	}
+}
+
+// gotDelta takes what the server said of the keys of a write into the index; an
+// answer it could not give makes the index again, one for an index that was
+// replaced is of no use.
+func (a *App) gotDelta(m indexDelta) tea.Cmd {
+	c, ix := m.conn, m.ix
+	if a.sessionOf(c) == nil || c.index != ix {
+		return nil
+	}
+	if m.err != nil {
+		return a.rebuildIndex(c)
+	}
+	var add, del []string
+	for i, k := range m.keys {
+		if m.found[i] {
+			add = append(add, k)
+		} else {
+			del = append(del, k)
+		}
+	}
+	ix.update(add, del)
+	return a.recomplete(c)
+}
+
+// update puts the names add in the index and takes del out. The slices are new, the
+// old ones are not touched: a match going on over them in the background sees the
+// index as it was (F20.8).
+func (ix *keyIndex) update(add, del []string) {
+	gone := make(map[string]bool, len(del))
+	for _, n := range del {
+		gone[n] = true
+	}
+	slices.Sort(add)
+	add = slices.Compact(add)
+	names := make([]string, 0, len(ix.names)+len(add))
+	cands := make([]candidate, 0, cap(names))
+	put := func(n string) {
+		names = append(names, n)
+		cands = append(cands, candidate{label: n, insert: redis.Quote(n), note: i18n.T("键"), space: true, kind: kindKey})
+	}
+	j := 0
+	for i, n := range ix.names {
+		for ; j < len(add) && add[j] < n; j++ {
+			put(add[j])
+		}
+		if j < len(add) && add[j] == n {
+			j++ // there already
+		}
+		if !gone[n] {
+			names, cands = append(names, n), append(cands, ix.cands[i])
+		}
+	}
+	for ; j < len(add); j++ {
+		put(add[j])
+	}
+	ix.total += int64(len(names) - len(ix.names))
+	ix.names, ix.cands, ix.gen = names, cands, ix.gen+1
+	ix.last.pattern, ix.last.cands = "", nil
 }
