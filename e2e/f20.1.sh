@@ -64,6 +64,13 @@ key C-h; y=$(e2e_plain | awk 'NR > 3 && index(substr($0, 1, 34), "db0") { print 
 typed "SMEMBERS expert"; sleep 1.5; typed "SMEMBERS expert"
 check "树上对 db0 按 R：索引重建，补全里有 ext:expert:x 了" eval 'screen_has ext:expert:x && screen_has i18n_agent:expert:zh' || rows
 
+# ---- 边打边缩小，结果和一次打出来的一样（顺序也一样）：同一个库里分段敲 vs 一口气敲
+sstart "$D/c"
+cands() { rows | noicon | awk '{ print $2 }' | tr '\n' ' '; }   # the list's names in order 
+key C-l; key Escape; key g g; key d G; key i; e2e_type "SMEMBERS i"; sleep 1.5; e2e_type "18n_agent"; sleep 1.5; e2e_type ":e"; sleep 1.5; cands_a=$(cands)   # 一段一段敲，每段等补全算完
+key Escape; key g g; key d G; key i; e2e_type "SMEMBERS i18n_agent:e"; sleep 1.5; cands_b=$(cands)                                                   # 一口气敲完
+check "边打边缩小（分三段敲、每段等算完）和一口气敲出来的候选一样、顺序也一样（SMEMBERS i18n_agent:e）" eval '[[ -n $cands_a && $cands_a == "$cands_b" ]] || { echo "  typed: $cands_a"; echo "  pasted: $cands_b"; false; }'
+
 # ---- 截断：index_keys = 5000，db 里 12010 个键
 rc flushall >/dev/null; redis_big 0; for k in i18n:hello i18n_agent:expert:zh user:1 user:2 order:100; do rc set "$k" v >/dev/null; done
 check "（准备）db0 有 12006 个键" eval '[[ $(rc dbsize) == 12006 ]]'
