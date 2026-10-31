@@ -66,14 +66,35 @@ key u
 key g g; key y y; sleep 0.5; rm -f "$E2E_TMP/clipboard"; key j; key p; sleep 0.5
 check "unnamedplus：剪贴板工具读失败（没有内容）：p 贴无名寄存器（刚 yy 的第 1 行）" eval 'line_is 3 "select id, status" && line_is 2 "from t_order"'
 key u; : >"$E2E_TMP/clipboard"; key g g; key j; key p; sleep 0.5
-check "unnamedplus：剪贴板是空的：p 贴无名寄存器" eval 'line_is 3 "select id, status"'
-key u
+check "unnamedplus：剪贴板工具成功但读到空：p 什么都不贴（同 nvim，reviewer 提测说明；§11 写的是退回无名寄存器，已问决策者）" eval 'line_is 2 "from t_order" && line_is 3 "where id < 5"'
+
 
 # ---- 具名寄存器照旧：整条命令不执行；"+p 读剪贴板，空就什么都不贴
 set_clip "KEEP"; key g g; e2e_type '"ayy'; sleep 0.5
 check "unnamedplus：\"ayy 不执行，剪贴板不变" eval '[[ "$(clip)" == KEEP ]]'
 : >"$E2E_TMP/clipboard"; key g g; key 0; e2e_type '"+p'; sleep 0.5
 check "unnamedplus：剪贴板空时 \"+p 什么都不贴（F3.38）" eval 'line_is 1 "select id, status"'
+
+# ---- 黑洞寄存器和显式无名寄存器：不写剪贴板（nvim 只把「没写寄存器名」换成 "+）
+set_clip "KEEP"; key g g; e2e_type '"_dd'; sleep 0.5
+check "unnamedplus：\"_dd 删掉这一行，剪贴板不变（还是 KEEP）" eval '[[ "$(clip)" == KEEP ]] && line_is 1 "from t_order"'
+key u; key g g; e2e_type '""yy'; sleep 0.5
+check "unnamedplus：\"\"yy（显式的无名寄存器）不写剪贴板" eval '[[ "$(clip)" == KEEP ]]'
+key j; e2e_type '""p'; sleep 0.5
+check "unnamedplus：\"\"p 读内部的无名寄存器（刚 \"\"yy 的第 1 行），不读剪贴板里的 KEEP" eval 'line_is 3 "select id, status" && line_is 2 "from t_order"'
+key u
+
+# ---- 一条 send-keys 打出 yyp：贴的是刚 yank 的那一行，不是剪贴板里原来的内容（读等前面的写完成）
+set_clip "OLDCLIP"; key g g; e2e_type 'yyp'; sleep 1
+check "unnamedplus：yyp 一次打出：第 2 行是刚 yank 的 select id, status（不是剪贴板原来的 OLDCLIP）" eval 'line_is 2 "select id, status" && line_is 3 "from t_order"'
+key u
+
+# ---- 块：<C-v> 选块 y 之后 p 还是按块贴（读回的文字和上次自己写的一样，按记下的类型）；写进剪贴板的块末尾带换行
+key g g; key 0; key C-v; key j; key l; key y; sleep 0.5
+check "unnamedplus：<C-v>jly 写剪贴板：两行的块，文字是 \"se\\nfr\\n\"（末尾带换行，同 nvim）" clip_is $'se\nfr\n'
+key G; key 0; key p; sleep 0.5
+check "unnamedplus：块 yank 之后 p 按块贴（第 3 行 w se here…，第 4 行补出 fr），不是按行贴成两行" eval 'line_is 3 "wsehere id < 5" && line_is 4 " fr"'
+key u
 
 # ---- WHERE 里同样
 key Escape; key C-h; open_table t_order; wait_for 8 settled
