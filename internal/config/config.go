@@ -28,6 +28,7 @@ type Config struct {
 	ThemeName  string    // the theme in use: `theme`, or tokyonight-storm
 	Language   string    // `language = "en" | "zh"` (§14「界面语言」)
 	Border     uv.Border // `border = "single" | "rounded" | "double" | "bold" | "hidden"`: the boxes' lines (§7.1)
+	Clipboard  string    // `clipboard`: "" or "unnamedplus", the editors' unnamed register on the system clipboard (§11, F20.5)
 	Vim        bool      // `vim = false`: query and WHERE are plain editors, the grid and tree get arrow keys too (§6.9)
 	Timeoutlen int       // ms to wait on an ambiguous key sequence
 	TabWidth   int       // the query's indent, and the formatter's (§14)
@@ -64,6 +65,9 @@ type Config struct {
 	// TreeWidth is the sidebar's width in columns, borders included, for a
 	// window whose sidebar has not been dragged (§7.8).
 	TreeWidth int
+	// TreeFollow is `[tree] follow`: opening or focusing the sidebar puts its
+	// cursor on the node of the current tab (§7.8, F20.4).
+	TreeFollow bool
 	// GridDesc is `[grid] order = "desc"` and GridTranspose `[grid]
 	// transpose`: what a table opened anew starts with (§14).
 	GridDesc, GridTranspose bool
@@ -151,6 +155,7 @@ func Parse(data string) (*Config, error) {
 		Language   *string  `toml:"language"`
 		Border     *string  `toml:"border"`
 		Vim        *bool    `toml:"vim"`
+		Clipboard  *string  `toml:"clipboard"`
 		Timeoutlen *int     `toml:"timeoutlen"`
 		TabWidth   *int     `toml:"tab_width"`
 		Height     *float64 `toml:"result_height"`
@@ -173,7 +178,8 @@ func Parse(data string) (*Config, error) {
 			IndexKeys *int    `toml:"index_keys"`
 		} `toml:"redis"`
 		Tree struct {
-			Width *int `toml:"width"`
+			Width  *int  `toml:"width"`
+			Follow *bool `toml:"follow"`
 		} `toml:"tree"`
 		Grid struct {
 			FullWidth *int    `toml:"full_width"`
@@ -218,6 +224,13 @@ func Parse(data string) (*Config, error) {
 	}
 	if raw.Vim != nil {
 		c.Vim = *raw.Vim
+	}
+	if v := raw.Clipboard; v != nil {
+		if *v == "" || *v == "unnamedplus" {
+			c.Clipboard = *v
+		} else { // told like a key nothing reads: the value is the one nothing reads (F20.5)
+			c.Unknown = append(c.Unknown, fmt.Sprintf("clipboard = %q", *v))
+		}
 	}
 	if raw.Theme != nil {
 		c.theme = *raw.Theme
@@ -297,6 +310,9 @@ func Parse(data string) (*Config, error) {
 	}
 	if n := raw.Tree.Width; n != nil { // held to 16 and half the window where it is used, whatever it is
 		c.TreeWidth = *n
+	}
+	if raw.Tree.Follow != nil {
+		c.TreeFollow = *raw.Tree.Follow
 	}
 	if n := raw.Grid.FullWidth; n != nil {
 		if *n <= 0 {

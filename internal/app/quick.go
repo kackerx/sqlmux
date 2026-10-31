@@ -341,7 +341,7 @@ func (a *App) copyQuick() tea.Cmd {
 	if q == nil || q.res.Cols == nil {
 		return nil
 	}
-	return clipCopy(csvOf(q.res))
+	return a.clipCopy(csvOf(q.res))
 }
 
 // completeSQL finds the candidates for the quick SQL's cursor (§12「补全」),

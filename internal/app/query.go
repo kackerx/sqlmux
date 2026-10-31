@@ -319,11 +319,16 @@ func (a *App) vimCmds(eff editor.Effect, put func(text string, p editor.ClipPut)
 		cmds = append(cmds, a.flashYank(yankFlash{pane: a.focused().ID, text: yankSel(*eff.Yank)}))
 	}
 	if eff.Clip != nil {
-		cmds = append(cmds, clipCopy(*eff.Clip))
+		cmds = append(cmds, a.clipCopy(*eff.Clip))
 	}
 	if p := eff.Paste; p != nil {
-		a.clipWait = func(text string) tea.Cmd { return put(text, *p) }
-		cmds = append(cmds, clipPaste)
+		a.clipWait = func(text string, ok bool) tea.Cmd {
+			if !ok {
+				return put(text, p.Missing())
+			}
+			return put(text, *p)
+		}
+		cmds = append(cmds, a.clipRead(p.Implicit()))
 	}
 	if eff.Error != "" {
 		cmds = append(cmds, a.showToast(eff.Error))

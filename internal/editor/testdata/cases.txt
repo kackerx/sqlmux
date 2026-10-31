@@ -9419,3 +9419,311 @@ five
 one █two
 three four
 five
+
+## unnamedplus yy p
+:set clipboard=unnamedplus<CR>yy<Sync>p
+one █two
+three four
+five
+
+## unnamedplus yy P
+:set clipboard=unnamedplus<CR>yy<Sync>P
+one █two
+three four
+five
+
+## unnamedplus yy j p
+:set clipboard=unnamedplus<CR>yy<Sync>jp
+one █two
+three four
+five
+
+## unnamedplus yiw p
+:set clipboard=unnamedplus<CR>yiw<Sync>p
+one █two
+three four
+five
+
+## unnamedplus yiw P
+:set clipboard=unnamedplus<CR>yiw<Sync>P
+one █two
+three four
+five
+
+## unnamedplus yw $ p
+:set clipboard=unnamedplus<CR>yw<Sync>$p
+one █two
+three four
+five
+
+## unnamedplus block y p
+:set clipboard=unnamedplus<CR><C-v>jly<Sync>$p
+one █two
+three four
+five
+
+## unnamedplus block y P
+:set clipboard=unnamedplus<CR><C-v>jly<Sync>P
+one █two
+three four
+five
+
+## unnamedplus block y j p
+:set clipboard=unnamedplus<CR><C-v>jly<Sync>jp
+one █two
+three four
+five
+
+## unnamedplus block y 2P
+:set clipboard=unnamedplus<CR><C-v>jly<Sync>2P
+one █two
+three four
+five
+
+## unnamedplus visual y P
+:set clipboard=unnamedplus<CR>vey<Sync>P
+one █two
+three four
+five
+
+## unnamedplus V y p
+:set clipboard=unnamedplus<CR>Vjy<Sync>jp
+█one two
+three four
+five
+six
+
+## unnamedplus dd p
+:set clipboard=unnamedplus<CR>dd<Sync>p
+one █two
+three four
+five
+
+## unnamedplus dd P
+:set clipboard=unnamedplus<CR>dd<Sync>P
+one █two
+three four
+five
+
+## unnamedplus 2dd p
+:set clipboard=unnamedplus<CR>2dd<Sync>p
+█one
+two
+three
+four
+
+## unnamedplus x p
+:set clipboard=unnamedplus<CR>x<Sync>p
+one █two
+three four
+five
+
+## unnamedplus 3x P
+:set clipboard=unnamedplus<CR>3x<Sync>P
+one █two
+three four
+five
+
+## unnamedplus dw p
+:set clipboard=unnamedplus<CR>dw<Sync>p
+one █two
+three four
+five
+
+## unnamedplus D p
+:set clipboard=unnamedplus<CR>D<Sync>$p
+one █two
+three four
+five
+
+## unnamedplus cw p
+:set clipboard=unnamedplus<CR>cwX<Esc><Sync>p
+one █two
+three four
+five
+
+## unnamedplus S p
+:set clipboard=unnamedplus<CR>SX<Esc><Sync>p
+one █two
+three four
+five
+
+## unnamedplus s p
+:set clipboard=unnamedplus<CR>sX<Esc><Sync>$p
+one █two
+three four
+five
+
+## unnamedplus yy 3p
+:set clipboard=unnamedplus<CR>yy<Sync>3p
+one █two
+three four
+five
+
+## unnamedplus yiw 3p
+:set clipboard=unnamedplus<CR>yiw<Sync>3p
+one █two
+three four
+five
+
+## unnamedplus black hole dd
+:set clipboard=unnamedplus<CR>yy<Sync>j"_dd<Sync>p
+one two
+█three four
+five
+
+## unnamedplus black hole x
+:set clipboard=unnamedplus<CR>yiw<Sync>$"_x<Sync>P
+one █two
+three four
+five
+
+## unnamedplus explicit +p
+:set clipboard=unnamedplus<CR>yiw<Sync>j"+p
+one █two
+three four
+five
+
+## unnamedplus explicit +yy p
+:set clipboard=unnamedplus<CR>"+yy<Sync>jp
+one █two
+three four
+five
+
+## unnamedplus empty register name
+:set clipboard=unnamedplus<CR>""yy<Sync>jp
+one █two
+three four
+five
+
+## unnamedplus external linewise p
+:set clipboard=unnamedplus<CR><Clip>"ext\n"p
+one █two
+three four
+five
+
+## unnamedplus external linewise P
+:set clipboard=unnamedplus<CR><Clip>"ext\nmore\n"P
+one █two
+three four
+five
+
+## unnamedplus external charwise p
+:set clipboard=unnamedplus<CR><Clip>"ext"p
+one █two
+three four
+five
+
+## unnamedplus external multiline charwise p
+:set clipboard=unnamedplus<CR><Clip>"ext\nmore"p
+one █two
+three four
+five
+
+## unnamedplus external after yy
+:set clipboard=unnamedplus<CR>yy<Clip>"ext"p
+one █two
+three four
+five
+
+## unnamedplus external after block y
+:set clipboard=unnamedplus<CR><C-v>jly<Clip>"ext"jp
+one █two
+three four
+five
+
+## unnamedplus external equals block y
+:set clipboard=unnamedplus<CR><C-v>jly<Clip>"tw\ne "jp
+one █two
+three four
+five
+
+## unnamedplus external equals yy
+:set clipboard=unnamedplus<CR>yy<Clip>"one two\n"jp
+█one two
+three four
+five
+
+## unnamedplus external 3p
+:set clipboard=unnamedplus<CR><Clip>"ab"3p
+one █two
+three four
+five
+
+## unnamedplus external then dd p
+:set clipboard=unnamedplus<CR><Clip>"ext"dd<Sync>p
+one █two
+three four
+five
+
+## unnamedplus empty line yank
+:set clipboard=unnamedplus<CR>yy<Sync>jp
+one two
+█
+five
+
+## unnamedplus u after p
+:set clipboard=unnamedplus<CR>yy<Sync>pu
+one █two
+three four
+five
+
+## clipboard +yy p
+"+yy<Sync>jp
+one █two
+three four
+five
+
+## clipboard +yy +p
+"+yy<Sync>j"+p
+one █two
+three four
+five
+
+## clipboard +yiw +P
+"+yiw<Sync>$"+P
+one █two
+three four
+five
+
+## clipboard block +y +p
+<C-v>jl"+y<Sync>j"+p
+one █two
+three four
+five
+
+## clipboard external +p
+<Clip>"ext\n""+p
+one █two
+three four
+five
+
+## clipboard external +p charwise
+<Clip>"ext""+p
+one █two
+three four
+five
+
+## black hole p
+yy"_p
+one █two
+three four
+five
+
+## black hole dd
+yyj"_ddp
+one two
+█three four
+five
+
+## black hole visual d
+yjvl"_dp
+█one two
+three four
+five
+
+## unnamedplus black hole p
+:set clipboard=unnamedplus<CR>yy<Sync>"_p
+one █two
+three four
+five

@@ -2,6 +2,7 @@ package editor
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/kackerx/sqlmux/internal/keymap"
 )
@@ -21,6 +23,19 @@ import (
 // 100); blank lines before the next case separate it. `go generate` (go test -update) runs each in nvim and keeps
 // what nvim ends with in testdata/cases.golden, so the test itself needs
 // no nvim.
+//
+// A case can say `<Paste>"text"` (what the terminal pastes) or `<Clip>"text"`
+// (what a program outside wrote on the system clipboard) once in its keys. The
+// system clipboard is a fake g:clipboard in nvim, with the cache nvim's provider
+// keeps for the register type; for the editor it is what Effect.Clip last said.
+// `:set clipboard=unnamedplus` is run by nvim, and turns UnnamedPlus on here.
+//
+// nvim updates the system clipboard when the command line it is running ends,
+// the whole script for keys fed at once, not after each command as when typed,
+// and a `p` in between would not see it. <Sync> in keys ends one: nvim runs
+// the keys before and after it as steps of their own, the clipboard updated
+// between; the editor takes it as no key. Put one after each yank or delete
+// whose clipboard a later command reads (<Clip> is a step boundary itself).
 
 var update = flag.Bool("update", false, "run testdata/cases.txt in nvim and rewrite testdata/cases.golden")
 
@@ -95,19 +110,28 @@ func result(lines []string, cur Pos, regType, reg string, top, left int, mode st
 	return b.String()
 }
 
-// splitPaste cuts keys at <Paste>, which a Go-quoted string follows: what
-// the terminal pastes there. ok is false when keys paste nothing.
-func splitPaste(t *testing.T, keys string) (before, paste, after string, ok bool) {
-	before, rest, ok := strings.Cut(keys, "<Paste>")
+// splitPaste cuts keys at tok, <Paste> or <Clip>, which a Go-quoted string
+// follows: what the terminal pastes there, or an outside program puts on the
+// clipboard. ok is false when keys have none.
+func splitPaste(t *testing.T, keys, tok string) (before, paste, after string, ok bool) {
+	before, rest, ok := strings.Cut(keys, tok)
 	if !ok {
 		return keys, "", "", false
 	}
 	q, err := strconv.QuotedPrefix(rest)
 	if err != nil {
-		t.Fatalf("%s: <Paste> wants a quoted string after it: %v", keys, err)
+		t.Fatalf("%s: %s wants a quoted string after it: %v", keys, tok, err)
 	}
 	paste, _ = strconv.Unquote(q)
 	return before, paste, rest[len(q):], true
+}
+
+// pasteToken is the one of <Paste> and <Clip> keys has, <Paste> when neither.
+func pasteToken(keys string) string {
+	if strings.Contains(keys, "<Clip>") {
+		return "<Clip>"
+	}
+	return "<Paste>"
 }
 
 func TestNvim(t *testing.T) {
@@ -147,17 +171,34 @@ func run(t *testing.T, c nvimCase) string {
 	e.clampCursor() // as nvim's cursor() does
 	e.SetHeight(nvimRows)
 	e.SetWidth(nvimCols)
-	before, paste, after, ok := splitPaste(t, c.keys)
+	tok := pasteToken(c.keys)
+	before, text, after, ok := splitPaste(t, strings.ReplaceAll(c.keys, "<Sync>", ""), tok)
+	var clip string // the fake system clipboard
+	defer func() { UnnamedPlus = false }()
 	feed := func(ks string) {
 		for _, k := range keys(t, ks) {
-			if e.Feed(k).Ex == "set noma" { // 'nomodifiable' is the editor's ReadOnly
+			eff := e.Feed(k)
+			switch eff.Ex {
+			case "set noma": // 'nomodifiable' is the editor's ReadOnly
 				e.ReadOnly = true
+			case "set clipboard=unnamedplus":
+				UnnamedPlus = true
+			}
+			if eff.Clip != nil {
+				clip = *eff.Clip
+			}
+			if eff.Paste != nil {
+				e.PutClip(clip, *eff.Paste)
 			}
 		}
 	}
 	feed(before)
 	if ok {
-		e.Paste(paste)
+		if tok == "<Clip>" {
+			clip = text
+		} else {
+			e.Paste(text)
+		}
 		feed(after)
 	}
 	kind := ""
@@ -227,12 +268,34 @@ func nvim(t *testing.T, path string, c nvimCase) string {
 	for _, l := range c.text {
 		text = append(text, "'"+strings.ReplaceAll(l, "'", "''")+"'")
 	}
-	keys := vimKeys(c.keys)
-	before, paste, after, ok := splitPaste(t, c.keys)
-	if ok {
-		keys = vimKeys(before) + `\<F12>` + vimKeys(after)
+	tok := pasteToken(c.keys)
+	before, paste, after, ok := splitPaste(t, c.keys, tok)
+	var steps []string // each a dict: the keys to feed, an outside write of the clipboard, or {} to end
+	feed := func(ks string) {
+		for _, k := range strings.Split(ks, "<Sync>") {
+			steps = append(steps, `{'keys': "`+vimKeys(k)+`"}`)
+		}
 	}
-	script := fmt.Sprintf(`set expandtab tabstop=2 shiftwidth=2 nowrap ignorecase smartcase
+	switch {
+	case !ok:
+		feed(c.keys)
+	case tok == "<Paste>":
+		steps = append(steps, `{'keys': "`+vimKeys(before)+`\<F12>`+vimKeys(after)+`"}`)
+	default: // an outside program writes the clipboard: the fake's lines, not the provider's cache
+		feed(before)
+		steps = append(steps, `{'ext': 1}`)
+		feed(after)
+	}
+	steps = append(steps, "{}")
+	script := fmt.Sprintf(`let g:cb = ['']
+function! CbCopy(lines, regtype) abort
+  let g:cb = a:lines
+endfunction
+function! CbPaste() abort
+  return g:cb
+endfunction
+let g:clipboard = {'name': 'fake', 'copy': {'+': function('CbCopy'), '*': function('CbCopy')}, 'paste': {'+': function('CbPaste'), '*': function('CbPaste')}, 'cache_enabled': 1}
+set expandtab tabstop=2 shiftwidth=2 nowrap ignorecase smartcase
 set commentstring=--\ %%s formatoptions-=j
 set lines=24 columns=%d
 set undolevels=-1
@@ -242,16 +305,29 @@ call cursor(%d, %d)
 let g:paste = %s
 noremap <F12> <Cmd>call nvim_paste(g:paste, v:true, -1)<CR>
 noremap! <F12> <Cmd>call nvim_paste(g:paste, v:true, -1)<CR>
-silent! call feedkeys("%s", 'xt')
-let p = getpos('.')
-let _ = wincol()
-call writefile([p[1], p[2], getregtype('"'), line('w0'), winsaveview().leftcol, mode(), line('$')] + getline(1, '$') + split(getreg('"'), "\n", 1), %q)
-qa!
-`, nvimCols, strings.Join(text, ", "), c.cur.Line+1, c.cur.Col+1, strconv.Quote(paste), keys, path+".out")
+let g:steps = [%s]
+function! Step(timer) abort
+  let step = remove(g:steps, 0)
+  if has_key(step, 'keys')
+    silent! call feedkeys(step.keys, 'xt')
+  elseif has_key(step, 'ext')
+    let g:cb = split(g:paste, "\n", 1)
+  else
+    let p = getpos('.')
+    let l:redraw = wincol()
+    call writefile([p[1], p[2], getregtype('"'), line('w0'), winsaveview().leftcol, mode(), line('$')] + getline(1, '$') + split(getreg('"'), "\n", 1), %q)
+    qa!
+  endif
+  call timer_start(0, 'Step')
+endfunction
+call timer_start(0, 'Step')
+`, nvimCols, strings.Join(text, ", "), c.cur.Line+1, c.cur.Col+1, strconv.Quote(paste), strings.Join(steps, ", "), path+".out")
 	if err := os.WriteFile(path+".vim", []byte(script), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := exec.Command("nvim", "--headless", "--clean", "--cmd", "set noloadplugins", "-S", path+".vim").CombinedOutput(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute) // a script that never reaches its last step would wait for ever
+	defer cancel()
+	if out, err := exec.CommandContext(ctx, "nvim", "--headless", "--clean", "--cmd", "set noloadplugins", "-S", path+".vim").CombinedOutput(); err != nil {
 		t.Fatalf("%s: nvim: %v\n%s", c.title, err, out)
 	}
 	data, err := os.ReadFile(path + ".out")

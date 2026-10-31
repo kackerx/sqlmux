@@ -244,10 +244,11 @@ func paneNode(w *Window, p *Pane) string { return fmt.Sprintf("%s/pane:%d", wind
 // revealTab puts the tree's cursor on the node of pane p's current tab,
 // the nodes above it opened, as nvim-tree's find_file (F3.29): a table's
 // under its schema, any other's in the workspace. Not showing (a filter,
-// the catalog not in), nothing changes: the cursor stays, no node opens.
+// the catalog not in), nothing changes: the cursor stays, no node opens. Only
+// with `[tree] follow`: the cursor moves by hand otherwise (F20.4).
 func (a *App) revealTab(p *Pane) {
 	tab := p.tab()
-	if tab == nil || p == a.win().Tree {
+	if tab == nil || p == a.win().Tree || !a.treeFollow {
 		return
 	}
 	path := []string{"workspace", windowNode(a.win())}

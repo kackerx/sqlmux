@@ -1420,8 +1420,9 @@ func (a *App) toggleZoom() {
 // toggleTree is SPC b, as DataGrip's tool windows: the sidebar open with the
 // focus on it folds, the focus going back to the pane it came from; open with
 // the focus elsewhere it is the focus that goes to it; folded it opens with the
-// focus on it, its cursor on the node of the tab focused before (§7.8, F3.29,
-// F19.5). A zoomed pane hides it: the zoom ends first.
+// focus on it (§7.8, F19.5); with `[tree] follow` its cursor goes to the node of
+// the tab focused before (F3.29, F20.4). A zoomed pane hides it: the zoom ends
+// first.
 func (a *App) toggleTree() {
 	win := a.win()
 	win.Zoom = 0

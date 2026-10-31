@@ -369,6 +369,7 @@ func TestDropTableInDatabase(t *testing.T) {
 // the database too, one of its own or the DSN's (F3.29, F15.1).
 func TestRevealTabInDatabase(t *testing.T) {
 	a, c, _ := withDatabases(t)
+	a.treeFollow = true
 	treeTo(t, a, "alpha")
 	_, cmd := a.Update(teaKey("l"))
 	answered(a, cmd)

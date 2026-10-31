@@ -61,6 +61,7 @@ type App struct {
 	filterSeq                    int
 	resultHeight                 float64   // the share the result area first takes
 	treeWidth                    int       // config [tree] width: the sidebar's default width (§7.8)
+	treeFollow                   bool      // config [tree] follow: opening the sidebar, or a table opened from a foreign key, puts the tree's cursor on the tab's node (F20.4)
 	fullWidth                    int       // the grid's columns up to this wide are not squeezed (§7.6)
 	border                       uv.Border // the boxes' lines (§7.1)
 	newDesc                      bool      // a table opened anew sorts descending, and shows transposed (§14)
@@ -93,10 +94,11 @@ type App struct {
 
 	state *config.State // kept between runs (§14)
 
-	rowCopy  *copiedRow           // the row yy took, for p (§10.6)
-	clipWait func(string) tea.Cmd // a "+p waiting for the clipboard: what to do with its text (F3.38)
-	fetching *palette             // the palette whose DDL fetches may be out (F4.2)
-	flash    *yankFlash           // a yank flashing (F3.32)
+	rowCopy  *copiedRow                         // the row yy took, for p (§10.6)
+	clipWait func(text string, ok bool) tea.Cmd // a "+p waiting for the clipboard: what to do with its text, !ok when there was none to read (F3.38, F20.5)
+	clipLast chan struct{}                      // closed when the clipboard write asked last is done: a read waits for it
+	fetching *palette                           // the palette whose DDL fetches may be out (F4.2)
+	flash    *yankFlash                         // a yank flashing (F3.32)
 	flashSeq int
 
 	toast     string
@@ -144,8 +146,9 @@ var whichKeyDelay = 400 * time.Millisecond
 // New is the app over sess and the state kept from before; warning, if
 // not "", shows as a toast on start.
 func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, warning string) *App {
+	editor.UnnamedPlus = cfg.Clipboard == "unnamedplus"
 	a := &App{
-		theme: cfg.Theme, icons: cfg.Icons, baseIcons: cfg.BaseIcons, plain: !cfg.Vim, themeName: cfg.ThemeName, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, redisDelim: cfg.RedisDelimiter, scanKeys: cfg.RedisScanKeys, indexKeys: cfg.RedisIndexKeys, loadAll: cfg.RedisLoadAll, resultHeight: cfg.ResultHeight, fullWidth: cfg.GridFullWidth, treeWidth: cfg.TreeWidth, border: cfg.Border, newDesc: cfg.GridDesc, newTurned: cfg.GridTranspose,
+		theme: cfg.Theme, icons: cfg.Icons, baseIcons: cfg.BaseIcons, plain: !cfg.Vim, themeName: cfg.ThemeName, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, redisDelim: cfg.RedisDelimiter, scanKeys: cfg.RedisScanKeys, indexKeys: cfg.RedisIndexKeys, loadAll: cfg.RedisLoadAll, resultHeight: cfg.ResultHeight, fullWidth: cfg.GridFullWidth, treeWidth: cfg.TreeWidth, treeFollow: cfg.TreeFollow, border: cfg.Border, newDesc: cfg.GridDesc, newTurned: cfg.GridTranspose,
 		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg, autoPairs: cfg.AutoPairs, valueHints: cfg.Hints, tipsOn: cfg.Tips, tip: tipState{cur: -1, pick: rand.IntN}, confirmDangerous: cfg.ConfirmDangerous, previewSave: cfg.PreviewSave,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess, sessions: []*Session{sess},
 		mouse: uv.Pos(-1, -1), warning: JoinNotes(warning, sess.warning), state: st,
@@ -367,7 +370,12 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.ClipboardMsg: // what a "+p asked for (F3.38)
 		if w := a.clipWait; w != nil {
 			a.clipWait = nil
-			return a, w(msg.Content)
+			return a, w(msg.Content, true)
+		}
+	case clipMissing:
+		if w := a.clipWait; w != nil {
+			a.clipWait = nil
+			return a, w("", false)
 		}
 	case tea.KeyPressMsg:
 		return a, a.press(keymap.FromTea(msg.Key()))
