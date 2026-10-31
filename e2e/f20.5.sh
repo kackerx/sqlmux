@@ -66,7 +66,7 @@ key u
 key g g; key y y; sleep 0.5; rm -f "$E2E_TMP/clipboard"; key j; key p; sleep 0.5
 check "unnamedplus：剪贴板工具读失败（没有内容）：p 贴无名寄存器（刚 yy 的第 1 行）" eval 'line_is 3 "select id, status" && line_is 2 "from t_order"'
 key u; : >"$E2E_TMP/clipboard"; key g g; key j; key p; sleep 0.5
-check "unnamedplus：剪贴板工具成功但读到空：p 什么都不贴（同 nvim，reviewer 提测说明；§11 写的是退回无名寄存器，已问决策者）" eval 'line_is 2 "from t_order" && line_is 3 "where id < 5"'
+check "unnamedplus：剪贴板工具成功但读到空：p 什么都不贴（同 nvim 的 E353；工具失败才退回无名寄存器，上一条）" eval 'line_is 2 "from t_order" && line_is 3 "where id < 5"'
 
 
 # ---- 具名寄存器照旧：整条命令不执行；"+p 读剪贴板，空就什么都不贴
