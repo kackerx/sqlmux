@@ -127,5 +127,5 @@
 - [ ] 单测：`SET` 新键、`DEL`、`RENAME a b`、`SET k v NX`（已存在）、`EXPIRE k 0`、`FLUSHDB` 后索引的内容和发出的 `EXISTS`；`EVAL` 认不出时重建且旧索引在重建期间可用；匹配 Cmd 的过期结果被丢；快照不被增量更新改到；mutation。
 - [ ] 基准：10 万键时 Update 处理一个按键的耗时（匹配不在里面了），送审附数字。
 - [ ] e2e：控制台 `SET m20:new 1` 后马上补全 `m20:n` 出它、没有整库 SCAN（slowproxy 日志里只有一条 EXISTS）；`DEL` 后补不出；树上 `R` 期间补全照常有结果。
-- [ ] e2e：命令面板 quick SQL（`;`）里的 Redis 键名补全照旧（f17.2「`HGETALL hash:` → hash:user、hash:binary」，2e5e6e6 起是空的）。
+- [ ] e2e：f17.2 的键名补全（`;HGETALL hash:` → hash:user、hash:binary）照旧。2e5e6e6 起变空是脚本的顺序：app 里 `FLUSHDB` 把索引清成空的，之后从 app 外 reseed 写进来的键要树上 `R` 才进索引（同「别的客户端写的键要 `R`」），不改代码；tester 在外部 reseed 之后加一次 `R`。决策者 2026-10-31 定。
 - [ ] 节点 2 没测到的顺带补：面板 `@` 里键的图标（树读到类型的用类型图标，其余用通用 key 图标）。
