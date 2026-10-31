@@ -10,7 +10,7 @@
 
 ---
 
-## F20.1 Redis 键名的模糊补全 · 状态：todo
+## F20.1 Redis 键名的模糊补全 · 状态：passed（608dc01；e2e d4af80b）
 
 - **依赖**：M16 F16.5（Redis 补全）、M12 F12.6（匹配和排序）
 - **涉及**：`internal/app`（Redis 补全、键名缓存）、`internal/sqlkit`（词首规则）、`internal/config`（`index_keys`）、`internal/i18n`
@@ -26,7 +26,7 @@
 - [ ] 集成测试（Redis 56379）：灌 2 万个键，建索引的 SCAN 批数和总数对；`index_keys = 5000` 时截断提示。
 - [ ] e2e：`smembers expert` 补出 `i18n_agent:expert:…` 且 `expert` 是 `match` 色；`smembers i18n_` 补出带下划线的。
 
-## F20.2 Redis 树过滤的高亮 · 状态：todo
+## F20.2 Redis 树过滤的高亮 · 状态：passed（608dc01；e2e d4af80b）
 
 - **依赖**：M18 F18.11
 - **涉及**：`internal/app`（Redis 树的行）、`internal/ui`（树行的高亮，复用 SQL 树过滤那一处）
@@ -40,7 +40,7 @@
 - [ ] golden：过滤 `kaixuan` 的树。
 - [ ] e2e：`/` 输入 `employees`，命名空间 `employees` 的字是 `match` 色。
 
-## F20.3 命令面板的 `@` 列出 Redis 键 · 状态：todo
+## F20.3 命令面板的 `@` 列出 Redis 键 · 状态：passed（608dc01；e2e d4af80b）
 
 - **依赖**：F20.1
 - **涉及**：`internal/app`（palette）、`internal/i18n`
@@ -127,3 +127,5 @@
 - [ ] 单测：`SET` 新键、`DEL`、`RENAME a b`、`SET k v NX`（已存在）、`EXPIRE k 0`、`FLUSHDB` 后索引的内容和发出的 `EXISTS`；`EVAL` 认不出时重建且旧索引在重建期间可用；匹配 Cmd 的过期结果被丢；快照不被增量更新改到；mutation。
 - [ ] 基准：10 万键时 Update 处理一个按键的耗时（匹配不在里面了），送审附数字。
 - [ ] e2e：控制台 `SET m20:new 1` 后马上补全 `m20:n` 出它、没有整库 SCAN（slowproxy 日志里只有一条 EXISTS）；`DEL` 后补不出；树上 `R` 期间补全照常有结果。
+- [ ] e2e：命令面板 quick SQL（`;`）里的 Redis 键名补全照旧（f17.2「`HGETALL hash:` → hash:user、hash:binary」，2e5e6e6 起是空的）。
+- [ ] 节点 2 没测到的顺带补：面板 `@` 里键的图标（树读到类型的用类型图标，其余用通用 key 图标）。
