@@ -445,6 +445,7 @@ func (a *App) gotKeyDone(m keyDone) tea.Cmd {
 	}
 	cmds := []tea.Cmd{a.showToast(say), a.loadKeys(c)}
 	if m.key != "" {
+		cmds = append(cmds, a.keysChanged(c, slices.DeleteFunc([]string{m.key, m.to}, func(k string) bool { return k == "" })...))
 		for _, p := range a.sessionOf(c).panes() {
 			for i, tb := range p.Tabs {
 				if t := tb.Data; t != nil && t.conn == c && t.table.Kind == "k" && t.table.Name == m.key {

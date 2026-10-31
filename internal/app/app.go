@@ -305,7 +305,7 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case keyListMsg:
 		a.gotKeyListed(msg)
 	case matchMsg:
-		a.gotMatch(msg)
+		return a, a.gotMatch(msg)
 	case namespaceFound:
 		return a, a.gotNamespaceFound(msg)
 	case pageMsg:

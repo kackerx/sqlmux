@@ -283,6 +283,7 @@ type Conn struct {
 	// place of the index when the keys of a write are not known, or the tree had R:
 	// the index is used till it is done (F20.1, F20.8)
 	index, building *keyIndex
+	epoch           int // counts the FLUSHes: what was asked of the keys before one is not of the db now
 }
 
 // inDB is the connection to database name: c itself for the one it is dialed
