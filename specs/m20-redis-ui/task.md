@@ -54,7 +54,7 @@
 - [ ] 单测：建过索引的 db 的键出现在 `@`、没建过的不出现；`↵` 开键 tab / 聚焦已开的；输入时没有 SCAN 发出；10 万个键时一次过滤的耗时（基准，超过 30ms 在送审里说明）；mutation。
 - [ ] e2e：先在 query 里补全一次键名（建索引），再 `@p:employees` 出键、`↵` 开键 tab。
 
-## F20.4 打开树时光标不跳：`[tree] follow` · 负责：dev-2 · 状态：todo
+## F20.4 打开树时光标不跳：`[tree] follow` · 负责：dev-2 · 状态：passed（832fb7c，分支 f20-ui；e2e e817cdf）
 
 - **依赖**：M19 F19.5
 - **涉及**：`internal/app`（tree.toggle 进树、点 `»`）、`internal/config`
@@ -67,7 +67,7 @@
 - [ ] 单测：`follow` 两种取值下，从表格 `SPC b` 进树、点 `»` 展开后光标的位置；mutation。
 - [ ] e2e：树光标停在别的表上，聚焦一个表 tab 再 `SPC b`，光标还在原来那行；`follow = true` 时落在当前表上。
 
-## F20.5 编辑器的 `clipboard = "unnamedplus"` · 负责：dev-2 · 状态：todo
+## F20.5 编辑器的 `clipboard = "unnamedplus"` · 负责：dev-2 · 状态：passed（832fb7c，分支 f20-ui；e2e e817cdf）
 
 - **依赖**：M3 F3.38（寄存器）
 - **涉及**：`internal/editor`（寄存器）、`internal/app`（读剪贴板的路）、`internal/config`
