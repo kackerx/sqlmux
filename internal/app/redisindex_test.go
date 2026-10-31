@@ -808,3 +808,21 @@ func TestQuickKeyMatchInBackground(t *testing.T) {
 		t.Error("an answer for an input that is gone is taken")
 	}
 }
+
+// A query goes on from the last one's matches only when that is sure to hold: not
+// once the last has a ! or a $ term, nor when what is added makes an alternative (F20.3).
+func TestNarrowsTo(t *testing.T) {
+	for _, tc := range []struct {
+		last, query string
+		want        bool
+	}{
+		{"pl", "pla", true}, {"pl", "pl x", true}, {"^pl", "^pla", true}, {"'pl", "'pla", true}, {"pl", "pl$", true}, {"pl", "pl !x", true},
+		{"", "pl", false}, {"pl", "p", false}, {"pl", "xpl", false},
+		{"!pl", "!pla", false}, {"a !pl", "a !pla", false}, {"a$", "a$b", false}, {"a$", "a$ ", false},
+		{"pl", "pl | x", false}, {"pl", "pl|", false},
+	} {
+		if got := narrowsTo(tc.last, tc.query); got != tc.want {
+			t.Errorf("narrowsTo(%q, %q) = %v, want %v", tc.last, tc.query, got, tc.want)
+		}
+	}
+}

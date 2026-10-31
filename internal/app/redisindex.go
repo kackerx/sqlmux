@@ -93,10 +93,19 @@ func (ix *keyIndex) makeCands() {
 // names the match goes on in the background (F20.8). Upgrade to a matcher of our
 // own if the first one is still too long to wait for.
 
+// narrowsTo is whether what query matches is among what last matched, query going on
+// from it: so with a plain pattern, whose every added character asks more. Not so
+// once last has a term with ! (a longer one excludes less) or $ (a$ ends with a, a$b
+// is a fuzzy match), or query adds a | (an alternative asks less) (§9.7, fzf's
+// extended syntax).
+func narrowsTo(last, query string) bool {
+	return last != "" && strings.HasPrefix(query, last) && !strings.ContainsAny(last, "!$") && !strings.Contains(query[len(last):], "|")
+}
+
 // narrowed is the candidates partial can match among: those the pattern typed
 // before it matched, when it goes on from it, else every name.
 func (ix *keyIndex) narrowed(partial string) []candidate {
-	if p := strings.ToLower(partial); ix.last.pattern != "" && strings.HasPrefix(p, ix.last.pattern) {
+	if narrowsTo(ix.last.pattern, strings.ToLower(partial)) {
 		return ix.last.cands
 	}
 	return ix.cands
@@ -280,7 +289,7 @@ func (a *App) keySources() (srcs []keySource) {
 		if c.scan != nil {
 			src.tree = c.scan.keys
 		}
-		if c.index != nil && c.index.done {
+		if c.index != nil { // the one being made is none of its own yet
 			src.names = c.index.names
 		}
 		srcs = append(srcs, src)
@@ -299,7 +308,7 @@ func (a *App) keyCount() (n int) {
 		if c.scan != nil {
 			n += len(c.scan.keys)
 		}
-		if c.index != nil && c.index.done {
+		if c.index != nil {
 			n += len(c.index.names)
 		}
 	}
@@ -315,7 +324,7 @@ func (a *App) keySig() string {
 		if !c.sql() && c.State == connReady {
 			fmt.Fprintf(&b, "|%s %p %p", c.tableKey(db.Table{Kind: "k"}), c.index, c.scan)
 			if c.index != nil {
-				fmt.Fprintf(&b, " %v %d %d", c.index.done, len(c.index.names), c.index.gen)
+				fmt.Fprintf(&b, " %d %d", len(c.index.names), c.index.gen)
 			}
 			if c.scan != nil {
 				fmt.Fprintf(&b, " %d", len(c.scan.keys))
@@ -358,7 +367,7 @@ func buildKeyList(sig string, srcs []keySource, icons *ui.Icons) *keyList {
 // first. It changes kl and nothing it shares with another list, so it may run in the
 // background over a copy.
 func (kl *keyList) match(query string) {
-	narrow := kl.query != "" && strings.HasPrefix(query, kl.query) // among what the last query matched
+	narrow := narrowsTo(kl.query, query) // among what the last query matched
 	texts := kl.texts
 	if narrow {
 		texts = make([]string, len(kl.cand))
@@ -374,7 +383,6 @@ func (kl *keyList) match(query string) {
 		}
 		ms[i], kl.cand[i] = m, m.Index
 	}
-	slices.Sort(kl.cand)
 	slices.SortStableFunc(ms, func(x, y ui.Match) int { return cmp.Or(y.Score-x.Score, x.Index-y.Index) })
 	kl.query, kl.top, kl.ms = query, []paletteItem{}, nil
 	for _, m := range ms[:min(len(ms), keyListed)] {

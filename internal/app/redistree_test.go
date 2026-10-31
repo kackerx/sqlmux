@@ -409,8 +409,8 @@ func TestRedisTreeFilterLit(t *testing.T) {
 	if got := lit("p:emp"); len(got["p"])+len(got["employees"])+len(got["emp"]) != 0 { // across the delimiter: lit in none
 		t.Errorf("p:emp: %v", got)
 	}
-	found.keys = append(found.keys, redis.KeyInfo{Name: "a*b", Type: "string"}, redis.KeyInfo{Name: "x[e]mp", Type: "string"})
-	for _, glob := range []string{"a*b", "emp*", "e?p", "[e]mp"} {
+	found.keys = append(found.keys, redis.KeyInfo{Name: "a*b", Type: "string"}, redis.KeyInfo{Name: "a?b", Type: "string"}, redis.KeyInfo{Name: "x[e]mp", Type: "string"})
+	for _, glob := range []string{"a*b", "a?b", "emp*", "e?p", "[e]mp"} {
 		for text, pos := range lit(glob) {
 			if pos != nil {
 				t.Errorf("%q lit %v of %q", glob, pos, text)

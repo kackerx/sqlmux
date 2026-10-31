@@ -161,6 +161,55 @@ func TestPaletteRedisKeyEnter(t *testing.T) {
 	}
 }
 
+// A key picked in the palette of a landing page's 打开表 opens where that page is,
+// replacing it, not in the pane that takes tables otherwise (F20.3).
+func TestPaletteRedisKeyIntoLanding(t *testing.T) {
+	a, _ := keyPalette(t, "")
+	feed(t, a, "<Esc><Esc>")
+	landing := a.win().Root.Leaves()[0]
+	a.win().focus(landing.ID)
+	if !landing.tab().landing() {
+		t.Fatal("the first pane is not a landing page")
+	}
+	a.run("tab.table", 0)
+	if a.palette == nil || a.palette.into != landing {
+		t.Fatalf("palette %+v", a.palette)
+	}
+	a.win().focus(2) // another pane is the one a table would go to
+	feed(t, a, "employees:2")
+	items, ms := a.paletteMatches()
+	i := slices.IndexFunc(ms, func(m ui.Match) bool { return items[m.Index].id == "doraemon/db0/p:employees:2" })
+	if i < 0 {
+		t.Fatalf("not listed: %v", ms)
+	}
+	a.paletteRun(i, false)
+	if d := dataOf(landing); d == nil || d.table.Name != "p:employees:2" || len(landing.Tabs) != 1 {
+		t.Errorf("the landing page: %d tabs, %+v", len(landing.Tabs), landing.tab())
+	}
+}
+
+// The keys listed are those of a db that is connected and whose index is done: one
+// that is being made, or of a connection that is down, lists none (§12, F20.3).
+func TestPaletteRedisKeysOnlyOfWhatIsRead(t *testing.T) {
+	a, conn := keyPalette(t, "@employees")
+	if len(keyRows(a)) == 0 {
+		t.Fatal("none listed")
+	}
+	conn.State = connFailed
+	a.palette.keys = nil
+	if rows := keyRows(a); len(rows) != 0 {
+		t.Errorf("a failed connection lists %d keys", len(rows))
+	}
+	conn.State = connReady
+	conn.scan = nil
+	building := &keyIndex{names: []string{"p:employees:half"}, seen: map[string]bool{}}
+	conn.index, conn.building = nil, building
+	a.palette.keys = nil
+	if rows := keyRows(a); len(rows) != 0 {
+		t.Errorf("an index that is being made lists %d keys", len(rows))
+	}
+}
+
 // Typing in the palette sends nothing to the server and starts no index: the
 // keys it lists are what was read already (§12, F20.3).
 func TestPaletteRedisKeysAskNothing(t *testing.T) {
@@ -200,7 +249,9 @@ func TestPaletteRedisKeysNarrow(t *testing.T) {
 		}
 		return out
 	}
-	for _, q := range []string{"u", "us", "user_1", "user_12", "user_2", "a", "app3:u", "User_1", "zzz"} {
+	// fzf's extended syntax: ! asks less the longer it is, a$ ends and a$b does not, | asks less
+	for _, q := range []string{"u", "us", "user_1", "user_12", "user_2", "a", "app3:u", "User_1", "zzz",
+		"!_12", "!_123", "!_1234", "1$", "1$2", "1$23", "s", "s | 5", "s | 55", "^app3", "^app3:", "'user_1", "'user_12", "u !_1", "u !_12"} {
 		a.palette.input.Text = "@" + q
 		got := labels(a.keyMatches(q))
 		a.palette.keys = nil
