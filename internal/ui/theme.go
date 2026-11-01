@@ -69,8 +69,9 @@ var TokyonightStorm = &Theme{
 	Production: c("#f7768e"),
 }
 
-// Themes are the built-in themes by name: tokyonight-storm, which every other
-// theme is read over, and the files that ship in the binary (F20.7).
+// Themes are the built-in themes that are Go values by name: tokyonight-storm,
+// which every theme file is read over. The ones that are files are in
+// BuiltinThemeFiles (F20.7).
 var Themes = map[string]*Theme{"tokyonight-storm": TokyonightStorm}
 
 // BuiltinThemeFiles are the theme files built in, by name: read as the user's
