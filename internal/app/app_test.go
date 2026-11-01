@@ -1057,9 +1057,21 @@ func TestTreeToggleFocus(t *testing.T) {
 	}
 }
 
-// The default layout in color, the gaps and the borders (F20.6).
+// The default layout in color, the gaps and the borders (F20.6), and in the
+// built-in ristretto (F20.7).
 func TestGoldenDefaultColors(t *testing.T) {
 	a := sizedWith(160, 45, userConfig(t, "", ""))
+	loadOrders(t, a, 3)
+	golden.RequireEqual(t, a.render().Buf.Render())
+}
+
+func TestGoldenRistretto(t *testing.T) {
+	c := userConfig(t, "", "")
+	var err error
+	if c.Theme, c.Icons, _, err = config.LoadTheme("ristretto", c.BaseIcons); err != nil { // Load's step, which Parse leaves to it
+		t.Fatal(err)
+	}
+	a := sizedWith(160, 45, c)
 	loadOrders(t, a, 3)
 	golden.RequireEqual(t, a.render().Buf.Render())
 }

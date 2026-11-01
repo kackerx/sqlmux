@@ -338,7 +338,7 @@ func Parse(data string) (*Config, error) {
 // ThemeNames are the themes there are: the files of themes/ and the
 // built-in ones, by name.
 func ThemeNames() []string {
-	names := slices.Collect(maps.Keys(ui.Themes))
+	names := slices.AppendSeq(slices.Collect(maps.Keys(ui.Themes)), maps.Keys(ui.BuiltinThemeFiles))
 	files, _ := filepath.Glob(filepath.Join(Dir(), "themes", "*.toml"))
 	for _, f := range files {
 		names = append(names, strings.TrimSuffix(filepath.Base(f), ".toml"))
@@ -356,6 +356,9 @@ func LoadTheme(name string, icons *ui.Icons) (th *ui.Theme, ic *ui.Icons, unknow
 	if errors.Is(err, fs.ErrNotExist) {
 		if th, ok := ui.Themes[name]; ok {
 			return th, icons, nil, nil
+		}
+		if src, ok := ui.BuiltinThemeFiles[name]; ok {
+			return ui.ParseTheme(src, icons)
 		}
 		return nil, nil, nil, fmt.Errorf(i18n.T("找不到 %s，也没有这个内置主题"), path)
 	}

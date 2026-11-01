@@ -1,6 +1,7 @@
 package ui
 
 import (
+	_ "embed"
 	"fmt"
 	"image/color"
 	"maps"
@@ -68,8 +69,16 @@ var TokyonightStorm = &Theme{
 	Production: c("#f7768e"),
 }
 
-// Themes are the built-in themes by name.
+// Themes are the built-in themes by name: tokyonight-storm, which every other
+// theme is read over, and the files that ship in the binary (F20.7).
 var Themes = map[string]*Theme{"tokyonight-storm": TokyonightStorm}
+
+// BuiltinThemeFiles are the theme files built in, by name: read as the user's
+// are, over tokyonight-storm and with their [icon], by ParseTheme.
+var BuiltinThemeFiles = map[string]string{"ristretto": ristretto}
+
+//go:embed ristretto.toml
+var ristretto string
 
 func c(s string) color.Color { return ansi.XParseColor(s) }
 
