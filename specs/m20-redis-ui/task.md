@@ -82,7 +82,7 @@
 - [ ] 单测：两种取值下 `yy` / `dd` / `x` / `p` 走的寄存器（用假的剪贴板工具）；读失败退回无名寄存器；没有本地工具时不发 OSC 52 查询；WHERE 和值编辑器也生效；mutation。
 - [ ] e2e：`clipboard = "unnamedplus"` 时 query 里 `yy`，假 `pbpaste` 读到这一行；缺省时读不到。
 
-## F20.6 间隙跟 `pane_bg`、`border_focus`、默认边框调亮 · 负责：dev-2 · 状态：todo
+## F20.6 间隙跟 `pane_bg`、`border_focus`、默认边框调亮 · 负责：dev-2 · 状态：passed（520d70f，分支 f20-ui；e2e 9a55472）
 
 - **依赖**：M8 F8.10（边框）
 - **涉及**：`internal/ui`（theme、frame、block 的边框色）、`internal/app`（画间隙的那一处）
@@ -97,7 +97,7 @@
 - [ ] golden：默认布局（间隙和边框颜色）。
 - [ ] e2e：主题里 `bg` 和 `pane_bg` 不同时，间隙那一列的底色等于 `pane_bg`；`border_focus` 设了别的颜色，聚焦 pane 的边框是它、NORMAL 块还是 `focus`。
 
-## F20.7 内置第二个主题 `ristretto` · 负责：dev-2 · 状态：todo
+## F20.7 内置第二个主题 `ristretto` · 负责：dev-2 · 状态：passed（520d70f，分支 f20-ui；e2e 9a55472）
 
 - **依赖**：F20.6（`bg` 要留深色给 tab 栏，间隙靠 `gap`）
 - **涉及**：`internal/ui`（内置主题）
