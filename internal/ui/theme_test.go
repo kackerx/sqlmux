@@ -68,6 +68,22 @@ func TestThemeZoomDefaultsToWarn(t *testing.T) {
 	}
 }
 
+// The gaps between the panes are the theme's gap, which a theme without one takes
+// from its own pane_bg, and the focused border and the overlays' the theme's
+// border_focus, from its own focus: not tokyonight's (F20.6).
+func TestThemeGapAndBorderFocusDefaults(t *testing.T) {
+	for _, tc := range []struct{ file, gap, borderFocus string }{
+		{"", "#24283b", "#9ece6a"}, // tokyonight's own
+		{`pane_bg = "#112233"` + "\n" + `focus = "#445566"`, "#112233", "#445566"},
+		{`pane_bg = "#112233"` + "\n" + `gap = "#778899"` + "\n" + `focus = "#445566"` + "\n" + `border_focus = "#aabbcc"`, "#778899", "#aabbcc"},
+	} {
+		th, _, unknown, err := ParseTheme(tc.file, ASCIIIcons)
+		if err != nil || len(unknown) != 0 || th.Gap != c(tc.gap) || th.BorderFocus != c(tc.borderFocus) {
+			t.Errorf("%q: gap %v, border_focus %v, want %s, %s (%v %v)", tc.file, th.Gap, th.BorderFocus, tc.gap, tc.borderFocus, unknown, err)
+		}
+	}
+}
+
 // The search colors of an editor are the theme's own, and a theme file that
 // has none gets its visual and its yank, as it has had its selection (F15.9).
 func TestThemeSearchFallsBack(t *testing.T) {

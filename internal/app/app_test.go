@@ -18,6 +18,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db"
@@ -1053,6 +1054,35 @@ func TestTreeToggleFocus(t *testing.T) {
 	click(a, find(t, a, ui.Target{Kind: ui.KindHint, Pane: 0, Action: "tree.fold"}).Min)
 	if open, focus := state(a); open || focus != 2 {
 		t.Fatalf("« with the focus on the tree: open %v focus %d, want ②", open, focus)
+	}
+}
+
+// The default layout in color, the gaps and the borders (F20.6).
+func TestGoldenDefaultColors(t *testing.T) {
+	a := sizedWith(160, 45, userConfig(t, "", ""))
+	loadOrders(t, a, 3)
+	golden.RequireEqual(t, a.render().Buf.Render())
+}
+
+// What no pane covers, the blank columns between the panes and right of the
+// sidebar, is the theme's gap, not its bg; the status bar is not (F20.6).
+func TestGapColor(t *testing.T) {
+	c := config.Default()
+	th := *ui.TokyonightStorm
+	th.Gap = ui.TokyonightStorm.Warn // none of bg, pane_bg or the bar's
+	c.Theme = &th
+	a := sizedWith(160, 45, c)
+	f := a.render()
+	rects := a.layout()
+	for _, x := range []int{rects[0].Max.X, rects[1].Max.X} { // right of the sidebar, between ① and ②
+		for _, y := range []int{0, 20, 43} {
+			if got := f.Buf.CellAt(x, y).Style.Bg; got != th.Gap {
+				t.Errorf("(%d, %d): bg %v, want the gap's", x, y, got)
+			}
+		}
+	}
+	if got := f.Buf.CellAt(rects[1].Max.X+20, 44).Style.Bg; got == th.Gap {
+		t.Error("the status bar is in the gap's color")
 	}
 }
 
