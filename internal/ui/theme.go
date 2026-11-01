@@ -7,6 +7,7 @@ import (
 	"maps"
 	"regexp"
 	"slices"
+	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/x/ansi"
@@ -118,7 +119,7 @@ func ParseTheme(data string, icons *Icons) (th *Theme, ic *Icons, unknown []stri
 				if err := md.PrimitiveDecode(specs[name], &s); err != nil {
 					return nil, nil, nil, fmt.Errorf("[icon] %s: %w", name, err)
 				}
-				if s.Text != nil {
+				if s.Text != nil && (icons != ASCIIIcons || isASCII(*s.Text)) { // glyphs are written for Nerd Font: ascii has none of them (F20.7)
 					icon.Text = *s.Text
 				}
 				if s.Fg != nil {
@@ -171,6 +172,15 @@ func ParseTheme(data string, icons *Icons) (th *Theme, ic *Icons, unknown []stri
 	}
 	slices.Sort(unknown)
 	return th, ic, unknown, nil
+}
+
+func isASCII(s string) bool {
+	for _, r := range s {
+		if r >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
 }
 
 func hex(key, v string) (color.Color, error) {

@@ -362,7 +362,7 @@ func TestThemeSwitch(t *testing.T) {
 	}
 	a.run("theme.switch", 0) // the built-in second one (F20.7), its [icon] on the icons chosen
 	feed(t, a, "ris<CR>")
-	if a.themeName != "ristretto" || ansiHex(a.theme.PaneBg) != "#393333" || a.icons.Query.Text != "\uf489" || a.icons.Table.Text != "+" {
+	if a.themeName != "ristretto" || ansiHex(a.theme.PaneBg) != "#393333" || a.icons.Query.Text != ui.ASCIIIcons.Query.Text || ansiHex(a.icons.Query.Fg) != "#78dce8" || a.icons.Table.Text != "+" {
 		t.Errorf("ristretto: %q pane_bg %v query %q table %q", a.themeName, a.theme.PaneBg, a.icons.Query.Text, a.icons.Table.Text)
 	}
 	// the file is read as the program runs: what it says goes with the language

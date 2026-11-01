@@ -68,6 +68,20 @@ func TestThemeZoomDefaultsToWarn(t *testing.T) {
 	}
 }
 
+// A theme's [icon] text is Nerd Font's glyph: on the ascii set only text that is
+// plain ASCII is taken, the fg always; on the nerd set all of it (F20.7).
+func TestThemeIconTextOnAscii(t *testing.T) {
+	file := "[icon]\nquery = { text = \"" + string(rune(0xf489)) + "\", fg = \"#ff0000\" }\ntable = { text = \"T\" }\nkey = { text = \"" + string(rune(0xe000)) + "x\" }\n"
+	_, ic, _, err := ParseTheme(file, ASCIIIcons)
+	if err != nil || ic.Query.Text != ASCIIIcons.Query.Text || ic.Query.Fg != c("#ff0000") || ic.Table.Text != "T" || ic.Key.Text != ASCIIIcons.Key.Text {
+		t.Errorf("ascii: query %+v table %+v key %+v (%v)", ic.Query, ic.Table, ic.Key, err)
+	}
+	_, ic, _, err = ParseTheme(file, NerdIcons)
+	if err != nil || ic.Query.Text != string(rune(0xf489)) || ic.Table.Text != "T" || ic.Key.Text != string(rune(0xe000))+"x" {
+		t.Errorf("nerd: query %+v table %+v key %+v (%v)", ic.Query, ic.Table, ic.Key, err)
+	}
+}
+
 // The gaps between the panes are the theme's gap, which a theme without one takes
 // from its own pane_bg, and the focused border and the overlays' the theme's
 // border_focus, from its own focus: not tokyonight's (F20.6).

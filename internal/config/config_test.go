@@ -174,13 +174,17 @@ func TestBuiltinRistretto(t *testing.T) {
 	if th.Gap != th.PaneBg || th.BorderFocus != th.Focus || th.Focus == ui.TokyonightStorm.Focus { // none written: its own pane_bg and focus
 		t.Errorf("gap %v border_focus %v", th.Gap, th.BorderFocus)
 	}
-	if c.Icons.Query.Text != "\uf489" || c.Icons.Table.Fg != ansi.XParseColor("#a9dc76") || c.Icons.Table.Text != ui.ASCIIIcons.Table.Text {
+	// the theme's [icon] glyphs are Nerd Font's: on the ascii set the text is not taken, the fg is
+	if c.Icons.Query.Text != ui.ASCIIIcons.Query.Text || c.Icons.Query.Fg != ansi.XParseColor("#78dce8") || c.Icons.Table.Fg != ansi.XParseColor("#a9dc76") || c.Icons.Table.Text != ui.ASCIIIcons.Table.Text {
 		t.Errorf("icons: query %+v table %+v", c.Icons.Query, c.Icons.Table)
+	}
+	if _, ic, _, err := LoadTheme("ristretto", ui.NerdIcons); err != nil || ic.Query.Text != "\uf489" {
+		t.Errorf("on the nerd set the glyph is the theme's: %q %v", ic.Query.Text, err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "sqlmux", "themes", "ristretto.toml"), []byte(`pane_bg = "#010203"`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if c := load(); c.Theme.PaneBg != ansi.XParseColor("#010203") || c.Theme.Bg != ui.TokyonightStorm.Bg || c.Icons.Query.Text == "\uf489" {
+	if c := load(); c.Theme.PaneBg != ansi.XParseColor("#010203") || c.Theme.Bg != ui.TokyonightStorm.Bg || c.Icons.Query.Fg == ansi.XParseColor("#78dce8") {
 		t.Errorf("the user's file is the theme: pane_bg %v bg %v", c.Theme.PaneBg, c.Theme.Bg)
 	}
 	if names := ThemeNames(); !slices.Equal(names, []string{"ristretto", "tokyonight-storm"}) {
