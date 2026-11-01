@@ -126,3 +126,32 @@ func TestBlockProductionBorder(t *testing.T) {
 		}
 	}
 }
+
+// A focused pane's border and the title on it are the theme's border_focus, not
+// its focus; a zoomed one's is the zoom, a production one's the production (F20.6).
+func TestBlockFocusedBorder(t *testing.T) {
+	th := *TokyonightStorm
+	th.BorderFocus = c("#010203")
+	for _, tc := range []struct {
+		zoomed, prod bool
+		want         color.Color
+	}{{false, false, th.BorderFocus}, {true, false, th.Zoom}, {false, true, th.Production}} {
+		f := NewFrame(30, 3, &th)
+		Block{Num: "1", Title: "data", Focused: true, Zoomed: tc.zoomed, Production: tc.prod}.Draw(f, uv.Rect(0, 0, 30, 3))
+		if got := f.Buf.CellAt(0, 1).Style.Fg; got != tc.want {
+			t.Errorf("zoomed %v production %v: border %v, want %v", tc.zoomed, tc.prod, got, tc.want)
+		}
+		if tc.zoomed || tc.prod {
+			continue
+		}
+		title := -1
+		for x := range 30 {
+			if f.Buf.CellAt(x, 0).String() == "d" {
+				title = x
+			}
+		}
+		if title < 0 || f.Buf.CellAt(title, 0).Style.Fg != th.BorderFocus {
+			t.Errorf("the title on the border is not in border_focus: %v", f.Buf.CellAt(title, 0))
+		}
+	}
+}

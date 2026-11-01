@@ -1,0 +1,47 @@
+# ristretto: warm grey background, Monokai Pro colors. Built into sqlmux: theme = "ristretto" in config.toml.
+# To change it, copy this file to ~/.config/sqlmux/themes/ristretto.toml (that file wins over the built-in one).
+# Only the tokens to change are here; the rest come from the built-in tokyonight-storm.
+# Changes show after restarting sqlmux.
+
+bg          = "#312b2b"   # tab bar (the gaps take `gap`, which follows pane_bg)
+pane_bg     = "#393333"   # pane background
+fg          = "#fafff0"
+fg_muted    = "#c9c4c4"
+dim         = "#8c8687"
+border      = "#7a7272"   # unfocused border
+focus       = "#a9dc76"   # focused border, NORMAL
+warn        = "#ffd866"
+cursor      = "#81817e"   # current cell, like nvim's highlight of the word under the cursor
+cursor_blur = "#737173"   # current cell while the pane is unfocused
+select      = "#524b4b"   # the selected item in a list
+row         = "#4a4343"   # current row, a step darker than the current cell so the two stay apart
+row_alt     = "#353030"   # grid zebra stripes
+visual      = "#6c6a6d"   # a query's VISUAL selection and an input box's select-all, a step lighter than the current row
+selected    = "#5e4e22"   # records selected for good on a table
+bar         = "#2a2424"   # status bar, toasts
+sep         = "#4a4444"
+edited_bg   = "#4a4232"
+keyword     = "#ff6188"
+info        = "#78dce8"
+error       = "#ff6188"
+pk          = "#fc9867"
+func        = "#78dce8"   # column headers
+
+# SQL in a query and the WHERE box
+sql_table    = "#78dce8"  # table names
+sql_column   = "#fc9867"  # column names
+sql_operator = "#ee9089"  # operators and punctuation: = <> * ; , ( )
+yank         = "#ffd866"  # the flash background when yanking
+
+# grid cells colored by column type
+number      = "#ab9df2"   # int, numeric, float, ...
+string      = "#ffd866"   # text, varchar, ...
+time        = "#fc9867"   # date, timestamp, timestamptz, interval, ...
+bool        = "#ff6188"
+json        = "#78dce8"
+
+# Icons: text replaces the glyph, fg the color; either alone is fine. Unset ones come from the
+# icons = "nerd" set in config.toml. Names: schema table data query filter search keys conn key postgres
+[icon]
+query = { text = "\uf489", fg = "#78dce8" }   # nf-oct-terminal, the boxed terminal glyph
+table   = { fg = "#a9dc76" }
