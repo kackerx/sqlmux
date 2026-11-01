@@ -24,6 +24,14 @@ conf 'theme = "ristretto"' 'pane_bg = "#101010"'; start -C "$D"
 check "用户的 themes/ristretto.toml 优先：pane_bg 是用户写的 #101010" style_has 130 20 bg=#101010
 check "用户文件没写的 token 沿用 tokyonight-storm：未聚焦边框 #565f89（不是内置 ristretto 的 #7a7272）、聚焦 #9ece6a（不是 #a9dc76）" eval 'style_has $(pane_x 2) $(pane_y 2) fg=#565f89 && style_has $(pane_x 1) $(pane_y 1) fg=#9ece6a'
 
+# ---- icons：ristretto 的 [icon] 里 query 是 \uf489 + #78dce8；icons = "ascii" 时含非 ASCII 的 text 不生效，用 ascii 那套的 >，fg 照用
+NF=$(printf '\xef\x92\x89')   # U+F489
+conf 'theme = "ristretto"'; start -C "$D"
+check "ristretto + nerd：② 标题的 query 图标是 ristretto 的 \uf489，颜色 #78dce8" eval '[[ $(e2e_text 103 103 1) == "$NF" ]] && style_has 103 1 fg=#78dce8'
+conf 'theme = "ristretto"
+icons = "ascii"'; start -C "$D"
+check "ristretto + icons = ascii：query 图标是 ascii 那套的 >（\uf489 不生效），颜色还是 ristretto 的 #78dce8" eval '[[ $(e2e_text 105 105 1) == ">" ]] && style_has 105 1 fg=#78dce8' || { e2e_text 100 110 1; e2e_style 105 1; }
+
 # ---- 主题下拉里两个都列；切换立刻生效
 conf '' ; start -C "$D"
 check "（准备）缺省主题：pane_bg #24283b" style_has 130 20 bg=#24283b

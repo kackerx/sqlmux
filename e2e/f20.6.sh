@@ -40,8 +40,23 @@ check "NORMAL 块还是 focus 色 #9ece6a（border_focus 不管它）" eval 'x=$
 e2e_keys C-p; sleep 0.5
 check "命令面板（浮层）的边框是 border_focus #ff00ff" eval 'style_has $(left) $(top) fg=#ff00ff'
 e2e_keys Escape; sleep 0.3
+# 浮层：补全、which-key（照旧 border）、下拉、连接管理；每个浮层的左上角
+pbox() { e2e_panes | awk '$1 == "-" { print $2, $3 }' | tail -1; }       # X Y of the last floating box
+corner_is() { local b; b=($(pbox)); [[ -n ${b[0]} ]] || { echo "  no floating box"; return 1; }; style_has "${b[0]}" "${b[1]}" "fg=$1" || { echo "  corner at ${b[*]}: $(e2e_style "${b[0]}" "${b[1]}")"; false; }; }
+key C-l; key i; e2e_type "sel"; sleep 1
+check "补全浮层的边框是 border_focus #ff00ff" corner_is '#ff00ff'
+key Escape; key Escape; sleep 0.3
+e2e_keys Space; sleep 1
+check "which-key 浮层照旧是 border #565f89（不跟 border_focus）" corner_is '#565f89'
+e2e_keys Escape; sleep 0.3
+pal ">theme"; sleep 0.4; key Enter; sleep 0.6
+check "主题下拉（theme.switch）的边框是 border_focus #ff00ff" corner_is '#ff00ff'
+key Escape; key Escape; sleep 0.3
+pal ">conn"; sleep 0.4; e2e_type ".manage"; sleep 0.4; key Enter; sleep 0.8
+check "连接管理浮层的边框是 border_focus #ff00ff" corner_is '#ff00ff'
+key Escape; key Escape; sleep 0.3
 e2e_keys Space; e2e_type z; sleep 0.5
-check "缩放（zoom）：边框是 zoom 色（warn #e0af68），盖过 border_focus" eval 'style_has $(pane_x 1) $(pane_y 1) fg=#e0af68' || { e2e_style $(pane_x 1) $(pane_y 1); }
+check "缩放（zoom）：边框是 zoom 色（warn #e0af68），盖过 border_focus" eval 'f=$(focused); style_has $(pane_x $f) $(pane_y $f) fg=#e0af68' || { f=$(focused); e2e_style $(pane_x $f) $(pane_y $f); }
 e2e_keys Space; e2e_type z; sleep 0.3
 
 # ---- 没写 border_focus：同 focus；focus 改了，聚焦边框跟着改
