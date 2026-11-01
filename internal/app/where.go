@@ -722,6 +722,10 @@ func (a *App) acceptCompletion() tea.Cmd {
 		return nil
 	}
 	if p := a.palette; p != nil {
+		if h := p.hint; h != nil && h.matching { // as a query's: ↵ waits for the list that comes (F20.8)
+			h.enter = true
+			return nil
+		}
 		space := p.comp.items[p.comp.sel].space
 		p.comp.accept(&p.input)
 		p.comp = nil

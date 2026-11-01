@@ -146,3 +146,47 @@ func TestKeyIndexFollowsWrites(t *testing.T) {
 		t.Errorf("FLUSHDB: %v", c.index.names)
 	}
 }
+
+// What the key tab and the tree's menu do to a key goes into the index as a write of the
+// console does, by one EXISTS: a hash that lost its last field is gone from it, a key
+// renamed is there by its new name and not the old; SWAPDB makes it again (§9.8, F20.8).
+func TestKeyIndexFollowsKeyTab(t *testing.T) {
+	dsn := redis.OwnDB(t)
+	opt, err := goredis.ParseURL(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cl := goredis.NewClient(opt)
+	defer cl.Close()
+	cl.HSet(context.Background(), "kt:solo", "a", "1")
+	cl.Set(context.Background(), "kt:plain", "x", 0)
+	a, c := redisApp(t, dsn, 1) // the tree does not read it all: the index is built
+	for cmd := a.startIndex(c); cmd != nil; {
+		cmd = a.gotIndex(cmd().(indexMsg))
+	}
+	names := func() string {
+		var out []string
+		for _, n := range c.index.names {
+			if strings.HasPrefix(n, "kt:") {
+				out = append(out, n)
+			}
+		}
+		return strings.Join(out, " ")
+	}
+	if names() != "kt:plain kt:solo" {
+		t.Fatalf("built: %q", names())
+	}
+	a.confirmDangerous = false
+	d := openKey(t, a, c, "kt:solo")
+	d.deleted = map[string]bool{d.rowKey(0): true}
+	settle(a, a.save())
+	if got := command(t, c, "EXISTS", "kt:solo").Rows[0][0].S; got != "0" || names() != "kt:plain" {
+		t.Errorf("the last field deleted: exists %s, %q", got, names())
+	}
+	command(t, c, "RENAME", "kt:plain", "kt:moved")
+	c.busy++
+	settle(a, a.gotKeyDone(keyDone{conn: c, say: "renamed", key: "kt:plain", to: "kt:moved"}))
+	if names() != "kt:moved" {
+		t.Errorf("renamed: %q", names())
+	}
+}

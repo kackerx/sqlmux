@@ -31,6 +31,9 @@ type keyIndex struct {
 	done    bool // names is all of the db, or all that index_keys keeps room for
 	capped  bool // the db has more
 	gen     int  // how many times a write changed it: what a list made of it goes by (F20.8)
+	// deltas are what the writes since this one was begun made of the names, in order:
+	// a SCAN that was past a key's place does not tell, so they go on over it when it is done
+	deltas []keyDelta
 	// last is what the pattern before matched of cands, in the order they matched:
 	// what a longer pattern matches is among it, so typing on matches in that and
 	// not in all of them (§9.8).
@@ -39,6 +42,9 @@ type keyIndex struct {
 		cands   []candidate
 	}
 }
+
+// keyDelta is the names a write made and the names it took away.
+type keyDelta struct{ add, del []string }
 
 // indexBatchCount is the COUNT of each SCAN that builds the index (§9.8).
 const indexBatchCount = redis.ScanCount
@@ -96,10 +102,9 @@ func (ix *keyIndex) makeCands() {
 // narrowsTo is whether what query matches is among what last matched, query going on
 // from it: so with a plain pattern, whose every added character asks more. Not so
 // once last has a term with ! (a longer one excludes less) or $ (a$ ends with a, a$b
-// is a fuzzy match), or query adds a | (an alternative asks less) (§9.7, fzf's
-// extended syntax).
+// is a fuzzy match) (§9.7, fzf's extended syntax).
 func narrowsTo(last, query string) bool {
-	return last != "" && strings.HasPrefix(query, last) && !strings.ContainsAny(last, "!$") && !strings.Contains(query[len(last):], "|")
+	return last != "" && strings.HasPrefix(query, last) && !strings.ContainsAny(last, "!$")
 }
 
 // narrowed is the candidates partial can match among: those the pattern typed
@@ -208,6 +213,10 @@ func (a *App) gotIndex(m indexMsg) tea.Cmd {
 	}
 	ix.done, ix.capped, ix.seen = true, ix.cursor != 0, nil
 	ix.makeCands()
+	for _, d := range ix.deltas { // the writes that came while it was made, in the order they came
+		ix.update(d.add, d.del)
+	}
+	ix.deltas = nil
 	c.index, c.building = ix, nil
 	return a.recomplete(c)
 }
@@ -504,9 +513,14 @@ func (a *App) refreshIndex(c *Conn) tea.Cmd {
 // wrote is what a command of a Redis connection that ran does to the key names:
 // those it may have made or taken away are asked of the server in one go and the
 // index follows; FLUSHDB empties the db's index and FLUSHALL every db's of the
-// connection; a command whose keys are not known (not in the server's docs, EXEC and
-// the ones that count their keys first) makes the index again in the background. The
+// connection; SWAPDB, and a command whose keys are not known (not in the server's
+// docs, EXEC and the ones that count their keys first), make the index again in the
+// background. The
 // names the console's completion was told of go too (§9.8, F20.8).
+//
+// ponytail: MOVE, COPY … DB n and SWAPDB change the keys of another db, whose index
+// does not follow: R on that one. Upgrade when a db's keys are told of by other dbs'
+// writes.
 func (a *App) wrote(c *Conn, stmt string) tea.Cmd {
 	words, err := redis.SplitLine(stmt)
 	if c.sql() || err != nil || len(words) == 0 {
@@ -528,13 +542,22 @@ func (a *App) wrote(c *Conn, stmt string) tea.Cmd {
 			}
 		}
 		return nil
+	case "swapdb": // no key in it, and every one of the db is another
+		return a.rebuildIndex(c)
 	}
 	keys, known := c.writeKeys(words)
-	switch {
-	case !known:
+	if !known {
 		return a.rebuildIndex(c)
-	case len(keys) == 0 || c.indexed() == nil:
-		return nil // nothing it changes is in an index, or there is none to keep: it will be made from the server
+	}
+	return a.keysChanged(c, keys...)
+}
+
+// keysChanged follows keys that something made or took away: asked of the server in
+// one go; none when the db has no index nor one being made to keep them in, it will
+// be made from the server (§9.8, F20.8).
+func (a *App) keysChanged(c *Conn, keys ...string) tea.Cmd {
+	if len(keys) == 0 || c.indexed() == nil && c.building == nil {
+		return nil
 	}
 	return a.askExists(c, keys)
 }
@@ -543,6 +566,7 @@ func (a *App) wrote(c *Conn, stmt string) tea.Cmd {
 // is let go.
 func (a *App) clearIndex(c *Conn) {
 	c.hints, c.building = nil, nil
+	c.epoch++ // what was asked of the keys before is of the db as it was
 	if c.index != nil || c.scan != nil {
 		c.index = &keyIndex{done: true}
 		c.index.makeCands()
@@ -554,7 +578,7 @@ func (a *App) clearIndex(c *Conn) {
 // keys first (numkeys), or is EXEC, whose queued commands are not in the line.
 func (c *Conn) writeKeys(words []string) (keys []string, known bool) {
 	doc, _, rest, ok := c.docOf(words)
-	if !ok || strings.EqualFold(words[0], "exec") || hasArg(doc.Args, "numkeys") {
+	if !ok || strings.EqualFold(words[0], "exec") || slices.ContainsFunc(doc.Args, func(a redis.Arg) bool { return a.Name == "numkeys" }) {
 		return nil, false
 	}
 	for i := range rest {
@@ -565,20 +589,10 @@ func (c *Conn) writeKeys(words []string) (keys []string, known bool) {
 	return keys, true
 }
 
-// hasArg is whether an argument of the name is among args, in a oneof or a block too.
-func hasArg(args []redis.Arg, name string) bool {
-	for _, a := range args {
-		if a.Name == name || hasArg(a.Args, name) {
-			return true
-		}
-	}
-	return false
-}
-
 // indexDelta is what the server said of keys a write may have changed.
 type indexDelta struct {
 	conn  *Conn
-	ix    *keyIndex
+	epoch int // of c.epoch when it was asked
 	keys  []string
 	found []bool
 	err   error
@@ -586,11 +600,11 @@ type indexDelta struct {
 
 // askExists asks whether keys are in c's db, on Meta, one round trip.
 func (a *App) askExists(c *Conn, keys []string) tea.Cmd {
-	meta, ix := c.Meta, c.index
+	meta, epoch := c.Meta, c.epoch
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
 		defer cancel()
-		m := indexDelta{conn: c, ix: ix, keys: keys}
+		m := indexDelta{conn: c, epoch: epoch, keys: keys}
 		m.err = meta.RunSafe(ctx, func(ctx context.Context, conn db.Conn) (err error) {
 			m.found, err = redis.Exists(ctx, conn, keys)
 			return err
@@ -599,26 +613,31 @@ func (a *App) askExists(c *Conn, keys []string) tea.Cmd {
 	}
 }
 
-// gotDelta takes what the server said of the keys of a write into the index; an
-// answer it could not give makes the index again, one for an index that was
-// replaced is of no use.
+// gotDelta takes what the server said of the keys of a write into the index, and
+// into the one being made, which has it when it is done; an answer it could not give
+// makes the index again, one from before a FLUSH is of no use.
 func (a *App) gotDelta(m indexDelta) tea.Cmd {
-	c, ix := m.conn, m.ix
-	if a.sessionOf(c) == nil || c.index != ix {
+	c := m.conn
+	if a.sessionOf(c) == nil || m.epoch != c.epoch {
 		return nil
 	}
 	if m.err != nil {
 		return a.rebuildIndex(c)
 	}
-	var add, del []string
+	var d keyDelta
 	for i, k := range m.keys {
 		if m.found[i] {
-			add = append(add, k)
+			d.add = append(d.add, k)
 		} else {
-			del = append(del, k)
+			d.del = append(d.del, k)
 		}
 	}
-	ix.update(add, del)
+	if c.building != nil {
+		c.building.deltas = append(c.building.deltas, d)
+	}
+	if c.index != nil {
+		c.index.update(d.add, d.del)
+	}
 	return a.recomplete(c)
 }
 
@@ -638,7 +657,7 @@ func (ix *keyIndex) update(add, del []string) {
 		names = append(names, n)
 		cands = append(cands, candidate{label: n, insert: redis.Quote(n), note: i18n.T("键"), space: true, kind: kindKey})
 	}
-	j := 0
+	j, removed := 0, 0
 	for i, n := range ix.names {
 		for ; j < len(add) && add[j] < n; j++ {
 			put(add[j])
@@ -646,14 +665,19 @@ func (ix *keyIndex) update(add, del []string) {
 		if j < len(add) && add[j] == n {
 			j++ // there already
 		}
-		if !gone[n] {
+		if gone[n] {
+			removed++
+		} else {
 			names, cands = append(names, n), append(cands, ix.cands[i])
 		}
 	}
 	for ; j < len(add); j++ {
 		put(add[j])
 	}
-	ix.total += int64(len(names) - len(ix.names))
+	ix.total -= int64(removed)
+	if !ix.capped { // else a key that was there and was not read is not a new one
+		ix.total += int64(len(names) - len(ix.names) + removed)
+	}
 	ix.names, ix.cands, ix.gen = names, cands, ix.gen+1
 	ix.last.pattern, ix.last.cands = "", nil
 }

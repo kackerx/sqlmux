@@ -235,6 +235,7 @@ func writeDocs() redis.Docs {
 		"flushdb": {},
 		"exec":    {},
 		"select":  {Args: []redis.Arg{{Name: "index", Type: "integer"}}},
+		"swapdb":  {Args: []redis.Arg{{Name: "index1", Type: "integer"}, {Name: "index2", Type: "integer"}}},
 	}
 }
 
@@ -276,7 +277,7 @@ func TestWriteKeys(t *testing.T) {
 // failed makes the index again. The slices an update leaves are new (§9.8, F20.8).
 func TestKeyIndexWrites(t *testing.T) {
 	cmds := someCommands()
-	for _, name := range []string{"del", "rename", "expire", "mset", "eval", "flushdb", "flushall"} {
+	for _, name := range []string{"del", "rename", "expire", "mset", "eval", "flushdb", "flushall", "swapdb"} {
 		cmds[name] = redis.Command{Flags: []string{"write"}}
 	}
 	a, _, conn := keyConsole(t, "a", "b", "k")
@@ -291,7 +292,7 @@ func TestKeyIndexWrites(t *testing.T) {
 		if cmd == nil {
 			t.Fatalf("%s asks nothing", line)
 		}
-		if got := a.gotDelta(indexDelta{conn: conn, ix: ix, keys: keys, found: found}); got != nil && a.palette == nil {
+		if got := a.gotDelta(indexDelta{conn: conn, epoch: conn.epoch, keys: keys, found: found}); got != nil && a.palette == nil {
 			_ = got
 		}
 		if !slices.Equal(snapNames, before) || !slices.EqualFunc(snapCands, beforeC, func(x, y candidate) bool { return x.label == y.label }) {
@@ -339,15 +340,14 @@ func TestKeyIndexWrites(t *testing.T) {
 		t.Error("a write with no index asks")
 	}
 
-	// an answer that is no use: the index was replaced; or it failed
+	// an answer that is no use: a FLUSH came since it was asked; or it failed
 	ix = &keyIndex{done: true, names: []string{"x"}}
 	ix.makeCands()
 	conn.index = ix
-	stale := &keyIndex{done: true}
-	if a.gotDelta(indexDelta{conn: conn, ix: stale, keys: []string{"s"}, found: []bool{true}}); len(ix.names) != 1 || len(stale.names) != 0 {
-		t.Error("an answer for another index is taken")
+	if a.gotDelta(indexDelta{conn: conn, epoch: conn.epoch - 1, keys: []string{"s"}, found: []bool{true}}); len(ix.names) != 1 {
+		t.Error("an answer from before a FLUSH is taken")
 	}
-	if cmd := a.gotDelta(indexDelta{conn: conn, ix: ix, keys: []string{"s"}, err: errBoom}); cmd == nil || conn.building == nil || conn.index != ix {
+	if cmd := a.gotDelta(indexDelta{conn: conn, epoch: conn.epoch, keys: []string{"s"}, err: errBoom}); cmd == nil || conn.building == nil || conn.index != ix {
 		t.Errorf("a failed answer: building %v", conn.building)
 	}
 
@@ -365,6 +365,12 @@ func TestKeyIndexWrites(t *testing.T) {
 		t.Error("a command the server does not list does not make the index again")
 	}
 
+	// SWAPDB has no key in it, and the keys of the db are other ones
+	conn.building = nil
+	if cmd := a.wrote(conn, "SWAPDB 0 1"); cmd == nil || conn.building == nil || conn.indexed() != ix {
+		t.Errorf("SWAPDB: building %v", conn.building)
+	}
+
 	// FLUSHDB and FLUSHALL
 	conn.Spec.Engine = "redis"
 	other := conn.inDB("1")
@@ -374,10 +380,14 @@ func TestKeyIndexWrites(t *testing.T) {
 	if cmd := a.wrote(conn, "FLUSHDB"); cmd != nil || len(conn.index.names) != 0 || !conn.index.done || len(other.index.names) != 1 {
 		t.Errorf("FLUSHDB: %v, other %v", conn.index.names, other.index.names)
 	}
+	asked := conn.epoch // a write asked of before the FLUSH is answered after it: the key is not there
 	conn.index.names = []string{"again"}
 	conn.building = &keyIndex{}
 	if cmd := a.wrote(conn, "FLUSHALL"); cmd != nil || len(conn.index.names) != 0 || len(other.index.names) != 0 || conn.building != nil {
 		t.Errorf("FLUSHALL: %v, other %v", conn.index.names, other.index.names)
+	}
+	if a.gotDelta(indexDelta{conn: conn, epoch: asked, keys: []string{"ghost"}, found: []bool{true}}); len(conn.index.names) != 0 {
+		t.Errorf("an answer from before a FLUSH: %v", conn.index.names)
 	}
 }
 
@@ -563,7 +573,8 @@ func matched(cmd tea.Cmd) (out []matchMsg) {
 
 // With many names the match goes in the background over the names as they were, and
 // comes back with the number of its ask: the list stays the last one while it goes
-// on, ↵ in the meantime puts nothing, and an answer that is not the last ask's, or
+// on, ↵ in the meantime puts nothing and takes the new list's selected one when it
+// comes, and an answer that is not the last ask's, or
 // whose place is gone (the text typed on, INSERT left), is dropped (§9.8, F20.8).
 func TestKeyMatchInBackground(t *testing.T) {
 	async(t)
@@ -601,12 +612,14 @@ func TestKeyMatchInBackground(t *testing.T) {
 	if a.queryAccept(c); strings.Join(c.ed.Lines(), "\n") != before || c.comp != first {
 		t.Error("a candidate of the list before is accepted while the next is made")
 	}
-	a.Update(ms[0])
-	if c.matching || c.comp == nil || len(c.comp.items) != 2 {
-		t.Errorf("the answer: %+v", c.comp)
+	a.Update(ms[0]) // the ↵ that waited takes the first of the list that came, not of the one before
+	if c.matching || c.comp != nil || strings.Join(c.ed.Lines(), "\n") != "get i18n:expert:1 " {
+		t.Errorf("the answer: %+v, %q", c.comp, c.ed.Lines())
 	}
 
 	// the text changed before it came: it is of no use
+	c.ed.Load("get expe")
+	feed(t, a, "A")
 	ms = typed("r")
 	c.ed.Load("get userx")
 	c.comp = first
@@ -810,7 +823,7 @@ func TestQuickKeyMatchInBackground(t *testing.T) {
 }
 
 // A query goes on from the last one's matches only when that is sure to hold: not
-// once the last has a ! or a $ term, nor when what is added makes an alternative (F20.3).
+// once the last has a ! or a $ term (F20.3).
 func TestNarrowsTo(t *testing.T) {
 	for _, tc := range []struct {
 		last, query string
@@ -819,10 +832,204 @@ func TestNarrowsTo(t *testing.T) {
 		{"pl", "pla", true}, {"pl", "pl x", true}, {"^pl", "^pla", true}, {"'pl", "'pla", true}, {"pl", "pl$", true}, {"pl", "pl !x", true},
 		{"", "pl", false}, {"pl", "p", false}, {"pl", "xpl", false},
 		{"!pl", "!pla", false}, {"a !pl", "a !pla", false}, {"a$", "a$b", false}, {"a$", "a$ ", false},
-		{"pl", "pl | x", false}, {"pl", "pl|", false},
 	} {
 		if got := narrowsTo(tc.last, tc.query); got != tc.want {
 			t.Errorf("narrowsTo(%q, %q) = %v, want %v", tc.last, tc.query, got, tc.want)
 		}
+	}
+}
+
+// The writes that come while an index is made go on over it when it is done, in their
+// order: the first one's, which has no index till then, as well as the one that takes
+// the place of another, which has them at once; a SCAN that was past the key does not
+// tell (§9.8, F20.8).
+func TestKeyIndexWritesWhileBuilding(t *testing.T) {
+	cmds := someCommands()
+	for _, name := range []string{"set", "del"} {
+		cmds[name] = redis.Command{Flags: []string{"write"}}
+	}
+	a, _, conn := keyConsole(t)
+	conn.docs, conn.cmds = writeDocs(), cmds
+	conn.index = nil
+	conn.building = &keyIndex{started: true, seen: map[string]bool{}}
+	ix := conn.building
+	write := func(line string, keys []string, found ...bool) {
+		t.Helper()
+		if a.wrote(conn, line) == nil {
+			t.Fatalf("%s asks nothing while the index is made", line)
+		}
+		a.gotDelta(indexDelta{conn: conn, epoch: conn.epoch, keys: keys, found: found})
+	}
+	write("SET x 1", []string{"x"}, true)
+	write("SET y 1", []string{"y"}, true)
+	write("DEL x", []string{"x"}, false)
+	if conn.index != nil || len(ix.deltas) != 3 {
+		t.Fatalf("no index yet: %v, %d deltas", conn.index, len(ix.deltas))
+	}
+	a.gotIndex(indexMsg{conn: conn, ix: ix, names: []string{"a", "b"}, total: 2})
+	if got := strings.Join(conn.index.names, " "); got != "a b y" || len(conn.index.cands) != 3 || conn.index.deltas != nil {
+		t.Errorf("done: %q", got)
+	}
+
+	// one made again: the index there has the write now, the new one when it is done
+	old := conn.index
+	a.rebuildIndex(conn)
+	write("SET n 1", []string{"n"}, true)
+	write("DEL a", []string{"a"}, false)
+	if got := strings.Join(old.names, " "); got != "b n y" {
+		t.Errorf("the index used meanwhile: %q", got)
+	}
+	a.gotIndex(indexMsg{conn: conn, ix: conn.building, names: []string{"a", "b", "y"}, total: 3})
+	if got := strings.Join(conn.index.names, " "); conn.index == old || got != "b n y" || conn.index.total != 3 {
+		t.Errorf("the new one: %q, total %d", got, conn.index.total)
+	}
+}
+
+// A write whose answer comes sets the open list again: the new key is in it at once
+// (§9.8, F20.8).
+func TestKeyIndexWriteRefreshesTheList(t *testing.T) {
+	a, c, conn := keyConsole(t, "k:a")
+	conn.docs = writeDocs()
+	c.ed.Load("get k:")
+	feed(t, a, "A")
+	a.queryComplete(c, false)
+	if c.comp == nil || len(c.comp.items) != 1 {
+		t.Fatalf("before: %+v", c.comp)
+	}
+	a.gotDelta(indexDelta{conn: conn, epoch: conn.epoch, keys: []string{"k:new"}, found: []bool{true}})
+	if c.comp == nil || len(c.comp.items) != 2 {
+		t.Errorf("the open list after the write: %+v", c.comp)
+	}
+}
+
+// Of a capped index, a key that is there and was not read is not a new one: the count
+// of the db goes by what a delete takes away of the names it has (§9.8, F20.8).
+func TestKeyIndexTotalOfACappedOne(t *testing.T) {
+	ix := &keyIndex{names: []string{"a", "b"}, total: 100, done: true, capped: true}
+	ix.makeCands()
+	ix.update([]string{"c"}, []string{"a", "zz"})
+	if got := strings.Join(ix.names, " "); got != "b c" || ix.total != 99 {
+		t.Errorf("capped: %q, total %d", got, ix.total)
+	}
+	ix = &keyIndex{names: []string{"a", "b"}, total: 2, done: true}
+	ix.makeCands()
+	ix.update([]string{"c"}, []string{"a"})
+	if ix.total != 2 {
+		t.Errorf("whole: total %d", ix.total)
+	}
+}
+
+// ↵ while the match of the word is on takes nothing of the list before, which is of
+// the word before, and is not lost: the list that comes has its selected one taken, if
+// the text is as it was; typed on, or changed otherwise, it is dropped (§9.8, F20.8).
+func TestKeyEnterWaitsForTheList(t *testing.T) {
+	async(t)
+	setup := func() (*App, *queryTab, func(...string) []matchMsg) {
+		a, c, _ := keyConsole(t, "i18n:expert:1", "i18n:expert:2", "user:1")
+		c.ed.Load("get ")
+		feed(t, a, "A")
+		typed := func(keys ...string) (ms []matchMsg) {
+			t.Helper()
+			for _, k := range keys {
+				_, cmd := a.Update(teaKey(keymap.Key(k)))
+				ms = append(ms, matched(cmd)...)
+			}
+			return ms
+		}
+		ms := typed("e", "x")
+		a.Update(ms[len(ms)-1]) // the list of "ex"
+		if c.comp == nil {
+			t.Fatal("no list")
+		}
+		return a, c, typed
+	}
+	text := func(c *queryTab) string { return strings.Join(c.ed.Lines(), "\n") }
+
+	a, c, typed := setup()
+	ms := typed("p", "<CR>")
+	if text(c) != "get exp" || !c.matching {
+		t.Fatalf("↵ while it goes on: %q", text(c))
+	}
+	a.Update(ms[0])
+	if text(c) != "get i18n:expert:1 " || c.comp != nil {
+		t.Errorf("the list that came: %q, %+v", text(c), c.comp)
+	}
+
+	a, c, typed = setup() // a click on a row of the list before is the same
+	ms = typed("p")
+	c.comp.sel = 1
+	a.acceptCompletion()
+	a.Update(ms[0])
+	if text(c) != "get i18n:expert:1 " {
+		t.Errorf("a click: %q", text(c))
+	}
+
+	a, c, typed = setup() // typed on
+	typed("p", "<CR>")
+	ms = typed("e")
+	a.Update(ms[0])
+	if text(c) != "get expe" || c.comp == nil {
+		t.Errorf("typed on: %q, %+v", text(c), c.comp)
+	}
+
+	a, c, typed = setup() // a ↵ that nothing came of is not kept for the next list
+	ms = typed("q", "<CR>")
+	a.Update(ms[0])
+	conn := a.sess.Conns[0]
+	ms = matched(a.gotDelta(indexDelta{conn: conn, epoch: conn.epoch, keys: []string{"exq:1"}, found: []bool{true}})) // the list is made again, with a name that matches
+	a.Update(ms[0])
+	if text(c) != "get exq" || c.comp == nil {
+		t.Errorf("a ↵ of before: %q, %+v", text(c), c.comp)
+	}
+
+	a, c, typed = setup() // an edit of the text by other means
+	ms = typed("p", "<CR>")
+	c.ver++
+	a.Update(ms[0])
+	if text(c) != "get exp" {
+		t.Errorf("text changed: %q", text(c))
+	}
+}
+
+// The quick SQL's ↵ is the same: while the match is on it takes nothing of the list
+// before, which would put another key in the word, and takes the list that comes
+// (§9.8, F20.8).
+func TestQuickEnterWaitsForTheList(t *testing.T) {
+	async(t)
+	run := func() (*App, string, []matchMsg) {
+		a, _, _ := keyConsole(t, "hash:binary", "hash:user", "user:1")
+		feed(t, a, "<Esc>")
+		feed(t, a, "<C-p>;get ")
+		var ms []matchMsg
+		typed := func(keys ...string) {
+			for _, k := range keys {
+				_, cmd := a.Update(teaKey(keymap.Key(k)))
+				ms = append(ms, matched(cmd)...)
+			}
+		}
+		typed("h")
+		a.Update(ms[len(ms)-1])
+		if a.palette.comp == nil {
+			t.Fatal("no list for h")
+		}
+		ms = nil
+		typed("a", "s", "h", ":", "b", "<CR>")
+		return a, a.palette.input.Text, ms
+	}
+	a, input, ms := run()
+	if input != ";get hash:b" || !a.palette.hint.matching {
+		t.Fatalf("↵ while it goes on: %q", input)
+	}
+	a.Update(ms[len(ms)-1])
+	if a.palette == nil || a.palette.input.Text != ";get hash:binary " {
+		t.Errorf("the list that came: %q", a.palette.input.Text)
+	}
+
+	a, _, _ = run() // typed on after the ↵
+	_, cmd := a.Update(teaKey("i"))
+	ms = matched(cmd)
+	a.Update(ms[len(ms)-1])
+	if a.palette.input.Text != ";get hash:bi" {
+		t.Errorf("typed on: %q", a.palette.input.Text)
 	}
 }

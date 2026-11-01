@@ -259,13 +259,16 @@ type matchMsg struct {
 
 // gotMatch makes the list of a match that came back, if it is the last one asked and
 // what it was asked for is as it was: the typing went on, a mode left, a palette
-// closed, and it is of no use (§9.8, F20.8).
-func (a *App) gotMatch(m matchMsg) {
+// closed, and it is of no use (§9.8, F20.8). A ↵ that came meanwhile takes the
+// selected one of the list, when what it was asked for is as it was.
+func (a *App) gotMatch(m matchMsg) tea.Cmd {
 	t := m.t
 	if m.seq != t.matchSeq || !t.matching {
-		return
+		return nil
 	}
 	t.matching = false
+	enter := t.enter
+	t.enter = false
 	ix := m.ix
 	if ix != nil && ix.gen != m.gen {
 		ix = nil // the names changed since: what it matched is not where the next key looks
@@ -274,16 +277,23 @@ func (a *App) gotMatch(m matchMsg) {
 	x := t.matchFor
 	if p := x.p; p != nil { // the quick SQL's
 		if a.palette != p || p.input.Text != x.input {
-			return
+			return nil
 		}
 		if comp != nil {
 			comp.start += x.shift
 		}
 		p.comp = comp
-		return
+		if enter && comp != nil && comp.sel >= 0 {
+			return a.acceptCompletion()
+		}
+		return nil
 	}
 	if t.ed.Mode() != editor.Insert || t.ver != x.ver || t.ed.Cursor() != x.cur {
-		return
+		return nil
 	}
 	t.comp, t.wait = comp, &compWait{x.cur, x.ver, x.manual}
+	if enter && comp != nil && comp.sel >= 0 {
+		return a.queryAccept(t)
+	}
+	return nil
 }

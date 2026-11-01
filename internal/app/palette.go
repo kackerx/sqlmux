@@ -865,6 +865,9 @@ func (a *App) paletteKey(k keymap.Key) tea.Cmd {
 		return nil
 	}
 	p.sel, p.top, p.pvTop = 0, 0, 0
+	if p.hint != nil {
+		p.hint.enter = false // a ↵ that waited for a list is for the input as it was (F20.8)
+	}
 	return a.completeSQL()
 }
 
