@@ -63,7 +63,7 @@ time    = "#fc9867"
 | `bg` / `pane_bg` | #1f2335 / #24283b | 背景 |
 | `fg` / `fg_muted` / `dim` | #c0caf5 / #a9b1d6 / #565f89 | 文字 |
 | `border` | #565f89 前后（M20 F20.6 调亮，原来 #3b4261，新用户截图里看不清；worker 截图对比后定值） | 未聚焦的边框 |
-| `border_focus` | = `focus` | 聚焦的 pane 和浮层的边框，以及坐在边框线上的标题文字（两种颜色并排难看；dev-2 2026-10-31 提）（M20 F20.6，用户 2026-10-30：同 lazygit 的 `activeBorderColor` / `inactiveBorderColor` 分开配；没写就跟 `focus`，原来边框直接用 `focus`，它还管 NORMAL 和执行按钮） |
+| `border_focus` | = `focus` | 聚焦的 pane 和浮层的边框（原来用 `focus` 的边框都换成它；which-key 不接收输入、原来就用 `border`，照旧），以及坐在边框线上的标题文字（两种颜色并排难看；dev-2 2026-10-31 提）（M20 F20.6，用户 2026-10-30：同 lazygit 的 `activeBorderColor` / `inactiveBorderColor` 分开配；没写就跟 `focus`，原来边框直接用 `focus`，它还管 NORMAL 和执行按钮） |
 | `gap` | = `pane_bg` | pane 之间的空白列（M20 F20.6，用户 2026-10-30：间隙不该另上一种颜色；原来画的是 `bg`，`bg` 比 `pane_bg` 深的主题里就是一条竖条；没写就跟 `pane_bg`） |
 | `focus` | #9ece6a | 焦点、NORMAL、执行 |
 | `warn` | #e0af68 | 待提交修改、键位、INSERT |
@@ -185,7 +185,7 @@ query = { text = "\uf489", fg = "#78dce8" }   # 换字形，也换颜色
 table   = { fg = "#a9dc76" }                     # 只换颜色
 ```
 
-- `text` 换字形，`fg` 换颜色，两者都可以只写一个。没写的沿用 `icons` 选的那一套（nerd / ascii），`icons = "ascii"` 时覆盖照样生效。
+- `text` 换字形，`fg` 换颜色，两者都可以只写一个。没写的沿用 `icons` 选的那一套（nerd / ascii）。`icons = "ascii"` 时 `fg` 照样生效，`text` 只认纯 ASCII 的，含非 ASCII 字符的不生效、照用 ascii 那一套（M20 F20.7，决策者 2026-11-01：主题里的字形多按 Nerd Font 写，内置 ristretto 的 `query` 也是，没装 Nerd Font 的人选它会看到方块；改在 ParseTheme 那一处，所有主题一个规则）。
 - 写了 `fg` 的图标在任何位置都用这个颜色；没写时跟随所在位置的颜色，比如标题聚焦时是 `focus` 色。
 - **图标后面留 1 个空格再接文字**（M1 用户反馈）：树、面板的搜索行与候选、pane 标题、侧栏标题、状态栏、查询条都一样。Nerd Font 图标按 1 列计算（§7.1），但不少终端和字体把它画得比 1 列宽，溢出到后一格，紧挨着文字时看起来贴在一起，悬停底色也只盖住半个。留一格空白正好接住溢出的部分。
 - 默认颜色：`save`、`refresh`、`transpose` 用 `info` 色，`sort_asc` / `sort_desc` 和 WHERE 历史下拉里的 `star` 用 `warn` 色（收藏和历史只靠图标区分，黄星一眼能认出）；都可以在 `[icon]` 里用 `fg` 覆盖。
