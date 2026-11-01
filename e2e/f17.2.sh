@@ -57,7 +57,9 @@ qs "FLUSHDB"; key y; sleep 1.5
 check "y：执行，库清空（0 个键）" eval '[[ $(rc dbsize) == 0 ]] || { rc dbsize; false; }'
 
 # ---- 补全同控制台：命令名、键名
-reseed
+reseed                                              # 从外部重灌：app 里写命令后键名索引是增量的（F20.8），外部灌的键要树上 R 才进索引
+key Escape; key Escape; key C-h; sleep 0.3
+y=$(e2e_plain | awk 'NR > 3 && index(substr($0, 1, 34), "db0") { print NR; exit }'); x=$(e2e_find db0 "$y" | cut -d' ' -f1); e2e_click "$x" "$y"; sleep 0.5; key R; sleep 2
 key Escape; key Escape; key C-h; sleep 0.3; e2e_type ";HGE"; sleep 1.5
 check "命令名：HGE → HGET、HGETALL 在候选里，HGET 排第一" eval '[[ $(pitems | head -1) == HGET && $(pitems | tr "\n" " ") == *" HGETALL "* ]] || { pitems; false; }'
 e2e_type "TALL hash:"; sleep 1.5

@@ -6,7 +6,7 @@
 SOLO=1   # ① alone right of the sidebar, as before M3's query (lib.sh solo)
 e2e_build || exit 1
 
-FOCUS=#9ece6a BORDER=#3b4261 DIM=#565f89 BG=#1f2335 PANE_BG=#24283b SEP=#2f3549
+FOCUS=#9ece6a BORDER=#565f89 DIM=#565f89 BG=#1f2335 PANE_BG=#24283b SEP=#2f3549
 NF_FILTER=$(printf '\xef\x82\xb0') NF_TABLE=$(printf '\xef\x83\x8e') NF_CONSOLE=$(printf '\xef\x92\x89')  # U+F0B0 U+F0CE U+F489（bash 3.2 没有 \u）
 
 cols_are() { local got; got=$(e2e_find "$1" "$2"); [[ $got == "$3" ]] || { echo "  row $2 '$1' at [$got], want [$3]"; false; }; }
@@ -21,7 +21,7 @@ check "每行都是 160 列" widths_are 160
 check "上边框角：侧栏 [1,32]、data [34,160]" eval 'cols_are ┌ 1 "1 34" && cols_are ┐ 1 "32 160"'
 check "下边框在第 44 行，pane 占满状态栏以上" eval 'cols_are └ 44 "1 34" && cols_are ┘ 44 "32 160"'
 check "最后一行留给状态栏" status_row 160 45
-check "横向间隔 1 列，bg 底色" eval 'style_has 33 1 bg=$BG && style_has 33 20 bg=$BG && style_has 33 44 bg=$BG'
+check "横向间隔 1 列，gap 色（缺省 = pane_bg，F20.6：原来是 bg）" eval 'style_has 33 1 bg=$PANE_BG && style_has 33 20 bg=$PANE_BG && style_has 33 44 bg=$PANE_BG'
 check "pane 内容区为 pane_bg" eval 'style_has 130 20 bg=$PANE_BG && style_has 150 30 bg=$PANE_BG'
 two_tabs
 

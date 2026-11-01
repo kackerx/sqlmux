@@ -25,7 +25,7 @@ start_t
 check "160 宽状态栏（F0.16：命令面板入口只有图标；F5.10：session 块不画引擎图标，地址块带连接名）" bar_is " doraemon ▾  0: data* $(printf '%79s')@  @ ·    1,1  @ doraemon · sqlmux@localhost:55432  NORMAL "
 check "状态栏底色 #292e42" eval 'style_has 40 45 bg=$BAR && style_has 100 45 bg=$BAR'
 check "session 块：focus 底、bg 字、粗体" eval 'at doraemon bg=$FOCUS && at doraemon fg=$BG && at doraemon bold && style_has 1 45 bg=$FOCUS'
-check "当前 window：#3b4261 底、fg 字" eval 'at "0: data*" bg=#3b4261 && at "0: data*" fg=$FG && at "0: data*" bg=#3b4261 -1'
+check "当前 window：border 色（F20.6：#565f89）底、fg 字" eval 'at "0: data*" bg=#565f89 && at "0: data*" fg=$FG && at "0: data*" bg=#565f89 -1'
 check "命令面板入口（搜索图标）：info 色" eval 'style_has $(search_col) 45 fg=$INFO'
 check "待输入序列空闲时为 dim 色的 ·" eval 'pending_is "·" && at "·" fg=$DIM'
 check "光标位置 1,1：fg_muted" at "1,1" fg=$MUTED

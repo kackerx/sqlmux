@@ -11,7 +11,7 @@ trap 'e2e_stop; rm -rf "$D"' EXIT
 e2e_own_db || { echo "e2e: could not create the private database" >&2; exit 1; }
 APP=e2e-f55-$$
 mkdir -p "$D/own"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s&application_name=%s"\n' "$E2E_DB" "$APP" >"$D/own/connections.toml"; chmod 600 "$D/own/connections.toml"
-BORDER=#3b4261 SELECT=#364a82
+BORDER=#565f89 SELECT=#364a82
 psql_n() { psql "$E2E_DB" -At -c "$1"; }
 # bars：查询条第二行上那几条 border 色的 │（组之间的分隔）；按钮会变宽（保存带修改数），每次现找
 bars() { local x; for x in $(e2e_find "│" 3); do ((x > 34 && x < 159)) && style_has "$x" 3 "fg=$BORDER" >/dev/null && echo "$x"; done | tr '\n' ' '; }
