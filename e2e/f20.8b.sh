@@ -92,4 +92,11 @@ typed "GET during:"
 check "重建期间 SET 的 during:rebuild 在新索引换上之后还在（增量记下来、换上时再应用一遍）" eval 'screen_has during:rebuild'
 unmon
 
+# ---- 匹配在算（超过 2000 个名字走 tea.Cmd）时按 ↵：记下这次 ↵，结果回来、上下文没变就接受新列表选中的那项，不接受旧列表的候选，也不吞 ↵
+rc flushall >/dev/null; redis_big 0
+sstart "$D/c"; sleep 2
+typed "GET b"; sleep 6; key Escape                                          # 索引建好（12000 个 bulk: 键，树被截断）
+typed "GET bk7777"; key Enter; sleep 2                                      # 最后一个字之后马上 ↵，不等补全
+check "打完 GET bk7777 马上 ↵：接受的是新列表选中的 bulk:7777，不是旧列表（GET b、GET bk777 …）里的某一项，也没有吞掉 ↵" eval 'e2e_text 60 160 2 | grep -q "GET bulk:7777 *│"' || e2e_plain | sed -n 1,6p | cut -c60-165
+
 e2e_done
