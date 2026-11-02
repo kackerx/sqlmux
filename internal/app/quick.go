@@ -367,7 +367,7 @@ func (a *App) completeSQL() tea.Cmd {
 		if p.hint == nil || p.hint.conn != c {
 			p.hint = &queryTab{conn: c}
 		}
-		comp, cmds = a.redisComplete(p.hint, sql[:pos], pos, false)
+		comp, cmds = a.redisComplete(p.hint, sql[:pos], false)
 		if p.hint.matching { // in the background: the last list stays till it comes (F20.8)
 			p.hint.matchFor = matchCtx{p: p, input: p.input.Text, shift: len(scopes[scope].prefix)}
 			comp = prev

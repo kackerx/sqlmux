@@ -415,7 +415,7 @@ func BenchmarkKeyIndexComplete(b *testing.B) {
 		for n := 1; n <= len("user_123"); n++ {
 			typed := "get " + "user_123"[:n]
 			start := time.Now()
-			a.redisComplete(t, typed, len(typed), false)
+			a.redisComplete(t, typed, false)
 			d := time.Since(start)
 			if n == 1 {
 				first = d

@@ -275,9 +275,9 @@ func (a *App) queryComplete(t *queryTab, manual bool) tea.Cmd {
 	if t.conn.sql() {
 		c, cmds = a.sqlComplete(t.conn, strings.Join(lines, "\n"), pos, cmp.Or(t.schema, t.conn.Schema), t.asked, manual)
 	} else {
-		c, cmds = a.redisComplete(t, lines[cur.Line][:cur.Col], pos, manual)
+		c, cmds = a.redisComplete(t, lines[cur.Line][:cur.Col], manual)
 	}
-	if c != nil {
+	if c != nil && t.conn.sql() {
 		c.start -= pos - cur.Col // a column of the cursor's line: it is a word before the cursor
 	}
 	if t.matching { // the match goes on in the background: the list is the last one till it comes (F20.8)
