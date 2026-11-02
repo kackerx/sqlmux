@@ -230,10 +230,11 @@ func (a *App) gotCommands(m cmdsMsg) tea.Cmd {
 		return nil
 	}
 	c.cmds, c.docs, c.cmdsReady = m.cmds, m.docs, true
+	cmd := a.recomplete(c) // what was typed before the docs came is completed by them (F20.11)
 	if m.err != nil {
-		return a.showToast(i18n.T("%s：读不到命令列表（%s），命令都按写命令处理", c.label(), m.err))
+		return tea.Batch(cmd, a.showToast(i18n.T("%s：读不到命令列表（%s），命令都按写命令处理", c.label(), m.err)))
 	}
-	return nil
+	return cmd
 }
 
 // loadKeys reads c's db on its Meta: with the connection of the DSN, which dbs

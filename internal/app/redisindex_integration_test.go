@@ -53,7 +53,7 @@ func TestKeyIndexOfARedisDB(t *testing.T) {
 	}
 	n := build()
 	ix := c.index
-	if n < 20 || !ix.done || ix.capped || int64(len(ix.names)) != size || ix.total != size {
+	if n < 2 || !ix.done || ix.capped || int64(len(ix.names)) != size || ix.total != size {
 		t.Fatalf("%d batches, done %v capped %v, %d names of %d", n, ix.done, ix.capped, len(ix.names), ix.total)
 	}
 	c.index, c.building = nil, nil

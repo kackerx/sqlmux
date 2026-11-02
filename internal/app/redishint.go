@@ -70,11 +70,14 @@ func (a *App) redisComplete(t *queryTab, before string, manual bool) (*completio
 		return nil, nil
 	}
 	c := t.conn
+	var cmds []tea.Cmd
+	if start := a.startIndex(c); start != nil { // from the first word typed, the key's is some words on: the round trips of a far server are over by then (F20.11)
+		cmds = append(cmds, start)
+	}
 	text := before // the candidates are ranked against the line up to the cursor
 	start := len(before) - len(partial)
 	t.matchSeq++ // a match going on in the background for an earlier word is of no use now (F20.8)
 	var groups [][]candidate
-	var cmds []tea.Cmd
 	var foot string       // what the list says under it (F20.1)
 	var indexed *keyIndex // the index the keys came from, if one did
 	var big []candidate   // the names of an index too long to be matched here (F20.8)

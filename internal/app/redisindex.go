@@ -18,8 +18,8 @@ import (
 
 // keyIndex is the names of the keys of a db, kept here for the completion of
 // key names to match in with the matcher the tables' names are, and for the
-// palette's @ to list (§9.8, F20.1). It is built a SCAN at a time the first time a
-// key name is asked for, each batch a request of its own so that others get in
+// palette's @ to list (§9.8, F20.1). It is built a SCAN at a time from the first word
+// a console completes (F20.11), each batch a request of its own so that others get in
 // between; the tree's keys are it when the tree read them all.
 type keyIndex struct {
 	names   []string
@@ -47,7 +47,7 @@ type keyIndex struct {
 type keyDelta struct{ add, del []string }
 
 // indexBatchCount is the COUNT of each SCAN that builds the index (§9.8).
-const indexBatchCount = redis.ScanCount
+const indexBatchCount = redis.FilterCount
 
 // redisShown is how many candidates a key completion keeps: the best of what an
 // index of a hundred thousand names matches, as the list shows eight at a time.
@@ -247,9 +247,6 @@ func (a *App) keyCandidates(t *queryTab, partial string) (found []candidate, foo
 			foot = i18n.T("已索引 %d / 共 %d 键", len(ix.names), ix.total)
 		}
 		return ix.narrowed(partial), foot, nil
-	}
-	if start := a.startIndex(c); start != nil {
-		cmds = append(cmds, start)
 	}
 	names, have := c.hints["keys\x00"+partial]
 	if !have {

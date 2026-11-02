@@ -15,6 +15,7 @@ func TestNoEngineConnection(t *testing.T) {
 	a := wide(160, 45)
 	c := a.sess.Conns[0]
 	c.Spec.Engine, c.drv, c.eng = "redis", kvDriver{}, nil
+	c.building = &keyIndex{} // typing in a console starts no index on the fake's server (F20.11)
 	a.render()
 	says := func(keys, toast string) {
 		t.Helper()
