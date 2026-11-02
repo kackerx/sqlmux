@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # F20.1 Redis 键名的模糊补全（specs/m20-redis-ui/task.md F20.1；tech-design §9.8「键名的模糊补全」、§9.7、§14 [redis] index_keys）
-# 每个 db 一份本地键名索引：第一次补全键名时在 Meta 上 SCAN COUNT 1000 分批建，index_keys 封顶，截断时补全框底部「已索引 N / 共 M 键」；
+# 每个 db 一份本地键名索引：第一次补全键名时在 Meta 上 SCAN COUNT 10000 分批建，index_keys 封顶，截断时补全框底部「已索引 N / 共 M 键」；
 # 建好后补全在索引里走 §9.7 的匹配器（match 色高亮），不再每个前缀发 SCAN；控制台跑过写命令丢掉重建。
-# 每个脚本自起 redis-server（redis.sh）。用 redis-cli monitor 看线路。
+# 每个脚本自起 redis-server（redis.sh）。用 redis-cli monitor 看线路。F20.11 起索引的 SCAN 是 COUNT 10000。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 . "$(dirname "$0")/palette.sh"
@@ -80,6 +80,6 @@ check "index_keys = 5000：补全框底部写「已索引 5000 / 共 12006 键�
 check "底部那一行是 dim 色（#565f89）" eval 'y=$(e2e_plain | awk "/已索引 5000/ { print NR; exit }"); x=$(e2e_find "已索引" "$y" | cut -d" " -f1); [[ -n $x ]] && [[ $(e2e_style "$x" "$y") == *"fg=#565f89"* ]] || { echo "  style: $(e2e_style "$x" "$y")"; false; }'
 check "截断后仍补出 bulk:1* 的候选（在已索引的 5000 个里匹配）" eval 'screen_has bulk:1'
 unmon
-check "线路：树被 scan_keys 截断了，索引自己 SCAN：每批 SCAN 0… MATCH * COUNT 1000，5000 个封顶 = 5 批；建好后再敲一遍没有新的 SCAN" eval 'n=$(grep -ac "\"match\" \"\*\" \"count\" \"1000\"" "$D/mon.txt"); [[ $n == 5 && $n1 == $n2 ]] || { echo "  index batches: $n, scans $n1 -> $n2"; grep -a scan "$D/mon.txt" | head -9; false; }'
+check "线路：树被 scan_keys 截断了，索引自己 SCAN：每批 SCAN 0… MATCH * COUNT 10000（F20.11 起），一批就够 5000 个封顶；建好后再敲一遍没有新的 SCAN" eval 'n=$(grep -ac "\"match\" \"\*\" \"count\" \"10000\"" "$D/mon.txt"); [[ $n == 1 && $n1 == $n2 ]] || { echo "  index batches: $n, scans $n1 -> $n2"; grep -a scan "$D/mon.txt" | head -9; false; }'
 
 e2e_done
