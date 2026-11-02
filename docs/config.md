@@ -21,7 +21,7 @@ A key sqlmux does not know (a typo such as `readonly`) is reported in a toast at
 Every option with its default. Only write the ones you change.
 
 ```toml
-theme             = "tokyonight-storm" # a file in themes/, or the built-in tokyonight-storm
+theme             = "tokyonight-storm" # built in: tokyonight-storm, ristretto; or a file in themes/
 icons             = "nerd"             # nerd | ascii (no Nerd Font needed)
 border            = "single"           # single | rounded | double | bold | hidden
 language          = "en"               # en | zh
@@ -33,12 +33,14 @@ keyword_case      = "lower"            # lower | upper | preserve, for formattin
 formatprg         = ""                 # a command to format with instead of the built-in sql-formatter, e.g. "pg_format -"
 autopairs         = true               # typing a bracket or quote adds its other half
 confirm_dangerous = true               # ask before DELETE / UPDATE without WHERE, DROP, TRUNCATE, and saves that delete rows
+clipboard         = ""                 # "unnamedplus": y, d, c, x and p in the editors use the system clipboard, as in nvim
 
 [ui]
 tips = true                            # a feature tip in the status bar
 
 [tree]
-width = 32                             # sidebar width in columns, borders included
+width  = 32                            # sidebar width in columns, borders included
+follow = false                         # true: opening or focusing the sidebar moves its cursor to the current tab's table
 
 [grid]
 full_width = 22                        # columns up to this width are never squeezed
@@ -55,7 +57,14 @@ hints       = true                     # the line that says which column the val
 delimiter = ":"                        # splits key names into namespaces in the tree
 scan_keys = 10000                      # keys a database scan reads before it stops (use / to filter)
 load_all  = 5000                       # hashes, sets and sorted sets up to this length are read whole
+index_keys = 100000                    # key names kept per database for fuzzy key completion and the palette
 ```
+
+### Clipboard
+
+By default the editors (query, WHERE, the value editor, the JSON view) keep `y`, `d` and `p` to themselves, as vim does; `"+y` and `"+p` reach the system clipboard. With `clipboard = "unnamedplus"`, as in nvim, every yank, delete and change without a register name also goes to the system clipboard, and `p` / `P` paste from it. A block you yanked comes back as a block. `"_` (the black hole) and `""` still leave the clipboard alone. Copying from a table (`yy`, `yl`) always goes to the system clipboard, whatever this says.
+
+sqlmux uses `pbcopy` / `pbpaste`, `wl-copy` / `wl-paste`, `xclip` or `xsel`, whichever it finds (PowerShell on Windows), and otherwise falls back to the terminal's OSC 52 (over SSH, for instance). OSC 52 can write but usually not read, so with `unnamedplus` there `p` pastes what you last yanked in sqlmux.
 
 ## connections.toml
 
@@ -170,7 +179,13 @@ The `[keys.<scope>]` tables are the ones in [Keys](keys.md) (`normal`, `grid`, `
 
 ## Themes
 
-`theme = "<name>"` looks for `themes/<name>.toml` first, then a built-in theme. A theme file lists only the colors it changes, as `"#rrggbb"`; the rest come from `tokyonight-storm`. *Switch theme…* in the palette changes it while sqlmux runs.
+Two themes are built in: `tokyonight-storm` (the default) and `ristretto`, a warm gray in Monokai Pro colors.
+
+| `theme = "tokyonight-storm"` | `theme = "ristretto"` |
+|---|---|
+| ![tokyonight-storm](../assets/theme-tokyonight-storm.png) | ![ristretto](../assets/theme-ristretto.png) |
+
+`theme = "<name>"` looks for `themes/<name>.toml` first, then a built-in theme, so a file of your own can take a built-in name. A theme file lists only the colors it changes, as `"#rrggbb"`; the rest come from `tokyonight-storm`. *Switch theme…* in the palette changes it while sqlmux runs.
 
 ```toml
 # ~/.config/sqlmux/themes/warm.toml
@@ -184,9 +199,9 @@ text = "T"
 fg   = "#fc9867"
 ```
 
-Color tokens: `production` (production connections, defaults to `error`), `bg`, `pane_bg`, `fg`, `fg_muted`, `dim`, `border`, `focus`, `warn`, `zoom`, `match`, `cursor`, `cursor_blur`, `select`, `row`, `row_alt`, `visual`, `selected`, `search`, `search_current`, `yank`, `edited_bg`, `error`, `error_bg`, `info`, `bar`, `sep`; SQL text: `keyword`, `sql_string`, `comment`, `sql_table`, `sql_column`, `sql_operator`; grid values by column type: `number`, `string`, `time`, `bool`, `json`, `pk`, `func`.
+Color tokens: `production` (production connections, defaults to `error`), `bg`, `pane_bg`, `gap` (the space between panes, defaults to `pane_bg`), `fg`, `fg_muted`, `dim`, `border`, `border_focus` (the focused pane's and overlays' borders, defaults to `focus`), `focus`, `warn`, `zoom`, `match`, `cursor`, `cursor_blur`, `select`, `row`, `row_alt`, `visual`, `selected`, `search`, `search_current`, `yank`, `edited_bg`, `error`, `error_bg`, `info`, `bar`, `sep`; SQL text: `keyword`, `sql_string`, `comment`, `sql_table`, `sql_column`, `sql_operator`; grid values by column type: `number`, `string`, `time`, `bool`, `json`, `pk`, `func`.
 
-Icon names: `schema`, `table`, `view`, `column`, `key`, `index`, `func`, `sequence`, `query`, `result`, `log`, `conn`, `postgres`, `mysql`, `sqlite`, `redis`, `str`, `hash`, `list`, `set`, `zset`, `stream`, `json`, `window`, `pane`, `filter`, `search`, `keys`, `command`, `save`, `refresh`, `transpose`, `row_add`, `row_delete`, `auto_refresh`, `stop`, `sort_asc`, `sort_desc`, `lock`, `pin`, `export`, `close`, `star`, `history`, `zoom`, `unzoom`, `split_right`, `split_below`, `tag`, `host`, `port`, `user`, `database`, `advanced`, `link`, `group`; completion kinds: `keyword`, `value`, `snippet`; right-click menus: `open`, `edit`, `copy`, `trash`, `rename`, `hide` (the menu's *View as JSON* uses `json`). With `icons = "ascii"`, completion shows a letter per kind and menus show no icons.
+Icon names: `schema`, `table`, `view`, `column`, `key`, `index`, `func`, `sequence`, `query`, `result`, `log`, `conn`, `postgres`, `mysql`, `sqlite`, `redis`, `str`, `hash`, `list`, `set`, `zset`, `stream`, `json`, `window`, `pane`, `filter`, `search`, `keys`, `command`, `save`, `refresh`, `transpose`, `row_add`, `row_delete`, `auto_refresh`, `stop`, `sort_asc`, `sort_desc`, `lock`, `pin`, `export`, `close`, `star`, `history`, `zoom`, `unzoom`, `split_right`, `split_below`, `tag`, `host`, `port`, `user`, `database`, `advanced`, `link`, `group`; completion kinds: `keyword`, `value`, `snippet`; right-click menus: `open`, `edit`, `copy`, `trash`, `rename`, `hide` (the menu's *View as JSON* uses `json`). With `icons = "ascii"`, completion shows a letter per kind and menus show no icons, and an `[icon.<name>]` `text` that is not plain ASCII is ignored (its `fg` still applies), so a theme written with Nerd Font glyphs works without one.
 
 ## Layouts
 

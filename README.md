@@ -60,13 +60,13 @@ The [quickstart](docs/quickstart.md) goes from here to editing your first row.
 - **tmux inside.** Sessions, windows, split panes and tabs, with `SPC` as the leader (`SPC %` splits, `SPC c` opens a window, `SPC s` lists sessions). Each session sees all your connections. The layout you quit from comes back next time, and you can save named layouts.
 - **Edit tables in place.** Change cells, add and delete rows, then `C-s` saves everything in one transaction. Enum, boolean and time columns get pickers; long text and JSON open in a value editor.
 - **Table tabs.** A WHERE input with completion, history and favorites; multi-column ORDER, LIMIT, paging, a column picker, transpose, filter by a cell's value, export to CSV or JSON.
-- **A vim editor for SQL**, diff-tested against nvim: operators and text objects, VISUAL and block selection, registers, search, `:s`, formatting with `gq`. Results go to a bottom pane, one tab per query, which you can pin.
+- **A vim editor for SQL**, diff-tested against nvim: operators and text objects, VISUAL and block selection, registers, search, `:s`, formatting with `gq`; `clipboard = "unnamedplus"` as in nvim. Results go to a bottom pane, one tab per query, which you can pin.
 - **Completion and signature hints.** Tables, columns, keywords and functions as you type, with fuzzy matching; enum values where a value goes; a line above the cursor that says which column the value you are typing is for.
 - **Command palette** (`C-p`) for every command, table, tab, window and session, with a DDL preview. **Quick SQL** (`;`) runs a one-off statement from anywhere.
 - **JSON view** (`gj`) of a table page or a result, read-only with vim movement and search.
-- **Redis**: a tree of databases, namespaces and keys read with `SCAN`; each key (string, hash, list, set, zset, stream, RedisJSON) as an editable table; a console with completion and signatures from the server's `COMMAND DOCS`. See [Redis](docs/redis.md).
+- **Redis**: a tree of databases, namespaces and keys read with `SCAN`; each key (string, hash, list, set, zset, stream, RedisJSON) as an editable table; a console with completion and signatures from the server's `COMMAND DOCS`; key names complete fuzzily, as table names do, and show up in the palette. See [Redis](docs/redis.md).
 - **Every key can be rebound**, per pane type, plus vim-style maps (`J = "5j"`). `vim = false` gives plain editors and arrow keys.
-- Passwords from the OS keychain, a command (`pass`, `op`, …) or an environment variable; SSH tunnels through `~/.ssh/config`; read-only connections; manual transactions; themes; Nerd Font or ASCII icons; English or Chinese UI.
+- Passwords from the OS keychain, a command (`pass`, `op`, …) or an environment variable; SSH tunnels through `~/.ssh/config`; read-only connections; manual transactions; two built-in [themes](docs/config.md#themes) (tokyonight-storm and ristretto) or your own; Nerd Font or ASCII icons; English or Chinese UI.
 
 ## Safety
 

@@ -6,6 +6,29 @@ All notable changes to sqlmux are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-02
+
+### Added
+
+- **Fuzzy Redis key completion**: key names in the console and in quick commands match anywhere in the name, with the matched letters highlighted, as table names do: `expert` finds `i18n_agent:expert:zh`. The console's first completion in a database indexes its key names in the background with `SCAN` (up to `[redis] index_keys`, 100000; a database the tree has fully scanned is not scanned again); until the index is ready, completion matches prefixes as before. Writes made in sqlmux update the index with one `EXISTS` round trip instead of a new scan, and matching runs off the main loop, so typing stays smooth on large databases. When the limit cuts the index short, the completion list says "N of M keys indexed".
+- The command palette lists Redis keys next to tables and queries (all scopes and `@`), from databases already indexed and keys the tree has loaded; `↵` opens the key's tab.
+- Filtering a Redis tree with `/` highlights the typed text in each namespace and key name.
+- `clipboard = "unnamedplus"` in `config.toml`, as in nvim: yanks, deletes and changes without a register name also go to the system clipboard, and `p` / `P` paste from it, in every editor (query, WHERE, value editor, JSON view). A block stays a block, and `"_` (the black hole register, new too) leaves the clipboard alone. The default is unchanged. ([#2](https://github.com/kackerx/sqlmux/issues/2), reported by siwakasen)
+- A second built-in theme, `ristretto`: warm gray, in Monokai Pro colors. Screenshots of both are in [Configuration](docs/config.md#themes).
+- Theme tokens `gap` (the space between panes, defaults to `pane_bg`) and `border_focus` (the focused pane's and overlays' borders and border titles, defaults to `focus`).
+
+### Changed
+
+- Opening or focusing the sidebar (`SPC b`, `»`) leaves the tree's cursor where it was instead of moving it to the current tab's table. Set `[tree] follow = true` to keep the old way.
+- `esc` in a filtered tree, while you browse the results, goes back to the filter input with its text; a second `esc` clears the filter, as before. Without a filter, `esc` does what it did.
+- The gaps between panes take the panes' background (`gap`) instead of the darker `bg`, so they no longer show as dark stripes; tokyonight-storm's unfocused borders are brighter.
+- With `icons = "ascii"`, a theme's `[icon.<name>]` `text` that is not plain ASCII is ignored (its `fg` still applies), so themes written with Nerd Font glyphs show no boxes.
+- The first key completion on a slow or large Redis is faster: scans read 10000 keys a round trip instead of 1000, the index starts on the console's first completion (any word, not only a key), and completion appears as soon as `COMMAND DOCS` arrives instead of on the next key.
+
+### Fixed
+
+- Typing a Redis command in a console (`hget key xx`) could crash sqlmux with "slice bounds out of range" when the completion list fell behind the cursor.
+
 ## [0.8.0] - 2026-10-31
 
 ### Added
@@ -243,7 +266,8 @@ Note: `go install github.com/kackerx/sqlmux/...` does not work for this version 
 - Every key can be rebound per pane type in `keymaps.toml` (`SPC` is the leader). `sqlmux keys` lists every action and `sqlmux keys --check` reports conflicts. Key help (`?`), which-key hints and full mouse support are built in, and `vim = false` gives plain editors and arrow-key navigation.
 - Themes, border styles, Nerd Font or ASCII icons, and an English or Chinese UI (`language = "zh"`).
 
-[Unreleased]: https://github.com/kackerx/sqlmux/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/kackerx/sqlmux/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/kackerx/sqlmux/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/kackerx/sqlmux/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/kackerx/sqlmux/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/kackerx/sqlmux/compare/v0.6.0...v0.6.1
