@@ -278,6 +278,12 @@ type Conn struct {
 	// hints are the key names and hash fields the server gave for the console's
 	// completion, by what they were asked for (§9.8)
 	hints map[string][]string
+	// index is the db's key names, there once the completion has wanted them or the tree
+	// read the whole db; building is one being made, the first or one to take the
+	// place of the index when the keys of a write are not known, or the tree had R:
+	// the index is used till it is done (F20.1, F20.8)
+	index, building *keyIndex
+	epoch           int // counts the FLUSHes: what was asked of the keys before one is not of the db now
 }
 
 // inDB is the connection to database name: c itself for the one it is dialed
@@ -1415,8 +1421,9 @@ func (a *App) toggleZoom() {
 // toggleTree is SPC b, as DataGrip's tool windows: the sidebar open with the
 // focus on it folds, the focus going back to the pane it came from; open with
 // the focus elsewhere it is the focus that goes to it; folded it opens with the
-// focus on it, its cursor on the node of the tab focused before (§7.8, F3.29,
-// F19.5). A zoomed pane hides it: the zoom ends first.
+// focus on it (§7.8, F19.5); with `[tree] follow` its cursor goes to the node of
+// the tab focused before (F3.29, F20.4). A zoomed pane hides it: the zoom ends
+// first.
 func (a *App) toggleTree() {
 	win := a.win()
 	win.Zoom = 0

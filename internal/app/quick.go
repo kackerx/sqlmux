@@ -43,6 +43,7 @@ type quickMsg struct {
 	schema string
 	res    db.Result
 	err    error
+	stmt   string // what ran, for what it changes of the key names (F20.8)
 }
 
 // colsMsg brings the columns of a table the quick SQL names (§12「补全」).
@@ -159,8 +160,18 @@ func (a *App) sendQuick(c *Conn, sql string) tea.Cmd {
 	run := quickOn(c, schema)
 	return func() tea.Msg {
 		r, err := run(sql)
-		return quickMsg{p, c, schema, r, err}
+		return quickMsg{p, c, schema, r, err, sql}
 	}
+}
+
+// quickWrote is what a Redis command of the quick SQL that ran changes of the key
+// names the completion has (a failed one asks the server all the same), whether or
+// not the palette is still there to see it (F20.8).
+func (a *App) quickWrote(m quickMsg) tea.Cmd {
+	if m.conn.sql() || errors.Is(m.err, context.Canceled) {
+		return nil
+	}
+	return a.wrote(m.conn, m.stmt)
 }
 
 // gotQuick shows a quick SQL's answer, if its palette is still open: the
@@ -177,7 +188,6 @@ func (a *App) gotQuick(m quickMsg) tea.Cmd {
 			errText = m.err.Error()
 		}
 		recordHistory(&run{conn: m.conn}, sql, m.res, errText) // a console's line is in the history; a SQL one is not (§9.8)
-		m.conn.forgetHints(sql)
 	}
 	if m.p != a.palette {
 		return nil
@@ -331,13 +341,14 @@ func (a *App) copyQuick() tea.Cmd {
 	if q == nil || q.res.Cols == nil {
 		return nil
 	}
-	return clipCopy(csvOf(q.res))
+	return a.clipCopy(csvOf(q.res))
 }
 
 // completeSQL finds the candidates for the quick SQL's cursor (§12「补全」),
 // as a query's (sqlComplete).
 func (a *App) completeSQL() tea.Cmd {
 	p := a.palette
+	prev := p.comp
 	p.comp = nil
 	scope, sql := a.paletteScope()
 	pos := p.input.Pos - len(scopes[scope].prefix) // none while the cursor is in the ; itself
@@ -356,9 +367,13 @@ func (a *App) completeSQL() tea.Cmd {
 		if p.hint == nil || p.hint.conn != c {
 			p.hint = &queryTab{conn: c}
 		}
-		comp, cmds = a.redisComplete(p.hint, sql[:pos], pos, false)
+		comp, cmds = a.redisComplete(p.hint, sql[:pos], false)
+		if p.hint.matching { // in the background: the last list stays till it comes (F20.8)
+			p.hint.matchFor = matchCtx{p: p, input: p.input.Text, shift: len(scopes[scope].prefix)}
+			comp = prev
+		}
 	}
-	if comp != nil {
+	if comp != nil && !(p.hint != nil && p.hint.matching) {
 		comp.start += len(scopes[scope].prefix)
 	}
 	p.comp = comp

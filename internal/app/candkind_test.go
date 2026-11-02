@@ -108,7 +108,8 @@ func TestRedisCandidateKinds(t *testing.T) {
 	a, c := redisConsole(t, &execDB{}, someCommands(), "")
 	conn := a.sess.Conns[0]
 	conn.docs, conn.hints = someDocs(), map[string][]string{"keys\x00us": {"user:1"}, "fields\x00h": {"field1"}}
-	defer func() { // a server with no DOCS: the names COMMAND lists
+	conn.building = &keyIndex{} // being built: the completion goes on with the names it was told of
+	defer func() {              // a server with no DOCS: the names COMMAND lists
 		conn.docs = nil
 		c.ed.Load("g")
 		feed(t, a, "A")

@@ -249,7 +249,12 @@ func init() {
 		"tree.open":     {Title: i18n.N("打开"), Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(false) }},
 		"tree.open.tab": {Title: i18n.N("打开"), Run: func(a *App, _ Args) tea.Cmd { return a.treeOpen(true) }},
 		"tree.filter":   {Title: i18n.N("过滤"), Run: do(func(a *App, _ Args) { a.treeFilter() })},
-		"tree.refresh":  {Title: i18n.N("刷新表列表"), Run: func(a *App, _ Args) tea.Cmd { return a.refreshTree() }},
+		"tree.refilter": {Title: i18n.N("回到过滤输入框"), Run: do(func(a *App, _ Args) { // with a filter kept, esc is /; with none, the esc it was (F20.9)
+			if a.win().tree.filter.Text != "" {
+				a.treeFilter()
+			}
+		})},
+		"tree.refresh": {Title: i18n.N("刷新表列表"), Run: func(a *App, _ Args) tea.Cmd { return a.refreshTree() }},
 		"tree.pick": {Title: i18n.N("选择库 / schema…"), Run: func(a *App, _ Args) tea.Cmd {
 			n, ok := a.treeNode()
 			if !ok {

@@ -165,5 +165,5 @@ func (a *App) selectYank() tea.Cmd {
 	if err != nil {
 		return a.showToast(err.Error())
 	}
-	return tea.Batch(clipCopy(text), a.flashYank(flash))
+	return tea.Batch(a.clipCopy(text), a.flashYank(flash))
 }

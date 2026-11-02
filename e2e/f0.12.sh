@@ -35,7 +35,7 @@ check "row applies (current row)" style_has $(cell user_id 1) bg=#202020
 check "cursor applies (current cell)" style_has $(cell id 1) bg=#303030
 check "number / string / time / bool / json apply to id / note / created_at / paid / meta" eval 'fg_at id 1 "#404040" && fg_at note 10 "#505050" && fg_at created_at 1 "#606060" && fg_at paid 1 "#707070" && fg_at meta 1 "#808080"'
 check "an enum is not a string: status keeps fg" fg_at status 1 "#c0caf5"
-check "other tokens unchanged: border, focus, bg gap, row_alt, header" eval 'style_has 1 1 fg=#3b4261 && style_has 34 1 fg=#9ece6a && style_has 33 5 bg=#1f2335 && style_has $(cell user_id 2) bg=#1f2335 && style_has $(cell user_id -1) fg=#7aa2f7'
+check "other tokens unchanged: border (F20.6: #565f89), focus, gap (follows pane_bg, #101010), row_alt, header" eval 'style_has 1 1 fg=#565f89 && style_has 34 1 fg=#9ece6a && style_has 33 5 bg=#101010 && style_has $(cell user_id 2) bg=#1f2335 && style_has $(cell user_id -1) fg=#7aa2f7'
 check "status bar keeps bar #292e42, not row" style_has 80 45 bg=#292e42
 e2e_keys C-c; sleep 0.3
 check "toast keeps bar #292e42" toast_is "再按一次 C-c 退出"

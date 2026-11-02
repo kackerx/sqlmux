@@ -94,10 +94,10 @@ func (b TextBox) Frame(f *Frame, box uv.Rectangle) bool {
 	}
 	f.Region(box, Target{}) // inside, a click is not outside
 	f.Fill(box, uv.Style{Bg: th.PaneBg})
-	border := f.Border.Style(uv.Style{Fg: th.Focus, Bg: th.PaneBg})
+	border := f.Border.Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
 	border.Draw(f.Buf, box)
 	if b.Title != "" {
-		f.Text(box.Min.X+2, box.Min.Y, box.Max.X-1, " "+b.Title+" ", uv.Style{Fg: th.Focus, Bg: th.PaneBg, Attrs: uv.AttrBold})
+		f.Text(box.Min.X+2, box.Min.Y, box.Max.X-1, " "+b.Title+" ", uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg, Attrs: uv.AttrBold})
 	}
 	if hs := b.Hints; b.hinted(box) {
 		x0, x1 := box.Min.X+2, box.Max.X-2

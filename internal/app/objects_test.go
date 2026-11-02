@@ -100,6 +100,14 @@ func TestTreeObjectsOpen(t *testing.T) {
 	}
 	treeTo(t, a, "t_order_agent_fkey (agent_id) → agentable.planner (id)")
 	delete(a.sess.open, schemaNode(a.sess.Conns[0], "agentable"))
+	was, _ := a.treeNode()
+	feed(t, a, "<CR>") // without [tree] follow the table opens and the tree stays (F20.4)
+	if n, _ := a.treeNode(); a.sess.opened(schemaNode(a.sess.Conns[0], "agentable"), false) || n.id != was.id {
+		t.Fatalf("↵ on a foreign key moved the tree: %+v", n.TreeNode)
+	}
+	a.win().focus(0)
+	a.treeFollow = true
+	delete(a.sess.open, schemaNode(a.sess.Conns[0], "agentable"))
 	feed(t, a, "<CR>")
 	if d := dataOf(a.focused()); d == nil || d.table.Name != "planner" || !a.sess.opened(schemaNode(a.sess.Conns[0], "agentable"), false) {
 		t.Fatalf("↵ on a foreign key: %v", dataOf(a.focused()))

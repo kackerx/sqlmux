@@ -361,3 +361,96 @@ func TestRedisTreeSearchingPerWindow(t *testing.T) {
 		t.Errorf("the first window's scan: %v", ctxB.Err())
 	}
 }
+
+// A filter's hit is lit in the part of the name it is in, a namespace's or a key's,
+// each place it occurs, and case counts as the server's MATCH has it; a glob is not
+// lit, nor a hit that crosses the delimiter (F20.2).
+func TestRedisTreeFilterLit(t *testing.T) {
+	for _, tc := range []struct {
+		s, lit string
+		want   []int
+	}{
+		{"employees", "emp", []int{0, 1, 2}},
+		{"kaixuan_kaixuan2", "kaixuan", []int{0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14}},
+		{"banana", "an", []int{1, 2, 3, 4}},
+		{"Employees", "emp", nil},
+		{"日本語キー", "語キ", []int{2, 3}},
+		{"employees", "", nil},
+		{"p", "p:emp", nil},
+		{"", "x", nil},
+		{"\xff\xffemp", "emp", []int{1, 2, 3}}, // two bytes that are no text are one � on the node
+	} {
+		if got := substringPos(tc.s, tc.lit); !slices.Equal(got, tc.want) {
+			t.Errorf("%q in %q: %v, want %v", tc.lit, tc.s, got, tc.want)
+		}
+	}
+	a, c := redisTree(t, someKeys())
+	c.State = connReady
+	a.sess.open[dbNode(c, "0")] = true
+	found := &keyScan{keys: []redis.KeyInfo{{Name: "p:employees:kaixuan", Type: "string"}, {Name: "p:emp", Type: "string"}, {Name: "pemp", Type: "string"}}, total: 3}
+	lit := func(filter string) map[string][]int {
+		a.win().tree.filter = ui.Input{Text: filter, Pos: len(filter)}
+		a.win().tree.found = map[*Conn]*keyScan{c: found}
+		out := map[string][]int{}
+		ns, _ := a.treeNodes()
+		for _, n := range ns {
+			if n.kind == nodeNamespace || n.kind == nodeRedisKey {
+				out[n.Text] = n.Pos
+			}
+		}
+		return out
+	}
+	if got := lit("emp"); !slices.Equal(got["employees"], []int{0, 1, 2}) || !slices.Equal(got["emp"], []int{0, 1, 2}) || !slices.Equal(got["pemp"], []int{1, 2, 3}) || got["p"] != nil || got["kaixuan"] != nil {
+		t.Errorf("emp: %v", got)
+	}
+	if got := lit("kaixuan"); !slices.Equal(got["kaixuan"], []int{0, 1, 2, 3, 4, 5, 6}) || got["employees"] != nil {
+		t.Errorf("kaixuan: %v", got)
+	}
+	if got := lit("p:emp"); len(got["p"])+len(got["employees"])+len(got["emp"]) != 0 { // across the delimiter: lit in none
+		t.Errorf("p:emp: %v", got)
+	}
+	found.keys = append(found.keys, redis.KeyInfo{Name: "a*b", Type: "string"}, redis.KeyInfo{Name: "a?b", Type: "string"}, redis.KeyInfo{Name: "x[e]mp", Type: "string"})
+	for _, glob := range []string{"a*b", "a?b", "emp*", "e?p", "[e]mp"} {
+		for text, pos := range lit(glob) {
+			if pos != nil {
+				t.Errorf("%q lit %v of %q", glob, pos, text)
+			}
+		}
+	}
+	for text, pos := range lit("") {
+		if pos != nil {
+			t.Errorf("no filter lit %v of %q", pos, text)
+		}
+	}
+}
+
+// The tree of a filter on a Redis db shows the hit in the match color on the screen,
+// and what is not the hit in the node's own; golden: the tree of kaixuan (F20.2).
+func TestGoldenRedisTreeFilterLit(t *testing.T) {
+	a, c := redisTree(t, someKeys())
+	c.State = connReady
+	a.sess.open[dbNode(c, "0")] = true
+	var keys []redis.KeyInfo
+	for _, k := range []string{"user:kaixuan:session", "user:kaixuan:profile", "kaixuan:token", "team:kaixuan_dev:1", "team:kaixuan_dev:2", "cache:kaixuan", "app:kaixuan:x", "app:kaixuan:y"} {
+		keys = append(keys, redis.KeyInfo{Name: k, Type: "string"})
+	}
+	a.win().tree.filter = ui.Input{Text: "kaixuan", Pos: 7}
+	a.win().tree.found = map[*Conn]*keyScan{c: {keys: keys, total: 61072}}
+	f := a.render()
+	ns, _ := a.treeNodes()
+	for _, n := range ns {
+		if n.kind == nodeNamespace && n.Text == "kaixuan" && len(n.Pos) != 7 {
+			t.Errorf("the namespace is lit %v", n.Pos)
+		}
+	}
+	if st := styleOf(t, f, "kaixuan_dev"); st.Fg != a.theme.Match { // the hit at the start of a name
+		t.Errorf("hit: %+v", st)
+	}
+	if st := styleOf(t, f, "xuan_dev"); st.Fg != a.theme.Match { // in the middle of a name
+		t.Errorf("hit in team's: %+v", st)
+	}
+	if st := styleOf(t, f, "_dev"); st.Fg == a.theme.Match {
+		t.Errorf("what is not the hit: %+v", st)
+	}
+	golden.RequireEqual(t, treeTexts(a)+"\n")
+}

@@ -68,6 +68,36 @@ func TestThemeZoomDefaultsToWarn(t *testing.T) {
 	}
 }
 
+// A theme's [icon] text is Nerd Font's glyph: on the ascii set only text that is
+// plain ASCII is taken, the fg always; on the nerd set all of it (F20.7).
+func TestThemeIconTextOnAscii(t *testing.T) {
+	file := "[icon]\nquery = { text = \"" + string(rune(0xf489)) + "\", fg = \"#ff0000\" }\ntable = { text = \"T\" }\nkey = { text = \"" + string(rune(0xe000)) + "x\" }\n"
+	_, ic, _, err := ParseTheme(file, ASCIIIcons)
+	if err != nil || ic.Query.Text != ASCIIIcons.Query.Text || ic.Query.Fg != c("#ff0000") || ic.Table.Text != "T" || ic.Key.Text != ASCIIIcons.Key.Text {
+		t.Errorf("ascii: query %+v table %+v key %+v (%v)", ic.Query, ic.Table, ic.Key, err)
+	}
+	_, ic, _, err = ParseTheme(file, NerdIcons)
+	if err != nil || ic.Query.Text != string(rune(0xf489)) || ic.Table.Text != "T" || ic.Key.Text != string(rune(0xe000))+"x" {
+		t.Errorf("nerd: query %+v table %+v key %+v (%v)", ic.Query, ic.Table, ic.Key, err)
+	}
+}
+
+// The gaps between the panes are the theme's gap, which a theme without one takes
+// from its own pane_bg, and the focused border and the overlays' the theme's
+// border_focus, from its own focus: not tokyonight's (F20.6).
+func TestThemeGapAndBorderFocusDefaults(t *testing.T) {
+	for _, tc := range []struct{ file, gap, borderFocus string }{
+		{"", "#24283b", "#9ece6a"}, // tokyonight's own
+		{`pane_bg = "#112233"` + "\n" + `focus = "#445566"`, "#112233", "#445566"},
+		{`pane_bg = "#112233"` + "\n" + `gap = "#778899"` + "\n" + `focus = "#445566"` + "\n" + `border_focus = "#aabbcc"`, "#778899", "#aabbcc"},
+	} {
+		th, _, unknown, err := ParseTheme(tc.file, ASCIIIcons)
+		if err != nil || len(unknown) != 0 || th.Gap != c(tc.gap) || th.BorderFocus != c(tc.borderFocus) {
+			t.Errorf("%q: gap %v, border_focus %v, want %s, %s (%v %v)", tc.file, th.Gap, th.BorderFocus, tc.gap, tc.borderFocus, unknown, err)
+		}
+	}
+}
+
 // The search colors of an editor are the theme's own, and a theme file that
 // has none gets its visual and its yank, as it has had its selection (F15.9).
 func TestThemeSearchFallsBack(t *testing.T) {

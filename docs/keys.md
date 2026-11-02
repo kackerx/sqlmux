@@ -1,6 +1,6 @@
 # Keys
 
-Every default key of sqlmux v0.8.0, generated from `sqlmux keys --format toml` by `docs/keys.py`; do not edit by hand.
+Every default key of sqlmux v0.9.0, generated from `sqlmux keys --format toml` by `docs/keys.py`; do not edit by hand.
 The leader is `<Space>`. Keys use vim notation (`<C-p>` is Ctrl+P, `<CR>` Enter, `<lt>` the `<` key, `<Leader>c` the leader then `c`).
 An action with no key runs from the command palette (`<C-p>`, then `>`), or bind it yourself in `keymaps.toml`:
 see [Configuration](config.md#keymapstoml).
@@ -148,6 +148,7 @@ The focus on the schema tree (NORMAL)
 | `<CR>` | `tree.open` | Open |
 | `t` | `tree.open.tab` | Open |
 | `/` | `tree.filter` | Filter |
+| `<Esc>` | `tree.refilter` | Back to the filter input |
 | `R` | `tree.refresh` | Refresh the tables |
 | `dd` | `tree.delete` | Delete query file, table or view |
 | `s` | `jump.start` | Jump to a character on the screen |

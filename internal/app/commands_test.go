@@ -340,7 +340,7 @@ func TestThemeSwitch(t *testing.T) {
 	a := sized(160, 45, "ascii")
 	a.run("theme.switch", 0)
 	items, current := a.dropItems()
-	if a.drop == nil || a.drop.kind != dropTheme || !slices.Equal(items, []string{"bad", "mine", "tokyonight-storm"}) || current != 2 {
+	if a.drop == nil || a.drop.kind != dropTheme || !slices.Equal(items, []string{"bad", "mine", "ristretto", "tokyonight-storm"}) || current != 3 {
 		t.Fatalf("list: %+v %v current %d", a.drop, items, current)
 	}
 	feed(t, a, "mi<CR>")
@@ -359,6 +359,11 @@ func TestThemeSwitch(t *testing.T) {
 	feed(t, a, "tokyo<CR>")
 	if a.theme != ui.TokyonightStorm || a.icons.Table.Text != "+" {
 		t.Error("back to tokyonight-storm and the icons chosen")
+	}
+	a.run("theme.switch", 0) // the built-in second one (F20.7), its [icon] on the icons chosen
+	feed(t, a, "ris<CR>")
+	if a.themeName != "ristretto" || ansiHex(a.theme.PaneBg) != "#393333" || a.icons.Query.Text != ui.ASCIIIcons.Query.Text || ansiHex(a.icons.Query.Fg) != "#78dce8" || a.icons.Table.Text != "+" {
+		t.Errorf("ristretto: %q pane_bg %v query %q table %q", a.themeName, a.theme.PaneBg, a.icons.Query.Text, a.icons.Table.Text)
 	}
 	// the file is read as the program runs: what it says goes with the language
 	i18n.Set("en")

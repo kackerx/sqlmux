@@ -28,6 +28,7 @@ type Config struct {
 	ThemeName  string    // the theme in use: `theme`, or tokyonight-storm
 	Language   string    // `language = "en" | "zh"` (§14「界面语言」)
 	Border     uv.Border // `border = "single" | "rounded" | "double" | "bold" | "hidden"`: the boxes' lines (§7.1)
+	Clipboard  string    // `clipboard`: "" or "unnamedplus", the editors' unnamed register on the system clipboard (§11, F20.5)
 	Vim        bool      // `vim = false`: query and WHERE are plain editors, the grid and tree get arrow keys too (§6.9)
 	Timeoutlen int       // ms to wait on an ambiguous key sequence
 	TabWidth   int       // the query's indent, and the formatter's (§14)
@@ -41,11 +42,12 @@ type Config struct {
 	// Tips is whether the status bar carries a line about a feature (`[ui]
 	// tips`, §7.8, F15.4).
 	Tips bool
-	// RedisDelimiter, RedisScanKeys and RedisLoadAll are `[redis]`'s: what the
-	// tree splits a key's name by, how many keys a db's scan reads, and the
-	// length up to which a hash, set or zset is read whole (§8.7, F16.1).
-	RedisDelimiter              string
-	RedisScanKeys, RedisLoadAll int
+	// RedisDelimiter, RedisScanKeys, RedisLoadAll and RedisIndexKeys are
+	// `[redis]`'s: what the tree splits a key's name by, how many keys a db's
+	// scan reads, the length up to which a hash, set or zset is read whole
+	// (§8.7, F16.1), and how many names the completion indexes (§9.8, F20.1).
+	RedisDelimiter                              string
+	RedisScanKeys, RedisLoadAll, RedisIndexKeys int
 	// HistoryMax is how many statements history.jsonl keeps, the oldest cut
 	// at the start (`[query] history_max`, §11).
 	HistoryMax int
@@ -63,6 +65,9 @@ type Config struct {
 	// TreeWidth is the sidebar's width in columns, borders included, for a
 	// window whose sidebar has not been dragged (§7.8).
 	TreeWidth int
+	// TreeFollow is `[tree] follow`: opening or focusing the sidebar puts its
+	// cursor on the node of the current tab (§7.8, F20.4).
+	TreeFollow bool
 	// GridDesc is `[grid] order = "desc"` and GridTranspose `[grid]
 	// transpose`: what a table opened anew starts with (§14).
 	GridDesc, GridTranspose bool
@@ -87,7 +92,7 @@ type Config struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -150,6 +155,7 @@ func Parse(data string) (*Config, error) {
 		Language   *string  `toml:"language"`
 		Border     *string  `toml:"border"`
 		Vim        *bool    `toml:"vim"`
+		Clipboard  *string  `toml:"clipboard"`
 		Timeoutlen *int     `toml:"timeoutlen"`
 		TabWidth   *int     `toml:"tab_width"`
 		Height     *float64 `toml:"result_height"`
@@ -169,9 +175,11 @@ func Parse(data string) (*Config, error) {
 			Delimiter *string `toml:"delimiter"`
 			ScanKeys  *int    `toml:"scan_keys"`
 			LoadAll   *int    `toml:"load_all"`
+			IndexKeys *int    `toml:"index_keys"`
 		} `toml:"redis"`
 		Tree struct {
-			Width *int `toml:"width"`
+			Width  *int  `toml:"width"`
+			Follow *bool `toml:"follow"`
 		} `toml:"tree"`
 		Grid struct {
 			FullWidth *int    `toml:"full_width"`
@@ -216,6 +224,13 @@ func Parse(data string) (*Config, error) {
 	}
 	if raw.Vim != nil {
 		c.Vim = *raw.Vim
+	}
+	if v := raw.Clipboard; v != nil {
+		if *v == "" || *v == "unnamedplus" {
+			c.Clipboard = *v
+		} else { // told like a key nothing reads: the value is the one nothing reads (F20.5)
+			c.Unknown = append(c.Unknown, fmt.Sprintf("clipboard = %q", *v))
+		}
 	}
 	if raw.Theme != nil {
 		c.theme = *raw.Theme
@@ -272,6 +287,12 @@ func Parse(data string) (*Config, error) {
 		}
 		c.RedisScanKeys = *n
 	}
+	if n := raw.Redis.IndexKeys; n != nil {
+		if *n <= 0 {
+			return nil, fmt.Errorf("[redis] index_keys = %d: must be greater than 0", *n)
+		}
+		c.RedisIndexKeys = *n
+	}
 	if n := raw.Redis.LoadAll; n != nil {
 		if *n <= 0 {
 			return nil, fmt.Errorf("[redis] load_all = %d: must be greater than 0", *n)
@@ -289,6 +310,9 @@ func Parse(data string) (*Config, error) {
 	}
 	if n := raw.Tree.Width; n != nil { // held to 16 and half the window where it is used, whatever it is
 		c.TreeWidth = *n
+	}
+	if raw.Tree.Follow != nil {
+		c.TreeFollow = *raw.Tree.Follow
 	}
 	if n := raw.Grid.FullWidth; n != nil {
 		if *n <= 0 {
@@ -314,7 +338,7 @@ func Parse(data string) (*Config, error) {
 // ThemeNames are the themes there are: the files of themes/ and the
 // built-in ones, by name.
 func ThemeNames() []string {
-	names := slices.Collect(maps.Keys(ui.Themes))
+	names := slices.AppendSeq(slices.Collect(maps.Keys(ui.Themes)), maps.Keys(ui.BuiltinThemeFiles))
 	files, _ := filepath.Glob(filepath.Join(Dir(), "themes", "*.toml"))
 	for _, f := range files {
 		names = append(names, strings.TrimSuffix(filepath.Base(f), ".toml"))
@@ -332,6 +356,9 @@ func LoadTheme(name string, icons *ui.Icons) (th *ui.Theme, ic *ui.Icons, unknow
 	if errors.Is(err, fs.ErrNotExist) {
 		if th, ok := ui.Themes[name]; ok {
 			return th, icons, nil, nil
+		}
+		if src, ok := ui.BuiltinThemeFiles[name]; ok {
+			return ui.ParseTheme(src, icons)
 		}
 		return nil, nil, nil, fmt.Errorf(i18n.T("找不到 %s，也没有这个内置主题"), path)
 	}

@@ -153,7 +153,7 @@ H = "0"
 | NORMAL | `SPC c` · `SPC n` · `SPC p` · `SPC l` | 新建 · 下一个 · 上一个 · 上次用的 window | C-a c / n / p / l |
 | NORMAL | `SPC %` · `SPC "` · `SPC z` · `SPC x` | 左右分割 · 上下分割 · 缩放 · 关闭 pane | C-a % / " / z / x |
 | NORMAL | `SPC q` | 按编号跳转 pane | C-a q |
-| NORMAL | `SPC b` | 折叠 / 展开 schema 树；展开时焦点到树上、光标落在当前 tab 对应的节点（F3.29） | C-a b |
+| NORMAL | `SPC b` | 打开 / 聚焦 / 收起侧栏（M19 F19.5）；光标默认留在上次的位置，`[tree] follow = true` 时落在当前 tab 对应的节点（F3.29 原来的行为，M20 F20.4 起变成可选） | C-a b |
 | NORMAL | `SPC r` | 显示 / 隐藏结果区（`result.toggle`，F3.28） | 新增 |
 | NORMAL | `gt` · `gT` | 下一个 · 上一个 tab | 同 |
 | 表格 / 树 / 引导页 | `:` | 打开命令面板的「所有」范围（M5 F5.8 起，同 `C-p`；原来进命令范围，想要原来的就把 `:` 绑到 `palette.command`）；`:q`、`:qa`、`:w` 照常可用（§12）。M3 起绑在 `[keys.grid]`、`[keys.tree]`、`[keys.landing]`，不在 normal：query 里的 `:` 要交给编辑器自己的命令行（§11） | 同 |

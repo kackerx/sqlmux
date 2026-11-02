@@ -281,6 +281,69 @@ func TestQueryPasteAndYank(t *testing.T) {
 	}
 }
 
+// With `clipboard = "unnamedplus"` yy writes the system clipboard and p reads
+// it; with no tool to read, or a failing one, p puts the unnamed register at
+// once, no OSC 52 query asked; by default yy stays in the editor (F20.5).
+func TestQueryUnnamedPlus(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "clip")
+	clipTools = []clipTool{{"", []string{"sh", "-c", "cat > " + f}, []string{"cat", f}}}
+	defer func() { clipTools = nil; editor.UnnamedPlus = false }()
+	if runtime.GOOS == "windows" {
+		t.Skip("sh")
+	}
+	read := func() string { b, _ := os.ReadFile(f); return string(b) }
+	var deliver func(a *App, cmd tea.Cmd) // runs the Cmds, the clipboard's text going back in
+	deliver = func(a *App, cmd tea.Cmd) {
+		if cmd == nil {
+			return
+		}
+		switch m := cmd().(type) {
+		case tea.BatchMsg:
+			for _, c := range m {
+				deliver(a, c)
+			}
+		case tea.ClipboardMsg, clipMissing:
+			_, next := a.Update(m)
+			deliver(a, next)
+		}
+	}
+	feed := func(t testing.TB, a *App, ks string) {
+		ks2, err := keymap.Parse(ks)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, k := range ks2 {
+			_, cmd := a.Update(teaKey(k))
+			deliver(a, cmd)
+		}
+	}
+	a, _ := inQuery(t, "", "")
+	feed(t, a, "yy")
+	if read() != "" {
+		t.Errorf("by default yy writes the clipboard: %q", read())
+	}
+	a, c := inQuery(t, `clipboard = "unnamedplus"`, "")
+	feed(t, a, "iab<Esc>yy")
+	if read() != "ab\n" {
+		t.Fatalf("yy: clipboard %q", read())
+	}
+	if err := os.WriteFile(f, []byte("ext\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if feed(t, a, "p"); text(c) != "ab\next" {
+		t.Errorf("p puts the clipboard's: %q", text(c))
+	}
+	clipTools = []clipTool{{"", []string{"false"}, []string{"false"}}} // fails: no OSC 52, the unnamed register
+	// a failing tool: no OSC 52 query for the p of no register, the unnamed register, the yy's
+	if feed(t, a, "p"); text(c) != "ab\next\nab" || a.clipWait != nil {
+		t.Errorf("p with a failing tool: %q, waiting %v", text(c), a.clipWait != nil)
+	}
+	// "+p names its register: the terminal is asked, and the put waits for the answer
+	if feed(t, a, `"+p`); text(c) != "ab\next\nab" || a.clipWait == nil {
+		t.Errorf(`"+p with a failing tool: %q, waiting %v`, text(c), a.clipWait != nil)
+	}
+}
+
 // The status bar: the editor's mode by name in VISUAL's or INSERT's color,
 // the selection's size with the key that runs it, what the editor waits
 // on (§7.8).

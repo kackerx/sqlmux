@@ -7,3 +7,6 @@ assets/demo/capture/renders/
 # demo video (assets/demo/video): renders and footage copied from capture/renders
 assets/demo/video/renders/
 assets/demo/video/footage/
+
+# python bytecode (e2e scripts)
+__pycache__/

@@ -22,6 +22,28 @@ func TestConfirmWraps(t *testing.T) {
 	}
 }
 
+// An overlay's border is the theme's border_focus (F20.6).
+func TestConfirmBorderFocus(t *testing.T) {
+	th := *TokyonightStorm
+	th.BorderFocus = c("#010203")
+	f := NewFrame(30, 12, &th)
+	Confirm{Text: "Quit?", YesKey: "y", Yes: "Quit", NoKey: "n", No: "Cancel"}.Draw(f, uv.Rect(0, 0, 30, 12))
+	n := 0
+	for y := range 12 {
+		for x := range 30 {
+			if cell := f.Buf.CellAt(x, y); cell.String() == "┌" {
+				n++
+				if cell.Style.Fg != th.BorderFocus {
+					t.Errorf("the corner is in %v, want border_focus", cell.Style.Fg)
+				}
+			}
+		}
+	}
+	if n != 1 {
+		t.Errorf("%d corners", n)
+	}
+}
+
 // A danger confirm has its title, the first line however it wraps, in the
 // error color, and no other line (§13).
 func TestConfirmDangerTitle(t *testing.T) {

@@ -65,10 +65,10 @@ func (d Dropdown) Draw(f *Frame, box uv.Rectangle, rows int) uv.Position {
 	bg := uv.Style{Fg: th.Fg, Bg: th.PaneBg}
 	dim := uv.Style{Fg: th.Dim, Bg: th.PaneBg}
 	f.Fill(box, bg)
-	border := f.Border.Style(uv.Style{Fg: th.Focus, Bg: th.PaneBg})
+	border := f.Border.Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
 	border.Draw(f.Buf, box)
 	if d.Title != "" {
-		f.Text(box.Min.X+2, box.Min.Y, box.Max.X-2, " "+d.Title+" ", uv.Style{Fg: th.Focus, Bg: th.PaneBg})
+		f.Text(box.Min.X+2, box.Min.Y, box.Max.X-2, " "+d.Title+" ", uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
 	}
 	x0, x1, y := box.Min.X+2, box.Max.X-2, box.Min.Y+1
 	x := f.Text(x0, y, x1, d.Search.Text, d.Search.On(uv.Style{Fg: th.Info, Bg: th.PaneBg}))

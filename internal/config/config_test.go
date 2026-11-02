@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/ui"
 )
@@ -141,6 +143,55 @@ func TestLoadUsesXDGConfigHome(t *testing.T) {
 	}
 }
 
+// ristretto is built in: with no themes/ristretto.toml `theme = "ristretto"` is
+// the one in the binary, its [icon] on the icon set `icons` picks, and the
+// theme list has it; a file of the same name is read instead, not over it (F20.7).
+func TestBuiltinRistretto(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	if err := os.MkdirAll(filepath.Join(dir, "sqlmux", "themes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	load := func() *Config {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, "sqlmux", "config.toml"), []byte("theme = \"ristretto\"\nicons = \"ascii\""), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		c, err := Load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	c := load()
+	th := c.Theme
+	if names := ThemeNames(); !slices.Equal(names, []string{"ristretto", "tokyonight-storm"}) || c.ThemeName != "ristretto" || len(c.ThemeUnknown) != 0 {
+		t.Errorf("themes %v, in use %q, unknown %q", names, c.ThemeName, c.ThemeUnknown)
+	}
+	if th.Bg != ansi.XParseColor("#312b2b") || th.PaneBg != ansi.XParseColor("#393333") || th.Border != ansi.XParseColor("#7a7272") || th.Fg == ui.TokyonightStorm.Fg {
+		t.Errorf("bg %v pane_bg %v border %v fg %v", th.Bg, th.PaneBg, th.Border, th.Fg)
+	}
+	if th.Gap != th.PaneBg || th.BorderFocus != th.Focus || th.Focus == ui.TokyonightStorm.Focus { // none written: its own pane_bg and focus
+		t.Errorf("gap %v border_focus %v", th.Gap, th.BorderFocus)
+	}
+	// the theme's [icon] glyphs are Nerd Font's: on the ascii set the text is not taken, the fg is
+	if c.Icons.Query.Text != ui.ASCIIIcons.Query.Text || c.Icons.Query.Fg != ansi.XParseColor("#78dce8") || c.Icons.Table.Fg != ansi.XParseColor("#a9dc76") || c.Icons.Table.Text != ui.ASCIIIcons.Table.Text {
+		t.Errorf("icons: query %+v table %+v", c.Icons.Query, c.Icons.Table)
+	}
+	if _, ic, _, err := LoadTheme("ristretto", ui.NerdIcons); err != nil || ic.Query.Text != "\uf489" {
+		t.Errorf("on the nerd set the glyph is the theme's: %q %v", ic.Query.Text, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "sqlmux", "themes", "ristretto.toml"), []byte(`pane_bg = "#010203"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if c := load(); c.Theme.PaneBg != ansi.XParseColor("#010203") || c.Theme.Bg != ui.TokyonightStorm.Bg || c.Icons.Query.Fg == ansi.XParseColor("#78dce8") {
+		t.Errorf("the user's file is the theme: pane_bg %v bg %v", c.Theme.PaneBg, c.Theme.Bg)
+	}
+	if names := ThemeNames(); !slices.Equal(names, []string{"ristretto", "tokyonight-storm"}) {
+		t.Errorf("themes with a file of the same name: %v", names)
+	}
+}
+
 func TestThemeFile(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", dir)
@@ -253,6 +304,28 @@ func TestTreeWidth(t *testing.T) {
 	}
 }
 
+func TestTreeFollow(t *testing.T) {
+	for in, want := range map[string]bool{"": false, "[tree]\nfollow = true": true, "[tree]\nfollow = false": false} {
+		if c, err := Parse(in); err != nil || c.TreeFollow != want {
+			t.Errorf("%q: %v %v", in, c.TreeFollow, err)
+		}
+	}
+}
+
+// clipboard is "" or "unnamedplus"; another value is told like a key nothing
+// reads and leaves the default (F20.5).
+func TestClipboard(t *testing.T) {
+	for in, want := range map[string]string{"": "", `clipboard = "unnamedplus"`: "unnamedplus", `clipboard = ""`: "", `clipboard = "unnamed"`: ""} {
+		c, err := Parse(in)
+		if err != nil || c.Clipboard != want {
+			t.Errorf("%q: %q %v", in, c.Clipboard, err)
+		}
+		if bad := strings.Contains(in, `"unnamed"`); bad != (len(c.Unknown) == 1 && c.Unknown[0] == `clipboard = "unnamed"`) {
+			t.Errorf("%q: unknown %q", in, c.Unknown)
+		}
+	}
+}
+
 // A key nothing reads, misspelt, is said at the start, with the connection it
 // is in: it is no error (F13.5).
 func TestUnknownKeys(t *testing.T) {
@@ -330,14 +403,14 @@ func TestParseTips(t *testing.T) {
 // [redis] has the delimiter, the scan budget and the length a key is read whole
 // up to, with the defaults of the design (§14, F16.1).
 func TestParseRedis(t *testing.T) {
-	if c, err := Parse(""); err != nil || c.RedisDelimiter != ":" || c.RedisScanKeys != 10000 || c.RedisLoadAll != 5000 {
+	if c, err := Parse(""); err != nil || c.RedisDelimiter != ":" || c.RedisScanKeys != 10000 || c.RedisLoadAll != 5000 || c.RedisIndexKeys != 100000 {
 		t.Fatalf("default: %+v %v", c, err)
 	}
-	c, err := Parse("[redis]\ndelimiter = \"/\"\nscan_keys = 500\nload_all = 20\n")
-	if err != nil || c.RedisDelimiter != "/" || c.RedisScanKeys != 500 || c.RedisLoadAll != 20 || len(c.Unknown) != 0 {
+	c, err := Parse("[redis]\ndelimiter = \"/\"\nscan_keys = 500\nload_all = 20\nindex_keys = 7\n")
+	if err != nil || c.RedisDelimiter != "/" || c.RedisScanKeys != 500 || c.RedisLoadAll != 20 || c.RedisIndexKeys != 7 || len(c.Unknown) != 0 {
 		t.Fatalf("set: %+v %v", c, err)
 	}
-	for _, bad := range []string{"delimiter = \"\"", "scan_keys = 0", "load_all = -1"} {
+	for _, bad := range []string{"delimiter = \"\"", "scan_keys = 0", "load_all = -1", "index_keys = 0"} {
 		if _, err := Parse("[redis]\n" + bad + "\n"); err == nil {
 			t.Errorf("%s is accepted", bad)
 		}

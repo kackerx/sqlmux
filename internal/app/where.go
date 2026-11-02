@@ -28,10 +28,11 @@ import (
 // typed (§9.7, §12).
 type completion struct {
 	items []candidate
-	sel   int  // the first as it opens: ↵ takes it; -1 when nothing is typed and it came up on its own, ↵ then is the input's (§9.7, F8.17)
-	start int  // where the text it replaces starts in the input
-	moved bool // the user moved the selection: a list made again for columns that came keeps the pick
-	top   int  // the first candidate shown, held while the selection is in view (F13.10)
+	sel   int    // the first as it opens: ↵ takes it; -1 when nothing is typed and it came up on its own, ↵ then is the input's (§9.7, F8.17)
+	start int    // where the text it replaces starts in the input
+	moved bool   // the user moved the selection: a list made again for columns that came keeps the pick
+	top   int    // the first candidate shown, held while the selection is in view (F13.10)
+	foot  string // a dim row under the list: the index of key names stops short of the db (F20.1)
 }
 
 // candKind is what a candidate is, which the icon before it says (F16.11).
@@ -247,21 +248,44 @@ func tierOf(pattern, label string) int {
 	if pattern == "" {
 		return 3
 	}
-	rs := []rune(label)
-	for i := range rs {
-		if (i == 0 || wordStart(rs, i)) && strings.HasPrefix(strings.ToLower(string(rs[i:])), pattern) {
-			return min(i, 1) + 1
+	first, prev := true, rune(0) // no copy of the label: one is matched for every name of an index of a hundred thousand (F20.1)
+	for off, r := range label {
+		if (first || wordStartAfter(prev, r)) && hasPrefixFold(label[off:], pattern) {
+			return 2 - btoi(first)
 		}
+		first, prev = false, r
 	}
 	return 3
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// hasPrefixFold reports whether s starts with p, the case of s not counting; p is lower case.
+func hasPrefixFold(s, p string) bool {
+	for _, pr := range p {
+		r, n := utf8.DecodeRuneInString(s)
+		if n == 0 || unicode.ToLower(r) != pr {
+			return false
+		}
+		s = s[n:]
+	}
+	return true
 }
 
 // startOf is where the text cd replaces starts: the list's, or further back
 // when cd is a keyword of several words and its first are written already
 // (insert in, the list's word is in): those are taken in, not typed again.
 func (c *completion) startOf(text string, cd candidate) int {
+	if cd.kind != kindKeyword {
+		return c.start
+	}
 	words := strings.Fields(cd.insert)
-	if cd.kind != kindKeyword || len(words) < 2 {
+	if len(words) < 2 {
 		return c.start
 	}
 	for n := len(words) - 1; n >= 1; n-- {
@@ -292,10 +316,10 @@ func (c *completion) startOf(text string, cd candidate) int {
 // splits the pattern (a value typed, 'in p'): the rest is matched again
 // from each word start.
 func atWordStart(pattern, s string, pos []int) []int {
-	rs := []rune(s)
-	if len(pos) == 0 || !strings.Contains(pattern, " ") && wordStart(rs, pos[0]) {
+	if len(pos) == 0 || !strings.Contains(pattern, " ") && startsWordAt(s, pos[0]) {
 		return pos
 	}
+	rs := []rune(s)
 	first, n := utf8.DecodeRuneInString(pattern)
 	for i, r := range rs {
 		if !wordStart(rs, i) || unicode.ToLower(r) != first {
@@ -312,10 +336,25 @@ func atWordStart(pattern, s string, pos []int) []int {
 	return nil
 }
 
+// startsWordAt is wordStart of the rune i of s, without making the runes.
+func startsWordAt(s string, i int) bool {
+	prev, n := rune(0), 0
+	for _, r := range s {
+		if n == i {
+			return i == 0 || wordStartAfter(prev, r)
+		}
+		prev, n = r, n+1
+	}
+	return false
+}
+
 // wordStart reports whether rune i of rs starts a word: the first, one
-// after _ . - or $, or an upper case after a lower case.
-func wordStart(rs []rune, i int) bool {
-	return i == 0 || strings.ContainsRune("_.-$", rs[i-1]) || unicode.IsLower(rs[i-1]) && unicode.IsUpper(rs[i])
+// after _ . - $ or : (a Redis key's namespaces, F20.1), or an upper case after a lower case.
+func wordStart(rs []rune, i int) bool { return i == 0 || wordStartAfter(rs[i-1], rs[i]) }
+
+// wordStartAfter is whether r, after the rune prev, starts a word.
+func wordStartAfter(prev, r rune) bool {
+	return strings.ContainsRune("_.-$:", prev) || unicode.IsLower(prev) && unicode.IsUpper(r)
 }
 
 // ident is name as SQL text on c: quoted when it has to be (F15.11).
@@ -683,6 +722,10 @@ func (a *App) acceptCompletion() tea.Cmd {
 		return nil
 	}
 	if p := a.palette; p != nil {
+		if h := p.hint; h != nil && h.matching { // as a query's: ↵ waits for the list that comes (F20.8)
+			h.enter = true
+			return nil
+		}
 		space := p.comp.items[p.comp.sel].space
 		p.comp.accept(&p.input)
 		p.comp = nil
@@ -920,7 +963,11 @@ func (a *App) completeView(c *completion, at uv.Position) (ui.Complete, uv.Recta
 		v.Items = append(v.Items, ui.CompleteItem{Icon: icon, Text: cd.label, Pos: cd.pos, Note: cd.note})
 		w = max(w, ui.Width(icon.Text+" "+cd.label+"  "+cd.note)+4)
 	}
-	box, rows := ui.CompleteBox(a.window(), at, w, len(v.Items), 0, ui.CompleteRows)
+	foot := 0
+	if c.foot != "" {
+		v.Foot, foot, w = []ui.Hint{{Key: c.foot}}, 1, max(w, ui.Width(c.foot)+4)
+	}
+	box, rows := ui.CompleteBox(a.window(), at, w, len(v.Items), foot, ui.CompleteRows)
 	_, c.top = ui.ListView(c.sel, c.top, len(v.Items), rows)
 	v.Top = c.top
 	return v, box, rows

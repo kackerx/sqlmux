@@ -72,6 +72,7 @@ func TestQuickRedis(t *testing.T) {
 	}
 	feed(t, a, "<CR>")
 	answerQuickCmds(a, keys(t, a, "y"))
+	c.building = &keyIndex{} // FLUSHALL took the index being made: none starts on the fake's server
 	if len(d.ran) != 2 || d.ran[1] != "FLUSHALL" {
 		t.Errorf("yes: ran %v", d.ran)
 	}
@@ -107,6 +108,7 @@ func TestQuickRedisCompletion(t *testing.T) {
 	a, _ := redisConsole(t, &execDB{}, someCommands(), "")
 	conn := a.sess.Conns[0]
 	conn.docs, conn.hints = someDocs(), map[string][]string{"keys\x00us": {"user:1"}}
+	conn.building = &keyIndex{} // being built: the completion goes on with the names it was told of
 	feed(t, a, "<C-p>;se")
 	if c := a.palette.comp; c == nil || c.items[0].label != "SET" || c.items[0].kind != kindCommand || c.start != 1 {
 		t.Fatalf("se: %+v", c)
@@ -172,6 +174,7 @@ func TestQuickRedisAnsweredAfterTheClose(t *testing.T) {
 	a, _ := redisConsole(t, &execDB{}, someCommands(), "")
 	c := a.sess.Conns[0]
 	c.hints = map[string][]string{"keys\x00us": {"user:1"}}
+	c.building = &keyIndex{}
 	a.confirmDangerous = false
 	feed(t, a, "<C-p>;SET newkey 1")
 	if a.palette.comp != nil {

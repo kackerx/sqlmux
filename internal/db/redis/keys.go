@@ -28,8 +28,9 @@ type Scanned struct {
 
 // ScanCount is the COUNT of each SCAN a db's keys are listed with: a hint of how
 // many keys the server looks at, one round trip each, so the first keys come
-// early; FilterCount is the filter's, which MATCH thins on the server, so it
-// takes fewer round trips (§8.7, F18.11).
+// early; FilterCount is the COUNT of the SCANs that are as many round trips as keys
+// over it: the filter's, which MATCH thins on the server, the prefix hints', and
+// the index of names that is read whole (§8.7, §9.8, F18.11, F20.11).
 const (
 	ScanCount   = 1000
 	FilterCount = 10000
@@ -209,7 +210,7 @@ func KeyHints(ctx context.Context, c db.Conn, prefix string, want int) (keys []s
 	err = Use(ctx, c, func(cl *goredis.Client) error {
 		var cursor uint64
 		for range hintRounds {
-			batch, next, err := cl.Scan(ctx, cursor, Glob(prefix)+"*", ScanCount).Result()
+			batch, next, err := cl.Scan(ctx, cursor, Glob(prefix)+"*", FilterCount).Result()
 			if err != nil {
 				return err
 			}
@@ -226,6 +227,46 @@ func KeyHints(ctx context.Context, c db.Conn, prefix string, want int) (keys []s
 	})
 	slices.Sort(keys)
 	return keys[:min(len(keys), want)], err
+}
+
+// ScanBatch is one SCAN of the db c is on from cursor, with COUNT count: the
+// names it gave, which may repeat what an earlier round gave, and the cursor to
+// go on from, 0 at the end. The index of key names is built a batch at a time,
+// each one a request of its own (§9.8).
+func ScanBatch(ctx context.Context, c db.Conn, cursor uint64, count int) (names []string, next uint64, err error) {
+	err = Use(ctx, c, func(cl *goredis.Client) (err error) {
+		names, next, err = cl.Scan(ctx, cursor, "*", int64(count)).Result()
+		return err
+	})
+	return names, next, err
+}
+
+// Exists is whether each of keys is in the db c is on: one EXISTS for a key, and for
+// more a pipeline of them, one round trip, as EXISTS with several keys counts and
+// does not say which (§9.8, F20.8).
+func Exists(ctx context.Context, c db.Conn, keys []string) (found []bool, err error) {
+	err = Use(ctx, c, func(cl *goredis.Client) error {
+		cmds, err := cl.Pipelined(ctx, func(p goredis.Pipeliner) error {
+			for _, k := range keys {
+				p.Exists(ctx, k)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		for _, cmd := range cmds {
+			found = append(found, cmd.(*goredis.IntCmd).Val() > 0)
+		}
+		return nil
+	})
+	return found, err
+}
+
+// DBSize is how many keys the db c is on holds.
+func DBSize(ctx context.Context, c db.Conn) (n int64, err error) {
+	err = Use(ctx, c, func(cl *goredis.Client) (err error) { n, err = cl.DBSize(ctx).Result(); return err })
+	return n, err
 }
 
 // HashFields are the fields of the hash key when it has no more than limit of them

@@ -120,7 +120,7 @@ func (a *App) yankGrid(row bool) tea.Cmd {
 	if !row {
 		flash.cell[1], text = gs.col, cells[gs.col]
 	}
-	return tea.Batch(clipCopy(text), a.flashYank(flash))
+	return tea.Batch(a.clipCopy(text), a.flashYank(flash))
 }
 
 // yankInsert is yi on the focused table's row (§10.6, F8.7): an INSERT of
@@ -175,7 +175,7 @@ func (a *App) yankInsert() tea.Cmd {
 	if len(names) > 0 {
 		text = a.keyword("insert into") + " " + eng.Quote(t.table.Schema, t.table.Name) + " (" + strings.Join(names, ", ") + ") " + a.keyword("values") + " (" + strings.Join(vals, ", ") + ");"
 	}
-	return tea.Batch(clipCopy(text), a.flashYank(yankFlash{pane: p.ID, cell: [2]int{gs.row, -1}}))
+	return tea.Batch(a.clipCopy(text), a.flashYank(yankFlash{pane: p.ID, cell: [2]int{gs.row, -1}}))
 }
 
 // jsonField is a column of a row yanked as JSON: its name, the class of its
@@ -298,7 +298,7 @@ func (a *App) yankJSON() tea.Cmd {
 	if err != nil {
 		return a.showToast(err.Error())
 	}
-	return tea.Batch(clipCopy(text), a.flashYank(yankFlash{pane: p.ID, cell: [2]int{gs.row, -1}}))
+	return tea.Batch(a.clipCopy(text), a.flashYank(yankFlash{pane: p.ID, cell: [2]int{gs.row, -1}}))
 }
 
 // number is what a numeric column's value may be, written bare: no NaN,
@@ -422,8 +422,12 @@ func clipCmd(paste bool) *exec.Cmd {
 
 // clipCopy puts text on the system clipboard, over OSC 52 when no tool
 // is there or it fails.
-func clipCopy(text string) tea.Cmd {
+func (a *App) clipCopy(text string) tea.Cmd {
+	prev, done := a.clipLast, make(chan struct{})
+	a.clipLast = done // in the Update, in the order of the keys: what asks after this one waits for it
 	return func() tea.Msg {
+		defer close(done)
+		clipAfter(prev)
 		if c := clipCmd(false); c != nil {
 			c.Stdin = strings.NewReader(text) // no pipe out: the forked owner would hold Run up
 			if c.Run() == nil {
@@ -434,16 +438,69 @@ func clipCopy(text string) tea.Cmd {
 	}
 }
 
+// clipRead asks for what the system clipboard holds, when the writes asked
+// before have been done: a `yyp` must read what the `yy` wrote, and the tools
+// are processes that start at once, as the Cmds run each in a goroutine.
+// Without a register named (local) it reads the tool only, a clipMissing back
+// when there is none (see clipPasteLocal); else the terminal is asked too.
+func (a *App) clipRead(local bool) tea.Cmd {
+	prev := a.clipLast
+	return func() tea.Msg {
+		clipAfter(prev)
+		if local {
+			return clipPasteLocal()
+		}
+		return clipPaste()
+	}
+}
+
+// clipWaitMax is the longest a read waits for a write before it, a tool that
+// hangs; a var for the tests.
+var clipWaitMax = 2 * time.Second
+
+// clipAfter waits for prev, the job asked before, if there is one.
+func clipAfter(prev <-chan struct{}) {
+	if prev == nil {
+		return
+	}
+	select {
+	case <-prev:
+	case <-time.After(clipWaitMax):
+	}
+}
+
+// clipMissing is what clipPasteLocal sends when there is no clipboard tool to
+// read, or it fails: the editor puts its unnamed register.
+type clipMissing struct{}
+
 // clipPaste asks for what the system clipboard holds: it comes as a
 // ClipboardMsg, from the tool or else the terminal, or never.
 func clipPaste() tea.Msg {
+	if text, ok := clipToolText(); ok {
+		return tea.ClipboardMsg{Content: text, Selection: 'c'}
+	}
+	return tea.ReadClipboard()
+}
+
+// clipPasteLocal is clipPaste for a put that named no register
+// (`clipboard = "unnamedplus"`, F20.5): with no tool, or a failing one, a
+// clipMissing comes at once, not an OSC 52 query the terminal may never answer.
+func clipPasteLocal() tea.Msg {
+	if text, ok := clipToolText(); ok {
+		return tea.ClipboardMsg{Content: text, Selection: 'c'}
+	}
+	return clipMissing{}
+}
+
+// clipToolText is what the clipboard tool reads, !ok when there is none or it fails.
+func clipToolText() (string, bool) {
 	if c := clipCmd(true); c != nil {
 		if out, err := c.Output(); err == nil {
 			if runtime.GOOS == "windows" { // the windows read's lines end in \r\n
 				out = bytes.ReplaceAll(out, []byte("\r\n"), []byte("\n"))
 			}
-			return tea.ClipboardMsg{Content: string(out), Selection: 'c'}
+			return string(out), true
 		}
 	}
-	return tea.ReadClipboard()
+	return "", false
 }

@@ -18,6 +18,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db"
@@ -1056,12 +1057,54 @@ func TestTreeToggleFocus(t *testing.T) {
 	}
 }
 
+// The default layout in color, the gaps and the borders (F20.6), and in the
+// built-in ristretto (F20.7).
+func TestGoldenDefaultColors(t *testing.T) {
+	a := sizedWith(160, 45, userConfig(t, "", ""))
+	loadOrders(t, a, 3)
+	golden.RequireEqual(t, a.render().Buf.Render())
+}
+
+func TestGoldenRistretto(t *testing.T) {
+	c := userConfig(t, "", "")
+	var err error
+	if c.Theme, c.Icons, _, err = config.LoadTheme("ristretto", c.BaseIcons); err != nil { // Load's step, which Parse leaves to it
+		t.Fatal(err)
+	}
+	a := sizedWith(160, 45, c)
+	loadOrders(t, a, 3)
+	golden.RequireEqual(t, a.render().Buf.Render())
+}
+
+// What no pane covers, the blank columns between the panes and right of the
+// sidebar, is the theme's gap, not its bg; the status bar is not (F20.6).
+func TestGapColor(t *testing.T) {
+	c := config.Default()
+	th := *ui.TokyonightStorm
+	th.Gap = ui.TokyonightStorm.Warn // none of bg, pane_bg or the bar's
+	c.Theme = &th
+	a := sizedWith(160, 45, c)
+	f := a.render()
+	rects := a.layout()
+	for _, x := range []int{rects[0].Max.X, rects[1].Max.X} { // right of the sidebar, between ① and ②
+		for _, y := range []int{0, 20, 43} {
+			if got := f.Buf.CellAt(x, y).Style.Bg; got != th.Gap {
+				t.Errorf("(%d, %d): bg %v, want the gap's", x, y, got)
+			}
+		}
+	}
+	if got := f.Buf.CellAt(rects[1].Max.X+20, 44).Style.Bg; got == th.Gap {
+		t.Error("the status bar is in the gap's color")
+	}
+}
+
 // SPC b unfolding the tree puts the focus on it, its cursor on the node of
 // the tab focused before, the nodes above it opened: a table's under its
 // schema, a query's in the workspace (F3.29). Filtered out, nothing
 // opens.
 func TestFoldSidebarReveals(t *testing.T) {
 	a := sized(160, 45, "nerd")
+	a.treeFollow = true // [tree] follow (F20.4)
 	loadOrders(t, a, 3)
 	a.sess.open[schemaNode(a.sess.Conns[0], "public")] = false // folded by hand
 	a.win().tree.filter = ui.Input{Text: "planner"}
@@ -1076,6 +1119,37 @@ func TestFoldSidebarReveals(t *testing.T) {
 	feed(t, a, "<Space>b<C-l><Space>b") // query_1
 	if n, _ := a.treeNode(); n.kind != nodeTab || n.Text != "query_1" {
 		t.Errorf("query_1's: node %+v", n.TreeNode)
+	}
+}
+
+// Without `[tree] follow` (the default) the sidebar takes the focus with its
+// cursor where it was, by SPC b open or folded or by »; with it the cursor goes
+// to the tab's node; ↵ on a foreign key, which opens a table, reveals it only
+// with it too (F20.4).
+func TestTreeFollow(t *testing.T) {
+	for _, follow := range []bool{false, true} {
+		for _, how := range []string{"open", "folded", "»"} {
+			a := sized(160, 45, "nerd")
+			a.treeFollow = follow
+			loadOrders(t, a, 3)
+			a.treeGo(0) // the table's pane has the focus
+			was, _ := a.treeNode()
+			if how != "open" {
+				a.win().TreeOpen = false
+			}
+			if how == "»" {
+				click(a, uv.Pos(1, 1))
+			} else {
+				feed(t, a, "<Space>b")
+			}
+			n, _ := a.treeNode()
+			if !a.win().TreeOpen || a.win().Focus != 0 {
+				t.Fatalf("follow %v, %s: open %v focus %d", follow, how, a.win().TreeOpen, a.win().Focus)
+			}
+			if onTable := n.kind == nodeTable && n.table.Name == "t_order"; onTable != follow || !follow && n.id != was.id {
+				t.Errorf("follow %v, %s: cursor on %+v, was on %+v", follow, how, n.TreeNode, was.TreeNode)
+			}
+		}
 	}
 }
 

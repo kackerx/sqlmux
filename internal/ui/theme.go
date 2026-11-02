@@ -1,11 +1,13 @@
 package ui
 
 import (
+	_ "embed"
 	"fmt"
 	"image/color"
 	"maps"
 	"regexp"
 	"slices"
+	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/x/ansi"
@@ -36,13 +38,15 @@ type Theme struct {
 	Yank                             color.Color // a yank's flash, bg text on it (§7.3)
 	Search, SearchCurrent            color.Color // the matches of an editor's search, and the one the cursor is in, bg text on them (F15.9); a theme that has none gets its visual and its yank
 	Zoom                             color.Color // the border of the pane zoomed (F9.6); a theme that has none gets its warn
+	BorderFocus                      color.Color // the border, and the title on it, of the focused pane and the overlays (F20.6); a theme that has none gets its focus
+	Gap                              color.Color // the blank columns between the panes (F20.6); a theme that has none gets its pane_bg
 	Production                       color.Color // a production connection's border, status block and tab titles (F17.9); a theme that has none gets its error
 }
 
 var TokyonightStorm = &Theme{
 	Bg: c("#1f2335"), PaneBg: c("#24283b"),
 	Fg: c("#c0caf5"), FgMuted: c("#a9b1d6"), Dim: c("#565f89"),
-	Border: c("#3b4261"), Focus: c("#9ece6a"), Warn: c("#e0af68"),
+	Border: c("#565f89"), Focus: c("#9ece6a"), Warn: c("#e0af68"),
 	Cursor: c("#3d59a1"), CursorBlur: c("#2f3549"),
 	Select: c("#364a82"), Row: c("#292e42"), RowAlt: c("#1f2335"),
 	Visual:   c("#2d3f76"),
@@ -60,13 +64,23 @@ var TokyonightStorm = &Theme{
 	SQLTable: c("#2ac3de"), SQLColumn: c("#73daca"), SQLOperator: c("#89ddff"),
 	Yank:   c("#e0af68"),
 	Search: c("#c8793a"), SearchCurrent: c("#e0af68"),
-	Zoom: c("#e0af68"),
+	Zoom:        c("#e0af68"),
+	BorderFocus: c("#9ece6a"), Gap: c("#24283b"),
 
 	Production: c("#f7768e"),
 }
 
-// Themes are the built-in themes by name.
+// Themes are the built-in themes that are Go values by name: tokyonight-storm,
+// which every theme file is read over. The ones that are files are in
+// BuiltinThemeFiles (F20.7).
 var Themes = map[string]*Theme{"tokyonight-storm": TokyonightStorm}
+
+// BuiltinThemeFiles are the theme files built in, by name: read as the user's
+// are, over tokyonight-storm and with their [icon], by ParseTheme.
+var BuiltinThemeFiles = map[string]string{"ristretto": ristretto}
+
+//go:embed ristretto.toml
+var ristretto string
 
 func c(s string) color.Color { return ansi.XParseColor(s) }
 
@@ -105,7 +119,7 @@ func ParseTheme(data string, icons *Icons) (th *Theme, ic *Icons, unknown []stri
 				if err := md.PrimitiveDecode(specs[name], &s); err != nil {
 					return nil, nil, nil, fmt.Errorf("[icon] %s: %w", name, err)
 				}
-				if s.Text != nil {
+				if s.Text != nil && (icons != ASCIIIcons || isASCII(*s.Text)) { // glyphs are written for Nerd Font: ascii has none of them (F20.7)
 					icon.Text = *s.Text
 				}
 				if s.Fg != nil {
@@ -141,6 +155,12 @@ func ParseTheme(data string, icons *Icons) (th *Theme, ic *Icons, unknown []stri
 	if _, ok := raw["zoom"]; !ok {
 		th.Zoom = th.Warn // as the theme has it, not as tokyonight-storm's
 	}
+	if _, ok := raw["border_focus"]; !ok {
+		th.BorderFocus = th.Focus
+	}
+	if _, ok := raw["gap"]; !ok {
+		th.Gap = th.PaneBg
+	}
 	if _, ok := raw["production"]; !ok {
 		th.Production = th.Error
 	}
@@ -152,6 +172,15 @@ func ParseTheme(data string, icons *Icons) (th *Theme, ic *Icons, unknown []stri
 	}
 	slices.Sort(unknown)
 	return th, ic, unknown, nil
+}
+
+func isASCII(s string) bool {
+	for _, r := range s {
+		if r >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
 }
 
 func hex(key, v string) (color.Color, error) {
@@ -183,6 +212,7 @@ func (th *Theme) tokens() map[string]*color.Color {
 
 		"sql_table": &th.SQLTable, "sql_column": &th.SQLColumn, "sql_operator": &th.SQLOperator,
 		"yank": &th.Yank, "zoom": &th.Zoom, "production": &th.Production,
+		"border_focus": &th.BorderFocus, "gap": &th.Gap,
 		"search": &th.Search, "search_current": &th.SearchCurrent,
 	}
 }

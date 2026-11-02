@@ -212,7 +212,7 @@ func (a *App) jsonYank() tea.Cmd {
 		return nil
 	}
 	all := ui.Sel{Mode: ui.SelLines, To: ui.TextPos{Line: len(jv.ed.Lines()) - 1}}
-	return tea.Batch(clipCopy(jv.text), a.flashYank(yankFlash{pane: p.ID, text: all}))
+	return tea.Batch(a.clipCopy(jv.text), a.flashYank(yankFlash{pane: p.ID, text: all}))
 }
 
 // jsonKey gives key k, which no binding of the view took, to its editor: esc

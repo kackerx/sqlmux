@@ -874,6 +874,10 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 		return a.deadlocked(t.conn, m.err)
 	default:
 		clearBar(&t.bar, "save")
+		var follow tea.Cmd // a hash that lost its last field is no key now
+		if t.table.Kind == "k" {
+			follow = a.keysChanged(t.conn, t.table.Name)
+		}
 		for k, e := range m.sent {
 			switch now, ok := t.edits[k]; {
 			case now == e:
@@ -892,7 +896,7 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 		}
 		if p := a.paneShowing(t); closing && t.changes() == 0 && t.cell == nil && p != nil { // :wq, and nothing changed since, nor being typed
 			a.closeTab(p, p.Cur)
-			return nil
+			return follow
 		}
 		cmd := a.fetch(t, true) // the rows may leave the WHERE now
 		uncommitted := ""
@@ -900,7 +904,7 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 			uncommitted = i18n.T("（未提交）")
 		}
 		t.note = ui.Note{Head: i18n.T("已保存 %d 行%s · %s", len(m.dels)+len(m.rows)+len(m.adds), uncommitted, m.took.Round(time.Millisecond))}
-		return cmd
+		return tea.Batch(cmd, follow)
 	}
 	return nil
 }

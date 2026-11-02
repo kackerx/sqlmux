@@ -23,7 +23,7 @@ create view vw as select id from cust;
 create materialized view mv as select id, nm from cust;
 create unique index mv_i on mv (id);
 SQL
-mkdir -p "$D/own"; printf '[tree]\nwidth = 70\n' >"$D/own/config.toml"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s"\n' "$E2E_DB" >"$D/own/connections.toml"; chmod 600 "$D/own/connections.toml"
+mkdir -p "$D/own"; printf '[tree]\nwidth = 70\nfollow = true\n' >"$D/own/config.toml"; mkdir -p "$D/own2"; printf '[tree]\nwidth = 70\n' >"$D/own2/config.toml"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s"\n' "$E2E_DB" >"$D/own/connections.toml"; chmod 600 "$D/own/connections.toml"; cp -p "$D/own/connections.toml" "$D/own2/connections.toml"
 tree() { e2e_plain | python3 -c "import sys; [print(l[:72].rstrip()) for l in list(sys.stdin)[:${1:-40}]]"; }
 trow() { e2e_plain | python3 -c "
 import sys
@@ -87,4 +87,9 @@ tclick "ord2"; tclick "ord  "
 tclick "Views (4)"; sleep 0.4; tclick "vw  "; sleep 0.4; tclick " mv  "; sleep 0.4
 check "普通视图 vw：展开只有列，没有 Indexes / Keys 分组" eval '[[ -n $(kids "vw ") ]] && ! kids "vw " | grep -qE "Indexes|Keys"' || { kids "vw "; tree 40; }
 check "物化视图 mv：列之后只有 Indexes (1)（没有 Keys）" eval 'kids "mv " | grep -qF "Indexes (1)" && ! kids "mv " | grep -qF "Keys"' || { kids "mv "; tree 44; }
+
+# ---- 默认（没写 follow）：外键 ↵ 照样打开目标表，树不展开 other（F20.4：openRef 也跟 [tree] follow）
+start -C "$D/own2"; solo
+tclick "ord2"; sleep 0.3; tclick Keys; tleaf "f2 ("; sleep 1.2; wait_for 5 settled
+check "默认：外键 ↵ 指到另一个 schema：打开了 ref（标题 ref），树上 other 还是折着的、没有 ref 节点" eval '[[ $(title1) == *" ref "* ]] && ! e2e_plain | grep -qE "▾ .*other" && ! tree 60 | grep -qE "\bref\b.* [0-9]" ' || { title1; tree 30; }
 e2e_done

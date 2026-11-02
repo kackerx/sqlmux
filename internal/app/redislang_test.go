@@ -73,6 +73,7 @@ func redisConsole(t *testing.T, d *execDB, cs redis.Commands, text string) (*App
 	a, c := inRun(t, d, text)
 	conn := a.sess.Conns[0]
 	conn.Spec.Engine, conn.drv, conn.eng, conn.cmds, conn.DB, conn.cmdsReady = "redis", kvDriver{}, nil, cs, "0", true
+	conn.building = &keyIndex{} // an index being made, which nothing answers: typing in a console starts none on the fake's server (F20.11)
 	return a, c
 }
 
@@ -402,6 +403,7 @@ func TestRedisCompletion(t *testing.T) {
 	a, c := redisConsole(t, &execDB{}, someCommands(), "")
 	conn := a.sess.Conns[0]
 	conn.docs, conn.hints = someDocs(), map[string][]string{"keys\x00us": {"user:1", "user:two words"}, "fields\x00h": {"field1", "other", "Field2"}}
+	conn.building = &keyIndex{} // being built: the completion goes on with the names it was told of
 	for _, tc := range []struct {
 		typed  string
 		manual bool
@@ -459,6 +461,7 @@ func TestGoldenRedisHints(t *testing.T) {
 	a, c := redisConsole(t, &execDB{}, someCommands(), "")
 	conn := a.sess.Conns[0]
 	conn.docs, conn.hints = someDocs(), map[string][]string{"keys\x00us": {"user:1", "user:2"}}
+	conn.building = &keyIndex{} // being built: the completion goes on with the names it was told of
 	a.valueHints = true
 	pane := func() string {
 		r := a.layout()[a.focused().ID]

@@ -125,6 +125,7 @@ leader = "<Space>"
 "<CR>" = "tree.open"
 "t" = "tree.open.tab"
 "/" = "tree.filter"
+"<Esc>" = "tree.refilter" # with a filter kept: back to its input, as / (F20.9)
 "R" = "tree.refresh"
 "dd" = "tree.delete"
 "s" = "jump.start"

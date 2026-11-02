@@ -21110,3 +21110,437 @@ five
 reg: "" ""
 top: 1
 mode: n
+
+## unnamedplus yy p
+one two
+█one two
+three four
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus yy P
+█one two
+one two
+three four
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus yy j p
+one two
+three four
+█one two
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus yiw p
+one ttw█owo
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus yiw P
+one tw█otwo
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus yw $ p
+one twotw█o
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus block y p
+one two█tw
+three fe our
+five
+reg: "\x162" "tw\ne "
+top: 1
+mode: n
+
+## unnamedplus block y P
+one █twtwo
+three e four
+five
+reg: "\x162" "tw\ne "
+top: 1
+mode: n
+
+## unnamedplus block y j p
+one two
+three█tw four
+five e 
+reg: "\x162" "tw\ne "
+top: 1
+mode: n
+
+## unnamedplus block y 2P
+one █twtwtwo
+three e e four
+five
+reg: "\x162" "tw\ne "
+top: 1
+mode: n
+
+## unnamedplus visual y P
+one tw█otwo
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus V y p
+one two
+three four
+█one two
+three four
+five
+six
+reg: "V" "one two\nthree four\n"
+top: 1
+mode: n
+
+## unnamedplus dd p
+three four
+█one two
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus dd P
+█one two
+three four
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus 2dd p
+three
+█one
+two
+four
+reg: "V" "one\ntwo\n"
+top: 1
+mode: n
+
+## unnamedplus x p
+one w█to
+three four
+five
+reg: "v" "t"
+top: 1
+mode: n
+
+## unnamedplus 3x P
+onetw█o 
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus dw p
+one tw█o
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus D p
+one tw█o
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus cw p
+one Xtw█o
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus S p
+X
+█one two
+three four
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus s p
+one Xwo█t
+three four
+five
+reg: "v" "t"
+top: 1
+mode: n
+
+## unnamedplus yy 3p
+one two
+█one two
+one two
+one two
+three four
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus yiw 3p
+one ttwotwotw█owo
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus black hole dd
+one two
+three four
+█three four
+reg: "V" "three four\n"
+top: 1
+mode: n
+
+## unnamedplus black hole x
+one ttw█ow
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus explicit +p
+one two
+threetw█o four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## unnamedplus explicit +yy p
+one two
+three four
+█one two
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus empty register name
+one two
+thre█e four
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus external linewise p
+one two
+█ext
+three four
+five
+reg: "" ""
+top: 1
+mode: n
+
+## unnamedplus external linewise P
+█ext
+more
+one two
+three four
+five
+reg: "" ""
+top: 1
+mode: n
+
+## unnamedplus external charwise p
+one tex█two
+three four
+five
+reg: "" ""
+top: 1
+mode: n
+
+## unnamedplus external multiline charwise p
+one t█ext
+morewo
+three four
+five
+reg: "" ""
+top: 1
+mode: n
+
+## unnamedplus external after yy
+one tex█two
+three four
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus external after block y
+one two
+threeex█t four
+five
+reg: "\x162" "tw\ne "
+top: 1
+mode: n
+
+## unnamedplus external equals block y
+one two
+three█tw
+e  four
+five
+reg: "\x162" "tw\ne "
+top: 1
+mode: n
+
+## unnamedplus external equals yy
+one two
+three four
+█one two
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus external 3p
+one tababa█bwo
+three four
+five
+reg: "" ""
+top: 1
+mode: n
+
+## unnamedplus external then dd p
+three four
+█one two
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## unnamedplus empty line yank
+one two
+
+five
+█
+reg: "V" "\n"
+top: 1
+mode: n
+
+## unnamedplus u after p
+one █two
+three four
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## clipboard +yy p
+one two
+three four
+█one two
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## clipboard +yy +p
+one two
+three four
+█one two
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## clipboard +yiw +P
+one twtw█oo
+three four
+five
+reg: "v" "two"
+top: 1
+mode: n
+
+## clipboard block +y +p
+one two
+three four
+█tw
+e 
+five
+reg: "V" "tw\ne \n"
+top: 1
+mode: n
+
+## clipboard external +p
+one two
+█ext
+three four
+five
+reg: "" ""
+top: 1
+mode: n
+
+## clipboard external +p charwise
+one tex█two
+three four
+five
+reg: "" ""
+top: 1
+mode: n
+
+## black hole p
+one █two
+three four
+five
+reg: "V" "one two\n"
+top: 1
+mode: n
+
+## black hole dd
+one two
+three four
+█three four
+reg: "V" "three four\n"
+top: 1
+mode: n
+
+## black hole visual d
+e two
+█one two
+three four
+three four
+five
+reg: "V" "one two\nthree four\n"
+top: 1
+mode: n
+
+## unnamedplus black hole p
+one █two
+three four
+five
+reg: "V" "one two\n"
+top: 1
+mode: n

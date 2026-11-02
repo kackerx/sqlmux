@@ -90,6 +90,7 @@ func (a *App) drawOn(f *ui.Frame) *ui.Frame {
 	if a.w <= 0 || a.h <= 0 {
 		return f
 	}
+	f.Fill(a.window(), uv.Style{Fg: th.Fg, Bg: th.Gap}) // what no pane covers: the gaps (F20.6); the status bar stays bg
 	f.SetMouse(a.mouse)
 	rects := a.layout()
 	if r, ok := rects[a.win().Tree.ID]; ok {

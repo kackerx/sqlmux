@@ -2,12 +2,12 @@
 # Only the tokens to change are here; the rest come from the built-in tokyonight-storm.
 # Changes show after restarting sqlmux.
 
-bg          = "#312b2b"   # tab bar and the gaps between panes
+bg          = "#312b2b"   # tab bar (the gaps take `gap`, which follows pane_bg)
 pane_bg     = "#393333"   # pane background
 fg          = "#fafff0"
 fg_muted    = "#c9c4c4"
 dim         = "#8c8687"
-border      = "#5b5555"   # unfocused border
+border      = "#7a7272"   # unfocused border
 focus       = "#a9dc76"   # focused border, NORMAL
 warn        = "#ffd866"
 cursor      = "#81817e"   # current cell: nvim's highlight of the word under the cursor

@@ -3,11 +3,13 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"slices"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -144,15 +146,48 @@ func TestClipTools(t *testing.T) {
 		{"", write, paste},
 	}
 	defer func() { clipTools = nil }()
-	if msg := clipCopy("a\tb\n")(); msg != nil {
+	a := new(App)
+	if msg := a.clipCopy("a\tb\n")(); msg != nil {
 		t.Errorf("copied with a tool, and %v", msg)
 	}
 	if msg := clipPaste(); msg != (tea.ClipboardMsg{Content: "a\tb\n", Selection: 'c'}) {
 		t.Errorf("pasted %#v", msg)
 	}
 	clipTools[2] = clipTool{"", []string{"false"}, []string{"false"}}
-	if clipCopy("x")() != tea.SetClipboard("x")() || clipPaste() != tea.ReadClipboard() {
+	if a.clipCopy("x")() != tea.SetClipboard("x")() || clipPaste() != tea.ReadClipboard() {
 		t.Error("a failing tool is not OSC 52")
+	}
+	if clipPasteLocal() != (clipMissing{}) {
+		t.Error("a failing tool: no OSC 52 query for a put with no register")
+	}
+}
+
+// A read waits for the writes asked before it: with a slow tool, `yy` and the
+// `p` after it started together read what the yy wrote, not what was there
+// (F20.5); a write waits for the one before it.
+func TestClipReadAfterWrite(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sh")
+	}
+	f := filepath.Join(t.TempDir(), "clip")
+	if err := os.WriteFile(f, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	clipTools = []clipTool{{"", []string{"sh", "-c", "sleep 0.2; cat >> " + f}, []string{"cat", f}}} // appends: the order the writes ran in shows
+	defer func() { clipTools = nil }()
+	a := new(App)
+	w1, w2, r := a.clipCopy("new1"), a.clipCopy("new2"), a.clipRead(true)
+	go w2() // started first, it still waits for w1
+	time.Sleep(20 * time.Millisecond)
+	go w1()
+	if msg := r(); msg != (tea.ClipboardMsg{Content: "new1new2", Selection: 'c'}) {
+		t.Errorf("read %#v, want the writes in the order asked, all done", msg)
+	}
+	defer func(was time.Duration) { clipWaitMax = was }(clipWaitMax) // a write that never runs does not hold a read for ever
+	clipWaitMax = 10 * time.Millisecond
+	a.clipCopy("never run")
+	if msg := a.clipRead(true)(); msg != (tea.ClipboardMsg{Content: "new1new2", Selection: 'c'}) {
+		t.Errorf("read %#v after a write that did not run", msg)
 	}
 }
 

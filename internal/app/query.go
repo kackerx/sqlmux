@@ -52,6 +52,14 @@ type queryTab struct {
 	asked   map[tableID]bool
 	wait    *compWait
 	hintSeq int // the last key or field completion asked for: older ones are dropped (§9.8)
+	// matchSeq numbers the completions: the answer of a match that goes on in the
+	// background counts if it is the last one's; matching says one is, and the list
+	// is the one before till it comes; matchFor is what it was asked for; enter is a ↵
+	// that came meanwhile, which takes the selected one of the list that comes (F20.8)
+	matchSeq int
+	matching bool
+	matchFor matchCtx
+	enter    bool
 }
 
 // compWait is where a query last completed, C-n's or not.
@@ -236,11 +244,14 @@ func (a *App) queryKey(p *Pane, t *queryTab, k keymap.Key) tea.Cmd {
 	}
 	m := t.ed.Mode()
 	open, inInsert := t.comp != nil, m == editor.Insert || m == editor.Select // i, a, A, o type nothing: no list (§9.7); a character over a selected tabstop does (F15.8)
+	last := t.comp                                                            // queryDid closes it; a match that goes on in the background keeps it (F20.8)
+	t.enter = false                                                           // a ↵ that waited for a list is for the text as it was
 	cmd := a.queryDid(t, t.ed.Feed(string(k)))
 	switch {
 	case t.ed.Mode() != editor.Insert:
 		t.asked, t.wait = nil, nil
 	case inInsert && keymap.Text(k) != "" || open && (k == "<BS>" || k == "<C-h>"):
+		t.comp = last
 		return tea.Batch(cmd, a.queryComplete(t, false))
 	}
 	return cmd
@@ -249,7 +260,8 @@ func (a *App) queryKey(p *Pane, t *queryTab, k keymap.Key) tea.Cmd {
 // queryComplete finds query t's candidates for its cursor, in INSERT
 // (sqlComplete); manual is C-n's.
 func (a *App) queryComplete(t *queryTab, manual bool) tea.Cmd {
-	t.comp = nil
+	prev := t.comp
+	t.comp, t.matching = nil, false
 	if t.ed.Mode() != editor.Insert {
 		return nil
 	}
@@ -263,10 +275,14 @@ func (a *App) queryComplete(t *queryTab, manual bool) tea.Cmd {
 	if t.conn.sql() {
 		c, cmds = a.sqlComplete(t.conn, strings.Join(lines, "\n"), pos, cmp.Or(t.schema, t.conn.Schema), t.asked, manual)
 	} else {
-		c, cmds = a.redisComplete(t, lines[cur.Line][:cur.Col], pos, manual)
+		c, cmds = a.redisComplete(t, lines[cur.Line][:cur.Col], manual)
 	}
-	if c != nil {
+	if c != nil && t.conn.sql() {
 		c.start -= pos - cur.Col // a column of the cursor's line: it is a word before the cursor
+	}
+	if t.matching { // the match goes on in the background: the list is the last one till it comes (F20.8)
+		t.matchFor = matchCtx{cur: cur, ver: t.ver, manual: manual}
+		c = prev
 	}
 	t.comp, t.wait = c, &compWait{cur, t.ver, manual} // columns fetched now or before may still come
 	return tea.Batch(cmds...)
@@ -275,6 +291,10 @@ func (a *App) queryComplete(t *queryTab, manual bool) tea.Cmd {
 // queryAccept puts query t's selected candidate in place of the word
 // it completes, as typing it would, and closes the list (§9.7).
 func (a *App) queryAccept(t *queryTab) tea.Cmd {
+	if t.matching { // the list is of the word before this one: ↵ waits for the one that comes (F20.8)
+		t.enter = true
+		return nil
+	}
 	c, cur := t.comp, t.ed.Cursor()
 	t.comp = nil
 	p := c.plan(t.ed.Lines()[cur.Line], cur.Col)
@@ -303,11 +323,16 @@ func (a *App) vimCmds(eff editor.Effect, put func(text string, p editor.ClipPut)
 		cmds = append(cmds, a.flashYank(yankFlash{pane: a.focused().ID, text: yankSel(*eff.Yank)}))
 	}
 	if eff.Clip != nil {
-		cmds = append(cmds, clipCopy(*eff.Clip))
+		cmds = append(cmds, a.clipCopy(*eff.Clip))
 	}
 	if p := eff.Paste; p != nil {
-		a.clipWait = func(text string) tea.Cmd { return put(text, *p) }
-		cmds = append(cmds, clipPaste)
+		a.clipWait = func(text string, ok bool) tea.Cmd {
+			if !ok {
+				return put(text, p.Missing())
+			}
+			return put(text, *p)
+		}
+		cmds = append(cmds, a.clipRead(p.Implicit()))
 	}
 	if eff.Error != "" {
 		cmds = append(cmds, a.showToast(eff.Error))

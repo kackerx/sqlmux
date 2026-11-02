@@ -705,3 +705,35 @@ func batchMsgs(cmd tea.Cmd) []tea.Msg {
 	}
 	return []tea.Msg{cmd()}
 }
+
+// With a filter kept, esc in the tree is /: back in the input, the text as it was and
+// the cursor at its end; esc there clears it, as it always did, so two of them
+// clear it; with no filter esc does what it did, nothing (F20.9).
+func TestTreeEscBackToFilter(t *testing.T) {
+	a := inTree(45)
+	before := treeTexts(a)
+	if feed(t, a, "<Esc>"); a.win().tree.filtering || a.mode() != keymap.Normal || treeTexts(a) != before {
+		t.Fatal("esc with no filter does something")
+	}
+	feed(t, a, "/tor<CR>jj")
+	kept := treeTexts(a)
+	if feed(t, a, "<Esc>"); !a.win().tree.filtering || a.mode() != keymap.Insert || a.win().tree.filter.Text != "tor" || a.win().tree.filter.Pos != 3 || treeTexts(a) != kept {
+		t.Fatalf("esc with a filter kept: filtering %v, mode %v, filter %+v", a.win().tree.filtering, a.mode(), a.win().tree.filter)
+	}
+	if feed(t, a, "<Esc>"); a.win().tree.filtering || a.win().tree.filter.Text != "" || a.mode() != keymap.Normal || treeTexts(a) == kept || !strings.Contains(treeTexts(a), "工作区") {
+		t.Errorf("the second esc: filtering %v, filter %q\n%s", a.win().tree.filtering, a.win().tree.filter.Text, treeTexts(a))
+	}
+}
+
+// The same in a Redis tree, whose filter asks the server (F20.9).
+func TestRedisTreeEscBackToFilter(t *testing.T) {
+	a, _ := redisTree(t, someKeys())
+	a.win().focus(0)
+	a.win().tree.filter = ui.Input{Text: "users", Pos: 5}
+	if feed(t, a, "<Esc>"); !a.win().tree.filtering || a.win().tree.filter.Text != "users" || a.win().tree.filter.Pos != 5 {
+		t.Fatalf("esc with a filter kept: %+v", a.win().tree)
+	}
+	if feed(t, a, "<Esc>"); a.win().tree.filtering || a.win().tree.filter.Text != "" {
+		t.Errorf("the second esc: %+v", a.win().tree)
+	}
+}

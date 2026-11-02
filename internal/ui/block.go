@@ -75,7 +75,7 @@ func (b Block) Draw(f *Frame, r uv.Rectangle) uv.Rectangle {
 	}
 	bc, tc := th.Border, th.Dim
 	if b.Focused {
-		bc, tc = th.Focus, th.Focus
+		bc, tc = th.BorderFocus, th.BorderFocus
 	}
 	if b.Zoomed {
 		bc = th.Zoom
