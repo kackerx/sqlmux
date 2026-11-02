@@ -25,6 +25,11 @@ to_console
 e2e_type "get key:1 get key:2 get key:3 get key:4"; key Escape; key Escape; key o
 e2e_type "hget key"; sleep 0.05; key BSpace; key BSpace; key BSpace; key BSpace; e2e_type "set"; sleep 3
 check "多行 query（第一行很长），第二行敲 hget key 再退格：补全框起点不越过光标，进程还在、没有 panic" alive
+# 前面有几行：第 3 行以后敲 hget key xx（结果没回来继续打字、退格、换行）
+to_console
+e2e_type "get key:1 get key:2 get key:3 get key:4"; key Enter; e2e_type "set a b c d e f g h i j k l"; key Escape; key Escape; key o
+e2e_type "hget key xx"; sleep 0.05; key BSpace; key BSpace; key BSpace; e2e_type "yy"; key Enter; e2e_type "hget k"; key BSpace; key BSpace; e2e_type "e"; sleep 3
+check "前面有两行（都很长），第 3 行敲 hget key xx、退格、换行、再敲：补全框跟着光标，进程还在、没有 panic" alive
 to_console
 e2e_type "hget key xx"; sleep 0.1; e2e_type "y"; sleep 0.1; key Enter; e2e_type "hget k"; sleep 0.2; key BSpace; key BSpace; key BSpace; e2e_type "set a b"; sleep 3
 check "用户的输入 hget key xx（结果没回来继续打字、换行、删字）：进程还在、没有 panic" alive

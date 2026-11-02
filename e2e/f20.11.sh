@@ -68,4 +68,14 @@ echo "# 冷（150ms 往返）：最慢的一个字符回显 ${echo_ms}ms；最�
 check "冷：打字期间每个字符回显不卡（最慢的一个 ≤ 500ms，含 tmux 轮询；索引在建，不设候选门槛）" eval '(( echo_ms <= 500 ))'
 unmon
 
+# ---- 开始建索引不等键名：控制台敲的字在 COMMAND DOCS 到达之前时，docs 到了以后补全自己出来（不用再敲）。慢代理 400ms，起来马上敲
+unmon; e2e_stop; redis_stop; redis_start R || exit 1
+rc -n 0 EVAL "for i = 1, 3000 do redis.call('SET', 'p:employees:' .. i, 1) end" 0 >/dev/null
+redis_slow 400 || exit 1
+(umask 077; printf '[[connection]]\nname = "rd"\nengine = "redis"\ndsn = "redis://localhost:%s/0"\n' "$SPORT" >"$D/cs/connections.toml")
+e2e_start -C "$D/cs" "$E2E_BIN rd"; wait_for 8 flag_is alternate_on 1
+to_console; e2e_type "get p:emp"
+wait_for 40 eval 'e2e_plain | sed -n 3,12p | grep -q "p:employees"'
+check "起来马上敲 get p:emp（COMMAND DOCS 还没到）：之后什么都不用再敲，docs 到了和索引建好后候选自己出来" eval 'e2e_plain | sed -n 3,12p | grep -q "p:employees"' || e2e_plain | sed -n 1,12p | cut -c60-165
+
 e2e_done
