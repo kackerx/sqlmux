@@ -208,6 +208,7 @@ var en = map[string]string{
 	"设为 NULL":                   "Set NULL",
 	"转置":                        "Transpose",
 	"过滤":                        "Filter",
+	"回到过滤输入框":                   "Back to the filter input",
 	"过滤列":                       "Filter columns",
 	"这个 pane 里":                 "This pane ",
 	"退出":                        "Quit",

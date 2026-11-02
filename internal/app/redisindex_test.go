@@ -21,7 +21,7 @@ func keyConsole(t *testing.T, names ...string) (*App, *queryTab, *Conn) {
 	t.Helper()
 	a, c := redisConsole(t, &execDB{}, someCommands(), "")
 	conn := a.sess.Conns[0]
-	conn.docs = someDocs()
+	conn.docs, conn.building = someDocs(), nil
 	conn.index = &keyIndex{names: names, total: int64(len(names)), done: true}
 	conn.index.makeCands()
 	return a, c, conn
@@ -65,18 +65,18 @@ func TestKeyIndexMatches(t *testing.T) {
 	}
 }
 
-// The index is made a SCAN at a time the first time key names are asked for,
+// The index is made a SCAN at a time from the first word a console completes (F20.11),
 // the names of one batch twice once, till the cursor comes round; with the db
 // it asks the size; a batch of one that was let go is nothing, and a batch that
 // failed drops the one being made, the index there is staying (§9.8, F20.8).
 func TestKeyIndexBuilds(t *testing.T) {
 	a, c, conn := keyConsole(t)
 	conn.index = nil
-	if _, _, cmds := a.keyCandidates(c, "zz"); conn.building == nil || len(cmds) != 2 || !conn.building.started { // the index's first batch, and the prefix scan till it is
+	if _, cmds := a.redisComplete(c, "get zz", false); conn.building == nil || len(cmds) != 2 || !conn.building.started { // the index's first batch, and the prefix scan till it is
 		t.Fatalf("not started: %+v, %d commands", conn.building, len(cmds))
 	}
 	ix := conn.building
-	if _, _, cmds := a.keyCandidates(c, "zz"); len(cmds) != 1 { // only the prefix's, the index being on its way
+	if _, cmds := a.redisComplete(c, "get zz", false); len(cmds) != 1 { // only the prefix's, the index being on its way
 		t.Errorf("started again: %d commands", len(cmds))
 	}
 	if cmd := a.gotIndex(indexMsg{conn: conn, ix: ix, names: []string{"a", "b", "a"}, next: 7, total: 5}); cmd == nil || len(ix.names) != 2 || ix.done || ix.total != 5 || ix.cursor != 7 || conn.index != nil {
@@ -124,7 +124,7 @@ func TestKeyIndexCapped(t *testing.T) {
 	a, c, conn := keyConsole(t)
 	conn.index = nil
 	a.indexKeys = 3
-	a.keyCandidates(c, "q")
+	a.redisComplete(c, "get q", false)
 	a.gotIndex(indexMsg{conn: conn, ix: conn.building, names: []string{"a", "b", "c", "d", "e"}, next: 9, total: 12})
 	ix := conn.index
 	if !ix.done || !ix.capped || len(ix.names) != 3 {
@@ -415,7 +415,7 @@ func BenchmarkKeyIndexComplete(b *testing.B) {
 		for n := 1; n <= len("user_123"); n++ {
 			typed := "get " + "user_123"[:n]
 			start := time.Now()
-			a.redisComplete(t, typed, len(typed), false)
+			a.redisComplete(t, typed, false)
 			d := time.Since(start)
 			if n == 1 {
 				first = d
@@ -1032,4 +1032,100 @@ func TestQuickEnterWaitsForTheList(t *testing.T) {
 	if a.palette.input.Text != ";get hash:bi" {
 		t.Errorf("typed on: %q", a.palette.input.Text)
 	}
+}
+
+// The index starts with the first word a console completes, not the key's some words
+// on, and the docs that come after a word was typed complete it (F20.11): over a far
+// server the round trips of the SCANs are over by the time the key is typed.
+func TestKeyIndexStartsEarly(t *testing.T) {
+	a, c, conn := keyConsole(t, "user:1", "user:2")
+	conn.index = nil
+	if _, cmds := a.redisComplete(c, "", false); conn.building != nil || len(cmds) != 0 {
+		t.Error("nothing typed: an index is started")
+	}
+	if _, cmds := a.redisComplete(c, "g", false); conn.building == nil || !conn.building.started || len(cmds) != 1 {
+		t.Fatalf("the first word: %+v, %d commands", conn.building, len(cmds))
+	}
+	conn.building = nil
+	conn.Spec.Engine = "exec"
+	if _, cmds := a.redisComplete(c, "g", false); conn.building != nil || len(cmds) != 0 {
+		t.Error("a connection that is a command makes an index")
+	}
+
+	conn.Spec.Engine, conn.docs = "redis", nil
+	conn.index = &keyIndex{names: []string{"user:1", "user:2"}, done: true}
+	conn.index.makeCands()
+	c.ed.Load("get use")
+	feed(t, a, "Ar")
+	if c.comp != nil {
+		t.Fatal("a list before the docs came")
+	}
+	a.Update(cmdsMsg{conn: conn, cmds: someCommands(), docs: someDocs()})
+	if c.comp == nil || len(c.comp.items) != 2 {
+		t.Errorf("the docs came: %+v", c.comp)
+	}
+}
+
+// userShaped is n key names of the shape a Redis of a team has: a few big
+// families of generated ids and dates, a few small ones of words (F20.11).
+func userShaped(n int) []string {
+	r := rand.New(rand.NewPCG(7, 8))
+	hex := func(k int) string {
+		b := make([]byte, k)
+		for i := range b {
+			b[i] = "0123456789abcdef"[r.IntN(16)]
+		}
+		return string(b)
+	}
+	var names []string
+	for len(names) < n {
+		switch x := r.IntN(100); {
+		case x < 71:
+			names = append(names, "stream:task-scenario-"+[]string{"common", "creative", "memory-distill"}[r.IntN(3)]+"-"+hex(8))
+		case x < 88:
+			names = append(names, fmt.Sprintf("asynq:scheduler_history:%s-%s-%s-%s-%s", hex(8), hex(4), hex(4), hex(4), hex(12)))
+		case x < 93:
+			names = append(names, fmt.Sprintf("tm:scenario:common:%s.%s@ctw.inc:fired:backlog:2026-11-%02d:%s", hex(5), hex(6), 1+r.IntN(28), hex(12)))
+		case x < 99:
+			names = append(names, fmt.Sprintf("%s:%s:%d", []string{"agentable", "i18n", "metaknow", "creative", "approval"}[r.IntN(5)], hex(6), r.IntN(1e6)))
+		default:
+			names = append(names, "p:employees:"+hex(6)+"@ctw.inc")
+		}
+	}
+	return names
+}
+
+// BenchmarkKeyIndexTyping is what typing "get p:emp" costs over 60000 names of a
+// team's shape with the index built, a console in INSERT: the main loop's share of
+// each key (Update asking, then Update taking the answer) and the match that goes on in
+// the background, the slowest of the keys of each (F20.11).
+func BenchmarkKeyIndexTyping(b *testing.B) {
+	if testing.Short() {
+		b.Skip("60000 names")
+	}
+	was := matchInline
+	matchInline = 0
+	defer func() { matchInline = was }()
+	t := &testing.T{}
+	a, c, conn := keyConsole(t, userShaped(60000)...)
+	var update, match, answer time.Duration
+	for b.Loop() {
+		c.ed.Load("get ")
+		feed(t, a, "A")
+		conn.index.last.pattern = ""
+		for _, k := range []keymap.Key{"p", ":", "e", "m", "p"} {
+			start := time.Now()
+			_, cmd := a.Update(teaKey(k))
+			update = max(update, time.Since(start))
+			start = time.Now()
+			ms := matched(cmd)
+			match = max(match, time.Since(start))
+			start = time.Now()
+			a.Update(ms[len(ms)-1])
+			answer = max(answer, time.Since(start))
+		}
+	}
+	b.ReportMetric(float64(update.Microseconds())/1000, "update-ms")
+	b.ReportMetric(float64(match.Microseconds())/1000, "match-ms")
+	b.ReportMetric(float64(answer.Microseconds())/1000, "answer-ms")
 }

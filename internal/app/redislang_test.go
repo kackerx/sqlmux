@@ -73,6 +73,7 @@ func redisConsole(t *testing.T, d *execDB, cs redis.Commands, text string) (*App
 	a, c := inRun(t, d, text)
 	conn := a.sess.Conns[0]
 	conn.Spec.Engine, conn.drv, conn.eng, conn.cmds, conn.DB, conn.cmdsReady = "redis", kvDriver{}, nil, cs, "0", true
+	conn.building = &keyIndex{} // an index being made, which nothing answers: typing in a console starts none on the fake's server (F20.11)
 	return a, c
 }
 

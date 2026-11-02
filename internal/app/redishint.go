@@ -59,22 +59,25 @@ const hintWant = 50
 var hashCommands = []string{"hget", "hset", "hsetnx", "hdel", "hexists", "hmget", "hincrby", "hincrbyfloat", "hstrlen", "hgetdel", "hgetex", "hsetex"}
 
 // redisComplete is the candidates for the word before the cursor of a console's
-// line, before being the line up to it, pos the cursor in the text (§9.8, F16.5):
+// line, before being the line up to it, their start a column of it (§9.8, F16.5):
 // command names, then a command's subcommands, then by what its docs say goes
 // there: the tokens of its arguments, the keys of the db, the fields of a hash.
 // With nothing typed it opens for C-n only. The names the server has to give come
 // later: the list is made again when they are in.
-func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*completion, []tea.Cmd) {
+func (a *App) redisComplete(t *queryTab, before string, manual bool) (*completion, []tea.Cmd) {
 	words, partial, open := redis.Typed(before)
 	if open || strings.HasPrefix(strings.TrimLeft(before, " \t"), "#") || partial == "" && !manual {
 		return nil, nil
 	}
 	c := t.conn
+	var cmds []tea.Cmd
+	if start := a.startIndex(c); start != nil { // from the first word typed, the key's is some words on: the round trips of a far server are over by then (F20.11)
+		cmds = append(cmds, start)
+	}
 	text := before // the candidates are ranked against the line up to the cursor
 	start := len(before) - len(partial)
 	t.matchSeq++ // a match going on in the background for an earlier word is of no use now (F20.8)
 	var groups [][]candidate
-	var cmds []tea.Cmd
 	var foot string       // what the list says under it (F20.1)
 	var indexed *keyIndex // the index the keys came from, if one did
 	var big []candidate   // the names of an index too long to be matched here (F20.8)
@@ -127,15 +130,15 @@ func (a *App) redisComplete(t *queryTab, before string, pos int, manual bool) (*
 	}
 	if big != nil { // matched over the names as they are now, which an update does not change, and answered with the number of the ask (F20.8)
 		t.matching = true
-		seq, shift, gen := t.matchSeq, pos-len(before), indexed.gen
+		seq, gen := t.matchSeq, indexed.gen
 		groups = slices.Clone(groups)
 		cmds = append(cmds, func() tea.Msg {
 			comp := ranked(text, len(text), partial, start, append(groups, big)...)
-			return matchMsg{t: t, seq: seq, comp: comp, ix: indexed, gen: gen, partial: partial, src: big, foot: foot, shift: shift}
+			return matchMsg{t: t, seq: seq, comp: comp, ix: indexed, gen: gen, partial: partial, src: big, foot: foot}
 		})
 		return nil, cmds
 	}
-	return a.finishMatch(ranked(text, len(text), partial, start, groups...), indexed, partial, indexed.narrowedOf(partial), foot, pos-len(before)), cmds
+	return a.finishMatch(ranked(text, len(text), partial, start, groups...), indexed, partial, indexed.narrowedOf(partial), foot), cmds
 }
 
 // commandNames are the commands of the server as candidates: those its docs
@@ -215,9 +218,8 @@ func (a *App) gotHints(m hintMsg) tea.Cmd {
 }
 
 // finishMatch is comp, the match of partial, kept: what it matched is where the next
-// key typed looks, the best redisShown are the list, with the foot of the index, and
-// the list is moved by shift, the cursor being there (F20.1).
-func (a *App) finishMatch(comp *completion, ix *keyIndex, partial string, src []candidate, foot string, shift int) *completion {
+// key typed looks, the best redisShown are the list, with the foot of the index (F20.1).
+func (a *App) finishMatch(comp *completion, ix *keyIndex, partial string, src []candidate, foot string) *completion {
 	if ix != nil && partial != "" {
 		var items []candidate
 		if comp != nil {
@@ -226,7 +228,6 @@ func (a *App) finishMatch(comp *completion, ix *keyIndex, partial string, src []
 		ix.remember(partial, items, src)
 	}
 	if comp != nil {
-		comp.start += shift
 		comp.items, comp.foot = comp.items[:min(len(comp.items), redisShown)], foot
 	}
 	return comp
@@ -254,7 +255,6 @@ type matchMsg struct {
 	partial string
 	src     []candidate
 	foot    string
-	shift   int
 }
 
 // gotMatch makes the list of a match that came back, if it is the last one asked and
@@ -273,7 +273,7 @@ func (a *App) gotMatch(m matchMsg) tea.Cmd {
 	if ix != nil && ix.gen != m.gen {
 		ix = nil // the names changed since: what it matched is not where the next key looks
 	}
-	comp := a.finishMatch(m.comp, ix, m.partial, m.src, m.foot, m.shift)
+	comp := a.finishMatch(m.comp, ix, m.partial, m.src, m.foot)
 	x := t.matchFor
 	if p := x.p; p != nil { // the quick SQL's
 		if a.palette != p || p.input.Text != x.input {

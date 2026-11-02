@@ -72,6 +72,7 @@ func TestQuickRedis(t *testing.T) {
 	}
 	feed(t, a, "<CR>")
 	answerQuickCmds(a, keys(t, a, "y"))
+	c.building = &keyIndex{} // FLUSHALL took the index being made: none starts on the fake's server
 	if len(d.ran) != 2 || d.ran[1] != "FLUSHALL" {
 		t.Errorf("yes: ran %v", d.ran)
 	}

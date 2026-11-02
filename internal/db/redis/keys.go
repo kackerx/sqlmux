@@ -28,8 +28,9 @@ type Scanned struct {
 
 // ScanCount is the COUNT of each SCAN a db's keys are listed with: a hint of how
 // many keys the server looks at, one round trip each, so the first keys come
-// early; FilterCount is the filter's, which MATCH thins on the server, so it
-// takes fewer round trips (§8.7, F18.11).
+// early; FilterCount is the COUNT of the SCANs that are as many round trips as keys
+// over it: the filter's, which MATCH thins on the server, the prefix hints', and
+// the index of names that is read whole (§8.7, §9.8, F18.11, F20.11).
 const (
 	ScanCount   = 1000
 	FilterCount = 10000
@@ -209,7 +210,7 @@ func KeyHints(ctx context.Context, c db.Conn, prefix string, want int) (keys []s
 	err = Use(ctx, c, func(cl *goredis.Client) error {
 		var cursor uint64
 		for range hintRounds {
-			batch, next, err := cl.Scan(ctx, cursor, Glob(prefix)+"*", ScanCount).Result()
+			batch, next, err := cl.Scan(ctx, cursor, Glob(prefix)+"*", FilterCount).Result()
 			if err != nil {
 				return err
 			}
