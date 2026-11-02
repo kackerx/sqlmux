@@ -25,6 +25,8 @@ key Escape; sleep 0.6
 check "输入框里再 esc：过滤清空，树恢复（t_sku 回来了），回到 NORMAL" eval 'tree_has t_sku && tree_has t_order && [[ $(bar_mode) == NORMAL && $(filt) != ord* ]]' || { bar_mode; filt; }
 key Escape; sleep 0.4
 check "过滤清掉之后树上 esc 又是照旧：还在 NORMAL，树不变" eval '[[ $(bar_mode) == NORMAL ]] && tree_has t_sku'
+key /; e2e_type sku; key Enter; sleep 0.6; key C-c; sleep 0.5
+check "C-c 在树上还是 cancel（决策者 2026-11-02）：过滤着、焦点在树按 C-c，不进输入框（NORMAL），过滤文字不变（sku 1/…）" eval '[[ $(bar_mode) == NORMAL && $(filt) == sku* ]] && tree_has t_sku && ! tree_has t_order' || { bar_mode; filt; }
 e2e_stop
 
 # ---- Redis 树
