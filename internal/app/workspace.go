@@ -311,7 +311,7 @@ func (c *Conn) inDB(name string) *Conn {
 // schemas are not known till its catalog is in, so schema is not looked up
 // there. ok is false for none.
 func (c *Conn) schemaTarget(v string) (target *Conn, schema string, ok bool) {
-	if c.redis() {
+	if c.redis() { // shortcut: any db number, one past the server's databases fails the dial; check CONFIG GET databases if that bites
 		if n, err := strconv.Atoi(strings.TrimPrefix(v, "db")); err == nil && n >= 0 {
 			return c.root().inDB(strconv.Itoa(n)), "", true
 		}
@@ -320,7 +320,7 @@ func (c *Conn) schemaTarget(v string) (target *Conn, schema string, ok bool) {
 	if slices.Contains(c.Schemas, v) {
 		return c, v, true
 	}
-	if db, sc, found := strings.Cut(v, "."); found && slices.Contains(c.root().databaseNames(), db) {
+	if db, sc, found := strings.Cut(v, "."); found && c.Spec.Kind() != "mysql" && (db == c.root().DB || slices.Contains(c.root().databaseNames(), db)) {
 		if t := c.root().inDB(db); t != c || slices.Contains(c.Schemas, sc) {
 			return t, sc, true
 		}

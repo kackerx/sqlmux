@@ -94,8 +94,7 @@ type cli struct {
 // connection: flag stops at the first argument that is no option, so what
 // follows it is read once more (F19.1). What is wrong with the options alone
 // is said here, before anything is read from the disk.
-func parseArgs(args []string) (cli, error) {
-	var c cli
+func parseArgs(args []string) (c cli, err error) {
 	flags := flag.NewFlagSet("sqlmux", flag.ContinueOnError)
 	flags.StringVar(&c.layout, "layout", "", "open this layout (a name or a path)")
 	flags.StringVar(&c.table, "table", "", "open this table, or this key of a Redis connection ([schema.]table)")
@@ -112,6 +111,14 @@ func parseArgs(args []string) (cli, error) {
 			return c, err
 		}
 		rest = append(rest[:1], flags.Args()...)
+	}
+	flags.Visit(func(f *flag.Flag) { // an empty statement is asked for, not left out: a script's unset variable
+		if f.Name == "sql" && c.sql == "" {
+			err = errors.New("--sql needs a statement")
+		}
+	})
+	if err != nil {
+		return c, err
 	}
 	if len(rest) > 1 {
 		return c, errors.New(usage)
@@ -263,9 +270,10 @@ func startSession(name, layout, def string, l *config.Layout) (*app.Session, *ap
 // misspelt key (F13.5), the queries that were consoles before F10.11 not moved.
 func startNotes(cfg *config.Config) string {
 	warning := app.JoinNotes(config.UnknownKeys(cfg)...)
-	if conns, _, err := config.LoadConnections(""); err == nil && cfg.DefaultConnection != "" &&
-		!slices.ContainsFunc(conns, func(c config.Connection) bool { return c.Name == cfg.DefaultConnection }) {
-		warning = app.JoinNotes(warning, fmt.Sprintf(i18n.T("default_connection：没有名为 %s 的连接"), cfg.DefaultConnection))
+	if def := cfg.DefaultConnection; def != "" { // connections.toml is read for it only when it is written
+		if conns, _, err := config.LoadConnections(""); err == nil && !slices.ContainsFunc(conns, func(c config.Connection) bool { return c.Name == def }) {
+			warning = app.JoinNotes(warning, fmt.Sprintf(i18n.T("default_connection：没有名为 %s 的连接"), def))
+		}
 	}
 	for _, err := range []error{config.MigrateConsoles(), config.TrimHistory(cfg.HistoryMax)} {
 		if err != nil {

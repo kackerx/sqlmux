@@ -887,6 +887,8 @@ func TestSchemaTarget(t *testing.T) {
 	pg.Schemas, pg.DB, pg.Databases = []string{"public", "other.s"}, "main", []string{"main", "db2"}
 	rd := newConn(config.Connection{Name: "cache", Engine: "redis", DSN: "redis://localhost"})
 	rd.DB = "0"
+	lost := readyConn("lost") // the listing of databases failed: the dialed one is still there
+	lost.DB, lost.Schemas = "main", []string{"public"}
 	my := newConn(config.Connection{Name: "my", Engine: "mysql"})
 	my.Schemas, my.DB = []string{"shop", "play"}, "shop"
 	for _, tc := range []struct {
@@ -900,6 +902,7 @@ func TestSchemaTarget(t *testing.T) {
 		{pg, "other.s", pg, "other.s", true}, // a schema with a dot in it is a schema first
 		{pg, "main.public", pg, "public", true},
 		{pg, "main.nope", nil, "", false},
+		{lost, "main.public", lost, "public", true},
 		{pg, "db2.nope", pg.inDB("db2"), "nope", true}, // looked up when db2's catalog is in
 		{pg, "nope", nil, "", false},
 		{pg, "nodb.public", nil, "", false},

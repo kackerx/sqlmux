@@ -272,6 +272,7 @@ func TestParseArgs(t *testing.T) {
 		{[]string{"seed", "--sql", "select 1", "--layout", "x"}, cli{}, "--layout"},
 		{[]string{"--sql", "select 1", "--layout", "x"}, cli{}, "--sql or --layout"},
 		{[]string{"--schema", "s"}, cli{}, "--schema needs --table or --sql"},
+		{[]string{"seed", "--sql", ""}, cli{}, "--sql needs a statement"},
 		{[]string{"a", "b"}, cli{}, "usage"},
 		{[]string{"a", "--table", "t", "b"}, cli{}, "usage"},
 		{[]string{"a", "--nope"}, cli{}, "nope"},
