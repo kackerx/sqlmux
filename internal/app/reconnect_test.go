@@ -349,8 +349,9 @@ func TestRedialDialsTheCurrentConfig(t *testing.T) {
 	edited.Name, edited.DSN, edited.Engine = "now", "postgres://u@127.0.0.1:2/x?connect_timeout=1", "mysql"
 	c.setConfig(edited)
 	_, err := c.Main.Redial(context.Background())
-	// refused, connectex (windows) or a timeout (WSL drops packets to a closed loopback port) all name the address
-	if err == nil || !strings.Contains(err.Error(), "127.0.0.1:2") { // PG's dial of the new address
+	// refused, connectex (windows) or a timeout (WSL drops packets to a closed loopback port) all name the address after pgx's
+	// own words: another driver's error (the engine of the dial, not of the edit) would have the address too
+	if err == nil || !strings.Contains(err.Error(), "failed to connect to `user=u database=x`") || !strings.Contains(err.Error(), "127.0.0.1:2") { // PG's dial of the new address
 		t.Errorf("the address it dials: %v", err)
 	}
 }

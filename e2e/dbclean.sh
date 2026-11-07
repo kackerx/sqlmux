@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # F21.1 just db-clean（specs/m21-cli-outer/task.md；tech-design §15）
 # 在 PG 和 MySQL 上各建：死 pid 的 sqlmux_e2e_<pid>、死 pid 的 sqlmux_worker_<pid>_x、活 pid（本脚本）的 sqlmux_worker_<pid>_x、
-# 不匹配的 sqlmux_keep；跑一遍后只有活的和不匹配的还在。
+# 不匹配的 sqlmux_keep_$$；跑一遍后只有活的和不匹配的还在。
 . "$(dirname "$0")/lib.sh"
 cd "$E2E_ROOT" || exit 1
 
-dead=999999; while kill -0 "$dead" 2>/dev/null; do dead=$((dead - 1)); done
-gone=("sqlmux_e2e_$dead" "sqlmux_worker_${dead}_x") kept=("sqlmux_worker_$$_x" sqlmux_keep)
+dead=$((999999 - $$ % 1000)); while kill -0 "$dead" 2>/dev/null; do dead=$((dead - 1)); done
+gone=("sqlmux_e2e_$dead" "sqlmux_worker_${dead}_x") kept=("sqlmux_worker_$$_x" "sqlmux_keep_$$")
 pg_has() { [[ $(psql "$SQLMUX_TEST_PG" -qAt -c "select count(*) from pg_database where datname = '$1'") == 1 ]]; }
 my_has() { [[ -n $(echo "show databases like '$1'" | e2e_mysql) ]]; }
 cleanup() { for n in "${gone[@]}" "${kept[@]}"; do
