@@ -56,7 +56,8 @@
 - [ ] 单测：参数解析（前后位置、互斥、usage 文案）；`--schema` 的四种写法各解析对；不存在的 schema 留在缺省且 toast。
 - [ ] e2e（PG）：`sqlmux seed --sql "select count(*) from orders"` 启动后结果区有一行计数、query pane 里是这条语句、没有 data pane、`gt` 没有别的 tab；`:qa` 退出后 `last.toml` 没被写。
 - [ ] e2e（PG）：`--schema other --sql "select * from t"` 跑的是 other 里的表；`--schema nope` 有 toast、用的是缺省 schema。
-- [ ] e2e（PG，只读连接）：`--sql "delete from orders"` 弹确认、不执行；取消后 query 留着。
+- [ ] e2e（PG）：只读连接上 `--sql "delete from orders"` 整次不执行、日志 tab 里有 read-only（§13，不弹确认）；普通连接上无 WHERE 的 `delete` 弹确认，取消后 query 还在。（reviewer 2026-11-07 问，决策者定：原文「只读连接弹确认」和 §13 矛盾，实现照 §13 不动。）
+- [ ] `--sql` 的 query 不改就不写文件（同临时连接的 query：只在编辑器里，语句在 history.jsonl），退出后 Queries 列表里没有它；改过的才写（reviewer 2026-11-07 问，决策者定：每跑一次就多一个 query_N 文件会烦）。
 - [ ] e2e（Redis）：`--sql "dbsize"` 结果区有数；`--schema 1` 用 db1。
 - [ ] e2e：`--sql` 和 `--table` 同时给退出码非 0、stderr 一行 usage。
 
