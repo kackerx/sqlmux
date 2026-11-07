@@ -12,9 +12,9 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 |---|---|---|---|
 | 决策者 | `sqlmux-orchestrator` | `claude -n sqlmux-orchestrator --agent orchestrator --effort high` | [`specs/roles/orchestrator.md`](specs/roles/orchestrator.md) |
 | worker | `sqlmux-fullstack-dev` | `claude -n sqlmux-fullstack-dev --agent fullstack-dev --effort high` | [`specs/roles/worker.md`](specs/roles/worker.md) |
-| 并行 worker | `sqlmux-fullstack-dev-2` | 决策者按 task.md 起的后台会话：在 `/Users/ctw/proj/sqlmux-dev2` 里 `claude --bg -n sqlmux-fullstack-dev-2 --agent fullstack-dev --effort high`，只做 task.md 分给它的 feature，见下面「并行开发」 | 同 worker |
+| 并行 worker | `sqlmux-fullstack-dev-2` | 决策者按 task.md 起的后台会话：在 `/root/proj/sqlmux-dev2` 里 `claude --bg -n sqlmux-fullstack-dev-2 --agent fullstack-dev --effort high`，只做 task.md 分给它的 feature，见下面「并行开发」 | 同 worker |
 | reviewer | `sqlmux-code-reviewer` | `claude -n sqlmux-code-reviewer --agent code-reviewer --effort xhigh` | [`specs/roles/reviewer.md`](specs/roles/reviewer.md) |
-| tester | `sqlmux-test-engineer` | 同上格式，`--agent test-engineer --effort high`，在 `/Users/ctw/proj/sqlmux-e2e` 里起 | [`specs/roles/tester.md`](specs/roles/tester.md) |
+| tester | `sqlmux-test-engineer` | 同上格式，`--agent test-engineer --effort high`，在 `/root/proj/sqlmux-e2e` 里起 | [`specs/roles/tester.md`](specs/roles/tester.md) |
 | pruner | `sqlmux-pruner` | `claude -n sqlmux-pruner`，用户按需启动，不是必经步骤 | [`specs/roles/pruner.md`](specs/roles/pruner.md) |
 | oss | `sqlmux-oss` | `claude -n sqlmux-oss --agent oss-maintainer --effort high`，用户按需启动：README、对外文档、演示 GIF、changelog / release note、发版后装一遍、发布帖、issue | [`specs/roles/oss.md`](specs/roles/oss.md) |
 
@@ -22,11 +22,11 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 
 | 工作区 | 使用者 | 分支 |
 |---|---|---|
-| `/Users/ctw/proj/sqlmux` | 决策者、worker、reviewer、oss 的会话都在这里起；只有 worker（修剪期间是 pruner）在这里改代码，oss 只改 `README.md`、`docs/`、`CHANGELOG.md`、`assets/`（和决策者一样 `git commit --only -- <路径>`） | `main` |
-| `/Users/ctw/proj/sqlmux-dev2` | 并行 worker（只在有并行 feature 时存在，决策者 `git worktree add` 建、合完删） | task.md 写的 feature 分支，如 `f19.3` |
-| `/Users/ctw/proj/sqlmux-e2e` | tester | `e2e` |
-| `/Users/ctw/proj/sqlmux-review` | reviewer 跑测试 | detached |
-| `/Users/ctw/proj/sqlmux-verify` | 决策者编验收版给用户 | detached |
+| `/root/proj/sqlmux` | 决策者、worker、reviewer、oss 的会话都在这里起；只有 worker（修剪期间是 pruner）在这里改代码，oss 只改 `README.md`、`docs/`、`CHANGELOG.md`、`assets/`（和决策者一样 `git commit --only -- <路径>`） | `main` |
+| `/root/proj/sqlmux-dev2` | 并行 worker（只在有并行 feature 时存在，决策者 `git worktree add` 建、合完删） | task.md 写的 feature 分支，如 `f19.3` |
+| `/root/proj/sqlmux-e2e` | tester | `e2e` |
+| `/root/proj/sqlmux-review` | reviewer 跑测试 | detached |
+| `/root/proj/sqlmux-verify` | 决策者编验收版给用户 | detached |
 
 启动和重开都带 `--agent` 和 `--effort`（frontmatter 的 effort 对 `--agent` 起的主会话不生效）；重开用 `claude --resume <会话名> --agent <agent> --effort <同上>`，不要 `claude -c` 或只写 `--resume`，模型会退回默认。上下文到 700–800k token 时在原会话里 `/handoff` 再 `/clear`，名字不变，不通知任何人。
 
@@ -40,7 +40,7 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 
 **里程碑结束**：最后一个节点通过、tester 跑完完整回归后暂停，用户体验并提意见；决策者把反馈写成新 feature 追加进 task.md；用户验收通过后 worker 打 tag、推送。暂停期间 worker 不写代码，只可以起草下一个里程碑的清单发给决策者。
 
-**全仓审计**：用户按需让 reviewer 做一次只读的全仓工程质量审计（做法在 `specs/roles/reviewer.md`），每条发现带一个探针，结果发决策者排成一个里程碑（第一次是 M13）。探针和仓库副本放在 worktree 外面（`/Users/ctw/proj/sqlmux-aud/`）：i18n 的单测遍历整个 worktree，未跟踪的 `.go` 副本也会被扫到。
+**全仓审计**：用户按需让 reviewer 做一次只读的全仓工程质量审计（做法在 `specs/roles/reviewer.md`），每条发现带一个探针，结果发决策者排成一个里程碑（第一次是 M13）。探针和仓库副本放在 worktree 外面（`/root/proj/sqlmux-aud/`）：i18n 的单测遍历整个 worktree，未跟踪的 `.go` 副本也会被扫到。
 
 **并行开发**（用户 2026-10-30 定）：task.md 里有和别的 feature 完全隔离的，决策者可以把它分给并行 worker，在 task.md 的审查节点那一行写明「节点 N 由 `sqlmux-fullstack-dev-2` 在分支 `<名字>` 上做」，每个 feature 的标题后面写 `· 负责：dev-2`。一个 feature 只归一个 worker，没写归属的都是 worker 的；谁也不做不归自己的 feature，做着发现要碰对方正在改的东西就停下问决策者。
 - **什么算隔离**：不改同一个函数，不依赖对方还没提交的改动，不动 `go.mod` / `go.sum`（新依赖只有 worker 加；并行 worker 要用新依赖先问决策者）、`justfile`、`.golangci.yml`、`testdata/seed/`。同一个文件里不同的函数可以并行；golden 文件两边都会动，不算冲突的理由，按下面的办法合。
@@ -59,3 +59,5 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 - 凭记忆拿不准的数据库行为（驱动的取消语义、类型的文本格式、information_schema 的版本差异）不要猜，写最小的集成测试在 PG / MySQL 上跑一遍，以结果为准。驱动或依赖已有的能力直接用，不重写（PG 标识符加引号用 `pgx.Identifier{...}.Sanitize()`）。SQL 相关的实现先看开源实现，参考表在 `.claude/rules/sql.md`，碰到 `internal/sqlkit`、`internal/db`、`internal/app` 的文件时自动加载。
 
 **集成测试环境**：`docker compose` 只在主工作区起一份（worker `just db-up`，空转占 400MB 以上，机器紧张时可以停）。其他 worktree 不要执行 `up`：compose 按目录名取项目名会再起一套抢端口，`-p sqlmux` 也不行（seed 挂载路径不同会重建主工作区的容器）。它们直接连：`SQLMUX_TEST_PG` 连 PG，`SQLMUX_TEST_MYSQL='sqlmux:sqlmux@tcp(localhost:53306)/sqlmux'` 连 MySQL，`SQLMUX_TEST_MSSQL` 连 SQL Server（M18 起，51433；Mac 上镜像要 Rosetta，M18 期间连用户 Windows 主机上的容器，地址问用户）；只读测试共用 `sqlmux` 库没问题，要锁表或写库就在同一实例上自己建库（`sqlmux_e2e_<pid>`），用 `testdata/seed/pg.sql` / `mysql.sql` 导入，退出时 drop。seed 只在数据卷为空时导入一次，改了 `testdata/seed/*.sql` 要 `docker compose up -d -V`，worker 改完 seed 要通知 reviewer 和 tester。
+
+**WSL（2026-11-07 起）**：整套会话在用户 Windows 主机的 WSL（Ubuntu）上跑，工作区就是上表的 `/root/proj/…`。docker 是 Docker Desktop 的 WSL integration（不装 Linux docker）；compose 项目 `sqlmux` 只从主工作区操作，不再从 Windows 的检出里 `up`。Windows 版的验证不用离开 WSL：`GOOS=windows go build -o <C 盘路径>/sqlmux.exe ./cmd/sqlmux`，用主机的 Python（`/mnt/c/Users/Administrator/AppData/Local/Programs/Python/Python312/python.exe`，pywinpty 和 pyte 已装）跑 `e2e/windows/smoke.py <C:\路径\sqlmux.exe>`；exe 放 C 盘，不从 `\\wsl.localhost` 起。SQL Server 的容器没起（51433 不通），f18.7 的 e2e 算清单外环境问题，要测 mssql 时让用户在 compose 里起。
