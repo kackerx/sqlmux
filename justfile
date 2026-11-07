@@ -55,7 +55,8 @@ e2e *scripts:
     go build -o "$tmp/sqlmux" ./cmd/sqlmux || exit 1
     export E2E_BIN="$tmp/sqlmux" E2E_NOBUILD=1
     list="{{scripts}}"
-    [ -n "$list" ] || list=$(cd e2e && ls *.sh | sed 's/\.sh$//' | grep -vx -e lib -e palette)
+    # the whole run starts from a clean instance: a crashed run's databases skew counts and widths (F21.1)
+    [ -n "$list" ] || { just db-clean || echo "db-clean failed, going on" >&2; list=$(cd e2e && ls *.sh | sed 's/\.sh$//' | grep -vx -e lib -e palette); }
     failed=()
     for name in $list; do
         bash "e2e/$name.sh" || failed+=("$name")
@@ -133,6 +134,37 @@ db-down:
 db-reset:
     docker compose down -v
     docker compose up -d --wait postgres mysql
+
+# drop the databases that crashed tests left on PG and MySQL: sqlmux_e2e_<pid> and sqlmux_worker_<pid>_* whose pid is gone (§15)
+db-clean:
+    #!/usr/bin/env bash
+    # shortcut: "gone" is `kill -0` failing on this machine, so a database made by a process on another machine
+    # (or of another user) looks dead and is dropped; all the worktrees share one machine today, upgrade when that stops
+    set -u
+    # -p sqlmux: the project of the main workspace, so this works from the other worktrees too
+    pg() { docker compose -p sqlmux exec -T postgres psql -U sqlmux -d sqlmux -At -v ON_ERROR_STOP=1 "$@"; }
+    my() { docker compose -p sqlmux exec -T -e MYSQL_PWD=sqlmux mysql mysql -usqlmux -N -B "$@"; }
+    clean() { # ENGINE LIST-FUNCTION DROP-FUNCTION
+        local engine=$1 names name pid seen=
+        names=$($2) || { echo "$engine: cannot list the databases (just db-up? docker compose -p sqlmux ps)" >&2; rc=1; return; }
+        for name in $names; do
+            [[ $name =~ ^sqlmux_(e2e|worker)_([0-9]+)(_.*)?$ ]] || continue
+            seen=1
+            pid=${BASH_REMATCH[2]}
+            if kill -0 "$pid" 2>/dev/null; then echo "$engine: keep $name (pid $pid is running)"
+            elif $3 "$name"; then echo "$engine: dropped $name"
+            else echo "$engine: could not drop $name" >&2; rc=1; fi
+        done
+        [[ -n $seen ]] || echo "$engine: no test databases"
+    }
+    pg_list() { pg -c "select datname from pg_database"; }
+    pg_drop() { pg -c "drop database \"$1\" with (force)" >/dev/null; }
+    my_list() { my -e "show databases"; }
+    my_drop() { my -e "drop database \`$1\`"; }
+    rc=0
+    clean postgres pg_list pg_drop
+    clean mysql my_list my_drop
+    exit $rc
 
 # the keys table or toml of `sqlmux keys` (--format md|toml, --check)
 keys *args:
