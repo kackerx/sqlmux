@@ -448,9 +448,12 @@ func AutoLimit(s string, d Dialect, n, offset int) (out string, pageable bool) {
 	var orders bool          // a top-level ORDER BY, which a T-SQL OFFSET must have
 	var distinct, setop bool // a top-level DISTINCT or set operator, whose select list an ORDER BY (SELECT NULL) is not in
 	var topw, forout bool    // a TOP clause, a FOR JSON or XML, which an OFFSET cannot stand in
+	tail := -1               // ClickHouse's top-level SETTINGS or FORMAT, which a LIMIT goes before (§8.9)
 	for j := lo; j <= hi; j++ {
 		switch w := lower(s, ts, j); {
 		case depth[j] != top:
+		case d == ClickHouse && tail < 0 && (w == "settings" || w == "format"):
+			tail = j
 		case w == "limit" || w == "fetch":
 			return s, false
 		case w == "offset":
@@ -481,11 +484,18 @@ func AutoLimit(s string, d Dialect, n, offset int) (out string, pageable bool) {
 		}
 		return out + suffix, pageable
 	}
-	out += "\nLIMIT " + strconv.Itoa(n)
-	if offset > 0 {
-		out += " OFFSET " + strconv.Itoa(offset)
+	limit := "\nLIMIT " + strconv.Itoa(n)
+	switch {
+	case d == Trino && offset > 0: // its OFFSET goes before the LIMIT (§8.10)
+		limit = "\nOFFSET " + strconv.Itoa(offset) + " LIMIT " + strconv.Itoa(n)
+	case offset > 0:
+		limit += " OFFSET " + strconv.Itoa(offset)
 	}
-	return out, pageable
+	if tail >= 0 { // out is s up to its ; still, which comes after the SETTINGS or FORMAT
+		at := ts[tail].Start
+		return out[:at] + strings.TrimLeft(limit, "\n") + "\n" + out[at:], pageable
+	}
+	return out + limit, pageable
 }
 
 // NoBegin is whether statement s goes without the BEGIN the manual

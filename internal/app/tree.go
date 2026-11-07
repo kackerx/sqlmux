@@ -129,7 +129,7 @@ func (a *App) loadCatalog(c *Conn) tea.Cmd {
 		if err != nil {
 			return catalogMsg{conn: c, err: err}
 		}
-		pg := root.Kind() != "mysql"
+		pg := !root.SchemasAreDatabases()
 		keep := current // MySQL's is the DSN's database, PG's the first of the search_path, public when none is there
 		if pg && keep == "" {
 			keep = "public"
@@ -487,7 +487,7 @@ func (a *App) treeNodes() (ns []node, matches int) {
 		if c.readOnly { // dim after the name, as … (§7.8)
 			cn.Aside = ic.Lock.Text
 		}
-		if c.Spec.Kind() == "mysql" { // its schemas are what is picked; a PG connection's databases
+		if c.Spec.SchemasAreDatabases() { // its schemas are what is picked; a PG connection's databases
 			cn.Note, cn.NoteFg = pickedNote(len(c.Schemas), len(c.all.schemas)), th.Dim
 		} else {
 			cn.Note, cn.NoteFg = pickedNote(len(c.Databases), len(c.all.dbs)), th.Dim

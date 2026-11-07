@@ -105,6 +105,14 @@ func (fm Form) rows() int {
 // drawIn paints the fields, the error, the rule and the buttons inside in,
 // the border's inner area, the field Sel having the keys when focus; it
 // returns where its input has the cursor, else (-1, -1).
+// segmentsWidth is how wide choices are written, padding and separators aside.
+func segmentsWidth(choices []string) (w int) {
+	for _, ch := range choices {
+		w += Width(ch)
+	}
+	return w
+}
+
 func (fm Form) drawIn(f *Frame, area uv.Rectangle, focus bool) uv.Position {
 	th := f.Theme
 	cursor := uv.Pos(-1, -1)
@@ -156,7 +164,10 @@ func (fm Form) drawIn(f *Frame, area uv.Rectangle, focus bool) uv.Position {
 				f.Text(r.Min.X, y, r.Max.X, fd.Example, in)
 			}
 		case FormSegments:
-			x := r.Min.X
+			x, pad := r.Min.X, " "
+			if segmentsWidth(fd.Choices)+3*len(fd.Choices)-1 > r.Dx() { // padded, they would not fit: the engines' seven
+				pad = ""
+			}
 			for j, ch := range fd.Choices {
 				st := uv.Style{Fg: th.Dim, Bg: th.Sep}
 				if j == fd.On {
@@ -165,8 +176,8 @@ func (fm Form) drawIn(f *Frame, area uv.Rectangle, focus bool) uv.Position {
 				if j > 0 {
 					x = f.Text(x, y, r.Max.X, "│", dim)
 				}
-				f.Region(uv.Rect(x, y, Width(ch)+2, 1), Target{Kind: KindSegment, Pane: i, I: j})
-				x = f.Text(x, y, r.Max.X, " "+ch+" ", st)
+				f.Region(uv.Rect(x, y, Width(ch)+2*len(pad), 1), Target{Kind: KindSegment, Pane: i, I: j})
+				x = f.Text(x, y, r.Max.X, pad+ch+pad, st)
 			}
 		case FormCheck:
 			mark := "[ ]"

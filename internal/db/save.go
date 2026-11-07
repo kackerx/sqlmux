@@ -47,7 +47,38 @@ type Changes struct {
 	Deletes [][]string
 	Updates []Row
 	Inserts [][]Change
+	// Types is each column's type, as the catalog has it, for an engine that
+	// takes every argument as its column's type (Typer); none for the others.
+	Types map[string]string
 }
+
+// Typer is an Engine that reads no text as a number or a date where a column
+// of one is compared or set (§10.3): ClickHouse, Trino. Each argument of a
+// save goes in through Typed, as its column's type.
+type Typer interface {
+	Typed(arg, typ string) string
+}
+
+// Unatomic is an Engine whose writes each stand on their own, with no
+// transaction to hold a save's together (§10.3): ClickHouse, whose UPDATE and
+// DELETE are mutations, and Trino, whose connectors write in autocommit only.
+// Save counts the rows each UPDATE and DELETE would hit before it sends it,
+// and what was written before a statement that fails stays written (Written).
+type Unatomic interface {
+	// Write is the statement that sets set in the rows of table where holds,
+	// or, set "", deletes them, in the engine's words.
+	Write(table, set, where string) string
+}
+
+// Written is the error of an Unatomic engine's save that failed at statement
+// N, the N before it written and not to be taken back (§10.3).
+type Written struct {
+	N   int
+	Err error
+}
+
+func (e Written) Error() string { return e.Err.Error() }
+func (e Written) Unwrap() error { return e.Err }
 
 // endTimeout bounds COMMIT and ROLLBACK, which a cancel must not reach: a
 // COMMIT the server has done would come back as an error (§10.3).
@@ -141,6 +172,9 @@ func beginOf(c Conn) string {
 // column out, as ours does since F14.1.
 func Save(ctx context.Context, w *Worker, e Engine, schema, table string, keyCols []string, ch Changes, manual bool) (failed int, tx byte, err error) {
 	stmts := Statements(e, schema, table, keyCols, ch)
+	if _, ok := e.(Unatomic); ok {
+		return saveEach(ctx, w, stmts)
+	}
 	failed = -1
 	committing := false // the COMMIT of the save's own transaction is out
 	err = w.Run(ctx, func(ctx context.Context, c Conn) error {
@@ -192,18 +226,28 @@ func Save(ctx context.Context, w *Worker, e Engine, schema, table string, keyCol
 }
 
 // Stmt is one statement of a save: its SQL with the placeholders e writes, its
-// arguments, and what it is when it hits no row.
+// arguments, and what it is when it hits no row. Count and CountArgs, an
+// UPDATE's or a DELETE's, count the rows it would hit: an Unatomic engine's
+// save asks them first.
 type Stmt struct {
-	SQL  string
-	Args []Val
-	miss error
+	SQL       string
+	Args      []Val
+	miss      error
+	Count     string
+	CountArgs []Val
 }
 
+// arg puts a value of column col into a statement: as e writes an argument,
+// or as Preview a literal; the column's type around it for a Typer.
+type arg func(col string, v Val) string
+
 // builder is one statement of a save, written by sql with the arguments put in
-// as arg says, and what it is when it hits no row.
+// as arg says, and what it is when it hits no row; where is the condition of an
+// UPDATE's or a DELETE's rows, nil for an INSERT.
 type builder struct {
-	miss error
-	sql  func(arg func(Val) string) string
+	miss  error
+	sql   func(arg arg) string
+	where func(arg arg) string
 }
 
 // builders are the statements of a save for ch, in its order: the DELETEs, then
@@ -211,13 +255,14 @@ type builder struct {
 // Statements numbers the arguments, Preview puts them in.
 func builders(e Engine, schema, table string, keyCols []string, ch Changes) (bs []builder) {
 	for _, k := range ch.Deletes {
-		bs = append(bs, builder{ErrGone, func(arg func(Val) string) string { return remove(e, schema, table, keyCols, k, arg) }})
+		where := func(arg arg) string { return strings.Join(keyWhere(e, keyCols, k, arg), " and ") }
+		bs = append(bs, builder{ErrGone, func(arg arg) string { return remove(e, schema, table, where(arg)) }, where})
 	}
 	for _, r := range ch.Updates {
-		bs = append(bs, builder{ErrStale, func(arg func(Val) string) string { return update(e, schema, table, keyCols, r, arg) }})
+		bs = append(bs, builder{ErrStale, func(arg arg) string { return update(e, schema, table, keyCols, r, arg) }, func(arg arg) string { return rowWhere(e, keyCols, r, arg) }})
 	}
 	for _, r := range ch.Inserts {
-		bs = append(bs, builder{ErrNotInserted, func(arg func(Val) string) string { return insert(e, schema, table, r, arg) }})
+		bs = append(bs, builder{ErrNotInserted, func(arg arg) string { return insert(e, schema, table, keyCols, r, arg) }, nil})
 	}
 	return bs
 }
@@ -225,9 +270,13 @@ func builders(e Engine, schema, table string, keyCols []string, ch Changes) (bs 
 // Statements is what Save sends for ch, in its order.
 func Statements(e Engine, schema, table string, keyCols []string, ch Changes) (stmts []Stmt) {
 	for _, b := range builders(e, schema, table, keyCols, ch) {
-		args, arg := argsOf(e)
-		sql := b.sql(arg)
-		stmts = append(stmts, Stmt{sql, *args, b.miss})
+		args, arg := argsOf(e, ch.Types)
+		st := Stmt{SQL: b.sql(arg), Args: *args, miss: b.miss}
+		if b.where != nil {
+			args, arg := argsOf(e, ch.Types)
+			st.Count, st.CountArgs = "select count(*) from "+e.Quote(schema, table)+" where "+b.where(arg), *args
+		}
+		stmts = append(stmts, st)
 	}
 	return stmts
 }
@@ -235,12 +284,12 @@ func Statements(e Engine, schema, table string, keyCols []string, ch Changes) (s
 // Preview is the statements of Statements with each argument written in as a
 // literal, one text each: what a save shows before it sends them (§13, F17.10).
 func Preview(e Engine, schema, table string, keyCols []string, ch Changes) (out []string) {
-	lit := func(v Val) string {
+	lit := typed(e, ch.Types, func(v Val) string {
 		if v.Null {
 			return "NULL"
 		}
 		return sqlkit.Literal(v.S, e.Dialect())
-	}
+	})
 	for _, b := range builders(e, schema, table, keyCols, ch) {
 		out = append(out, b.sql(lit))
 	}
@@ -249,27 +298,80 @@ func Preview(e Engine, schema, table string, keyCols []string, ch Changes) (out 
 
 // keyWhere is what finds a row by its row identity's values, arg taking
 // each value in.
-func keyWhere(e Engine, keyCols, key []string, arg func(Val) string) []string {
+func keyWhere(e Engine, keyCols, key []string, arg arg) []string {
 	var where []string
 	for i, k := range keyCols {
-		where = append(where, e.Eq(e.Quote(k), arg(Val{S: key[i]})))
+		where = append(where, e.Eq(e.Quote(k), arg(k, Val{S: key[i]})))
 	}
 	return where
 }
 
 // argsOf is a statement's arguments, and what puts each one in as e
 // writes them: Preview puts them in as literals.
-func argsOf(e Engine) (*[]Val, func(Val) string) {
+func argsOf(e Engine, types map[string]string) (*[]Val, arg) {
 	var args []Val
-	return &args, func(v Val) string {
+	return &args, typed(e, types, func(v Val) string {
 		args = append(args, v)
 		return e.Arg(len(args))
+	})
+}
+
+// typed is put as an arg: the value as put writes it, as its column's type
+// when e is a Typer and the type is known.
+func typed(e Engine, types map[string]string, put func(Val) string) arg {
+	t, ok := e.(Typer)
+	return func(col string, v Val) string {
+		if typ := types[col]; ok && typ != "" {
+			return t.Typed(put(v), typ)
+		}
+		return put(v)
 	}
 }
 
-// remove is the DELETE of the row with key, arg writing in each value.
-func remove(e Engine, schema, table string, keyCols, key []string, arg func(Val) string) string {
-	return "delete from " + e.Quote(schema, table) + " where " + strings.Join(keyWhere(e, keyCols, key, arg), " and ")
+// remove is the DELETE of the rows where holds: SQL's, or an Unatomic
+// engine's own words.
+func remove(e Engine, schema, table, where string) string {
+	if u, ok := e.(Unatomic); ok {
+		return u.Write(e.Quote(schema, table), "", where)
+	}
+	return "delete from " + e.Quote(schema, table) + " where " + where
+}
+
+// saveEach is Save on an Unatomic engine (§10.3): each statement on its own,
+// an UPDATE or a DELETE only once a count says it hits exactly one row, an
+// INSERT, or one whose Result says how many it hit, checked after; failed is
+// the statement that failed, -1 for none, and the error says how many before
+// it were written. Nothing is taken back: there is no transaction to do it.
+func saveEach(ctx context.Context, w *Worker, stmts []Stmt) (failed int, tx byte, err error) {
+	failed = -1
+	err = w.Run(ctx, func(ctx context.Context, c Conn) error {
+		defer func() { tx = TxStatus(c) }()
+		for i, s := range stmts {
+			failed = i
+			if s.Count != "" {
+				r, err := c.Query(ctx, s.Count, s.CountArgs...)
+				if err != nil {
+					return err
+				}
+				if len(r.Rows) != 1 || len(r.Rows[0]) != 1 || r.Rows[0][0].S != "1" {
+					return s.miss
+				}
+			}
+			res, err := c.Query(ctx, s.SQL, s.Args...)
+			if err != nil {
+				return err
+			}
+			if res.Affected >= 0 && res.Affected != 1 { // < 0: the engine cannot say (a mutation)
+				return s.miss
+			}
+		}
+		failed = -1
+		return nil
+	})
+	if err != nil && failed > 0 {
+		err = Written{N: failed, Err: err}
+	}
+	return failed, tx, err
 }
 
 // DefaultRow is the INSERT of a row of every column's DEFAULT, as PG's
@@ -283,13 +385,17 @@ func DefaultRow(e Engine, schema, table string, kw func(string) string) string {
 }
 
 // insert is the INSERT of a row with cols set; with none set, every column's
-// DEFAULT (§10.6).
-func insert(e Engine, schema, table string, cols []Change, arg func(Val) string) string {
+// DEFAULT (§10.6): an Unatomic engine's (ClickHouse has neither DEFAULT VALUES
+// nor () VALUES ()) as its first key column's DEFAULT, which the others follow.
+func insert(e Engine, schema, table string, keyCols []string, cols []Change, arg arg) string {
 	var names, vals []string
 	for _, c := range cols {
 		if !c.Default { // left out, a column takes its DEFAULT: SQLite has no keyword for it in a VALUES
-			names, vals = append(names, e.Quote(c.Name)), append(vals, arg(c.Val))
+			names, vals = append(names, e.Quote(c.Name)), append(vals, arg(c.Name, c.Val))
 		}
+	}
+	if _, ok := e.(Unatomic); ok && len(names) == 0 && len(keyCols) > 0 {
+		names, vals = []string{e.Quote(keyCols[0])}, []string{"DEFAULT"}
 	}
 	if len(names) == 0 {
 		return DefaultRow(e, schema, table, func(s string) string { return s })
@@ -299,23 +405,32 @@ func insert(e Engine, schema, table string, cols []Change, arg func(Val) string)
 
 // update is r's UPDATE, its values all text: the changed columns must still
 // hold what was loaded, as e's Same tells (§10.3).
-func update(e Engine, schema, table string, keyCols []string, r Row, arg func(Val) string) string {
+func update(e Engine, schema, table string, keyCols []string, r Row, arg arg) string {
 	var sets []string
 	for _, c := range r.Cols {
 		v := "DEFAULT"
 		if !c.Default {
-			v = arg(c.Val)
+			v = arg(c.Name, c.Val)
 		}
 		sets = append(sets, e.Quote(c.Name)+" = "+v)
 	}
+	set, where := strings.Join(sets, ", "), rowWhere(e, keyCols, r, arg)
+	if u, ok := e.(Unatomic); ok {
+		return u.Write(e.Quote(schema, table), set, where)
+	}
+	return "update " + e.Quote(schema, table) + " set " + set + " where " + where
+}
+
+// rowWhere is what finds r's row as it was loaded: its row identity, and each
+// changed column still holding what was read.
+func rowWhere(e Engine, keyCols []string, r Row, arg arg) string {
 	where := keyWhere(e, keyCols, r.Key, arg)
 	for _, c := range r.Cols {
 		if c.Old.Null {
 			where = append(where, e.Quote(c.Name)+" is null")
 		} else {
-			where = append(where, e.Same(e.Quote(c.Name), arg(c.Old)))
+			where = append(where, e.Same(e.Quote(c.Name), arg(c.Name, c.Old)))
 		}
 	}
-	return "update " + e.Quote(schema, table) + " set " + strings.Join(sets, ", ") +
-		" where " + strings.Join(where, " and ")
+	return strings.Join(where, " and ")
 }

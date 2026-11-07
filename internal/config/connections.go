@@ -58,6 +58,21 @@ func (c Connection) Kind() string {
 	return c.Engine
 }
 
+// SchemasAreDatabases is whether the engine's databases are its schemas, the
+// one level under a connection: MySQL's, ClickHouse's (§8.4, §8.9).
+func (c Connection) SchemasAreDatabases() bool {
+	k := c.Kind()
+	return k == "mysql" || k == "clickhouse"
+}
+
+// HasDatabases is whether the engine has databases over its schemas, each a
+// connection of its own in the tree (§5): PG's, SQL Server's, Trino's catalogs
+// (§8.10).
+func (c Connection) HasDatabases() bool {
+	k := c.Kind()
+	return k == "postgres" || k == "mssql" || k == "trino"
+}
+
 // UnknownKeys are the lines that say which keys of config.toml, and of each
 // connection of connections.toml, nothing reads: `readonly` for `read_only`
 // reads a connection that is writable, with no word. The files are the ones
@@ -222,8 +237,8 @@ func (c Connection) Check(names []string) (field, problem string) {
 	if c.Group != "" && checkFileName(c.Group) != nil { // the characters of a name (F10.6)
 		return "group", fmt.Sprintf(i18n.T(`group = %q：不能含 / 或 \，也不能以 . 开头`), c.Group)
 	}
-	if !slices.Contains([]string{"postgres", "mysql", "sqlite", "redis", "exec", "mssql"}, c.Engine) {
-		return "engine", fmt.Sprintf(i18n.T("engine = %q：只能是 postgres、mysql、sqlite、redis、mssql 或 exec"), c.Engine)
+	if !slices.Contains([]string{"postgres", "mysql", "sqlite", "redis", "exec", "mssql", "clickhouse", "trino"}, c.Engine) {
+		return "engine", fmt.Sprintf(i18n.T("engine = %q：只能是 postgres、mysql、sqlite、redis、mssql、clickhouse、trino 或 exec"), c.Engine)
 	}
 	if c.Engine == "exec" {
 		place := map[string]string{"postgres": "{sql}", "redis": "{cmd}"}[c.Dialect]
@@ -239,10 +254,10 @@ func (c Connection) Check(names []string) (field, problem string) {
 		return "command", i18n.T("dialect 和 command 只对 exec 连接有用")
 	}
 	if (len(c.Databases) > 0 || len(c.Schemas) > 0) && (c.Kind() == "redis" || c.Kind() == "sqlite") {
-		return "schemas", i18n.T("databases 和 schemas 只对 postgres、mysql 和 mssql 连接有用")
+		return "schemas", i18n.T("databases 和 schemas 只对 postgres、mysql、mssql、clickhouse 和 trino 连接有用")
 	}
-	if len(c.Databases) > 0 && c.Kind() != "postgres" && c.Kind() != "mssql" {
-		return "databases", i18n.T("databases 只对 postgres 和 mssql 连接有用")
+	if len(c.Databases) > 0 && !c.HasDatabases() {
+		return "databases", i18n.T("databases 只对 postgres、mssql 和 trino 连接有用")
 	}
 	if c.Delimiter != "" && c.Engine != "redis" {
 		return "delimiter", i18n.T("delimiter 只对 redis 连接有用")

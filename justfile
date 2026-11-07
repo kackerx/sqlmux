@@ -7,6 +7,8 @@ lint_version := "2.14.0"
 export SQLMUX_TEST_PG := env("SQLMUX_TEST_PG", "postgres://sqlmux:sqlmux@localhost:55432/sqlmux?sslmode=disable")
 export SQLMUX_TEST_MYSQL := env("SQLMUX_TEST_MYSQL", "sqlmux:sqlmux@tcp(localhost:53306)/sqlmux")
 export SQLMUX_TEST_REDIS := env("SQLMUX_TEST_REDIS", "redis://localhost:56379/0")
+export SQLMUX_TEST_CLICKHOUSE := env("SQLMUX_TEST_CLICKHOUSE", "clickhouse://sqlmux:sqlmux@localhost:58123/sqlmux")
+export SQLMUX_TEST_TRINO := env("SQLMUX_TEST_TRINO", "trino://sqlmux@localhost:58080/postgresql/public")
 
 default:
     @just --list
@@ -121,7 +123,8 @@ generate:
 # Redis is not here (an image that cannot be pulled would fail this): `docker compose up -d redis redis-seed`,
 # or a redis-server --port 56379 given testdata/seed/redis.txt with redis-cli;
 # SQL Server neither (the Mac wants Rosetta for it): `docker compose up -d mssql mssql-seed`,
-# or the Windows host's container on 51433 (F18.6)
+# or the Windows host's container on 51433 (F18.6); nor ClickHouse and Trino, a
+# gigabyte and more between them (§8.9, §8.10): `docker compose up -d --wait clickhouse trino`
 db-up:
     docker compose up -d --wait postgres mysql
 

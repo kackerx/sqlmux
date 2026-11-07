@@ -15,6 +15,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/kackerx/sqlmux/internal/db"
+	"github.com/kackerx/sqlmux/internal/db/clickhouse"
 	"github.com/kackerx/sqlmux/internal/db/redis"
 	"github.com/kackerx/sqlmux/internal/editor"
 	"github.com/kackerx/sqlmux/internal/i18n"
@@ -1047,14 +1048,16 @@ func plainType(t string) string {
 	return strings.TrimPrefix(strings.TrimSuffix(strings.TrimSuffix(t, " zerofill"), " unsigned"), "unsigned ")
 }
 
-// timeKind is the parts a column of catalog type t steps (§10.2), PG's
-// and MySQL's; interval has none.
+// timeKind is the parts a column of catalog type t steps (§10.2), PG's,
+// MySQL's, ClickHouse's (Nullable(DateTime64(3, 'UTC'))) and Trino's; interval
+// has none.
 func timeKind(t string) ui.TimeKind {
 	return map[string]ui.TimeKind{
 		"date": ui.Date, "time without time zone": ui.Time, "time with time zone": ui.TimeTZ,
 		"timestamp without time zone": ui.Timestamp, "timestamp with time zone": ui.TimestampTZ,
 		"time": ui.Time, "datetime": ui.Timestamp, "timestamp": ui.Timestamp,
-	}[baseType(t)]
+		"date32": ui.Date, "datetime64": ui.Timestamp,
+	}[strings.ToLower(baseType(clickhouse.Unwrap(t)))]
 }
 
 // colType is the grid's class for a column of the catalog's type (§7.6).
@@ -1065,18 +1068,20 @@ func colType(t string) ui.ColType {
 	case t == "tinyint(1)": // MySQL's boolean
 		return ui.ColBool
 	}
-	t = plainType(t)
+	t = plainType(clickhouse.Unwrap(t))
 	// after format_type's names, pgx's for a result's OIDs (quick SQL, §12),
-	// then MySQL's COLUMN_TYPE and the driver's
+	// then MySQL's COLUMN_TYPE and the driver's, then ClickHouse's (Trino's are PG's)
 	switch t {
 	case "smallint", "integer", "bigint", "numeric", "real", "double precision", "oid",
 		"int2", "int4", "int8", "float4", "float8",
-		"tinyint", "mediumint", "int", "decimal", "float", "double":
+		"tinyint", "mediumint", "int", "decimal", "float", "double",
+		"uint8", "uint16", "uint32", "uint64", "uint128", "uint256", "int16", "int32", "int64", "int128", "int256",
+		"float32", "float64", "decimal32", "decimal64", "decimal128", "decimal256":
 		return ui.ColNumber
 	case "date", "time without time zone", "time with time zone",
 		"timestamp without time zone", "timestamp with time zone",
 		"time", "timetz", "timestamp", "timestamptz",
-		"datetime", "year":
+		"datetime", "year", "date32", "datetime64":
 		return ui.ColTime
 	case "boolean", "bool":
 		return ui.ColBool
@@ -1084,7 +1089,8 @@ func colType(t string) ui.ColType {
 		return ui.ColJSON
 	case "text", "character varying", "character", `"char"`, "name", "citext",
 		"varchar", "bpchar", "char",
-		"tinytext", "mediumtext", "longtext", "enum", "set":
+		"tinytext", "mediumtext", "longtext", "enum", "set",
+		"string", "fixedstring", "enum8", "enum16":
 		return ui.ColString
 	}
 	if t == "interval" || strings.HasPrefix(t, "interval ") { // "interval day to second"

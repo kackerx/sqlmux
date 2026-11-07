@@ -749,6 +749,9 @@ func (a *App) askSave(t *dataTab, closing bool) tea.Cmd {
 		counts = append(counts, i18n.T("删 %d 行", n))
 	}
 	lines := []string{i18n.T("保存到 %s：%s", t.table.Name, strings.Join(counts, i18n.T("、")))}
+	if t.conn.unatomic() { // no transaction around them (§10.3)
+		lines = append(lines, i18n.T("  逐条写入，不在一个事务里：中途失败时前面的不能回滚"))
+	}
 	stmts := a.source(t, t.cols).Preview(ch)
 	for _, s := range stmts[:min(len(stmts), previewListed)] {
 		lines = append(lines, "  "+strings.NewReplacer("\r", "", "\n", "⏎", "\t", " ").Replace(s))
@@ -819,6 +822,40 @@ func (a *App) changesOf(t *dataTab) (saveMsg, db.Changes) {
 	return m, ch
 }
 
+// landed takes off tab t what the first n statements of save m wrote, in its
+// order, deletes, updates, inserts (§10.3): all of them for a save that went,
+// those before the failure for an Unatomic engine's that did not (db.Written).
+func (t *dataTab) landed(m saveMsg, n int) {
+	take := func(have int) int { k := max(min(n, have), 0); n -= k; return k }
+	dels := m.dels[:take(len(m.dels))]
+	rows := m.rows[:take(len(m.rows))]
+	adds := m.adds[:take(len(m.adds))]
+	done := map[string]bool{}
+	for _, k := range dels {
+		done[k] = true
+		delete(t.deleted, k)
+	}
+	for _, r := range rows {
+		done[joinKey(r.Key)] = true
+	}
+	for k, e := range m.sent {
+		if !done[k.row] {
+			continue
+		}
+		switch now, ok := t.edits[k]; {
+		case now == e:
+			delete(t.edits, k)
+		case ok && !e.def: // changed again meanwhile: the row holds what was sent now
+			now.orig = e.val
+			t.edits[k] = now
+		}
+	}
+	t.added = slices.DeleteFunc(t.added, func(r *newRow) bool { return slices.Contains(adds, r) })
+	if len(adds) > 0 {
+		t.deselect() // the positions of the rows after them move
+	}
+}
+
 // gotSave shows how the save went: saved or cancelled on the query bar's
 // right (Q-06), failed on the error bar (§7.8「错误栏」). Saved, the
 // changes sent go, those made since stay, and the page loads again;
@@ -836,9 +873,22 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 	t.out--
 	closing := t.closing
 	t.closing = false
+	var written db.Written
+	partial := errors.As(m.err, &written) // an Unatomic engine's: what went before the failure stays (§10.3)
+	undone := i18n.T("，已回滚")
+	switch {
+	case partial:
+		undone = i18n.T("，前 %d 条已写入，不能回滚", written.N)
+		t.landed(m, written.N)
+	case t.conn.unatomic():
+		undone = i18n.T("，没有写入")
+	}
 	switch {
 	case errors.Is(m.err, context.Canceled):
-		t.note = ui.Note{Head: i18n.T("已取消，已回滚"), Fg: a.theme.Warn}
+		t.note = ui.Note{Head: i18n.T("已取消") + undone, Fg: a.theme.Warn}
+		if partial {
+			return a.fetch(t, true)
+		}
 	case errors.Is(m.err, db.ErrCommitUnknown): // may be written: not "rolled back", the marks stay for the user to look and decide (F13.1)
 		t.note, t.failed = ui.Note{}, nil
 		clearBar(&t.bar, "save") // an earlier failure's "已回滚" would say the opposite
@@ -870,7 +920,10 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 				head = i18n.T("新增的第 %d 行：", n)
 			}
 		}
-		t.bar = newErrorBar("save", e, head, i18n.T("，已回滚"))
+		t.bar = newErrorBar("save", e, head, undone)
+		if partial { // the rows as they are now
+			return tea.Batch(a.fetch(t, true), a.deadlocked(t.conn, m.err))
+		}
 		return a.deadlocked(t.conn, m.err)
 	default:
 		clearBar(&t.bar, "save")
@@ -878,22 +931,7 @@ func (a *App) gotSave(m saveMsg) tea.Cmd {
 		if t.table.Kind == "k" {
 			follow = a.keysChanged(t.conn, t.table.Name)
 		}
-		for k, e := range m.sent {
-			switch now, ok := t.edits[k]; {
-			case now == e:
-				delete(t.edits, k)
-			case ok && !e.def: // changed again meanwhile: the row holds what was sent now
-				now.orig = e.val
-				t.edits[k] = now
-			}
-		}
-		for _, k := range m.dels {
-			delete(t.deleted, k)
-		}
-		t.added = slices.DeleteFunc(t.added, func(r *newRow) bool { return slices.Contains(m.adds, r) })
-		if len(m.adds) > 0 {
-			t.deselect() // the positions of the rows after them move
-		}
+		t.landed(m, len(m.dels)+len(m.rows)+len(m.adds))
 		if p := a.paneShowing(t); closing && t.changes() == 0 && t.cell == nil && p != nil { // :wq, and nothing changed since, nor being typed
 			a.closeTab(p, p.Cur)
 			return follow

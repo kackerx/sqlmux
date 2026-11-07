@@ -43,16 +43,16 @@ func (p *pickMenu) note(i int) string {
 }
 
 // pickable is whether n has a list of databases or schemas to pick from, and which:
-// a PG or SQL Server connection its databases, a MySQL one and a database of
-// PG's or SQL Server's its schemas.
+// a PG, SQL Server or Trino connection its databases, a MySQL or ClickHouse one and
+// a database of the others its schemas.
 func pickable(n node) (dbs, ok bool) {
 	switch {
-	case n.kind == nodeConn && n.conn.Spec.Kind() == "mysql":
+	case n.kind == nodeConn && n.conn.Spec.SchemasAreDatabases():
 		return false, true
-	case n.kind == nodeConn && (n.conn.Spec.Kind() == "postgres" || n.conn.Spec.Kind() == "mssql"):
+	case n.kind == nodeConn && n.conn.Spec.HasDatabases():
 		return true, true
 	case n.kind == nodeDatabase:
-		return false, n.conn.Spec.Kind() == "postgres" || n.conn.Spec.Kind() == "mssql"
+		return false, n.conn.Spec.HasDatabases()
 	}
 	return false, false
 }
@@ -181,7 +181,7 @@ func (a *App) applyPick(p *pickMenu) tea.Cmd {
 		if !all {
 			next.Databases = picked
 		}
-	case root.Spec.Kind() == "mysql":
+	case root.Spec.SchemasAreDatabases():
 		next.Schemas = nil
 		if !all {
 			next.Schemas = picked

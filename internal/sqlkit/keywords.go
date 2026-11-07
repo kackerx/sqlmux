@@ -55,14 +55,20 @@ var commonPairs = []string{
 }
 
 // Common is the keywords completion offers on a connection of dialect d:
-// the shared ones, and what only PG (full join, returning, on conflict) or
-// only MySQL (ifnull, replace into, on duplicate key update) has; SQLite's are PG's.
+// the shared ones, and what only PG (full join, returning, on conflict),
+// only MySQL (ifnull, replace into, on duplicate key update), only ClickHouse
+// (array join, prewhere, final) or only Trino has; SQLite's are PG's.
 func Common(d Dialect) []string {
 	out := append(slices.Clone(common), commonPairs...)
-	if d != MySQL { // SQLite's alike (F14.1)
-		return append(out, "full join", "returning", "on conflict", "do nothing", "do update set")
+	switch d {
+	case MySQL:
+		return append(out, "ifnull", "replace into", "on duplicate key update", "use", "describe")
+	case ClickHouse:
+		return append(out, "full join", "array join", "prewhere", "final", "settings", "use", "describe")
+	case Trino:
+		return append(out, "full join", "use", "describe", "show catalogs", "show schemas", "show tables")
 	}
-	return append(out, "ifnull", "replace into", "on duplicate key update", "use", "describe")
+	return append(out, "full join", "returning", "on conflict", "do nothing", "do update set") // SQLite's alike (F14.1)
 }
 
 // noSpace are the candidates that stay as they are as one is taken: values,

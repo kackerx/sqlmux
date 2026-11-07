@@ -124,7 +124,7 @@ func (a *App) complete(t *dataTab) {
 			cols = append(cols, candidate{label: c.Name, insert: t.conn.ident(c.Name), note: c.Type, space: true, kind: kindColumn})
 		}
 		for _, k := range whereKeywords {
-			if k != "ilike" || t.conn.eng.Dialect() == sqlkit.PG { // PG's alone
+			if d := t.conn.eng.Dialect(); k != "ilike" || d == sqlkit.PG || d == sqlkit.ClickHouse { // PG's and ClickHouse's alone
 				kws = append(kws, candidate{label: k, insert: k, note: i18n.T("关键字"), kind: kindKeyword, space: sqlkit.SpaceAfter(k)})
 			}
 		}

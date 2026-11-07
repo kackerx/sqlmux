@@ -47,7 +47,7 @@ Then open something:
 
 ```sh
 sqlmux ./app.db                                       # a SQLite file
-sqlmux "postgres://me@localhost:5432/app?sslmode=disable"   # or mysql://…
+sqlmux "postgres://me@localhost:5432/app?sslmode=disable"   # or mysql://, sqlserver://, clickhouse://, trino://…
 sqlmux local --table orders --where "user_id = 42"    # straight to one table of a saved connection
 sqlmux                                                # no connections yet: a form to add one
 ```
@@ -56,7 +56,7 @@ The [quickstart](docs/quickstart.md) goes from here to editing your first row.
 
 ## Features
 
-- **Five engines in one tree**: PostgreSQL, MySQL, SQLite, SQL Server and Redis, side by side in the same session.
+- **Seven engines in one tree**: PostgreSQL, MySQL, SQLite, SQL Server, ClickHouse, Trino and Redis, side by side in the same session.
 - **tmux inside.** Sessions, windows, split panes and tabs, with `SPC` as the leader (`SPC %` splits, `SPC c` opens a window, `SPC s` lists sessions). Each session sees all your connections. The layout you quit from comes back next time, and you can save named layouts.
 - **Edit tables in place.** Change cells, add and delete rows, then `C-s` saves everything in one transaction. Enum, boolean and time columns get pickers; long text and JSON open in a value editor.
 - **Table tabs.** A WHERE input with completion, history and favorites; multi-column ORDER, LIMIT, paging, a column picker, transpose, filter by a cell's value, export to CSV or JSON.
@@ -72,13 +72,13 @@ The [quickstart](docs/quickstart.md) goes from here to editing your first row.
 
 sqlmux edits live databases, so it has guards against mistakes. They are not a permission boundary: for production data, connect with a read-only database account.
 
-- **Read-only connections** (`read_only = true`) are enforced twice. sqlmux refuses a whole run if any statement in it writes or would lift read-only, and the session is read-only on the server too (PostgreSQL `default_transaction_read_only = on`, MySQL `SET SESSION TRANSACTION READ ONLY`). SQL Server and Redis have no such session switch, so there it is sqlmux's check alone (for Redis, based on the server's `COMMAND INFO`); use a read-only login or Redis ACLs (`-@write`) to really restrict them.
+- **Read-only connections** (`read_only = true`) are enforced twice. sqlmux refuses a whole run if any statement in it writes or would lift read-only, and the session is read-only on the server too (PostgreSQL `default_transaction_read_only = on`, MySQL `SET SESSION TRANSACTION READ ONLY`). ClickHouse's server refuses them too (`readonly = 2`). SQL Server, Trino and Redis have no such session switch, so there it is sqlmux's check alone (for Redis, based on the server's `COMMAND INFO`); use a read-only login or Redis ACLs (`-@write`) to really restrict them.
 - **Dangerous statements ask first**: `DELETE` or `UPDATE` without `WHERE`, `TRUNCATE`, `DROP`, and Redis commands the server marks `@dangerous` (`confirm_dangerous`, on by default).
-- **Saves are one transaction**, and each `UPDATE` carries the old values of the cells you changed: if someone changed that row after you loaded it, the save rolls back and names the row.
+- **Saves are one transaction**, and each `UPDATE` carries the old values of the cells you changed: if someone changed that row after you loaded it, the save rolls back and names the row. ClickHouse and Trino have no transactions for writes: there each change is checked to match exactly one row before it is sent, and a save that stops halfway says what was already written ([details](docs/config.md#clickhouse-and-trino)).
 - **Preview before save**: `C-s` first shows the exact statements, values inlined, with the counts of changed, added and deleted rows (`[grid] preview_save`, on by default).
 - **Production connections** (`production = true`) are drawn in a warning color, ask before every write (even with `confirm_dangerous` off; the save preview cannot be turned off there), and are read-only unless you also write `read_only = false`.
 - **No silent re-runs**: after a dropped connection, a statement that may have reached the server is never re-run on its own; only requests that never left are retried.
-- **Tested on real databases**: the integration tests run in CI against PostgreSQL 17, MySQL 8.4, SQL Server 2022, SQLite and Redis Stack 7.4, not mocks.
+- **Tested on real databases**: the integration tests run in CI against PostgreSQL 17, MySQL 8.4, SQL Server 2022, ClickHouse 25.8, Trino 478, SQLite and Redis Stack 7.4, not mocks.
 
 The checks read the SQL text, so a write hidden inside a function or procedure (`select my_func()`) is not caught by sqlmux; the server-side read-only, or the account's privileges, still are.
 

@@ -16,12 +16,14 @@ import (
 
 	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db"
+	"github.com/kackerx/sqlmux/internal/db/clickhouse"
 	dbexec "github.com/kackerx/sqlmux/internal/db/exec"
 	"github.com/kackerx/sqlmux/internal/db/mssql"
 	"github.com/kackerx/sqlmux/internal/db/mysql"
 	"github.com/kackerx/sqlmux/internal/db/postgres"
 	"github.com/kackerx/sqlmux/internal/db/redis"
 	"github.com/kackerx/sqlmux/internal/db/sqlite"
+	"github.com/kackerx/sqlmux/internal/db/trino"
 	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/keymap"
 	"github.com/kackerx/sqlmux/internal/sqlkit"
@@ -440,7 +442,8 @@ func (c *Conn) liveSpec() config.Connection {
 }
 
 // drivers are the servers connections.toml names (§8.1, §5「连接缝」).
-var drivers = map[string]db.Driver{"postgres": postgres.Engine{}, "mysql": mysql.Engine{}, "sqlite": sqlite.Engine{}, "redis": redis.Driver{}, "mssql": mssql.Engine{}}
+var drivers = map[string]db.Driver{"postgres": postgres.Engine{}, "mysql": mysql.Engine{}, "sqlite": sqlite.Engine{}, "redis": redis.Driver{}, "mssql": mssql.Engine{},
+	"clickhouse": clickhouse.Engine{}, "trino": trino.Engine{}}
 
 // driverOf is the driver of spec's engine: an exec connection's is the engine of its
 // dialect over its command (§8.8).
@@ -855,6 +858,8 @@ func connectTo(ctx context.Context, spec config.Connection, readOnly bool) (db.C
 			withDB = redis.WithDB
 		case "mssql": // the DSN's database parameter (F18.6)
 			withDB = mssql.WithDatabase
+		case "trino": // the catalog (§8.10)
+			withDB = trino.WithDatabase
 		}
 		if dsn, err = withDB(dsn, spec.Database); err != nil {
 			return nil, db.Info{}, err

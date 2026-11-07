@@ -64,6 +64,9 @@ func placeOf(e Engine, q Query, limit, offset int) string {
 		}
 		return s
 	}
+	if e.Dialect() == sqlkit.Trino { // OFFSET before LIMIT, as its grammar has them (§8.10)
+		return fmt.Sprintf(" offset %d limit %d", offset, limit)
+	}
 	return fmt.Sprintf(" limit %d offset %d", limit, offset)
 }
 

@@ -72,13 +72,13 @@ sqlmux uses `pbcopy` / `pbpaste`, `wl-copy` / `wl-paste`, `xclip` or `xsel`, whi
 ```toml
 [[connection]]
 name     = "local"                     # required, unique; no / or \, not starting with .
-engine   = "postgres"                  # postgres | mysql | sqlite | mssql | redis
+engine   = "postgres"                  # postgres | mysql | sqlite | mssql | clickhouse | trino | redis
 dsn      = "postgres://me@localhost:5432/app?sslmode=disable"
 password_cmd = "security find-generic-password -s sqlmux-local -w"
 read_only = false                      # refuse writes on this connection
 production = false                     # warning color, confirm every write, read-only unless read_only = false is written
-databases = ["app"]                    # postgres: the databases the tree lists; unset = all
-schemas   = ["app.public"]             # the schemas listed and loaded: "db.schema" on postgres, the name on mysql; unset = all non-system ones
+databases = ["app"]                    # postgres, mssql, trino (catalogs): the databases the tree lists; unset = all
+schemas   = ["app.public"]             # the schemas listed and loaded: "db.schema" on postgres, mssql and trino, the name on mysql and clickhouse; unset = all non-system ones
 group     = "dev"                      # optional: a labelled section in the tree
 ssh       = "me@bastion"               # optional: connect through this machine
 ```
@@ -91,6 +91,8 @@ DSN per engine:
 | `mysql` | `user@tcp(host:3306)/db` or `mysql://user@host:3306/db` |
 | `sqlite` | a file path; `~` is expanded, `?mode=ro` and other query parameters pass through; a missing file is not created |
 | `mssql` | `sqlserver://user@host:1433?database=app` (`mssql://` works too); driver options such as `encrypt` pass through. A server with a self-signed certificate, like the official Docker image, needs `&TrustServerCertificate=true` |
+| `clickhouse` | `clickhouse://user@host:8123/db`, or the HTTP interface's own `http(s)://` URL; `?secure=true` for TLS (port 8443), `?skip_verify=true` for a self-signed certificate. Any other parameter is sent as a server setting (`?max_execution_time=60`). sqlmux uses the HTTP port, not the native 9000. See [ClickHouse and Trino](#clickhouse-and-trino) |
+| `trino` | `trino://user@host:8080/catalog/schema`, `?ssl=true` for TLS (port 443); the Go client's `http(s)://user@host:8080?catalog=c&schema=s` works too, as does `session_properties=a:1;b:2`. The tree lists the server's other catalogs as databases |
 | `redis` | `redis://user@host:6379/0` or `rediss://…`; the number is the database. See [Redis](redis.md) |
 | `exec` | no `dsn`: `dialect` and `command`, see [External commands](#external-commands-engine--exec) |
 
@@ -112,6 +114,14 @@ The connection form (`+` at the top of the sidebar, or *New connection…* in th
 `production = true` marks a connection whose data matters: its borders, status bar block and tab titles use the `production` theme color, every write asks first (table saves, write statements, Redis write commands, deletes and renames in the tree), and it is read-only unless `read_only = false` is written as well. See [Safety](../README.md#safety).
 
 `ssh = "user@host"` runs `ssh -W host:port user@host` for each connection; the port, key and `ProxyJump` come from `~/.ssh/config`, and no local port is opened. ssh cannot ask for a password or passphrase here, so `ssh-add` the key first. It does not apply to SQLite or to connections given on the command line.
+
+### ClickHouse and Trino
+
+Both are browsed, queried and edited like the other engines, with a few differences:
+
+- **Edits are not one transaction.** Neither has transactions for writes (ClickHouse's UPDATE and DELETE are mutations; every Trino connector writes in autocommit only). So a save sends its statements one at a time, and before each UPDATE or DELETE it counts the rows that still match the key and the values you loaded: anything but exactly one, and it stops there with "row changed or gone". If a save stops halfway, the statements before it stay written: the error says how many, those edits are cleared and the table reloads. The save preview says this too, and there is no manual transaction mode.
+- **ClickHouse**: rows are identified by the table's primary key, which ClickHouse does not keep unique, hence the count. Columns of the sorting, partition or primary key, `MATERIALIZED` / `ALIAS` columns and `Map` / `Tuple` / `JSON` columns can't be edited, nor can tables whose engine isn't a `MergeTree` (Memory, Log, Distributed…). `read_only = true` is enforced by the server as well (`readonly = 2`).
+- **Trino**: catalogs are the tree's databases. Trino doesn't tell any connector's primary keys, so a row is identified by its `NOT NULL` columns (a table without any is read-only). Whether a table takes writes is up to its connector: the PostgreSQL connector updates tables that have a primary key in PostgreSQL; memory, Hive and most lake connectors refuse UPDATE and DELETE, and their error is shown as it is. Trino has no read-only session, so `read_only = true` is sqlmux's check alone (quick SQL runs in a `START TRANSACTION READ ONLY` the server enforces).
 
 ### External commands (`engine = "exec"`)
 

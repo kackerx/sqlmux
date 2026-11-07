@@ -458,9 +458,24 @@ func TestColType(t *testing.T) {
 		// MySQL's
 		"bigint unsigned": ui.ColNumber, "unsigned bigint": ui.ColNumber, "unsigned int": ui.ColNumber, "int unsigned zerofill": ui.ColNumber, "decimal(10,2)": ui.ColNumber, "tinyint(1)": ui.ColBool, "tinyint(4)": ui.ColNumber,
 		"datetime(3)": ui.ColTime, "varchar(64)": ui.ColString, "enum('a','b')": ui.ColString, "blob": ui.ColOther,
+		// ClickHouse's, the Nullable and LowCardinality around them aside
+		"UInt64": ui.ColNumber, "Nullable(Decimal(10, 2))": ui.ColNumber, "Float64": ui.ColNumber, "Int32": ui.ColNumber,
+		"DateTime64(3, 'UTC')": ui.ColTime, "Nullable(Date32)": ui.ColTime, "DateTime('UTC')": ui.ColTime, "Bool": ui.ColBool,
+		"LowCardinality(Nullable(String))": ui.ColString, "FixedString(3)": ui.ColString, "Enum8('a' = 1)": ui.ColString,
+		"Array(String)": ui.ColOther, "Map(String, String)": ui.ColOther, "UUID": ui.ColOther,
+		// Trino's are PG's names
+		"decimal(10, 2)": ui.ColNumber, "timestamp(6) with time zone": ui.ColTime, "varchar": ui.ColString, "json": ui.ColJSON,
 	} {
 		if got := colType(typ); got != want {
 			t.Errorf("colType(%q) = %v, want %v", typ, got, want)
+		}
+	}
+	for typ, want := range map[string]ui.TimeKind{
+		"DateTime64(3, 'UTC')": ui.Timestamp, "Nullable(DateTime)": ui.Timestamp, "Date32": ui.Date, "Date": ui.Date,
+		"timestamp(3) with time zone": ui.TimestampTZ, "date": ui.Date,
+	} {
+		if got := timeKind(typ); got != want {
+			t.Errorf("timeKind(%q) = %v, want %v", typ, got, want)
 		}
 	}
 }

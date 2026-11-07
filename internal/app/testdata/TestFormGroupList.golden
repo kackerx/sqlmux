@@ -15,7 +15,7 @@
 │       ▸  t_order_item  3.4m┌─ 连接 ───────────────────────────────────────────────────────────────────────────────────────────┐                             │
 │       ▸  t_payment     410k│  doraemon               │          name n                                                      │                             │
 │       ▸  t_refund       12k│  misc                   │         group pr                                                     │                             │
-│       ▸  t_sku         8.1k│ ── prod ──────────────── │        engine ┌──────────────────┐sqlite │ redis │ mssql             │                             │
+│       ▸  t_sku         8.1k│ ── prod ──────────────── │        engine ┌──────────────────┐e│redis│mssql│clickhouse│trino     │                             │
 │       ▸  t_user         38k│  stage                  │          host │ prod             │                                   │                             │
 │       ▸  t_user_address 52k│  live                   │          port │ prelude          │                                   │                             │
 │       ▸  t_user_profile 38k│ ── dev ───────────────── │          user └──────────────────┘                                   │                             │
