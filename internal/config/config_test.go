@@ -428,3 +428,21 @@ func TestPreviewSave(t *testing.T) {
 		}
 	}
 }
+
+// default_connection is a name, empty when not written; DefaultStart finds it,
+// and takes the first for an empty or an unknown one (F21.2).
+func TestDefaultConnection(t *testing.T) {
+	if c, err := Parse(""); err != nil || c.DefaultConnection != "" {
+		t.Errorf("not written: %q, %v", c.DefaultConnection, err)
+	}
+	c, err := Parse("default_connection = \"b\"\n")
+	if err != nil || c.DefaultConnection != "b" || len(c.Unknown) != 0 {
+		t.Errorf("written: %q %v %v", c.DefaultConnection, c.Unknown, err)
+	}
+	conns := []Connection{{Name: "a"}, {Name: "b"}}
+	for def, want := range map[string]int{"": 0, "a": 0, "b": 1, "nope": 0} {
+		if got := DefaultStart(conns, def); got != want {
+			t.Errorf("DefaultStart(%q) = %d, want %d", def, got, want)
+		}
+	}
+}

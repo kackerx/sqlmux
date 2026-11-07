@@ -501,6 +501,7 @@ var en = map[string]string{
 	"打开布局会回滚。":                       "opening a layout would roll it back.",
 	"没有名为 %s 的连接，session %s 用 %s 开始": "No connection named %s: session %s starts on %s",
 	"没有名为 %s 的连接，跳过 %s":              "No connection named %s: %s is skipped",
+	"default_connection：没有名为 %s 的连接": "default_connection: no connection %s",
 
 	// Configuration: what is wrong in connections.toml, config.toml, themes
 	"%s = %q：颜色要写成 #rrggbb":                                    "%s = %q: write a color as #rrggbb",

@@ -76,6 +76,10 @@ type Config struct {
 	PreviewSave bool
 	theme       string // the name Parse read; Load finds the theme, as it touches the disk
 
+	// DefaultConnection is the connection a start that names none opens on:
+	// --table, --sql and the default layout (§14, F21.2); empty is the first.
+	DefaultConnection string
+
 	// Leader and Bindings are keymaps.toml's raw [keys] and [map.*]
 	// entries; the keymap package gives them meaning.
 	Leader   string
@@ -155,6 +159,7 @@ func Parse(data string) (*Config, error) {
 		Language   *string  `toml:"language"`
 		Border     *string  `toml:"border"`
 		Vim        *bool    `toml:"vim"`
+		Default    string   `toml:"default_connection"`
 		Clipboard  *string  `toml:"clipboard"`
 		Timeoutlen *int     `toml:"timeoutlen"`
 		TabWidth   *int     `toml:"tab_width"`
@@ -260,6 +265,7 @@ func Parse(data string) (*Config, error) {
 		c.KeywordCase = *k
 	}
 	c.FormatPrg = raw.FormatPrg
+	c.DefaultConnection = raw.Default
 	if raw.AutoPairs != nil {
 		c.AutoPairs = *raw.AutoPairs
 	}

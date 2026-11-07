@@ -11,6 +11,7 @@ import (
 	_ "net/http/pprof" // registers on DefaultServeMux: only served when SQLMUX_PPROF is set
 	"os"
 	"runtime/debug"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -159,7 +160,7 @@ func run(args []string) error {
 		if l, err = startLayout(name, layout, opts.table != "", &warning); err != nil {
 			return err
 		}
-		if sess, restored, err = startSession(name, layout, l); err != nil {
+		if sess, restored, err = startSession(name, layout, cfg.DefaultConnection, l); err != nil {
 			return err
 		}
 	}
@@ -222,7 +223,7 @@ func tempConnection(name, layout, databaseURL string) (*config.Connection, error
 // default one over connection name, or, with no connections.toml or none in
 // it and none asked for, an empty one with the form open (§14「启动时找不到
 // 连接」).
-func startSession(name, layout string, l *config.Layout) (*app.Session, *app.Restored, error) {
+func startSession(name, layout, def string, l *config.Layout) (*app.Session, *app.Restored, error) {
 	if l != nil {
 		conns, _, err := config.LoadConnections("")
 		switch {
@@ -234,7 +235,7 @@ func startSession(name, layout string, l *config.Layout) (*app.Session, *app.Res
 		restored := app.Restore(conns, l)
 		return restored.Sessions[0], restored, nil
 	}
-	sess, err := open(name)
+	sess, err := open(name, def)
 	switch {
 	case config.NoConnections(err) && name == "":
 		return app.OpenEmpty(), nil, nil
@@ -248,6 +249,10 @@ func startSession(name, layout string, l *config.Layout) (*app.Session, *app.Res
 // misspelt key (F13.5), the queries that were consoles before F10.11 not moved.
 func startNotes(cfg *config.Config) string {
 	warning := app.JoinNotes(config.UnknownKeys(cfg)...)
+	if conns, _, err := config.LoadConnections(""); err == nil && cfg.DefaultConnection != "" &&
+		!slices.ContainsFunc(conns, func(c config.Connection) bool { return c.Name == cfg.DefaultConnection }) {
+		warning = app.JoinNotes(warning, fmt.Sprintf(i18n.T("default_connection：没有名为 %s 的连接"), cfg.DefaultConnection))
+	}
 	for _, err := range []error{config.MigrateConsoles(), config.TrimHistory(cfg.HistoryMax)} {
 		if err != nil {
 			warning = app.JoinNotes(warning, err.Error())
@@ -278,12 +283,16 @@ func startLayout(name, layout string, table bool, warning *string) (*config.Layo
 	return nil, config.BrokenLast()
 }
 
-// open is a session over connections.toml, started on connection name, or the
-// first one when name is "" (§5); none is connected till the program runs.
-func open(name string) (*app.Session, error) {
+// open is a session over connections.toml, started on connection name, or
+// when name is "" on default_connection def, the first one with none (§5,
+// §14); none is connected till the program runs.
+func open(name, def string) (*app.Session, error) {
 	conns, start, err := config.LoadConnections(name)
 	if err != nil {
 		return nil, err
+	}
+	if name == "" {
+		start = config.DefaultStart(conns, def)
 	}
 	return app.Open(conns, start), nil
 }
