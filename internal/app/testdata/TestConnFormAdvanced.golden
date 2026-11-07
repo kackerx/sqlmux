@@ -13,7 +13,7 @@
 │       ▸  schema_migrations ┌─ 连接 ───────────────────────────────────────────────────────────────────────────────────────────┐                             │
 │       ▸  t_order       1.2m│  doraemon               │          name play                                                   │                             │
 │       ▸  t_order_item  3.4m│  新建                   │         group                                                        │                             │
-│       ▸  t_payment     410k│                          │        engine  postgres │ mysql │ sqlite │ redis │ mssql │3›         │                             │
+│       ▸  t_payment     410k│                          │        engine  postgres ▾                                            │                             │
 │       ▸  t_refund       12k│                          │          host                                                        │                             │
 │       ▸  t_sku         8.1k│                          │          port 5432                                                   │                             │
 │       ▸  t_user         38k│                          │          user                                                        │                             │

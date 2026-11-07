@@ -37,8 +37,13 @@ type connForm struct {
 	// the group field's list of the groups there are (F10.6): the one picked
 	// with ↓ and ↑, -1 for none; esc closes it till something is typed
 	groupSel int
-	groupTop int // the first group shown, held while the selection is in view (F13.10)
 	groupOff bool
+	// pickTop is the first row the field's list shows, the group's or the
+	// engine's, held while the selection is in view (F13.10)
+	pickTop int
+	// engineOff is the engine field's list closed, by esc or a pick, till the
+	// field gets the keys again
+	engineOff bool
 	// testing is the number of the connection test out, 0 for none; result is
 	// what a test found, a connection made (resultOK) or why not, shown while
 	// err, why a save or a field did not do, is not (F12.5)
@@ -103,7 +108,7 @@ func blankFields() []ui.FormField {
 		fs[i].Label = name
 	}
 	fs[fieldAdvanced].Label = i18n.T("高级")
-	fs[fieldEngine].Kind, fs[fieldEngine].Choices = ui.FormSegments, []string{"postgres", "mysql", "sqlite", "redis", "mssql", "clickhouse", "trino", "oracle"}
+	fs[fieldEngine].Kind, fs[fieldEngine].Choices = ui.FormSelect, []string{"postgres", "mysql", "sqlite", "redis", "mssql", "clickhouse", "trino", "oracle"}
 	fs[fieldReadOnly].Kind = ui.FormCheck
 	fs[fieldProduction].Kind = ui.FormCheck
 	fs[fieldAdvanced].Kind = ui.FormFold
@@ -257,7 +262,7 @@ func (f *connForm) clearErr() {
 func (a *App) formMove(d int) {
 	f := a.form
 	f.clearErr()
-	f.groupSel, f.groupOff = -1, false
+	f.groupSel, f.groupOff, f.engineOff, f.pickTop = -1, false, false, 0
 	for range f.fields {
 		f.sel = (f.sel + d + len(f.fields)) % len(f.fields)
 		if !f.skipped(f.sel) {
@@ -278,7 +283,7 @@ func (a *App) formKey(k keymap.Key) {
 		if editInput(&fd.Input, k) && f.sel == fieldGroup {
 			f.groupSel, f.groupOff = -1, false
 		}
-	case ui.FormSegments:
+	case ui.FormSelect:
 		switch k {
 		case "<Space>", "<Right>":
 			a.formSegment(f.sel, (fd.On+1)%len(fd.Choices))
@@ -326,7 +331,10 @@ func (a *App) formClick(i int) {
 	}
 	f.list = false
 	f.clearErr()
-	f.sel, f.groupSel, f.groupOff = i, -1, false
+	if f.sel != i {
+		f.pickTop = 0
+	}
+	f.sel, f.groupSel, f.groupOff, f.engineOff = i, -1, false, false
 	if k := f.fields[i].Kind; k == ui.FormCheck || k == ui.FormFold {
 		a.formKey("<Space>")
 	}
@@ -947,13 +955,38 @@ func (a *App) formView() ui.Form {
 	fields[fieldDSN].Example = dsnExample[fields[fieldEngine].Choices[fields[fieldEngine].On]]
 	form := ui.Form{Fields: fields, Sel: f.sel, Err: note, OK: f.err == "" && (f.resultOK || f.testing != 0), Save: i18n.T("保存"), Test: i18n.T("测试"), Cancel: i18n.T("取消"), Delete: del, Hints: hints, PickAt: fieldGroup}
 	if cands := a.groupCands(); len(cands) > 0 { // under the group field (F10.6)
-		form.Pick = &ui.Complete{Sel: f.groupPick(len(cands)), Top: f.groupTop, Act: "form.pick"}
+		form.Pick = &ui.Complete{Sel: f.groupPick(len(cands)), Top: f.pickTop, Act: "form.pick"}
 		for _, g := range cands {
 			form.Pick.Items = append(form.Pick.Items, ui.CompleteItem{Text: g})
 		}
 	}
+	if f.enginesOpen() { // under the engine field, each with its logo: the one picked as ↓ and ↑ go
+		e := f.fields[fieldEngine]
+		form.PickAt, form.Pick = fieldEngine, &ui.Complete{Sel: e.On, Top: f.pickTop, Act: "form.engine.pick"}
+		for _, name := range e.Choices {
+			form.Pick.Items = append(form.Pick.Items, ui.CompleteItem{Icon: ic.Engine(name), Text: name, Note: engineNames[name]})
+		}
+	}
 	return form
 }
+
+// enginesOpen is whether the engine field shows its list of the engines: while
+// it has the keys, till esc or a pick closes it.
+func (f *connForm) enginesOpen() bool {
+	return f != nil && !f.list && f.sel == fieldEngine && !f.engineOff
+}
+
+// engineMove is ↓ (d 1) and ↑ on the engine list: the engine before or after,
+// round the ends, picked at once.
+func (a *App) engineMove(d int) {
+	e := a.form.fields[fieldEngine]
+	a.formSegment(fieldEngine, (e.On+d+len(e.Choices))%len(e.Choices))
+}
+
+// engineNames are the engines as their makers name them, dim beside each in
+// the list.
+var engineNames = map[string]string{"postgres": "PostgreSQL", "mysql": "MySQL", "sqlite": "SQLite", "redis": "Redis",
+	"mssql": "SQL Server", "clickhouse": "ClickHouse", "trino": "Trino", "oracle": "Oracle"}
 
 // groupCands are the groups the group field's list offers: those that start
 // as what is typed does, in either case, but not what is typed exactly; none

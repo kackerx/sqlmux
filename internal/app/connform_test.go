@@ -523,11 +523,8 @@ func TestConnFormColors(t *testing.T) {
 	if name(fieldName, "name") != th.Dim || name(fieldPort, "port") != th.Fg || name(fieldHost, "host") != th.Dim {
 		t.Errorf("names: name %v, port %v, host %v", name(fieldName, "name"), name(fieldPort, "port"), name(fieldHost, "host"))
 	}
-	seg := func(text string) color.Color {
-		return f.Buf.CellAt(colAt(t, f, row(fieldEngine), text), row(fieldEngine)).Style.Bg
-	}
-	if seg("postgres") != th.Select || seg("mysql") != th.Sep {
-		t.Errorf("segments: postgres %v, mysql %v", seg("postgres"), seg("mysql"))
+	if bg := f.Buf.CellAt(colAt(t, f, row(fieldEngine), "postgres ▾"), row(fieldEngine)).Style.Bg; bg != th.Sep {
+		t.Errorf("the engine's select: %v", bg)
 	}
 	feed(t, a, "<CR>") // host is empty: wrong
 	f = a.render()
@@ -542,7 +539,7 @@ func TestConnFormColors(t *testing.T) {
 }
 
 // Clicks: a row that takes no part is not given the keys, a check and the
-// fold turn over, a segment is picked by its own place, the buttons save and
+// fold turn over, an engine is picked by its row of the list, the buttons save and
 // cancel, and the ＋ of a tree with connections opens the form (§7.8).
 func TestConnFormClicks(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
@@ -570,13 +567,10 @@ func TestConnFormClicks(t *testing.T) {
 	if a.form.sel != fieldName {
 		t.Errorf("a dim row took the keys: %d", a.form.sel)
 	}
-	click(a, find(t, a, ui.Target{Kind: ui.KindSegment, Pane: fieldEngine, I: 1}).Min)
-	if a.form.fields[fieldEngine].On != 1 || a.form.fields[fieldPort].Input.Text != "3306" {
-		t.Errorf("mysql by its segment: %+v", a.form.fields[fieldEngine])
-	}
-	click(a, find(t, a, ui.Target{Kind: ui.KindSegment, Pane: fieldEngine, I: 1}).Min)
-	if a.form.fields[fieldEngine].On != 1 {
-		t.Error("a click on the segment that is on changes it")
+	click(a, row(fieldEngine)) // its list opens
+	click(a, find(t, a, ui.Target{Kind: ui.KindRow, Action: "form.engine.pick", I: 1}).Min)
+	if a.form.fields[fieldEngine].On != 1 || a.form.fields[fieldPort].Input.Text != "3306" || a.form.enginesOpen() {
+		t.Errorf("mysql by its row of the list: %+v, open %v", a.form.fields[fieldEngine], a.form.enginesOpen())
 	}
 	click(a, find(t, a, ui.Target{Kind: ui.KindButton, Action: "form.save"}).Min)
 	if a.form == nil || a.form.err != "缺少 name" {
@@ -915,5 +909,49 @@ func TestConnFormProduction(t *testing.T) {
 		if c, err := config.ReadConnection("play"); err != nil || c.Production != on {
 			t.Errorf("production switched to %v: %+v %v", on, c, err)
 		}
+	}
+}
+
+// The engine field's list, while the field has the keys: every engine with its
+// logo in its own color, ↓ and ↑ picking as they go, round the ends, the port
+// going with them; esc closes it, ↵ saves the form as from any field (§7.8).
+func TestConnFormEngineList(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	keychain(t, "none")
+	a, _ := withSessions()
+	feed(t, a, "<C-p>conn.new<CR>play<Tab><Tab>")
+	if !a.form.enginesOpen() || a.context().Overlay != "engines" {
+		t.Fatalf("the engine field has the keys, no list: %+v", a.context())
+	}
+	f := a.render()
+	text := f.String()
+	for _, e := range []string{"PostgreSQL", "SQL Server", "Oracle", "ClickHouse"} {
+		if !strings.Contains(text, e) {
+			t.Errorf("%s not in the list", e)
+		}
+	}
+	oracle := find(t, a, ui.Target{Kind: ui.KindRow, Action: "form.engine.pick", I: 7})
+	if fg := f.Buf.CellAt(oracle.Min.X+1, oracle.Min.Y).Style.Fg; fg != a.icons.Oracle.Fg || fg == a.theme.Fg {
+		t.Errorf("Oracle's logo is %v, not its color", fg)
+	}
+	feed(t, a, "<Down><Down>")
+	if e := a.form.fields[fieldEngine]; e.Choices[e.On] != "sqlite" {
+		t.Errorf("two down: %s", e.Choices[e.On])
+	}
+	feed(t, a, "<Up><Up><Up>") // round the start
+	if e := a.form.fields[fieldEngine]; e.Choices[e.On] != "oracle" || a.form.fields[fieldPort].Input.Text != "1521" {
+		t.Errorf("round the start: %s, port %s", e.Choices[e.On], a.form.fields[fieldPort].Input.Text)
+	}
+	feed(t, a, "<Esc>")
+	if a.form == nil || a.form.enginesOpen() {
+		t.Fatal("esc closes the list first, not the form")
+	}
+	feed(t, a, "<Tab><S-Tab>") // back to it: open again
+	if !a.form.enginesOpen() {
+		t.Error("back on the field, no list")
+	}
+	feed(t, a, "<CR>") // the form's save, as from any field: host is missing
+	if a.form == nil || a.form.err == "" {
+		t.Errorf("↵ on the list does not save: %+v", a.form)
 	}
 }

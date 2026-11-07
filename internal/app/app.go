@@ -530,10 +530,6 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols, a.confirm, a.keyHelp, a.sessList, a.menu, a.ddl = false, false, nil, nil, nil, nil, nil, nil, nil, nil
 		a.res.Reset()
 		return picked
-	case ui.KindSegment:
-		if a.form != nil {
-			a.formSegment(t.Pane, t.I)
-		}
 	case ui.KindConn: // a row of the manager's list: selected, and the list has the keys (F8.16)
 		if a.form != nil {
 			a.selectConn(t.I)
@@ -555,6 +551,9 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		case a.form != nil && t.Action == "form.pick": // a group of the list (F10.6)
 			a.form.groupSel = t.I
 			a.groupAccept()
+		case a.form != nil && t.Action == "form.engine.pick": // an engine of its list: picked, the list closed
+			a.formSegment(fieldEngine, t.I)
+			a.form.engineOff = true
 		case a.form != nil: // over the session list, as it has the keys (§6.4)
 			a.formClick(t.I)
 		case a.sessList != nil: // a row: there, then ↵ (§7.8)
@@ -954,6 +953,8 @@ func (a *App) overlayContext(ov string) keymap.Context {
 			return keymap.Context{Overlay: "conns", Mode: keymap.Command}
 		case len(a.groupCands()) > 0: // the group field's list over the form's keys (F10.6)
 			return keymap.Context{Overlay: "groups", Under: "form", Mode: keymap.Insert}
+		case a.form.enginesOpen(): // the engine field's list, the same way
+			return keymap.Context{Overlay: "engines", Under: "form", Mode: keymap.Insert}
 		}
 		return keymap.Context{Overlay: "form", Mode: keymap.Insert} // its inputs: unbound keys are text
 	case "rename":

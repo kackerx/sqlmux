@@ -185,7 +185,7 @@ func (a *App) drawOn(f *ui.Frame) *ui.Frame {
 			f.Cursor = &c
 		}
 		if v.Form.Pick != nil { // where its list was left scrolled
-			a.form.groupTop = v.Form.Pick.Top
+			a.form.pickTop = v.Form.Pick.Top
 		}
 	}
 	if a.palette != nil { // over the list and the form, whose keys it takes (context)

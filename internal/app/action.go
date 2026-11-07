@@ -391,9 +391,12 @@ func init() {
 			}
 			return a.saveConnForm()
 		})},
-		"form.group.next":  {Title: i18n.N("分组下一项"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.groupMove(1); return nil })},
-		"form.group.prev":  {Title: i18n.N("分组上一项"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.groupMove(-1); return nil })},
-		"form.group.close": {Title: i18n.N("关闭分组列表"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.form.groupOff = true; return nil })},
+		"form.group.next":   {Title: i18n.N("分组下一项"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.groupMove(1); return nil })},
+		"form.group.prev":   {Title: i18n.N("分组上一项"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.groupMove(-1); return nil })},
+		"form.group.close":  {Title: i18n.N("关闭分组列表"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.form.groupOff = true; return nil })},
+		"form.engine.next":  {Title: i18n.N("下一个引擎"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.engineMove(1); return nil })},
+		"form.engine.prev":  {Title: i18n.N("上一个引擎"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.engineMove(-1); return nil })},
+		"form.engine.close": {Title: i18n.N("关闭引擎列表"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.form.engineOff = true; return nil })},
 		// the connection manager's list (F8.16)
 		"conns.down":   {Title: i18n.N("下移"), Local: true, Run: when(inConns, func(a *App) tea.Cmd { a.connsMove(1); return nil })},
 		"conns.up":     {Title: i18n.N("上移"), Local: true, Run: when(inConns, func(a *App) tea.Cmd { a.connsMove(-1); return nil })},

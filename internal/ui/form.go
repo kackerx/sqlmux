@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	uv "github.com/charmbracelet/ultraviolet"
@@ -12,10 +11,10 @@ import (
 type FormKind int
 
 const (
-	FormInput    FormKind = iota // a line of text
-	FormSegments                 // one of Choices, all shown
-	FormCheck                    // [x] or [ ]
-	FormFold                     // a row that opens and closes the rows after it
+	FormInput  FormKind = iota // a line of text
+	FormSelect                 // one of Choices, the one on shown with ▾; the form's Pick lists them under it
+	FormCheck                  // [x] or [ ]
+	FormFold                   // a row that opens and closes the rows after it
 )
 
 // FormField is a row of a form (§7.8「新建连接表单」): an icon, a name and
@@ -47,7 +46,8 @@ type Form struct {
 	Delete             string // a third button's word, when a connection there already is can go (F8.16); "" for none
 	Hints              []Hint
 	// Pick is a list opened under the input of field PickAt, drawn over what
-	// is below it (the connection form's groups, F10.6); nil for none
+	// is below it (the connection form's groups, F10.6, and its engines); nil
+	// for none
 	Pick   *Complete
 	PickAt int
 }
@@ -106,39 +106,6 @@ func (fm Form) rows() int {
 // drawIn paints the fields, the error, the rule and the buttons inside in,
 // the border's inner area, the field Sel having the keys when focus; it
 // returns where its input has the cursor, else (-1, -1).
-// segmentWindow is the choices from first to last that a row of room columns
-// shows, on among them, with the ‹N and N› of the others out of sight: from
-// the start as far as on lets, then as many after it as fit. It goes by on
-// alone, so the row scrolls as the choice moves, as a tab bar does (F17.1).
-func segmentWindow(choices []string, on, room int) (first, last int) {
-	n := len(choices)
-	if n == 0 {
-		return 0, -1
-	}
-	on = min(max(on, 0), n-1)
-	width := func(first, last int) int { // the segments, the │ between, and the arrows with their │
-		w := last - first
-		for j := first; j <= last; j++ {
-			w += Width(choices[j]) + 2
-		}
-		if first > 0 {
-			w += Width(fmt.Sprintf("‹%d", first)) + 1
-		}
-		if last < n-1 {
-			w += 1 + Width(fmt.Sprintf("%d›", n-1-last))
-		}
-		return w
-	}
-	for first < on && width(first, on) > room {
-		first++
-	}
-	last = on
-	for last+1 < n && width(first, last+1) <= room {
-		last++
-	}
-	return first, last
-}
-
 func (fm Form) drawIn(f *Frame, area uv.Rectangle, focus bool) uv.Position {
 	th := f.Theme
 	cursor := uv.Pos(-1, -1)
@@ -189,36 +156,8 @@ func (fm Form) drawIn(f *Frame, area uv.Rectangle, focus bool) uv.Position {
 				in.Fg = th.Dim
 				f.Text(r.Min.X, y, r.Max.X, fd.Example, in)
 			}
-		case FormSegments:
-			x := r.Min.X
-			first, last := segmentWindow(fd.Choices, fd.On, r.Dx())
-			more := func(text string, to int) { // the ‹N or N› of those out of sight, a click on it picking the next of them
-				st := dim
-				if f.Region(uv.Rect(x, y, Width(text), 1), Target{Kind: KindSegment, Pane: i, I: to}) {
-					st.Bg = th.Select
-				}
-				x = f.Text(x, y, r.Max.X, text, st)
-			}
-			if first > 0 {
-				more(fmt.Sprintf("‹%d", first), first-1)
-				x = f.Text(x, y, r.Max.X, "│", dim)
-			}
-			for j := first; j <= last; j++ {
-				ch := fd.Choices[j]
-				st := uv.Style{Fg: th.Dim, Bg: th.Sep}
-				if j == fd.On {
-					st = uv.Style{Fg: th.Fg, Bg: th.Select}
-				}
-				if j > first {
-					x = f.Text(x, y, r.Max.X, "│", dim)
-				}
-				f.Region(uv.Rect(x, y, Width(ch)+2, 1), Target{Kind: KindSegment, Pane: i, I: j})
-				x = f.Text(x, y, r.Max.X, " "+ch+" ", st)
-			}
-			if n := len(fd.Choices); last < n-1 {
-				x = f.Text(x, y, r.Max.X, "│", dim)
-				more(fmt.Sprintf("%d›", n-1-last), last+1)
-			}
+		case FormSelect:
+			f.Text(r.Min.X, y, r.Max.X, " "+fd.Choices[fd.On]+" ▾", in)
 		case FormCheck:
 			mark := "[ ]"
 			if fd.On == 1 {
@@ -269,7 +208,14 @@ func (fm Form) drawIn(f *Frame, area uv.Rectangle, focus bool) uv.Position {
 	if fm.Pick != nil && len(fm.Pick.Items) > 0 {
 		w := 20
 		for _, it := range fm.Pick.Items {
-			w = max(w, Width(it.Text)+4)
+			iw, nw := 0, 0
+			if it.Icon.Text != "" {
+				iw = Width(it.Icon.Text) + 1
+			}
+			if it.Note != "" {
+				nw = Width(it.Note) + 2
+			}
+			w = max(w, iw+Width(it.Text)+nw+4)
 		}
 		box, rows := CompleteBox(f.Bounds(), pickAt, min(w, area.Max.X-pickAt.X), len(fm.Pick.Items), 0, CompleteRows)
 		_, fm.Pick.Top = ListView(fm.Pick.Sel, fm.Pick.Top, len(fm.Pick.Items), rows) // the app keeps it for the next frame
