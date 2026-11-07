@@ -231,6 +231,11 @@ func (a *App) gotCommands(m cmdsMsg) tea.Cmd {
 	}
 	c.cmds, c.docs, c.cmdsReady = m.cmds, m.docs, true
 	cmd := a.recomplete(c) // what was typed before the docs came is completed by them (F20.11)
+	// --sql waited for them (F21.3)
+	if w := a.want; w != nil && w.conn == c && w.query != nil {
+		a.want = nil
+		cmd = tea.Batch(cmd, a.openWanted(w))
+	}
 	if m.err != nil {
 		return tea.Batch(cmd, a.showToast(i18n.T("%s：读不到命令列表（%s），命令都按写命令处理", c.label(), m.err)))
 	}

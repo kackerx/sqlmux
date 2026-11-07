@@ -60,6 +60,8 @@ var en = map[string]string{
 	"表已不存在，按 R 刷新":                           "The table no longer exists: R reloads",
 	"函数已不存在，按 R 刷新":                          "The function no longer exists: R reloads",
 	"%s：没有表 %s":                              "%s: no table %s",
+	"%s：没有 schema %s":                        "%s: no schema %s",
+	"%s：没有 db %s":                            "%s: no db %s",
 	"%s 里没有表 %s":                             "%s has no table %s",
 	"加列…":                                    "Add column…",
 	"加索引…":                                   "Add index…",

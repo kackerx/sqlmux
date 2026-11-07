@@ -305,6 +305,29 @@ func (c *Conn) inDB(name string) *Conn {
 	return c.dbs[name]
 }
 
+// schemaTarget is the connection and the schema that v names, written as the
+// query title's dropdown does (F21.3): a Redis db's number; a schema of c;
+// for PG and SQL Server `database.schema`, a database of the server, whose
+// schemas are not known till its catalog is in, so schema is not looked up
+// there. ok is false for none.
+func (c *Conn) schemaTarget(v string) (target *Conn, schema string, ok bool) {
+	if c.redis() {
+		if n, err := strconv.Atoi(strings.TrimPrefix(v, "db")); err == nil && n >= 0 {
+			return c.root().inDB(strconv.Itoa(n)), "", true
+		}
+		return nil, "", false
+	}
+	if slices.Contains(c.Schemas, v) {
+		return c, v, true
+	}
+	if db, sc, found := strings.Cut(v, "."); found && slices.Contains(c.root().databaseNames(), db) {
+		if t := c.root().inDB(db); t != c || slices.Contains(c.Schemas, sc) {
+			return t, sc, true
+		}
+	}
+	return nil, "", false
+}
+
 // root is the connection of connections.toml that c is, or is a database of.
 func (c *Conn) root() *Conn {
 	if c.parent != nil {

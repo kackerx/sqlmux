@@ -240,6 +240,9 @@ func TestRunArguments(t *testing.T) {
 	if err := run([]string{"a", "b"}); err == nil || !strings.Contains(err.Error(), "usage") {
 		t.Errorf("two connections: %v", err)
 	}
+	if !strings.Contains(usage, "--sql") || !strings.Contains(usage, "--schema") {
+		t.Errorf("the usage line does not list --sql and --schema: %s", usage)
+	}
 }
 
 // The options are read before and after the connection, and what they say
@@ -260,6 +263,15 @@ func TestParseArgs(t *testing.T) {
 		{[]string{"--where", "a"}, cli{}, "--where needs --table"},
 		{[]string{"play", "--where", "a"}, cli{}, "--where needs --table"},
 		{[]string{"--table", "t", "--layout", "x"}, cli{}, "--table or --layout"},
+		{[]string{"seed", "--sql", "select 1"}, cli{name: "seed", sql: "select 1"}, ""},
+		{[]string{"--sql", "select 1", "seed", "--schema", "s"}, cli{name: "seed", sql: "select 1", schema: "s"}, ""},
+		{[]string{"--sql=select 1", "--schema=db.s"}, cli{sql: "select 1", schema: "db.s"}, ""},
+		{[]string{"--table", "t", "--schema", "s", "play"}, cli{name: "play", table: "t", schema: "s"}, ""},
+		{[]string{"--sql", "select 1", "--table", "t"}, cli{}, "--sql or --table"},
+		{[]string{"--sql", "select 1", "--where", "a"}, cli{}, "--where needs --table"},
+		{[]string{"seed", "--sql", "select 1", "--layout", "x"}, cli{}, "--layout"},
+		{[]string{"--sql", "select 1", "--layout", "x"}, cli{}, "--sql or --layout"},
+		{[]string{"--schema", "s"}, cli{}, "--schema needs --table or --sql"},
 		{[]string{"a", "b"}, cli{}, "usage"},
 		{[]string{"a", "--table", "t", "b"}, cli{}, "usage"},
 		{[]string{"a", "--nope"}, cli{}, "nope"},
