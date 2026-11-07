@@ -349,11 +349,8 @@ func TestRedialDialsTheCurrentConfig(t *testing.T) {
 	edited.Name, edited.DSN, edited.Engine = "now", "postgres://u@127.0.0.1:2/x?connect_timeout=1", "mysql"
 	c.setConfig(edited)
 	_, err := c.Main.Redial(context.Background())
-	refused := "127.0.0.1:2: connect: connection refused" // windows says connectex
-	if runtime.GOOS == "windows" {
-		refused = "127.0.0.1:2: connectex"
-	}
-	if err == nil || !strings.Contains(err.Error(), refused) { // PG's dial of the new address
+	// refused, connectex (windows) or a timeout (WSL drops packets to a closed loopback port) all name the address
+	if err == nil || !strings.Contains(err.Error(), "127.0.0.1:2") { // PG's dial of the new address
 		t.Errorf("the address it dials: %v", err)
 	}
 }

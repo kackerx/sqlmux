@@ -12,6 +12,9 @@ import (
 // 0o700 when the test ends.
 func blockRename(t *testing.T, dir string) {
 	t.Helper()
+	if os.Geteuid() == 0 {
+		t.Skip("root renames in a read-only directory")
+	}
 	if err := os.Chmod(filepath.Dir(dir), 0o500); err != nil {
 		t.Fatal(err)
 	}
