@@ -1,6 +1,6 @@
 # tech-design §15「CI」: lint, vet and unit tests, and the integration tests
-# on PG 17, MySQL 8.4, SQL Server 2022, ClickHouse 25.8 and Trino 478 with
-# testdata/seed loaded. e2e is
+# on PG 17, MySQL 8.4, SQL Server 2022, Oracle 23ai Free, ClickHouse 25.8
+# and Trino 478 with testdata/seed loaded. e2e is
 # not run here: it needs a terminal and tmux (AGENTS.md).
 name: ci
 
@@ -109,6 +109,16 @@ jobs:
         options: >-
           --health-cmd "clickhouse-client --user sqlmux --password sqlmux -q 'select 1'"
           --health-interval 2s --health-retries 60
+      oracle: # §8.11: the image makes the sqlmux user in FREEPDB1; the seed is loaded below
+        image: gvenzl/oracle-free:23-slim
+        env:
+          ORACLE_PASSWORD: sqlmux
+          APP_USER: sqlmux
+          APP_USER_PASSWORD: sqlmux
+        ports: ["1521:1521"]
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 5s --health-retries 60 --health-start-period 30s
     env:
       SQLMUX_TEST_PG: postgres://sqlmux:sqlmux@localhost:5432/sqlmux?sslmode=disable
       SQLMUX_TEST_MYSQL: sqlmux:sqlmux@tcp(localhost:3306)/sqlmux
@@ -116,6 +126,7 @@ jobs:
       SQLMUX_TEST_MSSQL: 'sqlserver://sa:Sqlmux!2026@localhost:1433?database=sqlmux&TrustServerCertificate=true'
       SQLMUX_TEST_CLICKHOUSE: clickhouse://sqlmux:sqlmux@localhost:8123/sqlmux
       SQLMUX_TEST_TRINO: trino://sqlmux@localhost:8080/postgresql/public
+      SQLMUX_TEST_ORACLE: oracle://sqlmux:sqlmux@localhost:1521/FREEPDB1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -132,6 +143,7 @@ jobs:
           docker run -i --rm --network host redis/redis-stack-server:7.4.0-v3 redis-cli -h 127.0.0.1 < testdata/seed/redis.txt
           docker run -i --rm --network host --entrypoint /opt/mssql-tools18/bin/sqlcmd mcr.microsoft.com/mssql/server:2022-latest -C -b -S localhost -U sa -P 'Sqlmux!2026' < testdata/seed/mssql.sql
           docker run -i --rm --network host --entrypoint clickhouse-client clickhouse/clickhouse-server:25.8 --host 127.0.0.1 --user sqlmux --password sqlmux --multiquery < testdata/seed/clickhouse.sql
+          docker run -i --rm --network host --entrypoint sqlplus gvenzl/oracle-free:23-slim -s 'sys/sqlmux@//localhost:1521/FREE as sysdba' < testdata/seed/oracle.sql
       # §8.10: Trino's catalogs are files, which a service container cannot be
       # given before the checkout; its postgresql catalog is the PG above, by the
       # name docker-compose.yml gives it

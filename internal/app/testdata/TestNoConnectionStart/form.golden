@@ -15,7 +15,7 @@
 │                             ┌─ 连接 ───────────────────────────────────────────────────────────────────────────────────────────┐                             │
 │                             │  新建                   │          name                                                        │                             │
 │                             │                          │         group                                                        │                             │
-│                             │                          │        engine postgres│mysql│sqlite│redis│mssql│clickhouse│trino     │                             │
+│                             │                          │        engine  postgres │ mysql │ sqlite │ redis │ mssql │3›         │                             │
 │                             │                          │          host                                                        │                             │
 │                             │                          │          port 5432                                                   │                             │
 │                             │                          │          user                                                        │t                            │

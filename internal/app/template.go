@@ -68,6 +68,9 @@ func alterSQL(c *Conn, kind alterKind, t db.Table, col, index string) (sql, why 
 	}
 	switch kind {
 	case addColumn:
+		if d == sqlkit.Oracle { // ADD takes no COLUMN there
+			return "alter table " + table + " add (<name> <type>);", ""
+		}
 		return "alter table " + table + " add column <name> <type>;", ""
 	case addIndex:
 		switch d {
@@ -87,6 +90,8 @@ func alterSQL(c *Conn, kind alterKind, t db.Table, col, index string) (sql, why 
 			return "rename table " + table + " to " + q(t.Schema) + ".<new_name>;", "" // in its own database, not the query's
 		case d == sqlkit.SQLite && t.View():
 			return "", i18n.T("SQLite 不能给视图改名")
+		case d == sqlkit.Oracle && t.View(): // RENAME, of the user's own schema's alone
+			return "rename " + q(t.Name) + " to <new_name>;", ""
 		}
 		object := "table"
 		switch t.Kind {

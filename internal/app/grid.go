@@ -1056,8 +1056,19 @@ func timeKind(t string) ui.TimeKind {
 		"date": ui.Date, "time without time zone": ui.Time, "time with time zone": ui.TimeTZ,
 		"timestamp without time zone": ui.Timestamp, "timestamp with time zone": ui.TimestampTZ,
 		"time": ui.Time, "datetime": ui.Timestamp, "timestamp": ui.Timestamp,
-		"date32": ui.Date, "datetime64": ui.Timestamp,
-	}[strings.ToLower(baseType(clickhouse.Unwrap(t)))]
+		"date32": ui.Date, "datetime64": ui.Timestamp, "timestamp with local time zone": ui.Timestamp,
+		"date ": ui.Timestamp, // Oracle's DATE, which holds the time: see below
+	}[oracleDate(strings.ToLower(baseType(clickhouse.Unwrap(t))), t)]
+}
+
+// oracleDate is lower, the type name timeKind goes by, made "date " for
+// Oracle's DATE, which its catalog writes in upper case and which has a time
+// of day; PG's and MySQL's date, lower case, is a day alone (§8.11).
+func oracleDate(lower, t string) string {
+	if t == "DATE" {
+		return "date "
+	}
+	return lower
 }
 
 // colType is the grid's class for a column of the catalog's type (§7.6).
@@ -1076,12 +1087,13 @@ func colType(t string) ui.ColType {
 		"int2", "int4", "int8", "float4", "float8",
 		"tinyint", "mediumint", "int", "decimal", "float", "double",
 		"uint8", "uint16", "uint32", "uint64", "uint128", "uint256", "int16", "int32", "int64", "int128", "int256",
-		"float32", "float64", "decimal32", "decimal64", "decimal128", "decimal256":
+		"float32", "float64", "decimal32", "decimal64", "decimal128", "decimal256",
+		"number", "binary_double", "binary_float":
 		return ui.ColNumber
 	case "date", "time without time zone", "time with time zone",
 		"timestamp without time zone", "timestamp with time zone",
 		"time", "timetz", "timestamp", "timestamptz",
-		"datetime", "year", "date32", "datetime64":
+		"datetime", "year", "date32", "datetime64", "timestamp with local time zone":
 		return ui.ColTime
 	case "boolean", "bool":
 		return ui.ColBool
@@ -1090,7 +1102,8 @@ func colType(t string) ui.ColType {
 	case "text", "character varying", "character", `"char"`, "name", "citext",
 		"varchar", "bpchar", "char",
 		"tinytext", "mediumtext", "longtext", "enum", "set",
-		"string", "fixedstring", "enum8", "enum16":
+		"string", "fixedstring", "enum8", "enum16",
+		"varchar2", "nvarchar2", "nchar", "clob", "nclob":
 		return ui.ColString
 	}
 	if t == "interval" || strings.HasPrefix(t, "interval ") { // "interval day to second"

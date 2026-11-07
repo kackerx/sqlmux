@@ -58,11 +58,13 @@ func (c Connection) Kind() string {
 	return c.Engine
 }
 
-// SchemasAreDatabases is whether the engine's databases are its schemas, the
-// one level under a connection: MySQL's, ClickHouse's (§8.4, §8.9).
+// SchemasAreDatabases is whether the schemas are the one level under a
+// connection, with no databases over them, picked by their names alone:
+// MySQL's and ClickHouse's databases, Oracle's schemas, its users (§8.4,
+// §8.9, §8.11).
 func (c Connection) SchemasAreDatabases() bool {
 	k := c.Kind()
-	return k == "mysql" || k == "clickhouse"
+	return k == "mysql" || k == "clickhouse" || k == "oracle"
 }
 
 // HasDatabases is whether the engine has databases over its schemas, each a
@@ -237,8 +239,8 @@ func (c Connection) Check(names []string) (field, problem string) {
 	if c.Group != "" && checkFileName(c.Group) != nil { // the characters of a name (F10.6)
 		return "group", fmt.Sprintf(i18n.T(`group = %q：不能含 / 或 \，也不能以 . 开头`), c.Group)
 	}
-	if !slices.Contains([]string{"postgres", "mysql", "sqlite", "redis", "exec", "mssql", "clickhouse", "trino"}, c.Engine) {
-		return "engine", fmt.Sprintf(i18n.T("engine = %q：只能是 postgres、mysql、sqlite、redis、mssql、clickhouse、trino 或 exec"), c.Engine)
+	if !slices.Contains([]string{"postgres", "mysql", "sqlite", "redis", "exec", "mssql", "clickhouse", "trino", "oracle"}, c.Engine) {
+		return "engine", fmt.Sprintf(i18n.T("engine = %q：只能是 postgres、mysql、sqlite、redis、mssql、clickhouse、trino、oracle 或 exec"), c.Engine)
 	}
 	if c.Engine == "exec" {
 		place := map[string]string{"postgres": "{sql}", "redis": "{cmd}"}[c.Dialect]
@@ -254,7 +256,7 @@ func (c Connection) Check(names []string) (field, problem string) {
 		return "command", i18n.T("dialect 和 command 只对 exec 连接有用")
 	}
 	if (len(c.Databases) > 0 || len(c.Schemas) > 0) && (c.Kind() == "redis" || c.Kind() == "sqlite") {
-		return "schemas", i18n.T("databases 和 schemas 只对 postgres、mysql、mssql、clickhouse 和 trino 连接有用")
+		return "schemas", i18n.T("databases 和 schemas 只对 postgres、mysql、mssql、clickhouse、trino 和 oracle 连接有用")
 	}
 	if len(c.Databases) > 0 && !c.HasDatabases() {
 		return "databases", i18n.T("databases 只对 postgres、mssql 和 trino 连接有用")

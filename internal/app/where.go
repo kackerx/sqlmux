@@ -162,7 +162,7 @@ func valueChoices(col db.Column, d sqlkit.Dialect) (out []candidate) {
 func valueCandidates(col db.Column, kind sqlkit.ValueKind, d sqlkit.Dialect) []candidate {
 	var out []candidate
 	if timeKind(col.Type) != ui.NotTime {
-		if d != sqlkit.SQLite {
+		if d != sqlkit.SQLite && d != sqlkit.Oracle { // neither has a now()
 			out = append(out, candidate{label: "now()", insert: "now()", note: i18n.T("值"), kind: kindValue})
 		}
 		out = append(out, candidate{label: "current_timestamp", insert: "current_timestamp", note: i18n.T("值"), kind: kindValue})

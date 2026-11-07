@@ -72,13 +72,13 @@ sqlmux uses `pbcopy` / `pbpaste`, `wl-copy` / `wl-paste`, `xclip` or `xsel`, whi
 ```toml
 [[connection]]
 name     = "local"                     # required, unique; no / or \, not starting with .
-engine   = "postgres"                  # postgres | mysql | sqlite | mssql | clickhouse | trino | redis
+engine   = "postgres"                  # postgres | mysql | sqlite | mssql | clickhouse | trino | oracle | redis
 dsn      = "postgres://me@localhost:5432/app?sslmode=disable"
 password_cmd = "security find-generic-password -s sqlmux-local -w"
 read_only = false                      # refuse writes on this connection
 production = false                     # warning color, confirm every write, read-only unless read_only = false is written
 databases = ["app"]                    # postgres, mssql, trino (catalogs): the databases the tree lists; unset = all
-schemas   = ["app.public"]             # the schemas listed and loaded: "db.schema" on postgres, mssql and trino, the name on mysql and clickhouse; unset = all non-system ones
+schemas   = ["app.public"]             # the schemas listed and loaded: "db.schema" on postgres, mssql and trino, the name on mysql, clickhouse and oracle; unset = all non-system ones
 group     = "dev"                      # optional: a labelled section in the tree
 ssh       = "me@bastion"               # optional: connect through this machine
 ```
@@ -93,6 +93,7 @@ DSN per engine:
 | `mssql` | `sqlserver://user@host:1433?database=app` (`mssql://` works too); driver options such as `encrypt` pass through. A server with a self-signed certificate, like the official Docker image, needs `&TrustServerCertificate=true` |
 | `clickhouse` | `clickhouse://user@host:8123/db`, or the HTTP interface's own `http(s)://` URL; `?secure=true` for TLS (port 8443), `?skip_verify=true` for a self-signed certificate. Any other parameter is sent as a server setting (`?max_execution_time=60`). sqlmux uses the HTTP port, not the native 9000. See [ClickHouse and Trino](#clickhouse-and-trino) |
 | `trino` | `trino://user@host:8080/catalog/schema`, `?ssl=true` for TLS (port 443); the Go client's `http(s)://user@host:8080?catalog=c&schema=s` works too, as does `session_properties=a:1;b:2`. The tree lists the server's other catalogs as databases |
+| `oracle` | `oracle://user@host:1521/SERVICE`, the service usually a PDB such as `FREEPDB1` or `ORCLPDB1`; go-ora's options pass through (`?SSL=true`, `?TRACE FILE=…`). No Oracle client is needed. See [Oracle](#oracle) |
 | `redis` | `redis://user@host:6379/0` or `rediss://…`; the number is the database. See [Redis](redis.md) |
 | `exec` | no `dsn`: `dialect` and `command`, see [External commands](#external-commands-engine--exec) |
 
@@ -122,6 +123,17 @@ Both are browsed, queried and edited like the other engines, with a few differen
 - **Edits are not one transaction.** Neither has transactions for writes (ClickHouse's UPDATE and DELETE are mutations; every Trino connector writes in autocommit only). So a save sends its statements one at a time, and before each UPDATE or DELETE it counts the rows that still match the key and the values you loaded: anything but exactly one, and it stops there with "row changed or gone". If a save stops halfway, the statements before it stay written: the error says how many, those edits are cleared and the table reloads. The save preview says this too, and there is no manual transaction mode.
 - **ClickHouse**: rows are identified by the table's primary key, which ClickHouse does not keep unique, hence the count. Columns of the sorting, partition or primary key, `MATERIALIZED` / `ALIAS` columns and `Map` / `Tuple` / `JSON` columns can't be edited, nor can tables whose engine isn't a `MergeTree` (Memory, Log, Distributed…). `read_only = true` is enforced by the server as well (`readonly = 2`).
 - **Trino**: catalogs are the tree's databases. Trino doesn't tell any connector's primary keys, so a row is identified by its `NOT NULL` columns (a table without any is read-only). Whether a table takes writes is up to its connector: the PostgreSQL connector updates tables that have a primary key in PostgreSQL; memory, Hive and most lake connectors refuse UPDATE and DELETE, and their error is shown as it is. Trino has no read-only session, so `read_only = true` is sqlmux's check alone (quick SQL runs in a `START TRANSACTION READ ONLY` the server enforces).
+
+### Oracle
+
+Oracle works like PostgreSQL in sqlmux: saves are one transaction, there is a manual transaction mode, and the tree lists the schemas (users) you can see, without Oracle's own. A few things are Oracle's own:
+
+- In a query, end a PL/SQL block (`BEGIN … END;`, `CREATE OR REPLACE PROCEDURE …`) with a `/` on a line of its own, as in SQL*Plus; `;` inside it doesn't split it.
+- Dates and timestamps show as `2026-01-31 14:05:00`, timestamps with their fraction, and time zones as `+02:00`; sqlmux sets the session's `NLS_*_FORMAT`s to match, so these texts also work in your own WHERE clauses.
+- DDL commits the transaction it runs in, as Oracle does: after one, sqlmux shows no transaction going on.
+- Tables need a primary key (or a unique key over NOT NULL columns) to be edited. LONG, BLOB, BFILE and object-typed columns can't be edited in the grid.
+- Oracle has no read-only session, so `read_only = true` is sqlmux's check (quick SQL runs in a `SET TRANSACTION READ ONLY` the server enforces).
+- On a server that just started, the first DDL preview of a table can take many seconds: Oracle's `DBMS_METADATA` warms up slowly.
 
 ### External commands (`engine = "exec"`)
 

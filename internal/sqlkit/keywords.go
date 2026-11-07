@@ -67,6 +67,8 @@ func Common(d Dialect) []string {
 		return append(out, "full join", "array join", "prewhere", "final", "settings", "use", "describe")
 	case Trino:
 		return append(out, "full join", "use", "describe", "show catalogs", "show schemas", "show tables")
+	case Oracle:
+		return append(out, "full join", "minus", "connect by", "start with", "nvl", "fetch first", "rownum", "dual", "returning")
 	}
 	return append(out, "full join", "returning", "on conflict", "do nothing", "do update set") // SQLite's alike (F14.1)
 }

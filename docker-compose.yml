@@ -111,3 +111,20 @@ services:
       interval: 3s
       retries: 60
       start_period: 10s
+
+  # Oracle Database 23ai Free on 51521, its PDB FREEPDB1 (§8.11). The image
+  # makes the sqlmux user, then runs testdata/seed/oracle.sql as SYS on the
+  # first start of an empty volume; that start takes a minute or two.
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    environment:
+      ORACLE_PASSWORD: sqlmux
+      APP_USER: sqlmux
+      APP_USER_PASSWORD: sqlmux
+    ports: ["51521:1521"]
+    volumes: ["./testdata/seed/oracle.sql:/container-entrypoint-initdb.d/oracle.sql:ro"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 5s
+      retries: 60
+      start_period: 30s

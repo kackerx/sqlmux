@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	uv "github.com/charmbracelet/ultraviolet"
@@ -105,12 +106,37 @@ func (fm Form) rows() int {
 // drawIn paints the fields, the error, the rule and the buttons inside in,
 // the border's inner area, the field Sel having the keys when focus; it
 // returns where its input has the cursor, else (-1, -1).
-// segmentsWidth is how wide choices are written, padding and separators aside.
-func segmentsWidth(choices []string) (w int) {
-	for _, ch := range choices {
-		w += Width(ch)
+// segmentWindow is the choices from first to last that a row of room columns
+// shows, on among them, with the ‹N and N› of the others out of sight: from
+// the start as far as on lets, then as many after it as fit. It goes by on
+// alone, so the row scrolls as the choice moves, as a tab bar does (F17.1).
+func segmentWindow(choices []string, on, room int) (first, last int) {
+	n := len(choices)
+	if n == 0 {
+		return 0, -1
 	}
-	return w
+	on = min(max(on, 0), n-1)
+	width := func(first, last int) int { // the segments, the │ between, and the arrows with their │
+		w := last - first
+		for j := first; j <= last; j++ {
+			w += Width(choices[j]) + 2
+		}
+		if first > 0 {
+			w += Width(fmt.Sprintf("‹%d", first)) + 1
+		}
+		if last < n-1 {
+			w += 1 + Width(fmt.Sprintf("%d›", n-1-last))
+		}
+		return w
+	}
+	for first < on && width(first, on) > room {
+		first++
+	}
+	last = on
+	for last+1 < n && width(first, last+1) <= room {
+		last++
+	}
+	return first, last
 }
 
 func (fm Form) drawIn(f *Frame, area uv.Rectangle, focus bool) uv.Position {
@@ -164,20 +190,34 @@ func (fm Form) drawIn(f *Frame, area uv.Rectangle, focus bool) uv.Position {
 				f.Text(r.Min.X, y, r.Max.X, fd.Example, in)
 			}
 		case FormSegments:
-			x, pad := r.Min.X, " "
-			if segmentsWidth(fd.Choices)+3*len(fd.Choices)-1 > r.Dx() { // padded, they would not fit: the engines' seven
-				pad = ""
+			x := r.Min.X
+			first, last := segmentWindow(fd.Choices, fd.On, r.Dx())
+			more := func(text string, to int) { // the ‹N or N› of those out of sight, a click on it picking the next of them
+				st := dim
+				if f.Region(uv.Rect(x, y, Width(text), 1), Target{Kind: KindSegment, Pane: i, I: to}) {
+					st.Bg = th.Select
+				}
+				x = f.Text(x, y, r.Max.X, text, st)
 			}
-			for j, ch := range fd.Choices {
+			if first > 0 {
+				more(fmt.Sprintf("‹%d", first), first-1)
+				x = f.Text(x, y, r.Max.X, "│", dim)
+			}
+			for j := first; j <= last; j++ {
+				ch := fd.Choices[j]
 				st := uv.Style{Fg: th.Dim, Bg: th.Sep}
 				if j == fd.On {
 					st = uv.Style{Fg: th.Fg, Bg: th.Select}
 				}
-				if j > 0 {
+				if j > first {
 					x = f.Text(x, y, r.Max.X, "│", dim)
 				}
-				f.Region(uv.Rect(x, y, Width(ch)+2*len(pad), 1), Target{Kind: KindSegment, Pane: i, I: j})
-				x = f.Text(x, y, r.Max.X, pad+ch+pad, st)
+				f.Region(uv.Rect(x, y, Width(ch)+2, 1), Target{Kind: KindSegment, Pane: i, I: j})
+				x = f.Text(x, y, r.Max.X, " "+ch+" ", st)
+			}
+			if n := len(fd.Choices); last < n-1 {
+				x = f.Text(x, y, r.Max.X, "│", dim)
+				more(fmt.Sprintf("%d›", n-1-last), last+1)
 			}
 		case FormCheck:
 			mark := "[ ]"

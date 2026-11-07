@@ -418,7 +418,7 @@ func TestTempConnection(t *testing.T) {
 			t.Errorf("%+v: %q %v", tc, got, err)
 		}
 	}
-	if _, err := tempConnection("oracle://h/d", "", ""); err == nil {
+	if _, err := tempConnection("db2://h/d", "", ""); err == nil {
 		t.Error("no such engine")
 	}
 	if c, err := tempConnection("rediss://:pw@h:6380/3", "", ""); err != nil || c.Engine != "redis" || c.DSN != "rediss://:pw@h:6380/3" || !c.Temp {

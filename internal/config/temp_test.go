@@ -20,6 +20,7 @@ func TestTempConnection(t *testing.T) {
 		"clickhouse://u:p@ch.example:8123/events":        {Name: "events@ch.example", Engine: "clickhouse", DSN: "clickhouse://u:p@ch.example:8123/events", Temp: true},
 		"trino://u@tr.example:8080/hive/web":             {Name: "hive@tr.example", Engine: "trino", DSN: "trino://u@tr.example:8080/hive/web", Temp: true}, // the catalog names it
 		"sqlserver://sa:p@db.example:1433?database=shop": {Name: "shop@db.example", Engine: "mssql", DSN: "sqlserver://sa:p@db.example:1433?database=shop", Temp: true},
+		"oracle://scott:tiger@ora.example:1521/ORCLPDB1": {Name: "ORCLPDB1@ora.example", Engine: "oracle", DSN: "oracle://scott:tiger@ora.example:1521/ORCLPDB1", Temp: true},
 	}
 	if runtime.GOOS == "windows" { // unix's filepath.Base does not cut at a backslash
 		targets[`C:\data\a.db`] = Connection{Name: "a", Engine: "sqlite", DSN: `C:\data\a.db`, Temp: true}
@@ -33,7 +34,7 @@ func TestTempConnection(t *testing.T) {
 			t.Errorf("%s: %s %s", target, f, p)
 		}
 	}
-	if _, err := TempConnection("oracle://x/y", nil); err == nil {
+	if _, err := TempConnection("db2://x/y", nil); err == nil {
 		t.Error("an engine there is not")
 	}
 	// the password in a URL that does not parse is not in the error

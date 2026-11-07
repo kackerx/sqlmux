@@ -9,6 +9,7 @@ export SQLMUX_TEST_MYSQL := env("SQLMUX_TEST_MYSQL", "sqlmux:sqlmux@tcp(localhos
 export SQLMUX_TEST_REDIS := env("SQLMUX_TEST_REDIS", "redis://localhost:56379/0")
 export SQLMUX_TEST_CLICKHOUSE := env("SQLMUX_TEST_CLICKHOUSE", "clickhouse://sqlmux:sqlmux@localhost:58123/sqlmux")
 export SQLMUX_TEST_TRINO := env("SQLMUX_TEST_TRINO", "trino://sqlmux@localhost:58080/postgresql/public")
+export SQLMUX_TEST_ORACLE := env("SQLMUX_TEST_ORACLE", "oracle://sqlmux:sqlmux@localhost:51521/FREEPDB1")
 
 default:
     @just --list
@@ -124,7 +125,8 @@ generate:
 # or a redis-server --port 56379 given testdata/seed/redis.txt with redis-cli;
 # SQL Server neither (the Mac wants Rosetta for it): `docker compose up -d mssql mssql-seed`,
 # or the Windows host's container on 51433 (F18.6); nor ClickHouse and Trino, a
-# gigabyte and more between them (§8.9, §8.10): `docker compose up -d --wait clickhouse trino`
+# gigabyte and more between them (§8.9, §8.10): `docker compose up -d --wait clickhouse trino`;
+# nor Oracle, 2 GB and a minute's first start (§8.11): `docker compose up -d --wait oracle`
 db-up:
     docker compose up -d --wait postgres mysql
 

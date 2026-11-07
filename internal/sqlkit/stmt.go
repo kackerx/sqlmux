@@ -30,10 +30,21 @@ func Statements(s string, d Dialect) []Stmt {
 	start := -1
 	var words []string                // the first words of the statement being read, and what a trigger's body is
 	body, prev, skip := false, "", -1 // skip is the GO line still to be read past
+	first := 3                        // how many first words are kept: a trigger's three, PL/SQL's five
+	if d == Oracle {
+		first = 5
+	}
 	for i, t := range ts {
 		w := strings.ToLower(s[t.Start:t.End])
 		if start < 0 {
 			words, body = words[:0], false
+		}
+		if d == Oracle && w == "/" && depth[i] == 0 && slashLine(ts, i) { // SQL*Plus's end of a block, or of any statement (§8.11)
+			if start >= 0 {
+				out = append(out, Stmt{Start: start, End: ts[i-1].End})
+			}
+			start = -1
+			continue
 		}
 		if d == MSSQL && w == "go" && depth[i] == 0 && goLine(ts, i) {
 			if start >= 0 {
@@ -45,8 +56,11 @@ func Statements(s string, d Dialect) []Stmt {
 		if t.Line <= skip {
 			continue
 		}
-		if len(words) < 3 && (t.Kind == Keyword || t.Kind == Ident) {
+		if len(words) < first && (t.Kind == Keyword || t.Kind == Ident) {
 			words = append(words, w)
+			if d == Oracle && !body && plsql(words) { // its ;s are the block's, till the /
+				body = true
+			}
 		}
 		if d == SQLite && depth[i] == 0 {
 			switch {
@@ -110,6 +124,35 @@ func isTrigger(words []string) bool {
 		return false
 	}
 	return words[1] == "trigger" || len(words) == 3 && (words[1] == "temp" || words[1] == "temporary") && words[2] == "trigger"
+}
+
+// plsql is whether the first words of an Oracle statement start a PL/SQL
+// block, whose ;s are its own: BEGIN, DECLARE, and CREATE [OR REPLACE]
+// [EDITIONABLE | NONEDITIONABLE] of a procedure, function, package,
+// trigger, type or library.
+func plsql(words []string) bool {
+	if words[0] == "begin" || words[0] == "declare" {
+		return true
+	}
+	if words[0] != "create" {
+		return false
+	}
+	for _, w := range words[1:] {
+		switch w {
+		case "or", "replace", "editionable", "noneditionable":
+		case "procedure", "function", "package", "trigger", "type", "library":
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+// slashLine is whether the / at ts[i] is all of its line, as SQL*Plus's end of
+// a block is.
+func slashLine(ts []Token, i int) bool {
+	return (i == 0 || ts[i-1].Line != ts[i].Line) && (i+1 >= len(ts) || ts[i+1].Line != ts[i].Line)
 }
 
 // goLine is whether the GO at ts[i] has a line of its own: no meaningful
@@ -322,6 +365,9 @@ func BreaksReadOnly(s string, d Dialect) bool {
 		}
 		return false
 	case "begin", "start":
+		if d == Oracle && w == "begin" { // a PL/SQL block: whatever it does
+			return true
+		}
 		for j := i + 1; j < len(ts); j++ {
 			if lower(s, ts, j) == "read" && lower(s, ts, j+1) == "write" {
 				return true
@@ -481,6 +527,16 @@ func AutoLimit(s string, d Dialect, n, offset int) (out string, pageable bool) {
 		suffix := "\nOFFSET " + strconv.Itoa(offset) + " ROWS FETCH NEXT " + strconv.Itoa(n) + " ROWS ONLY"
 		if !orders {
 			suffix = "\nORDER BY (SELECT NULL)" + suffix
+		}
+		return out + suffix, pageable
+	}
+	if d == Oracle { // 12c's row limiting, which takes no ORDER BY of its own (§8.11)
+		if !pageable {
+			return s, false
+		}
+		suffix := "\nFETCH FIRST " + strconv.Itoa(n) + " ROWS ONLY"
+		if offset > 0 {
+			suffix = "\nOFFSET " + strconv.Itoa(offset) + " ROWS FETCH NEXT " + strconv.Itoa(n) + " ROWS ONLY"
 		}
 		return out + suffix, pageable
 	}

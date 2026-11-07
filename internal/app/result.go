@@ -373,8 +373,11 @@ func mainRun(r *run, texts []string, maxRows int, manual, resets bool) runDone {
 // rollback may take the SET back.
 func (s *Conn) mainSetup(ctx context.Context, c db.Conn, schema string) (set string, err error) {
 	set = "set search_path to " // as the log names it when it fails (§8.6)
-	if d := s.eng.Dialect(); d == sqlkit.MySQL || d == sqlkit.ClickHouse || d == sqlkit.Trino {
+	switch d := s.eng.Dialect(); d {
+	case sqlkit.MySQL, sqlkit.ClickHouse, sqlkit.Trino:
 		set = "use "
+	case sqlkit.Oracle:
+		set = "alter session set current_schema = "
 	}
 	if s.mainOn != c { // a connection dialed again has the search_path it started with (F8.19)
 		s.mainPath, s.mainOn = "", c

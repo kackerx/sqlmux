@@ -81,6 +81,16 @@ func init() {
 		format from full global group having in inner intersect interval into is join left like
 		limit not null offset on or order outer prewhere right sample select settings table then
 		union using when where with`)
+	// Oracle's, V$RESERVED_WORDS where RESERVED = 'Y' (23ai)
+	reserved[Oracle] = wordSet(`
+		access add all alter and any as asc audit between by char check cluster column comment compress
+		connect create current date decimal default delete desc distinct drop else exclusive exists file
+		float for from grant group having identified immediate in increment index initial insert integer
+		intersect into is level like lock long maxextents minus mlslabel mode modify noaudit nocompress not
+		nowait null number of offline on online option or order pctfree prior public raw rename resource
+		revoke row rowid rownum rows select session set share size smallint start successful synonym
+		sysdate table then to trigger uid union unique update user validate values varchar varchar2 view
+		whenever where with`)
 	// Trino's reserved keywords (trino.io/docs/current/language/reserved.html, 478)
 	reserved[Trino] = wordSet(`
 		alter and as between by case cast constraint create cross cube current_catalog current_date
@@ -108,7 +118,7 @@ func (d Dialect) NeedsQuote(name string) bool {
 		return true
 	}
 	for i := range len(name) {
-		if !IdentByte(name[i]) || d == PG && name[i] >= 'A' && name[i] <= 'Z' {
+		if !IdentByte(name[i]) || d == PG && name[i] >= 'A' && name[i] <= 'Z' || d == Oracle && name[i] >= 'a' && name[i] <= 'z' {
 			return true
 		}
 	}

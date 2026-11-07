@@ -9,7 +9,12 @@ All notable changes to sqlmux are listed here. The format follows
 ### Added
 
 - **ClickHouse** (`engine = "clickhouse"`, `clickhouse://user@host:8123/db`) and **Trino** (`engine = "trino"`, `trino://user@host:8080/catalog/schema`): the tree (Trino's catalogs as databases), tables with WHERE, ORDER, paging, counts and export, the query editor with completion and formatting, quick SQL, DDL, and editing cells, adding and deleting rows. Both talk their HTTP protocols directly, so values are the server's own text. Neither has transactions for writes, so a save there checks each change matches exactly one row before sending it, and says what was written if it stops halfway. See [ClickHouse and Trino](docs/config.md#clickhouse-and-trino).
-- The command line opens `sqlserver://`, `clickhouse://` and `trino://` URLs, as it does `postgres://` and `mysql://`.
+- **Oracle** (`engine = "oracle"`, `oracle://user@host:1521/SERVICE`), with go-ora, so no Oracle client is needed: the tree of schemas, tables, views, indexes, keys, functions and sequences, the editable grid with one-transaction saves and the manual transaction mode, PL/SQL blocks ended by `/` in the query editor, `DBMS_METADATA` DDL, quick SQL in a read-only transaction. See [Oracle](docs/config.md#oracle).
+- The command line opens `sqlserver://`, `oracle://`, `clickhouse://` and `trino://` URLs, as it does `postgres://` and `mysql://`.
+
+### Changed
+
+- The connection form's engine row scrolls when its engines don't fit, keeping the chosen one in sight, with `‹N` / `N›` for those out of sight (click one to pick the next).
 
 - `[ui] transparent = true` in `config.toml`: the theme's backgrounds (`bg`, `pane_bg`, `gap`) are left unpainted, so a transparent terminal shows through. Highlights, selections, the status bar and popups' borders keep their colors. Works with any theme.
 

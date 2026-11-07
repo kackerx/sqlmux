@@ -20,6 +20,7 @@ import (
 	dbexec "github.com/kackerx/sqlmux/internal/db/exec"
 	"github.com/kackerx/sqlmux/internal/db/mssql"
 	"github.com/kackerx/sqlmux/internal/db/mysql"
+	"github.com/kackerx/sqlmux/internal/db/oracle"
 	"github.com/kackerx/sqlmux/internal/db/postgres"
 	"github.com/kackerx/sqlmux/internal/db/redis"
 	"github.com/kackerx/sqlmux/internal/db/sqlite"
@@ -443,7 +444,7 @@ func (c *Conn) liveSpec() config.Connection {
 
 // drivers are the servers connections.toml names (§8.1, §5「连接缝」).
 var drivers = map[string]db.Driver{"postgres": postgres.Engine{}, "mysql": mysql.Engine{}, "sqlite": sqlite.Engine{}, "redis": redis.Driver{}, "mssql": mssql.Engine{},
-	"clickhouse": clickhouse.Engine{}, "trino": trino.Engine{}}
+	"clickhouse": clickhouse.Engine{}, "trino": trino.Engine{}, "oracle": oracle.Engine{}}
 
 // driverOf is the driver of spec's engine: an exec connection's is the engine of its
 // dialect over its command (§8.8).

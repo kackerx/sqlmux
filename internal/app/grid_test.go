@@ -465,6 +465,9 @@ func TestColType(t *testing.T) {
 		"Array(String)": ui.ColOther, "Map(String, String)": ui.ColOther, "UUID": ui.ColOther,
 		// Trino's are PG's names
 		"decimal(10, 2)": ui.ColNumber, "timestamp(6) with time zone": ui.ColTime, "varchar": ui.ColString, "json": ui.ColJSON,
+		// Oracle's, as its catalog writes them
+		"NUMBER(10,2)": ui.ColNumber, "BINARY_DOUBLE": ui.ColNumber, "VARCHAR2(100 CHAR)": ui.ColString, "CLOB": ui.ColString, "DATE": ui.ColTime,
+		"TIMESTAMP(3) WITH TIME ZONE": ui.ColTime, "RAW(4)": ui.ColOther,
 	} {
 		if got := colType(typ); got != want {
 			t.Errorf("colType(%q) = %v, want %v", typ, got, want)
@@ -473,6 +476,7 @@ func TestColType(t *testing.T) {
 	for typ, want := range map[string]ui.TimeKind{
 		"DateTime64(3, 'UTC')": ui.Timestamp, "Nullable(DateTime)": ui.Timestamp, "Date32": ui.Date, "Date": ui.Date,
 		"timestamp(3) with time zone": ui.TimestampTZ, "date": ui.Date,
+		"DATE": ui.Timestamp, "TIMESTAMP(3)": ui.Timestamp, "TIMESTAMP(3) WITH TIME ZONE": ui.TimestampTZ,
 	} {
 		if got := timeKind(typ); got != want {
 			t.Errorf("timeKind(%q) = %v, want %v", typ, got, want)

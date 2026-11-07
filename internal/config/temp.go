@@ -22,7 +22,7 @@ func IsTarget(arg string, known []string) bool {
 
 // TempConnection is the connection a file or a URL on the command line, or
 // DATABASE_URL, stands for (F14.1): postgres://, mysql://, redis://,
-// sqlserver://, clickhouse:// or trino://, else a SQLite file. It is nowhere written, not connections.toml, not the keychain: the
+// sqlserver://, clickhouse://, trino:// or oracle://, else a SQLite file. It is nowhere written, not connections.toml, not the keychain: the
 // password a URL holds stays in it. Its name is the file's without its
 // extension, or <database>@<host>, as a connection's name has to be (no /);
 // one that is taken by a connection of taken, by what the state, the history and
@@ -38,9 +38,9 @@ func TempConnection(target string, taken []string) (Connection, error) {
 		return named(c, strings.TrimSuffix(base, filepath.Ext(base)), base, taken), nil
 	}
 	engine, ok := map[string]string{"postgres": "postgres", "postgresql": "postgres", "mysql": "mysql", "redis": "redis", "rediss": "redis",
-		"sqlserver": "mssql", "mssql": "mssql", "clickhouse": "clickhouse", "trino": "trino"}[scheme]
+		"sqlserver": "mssql", "mssql": "mssql", "clickhouse": "clickhouse", "trino": "trino", "oracle": "oracle"}[scheme]
 	if !ok {
-		return Connection{}, fmt.Errorf(i18n.T("不认识的 URL %s://：只有 postgres://、mysql://、redis://、sqlserver://、clickhouse://、trino:// 和 SQLite 的文件"), scheme)
+		return Connection{}, fmt.Errorf(i18n.T("不认识的 URL %s://：只有 postgres://、mysql://、redis://、sqlserver://、clickhouse://、trino://、oracle:// 和 SQLite 的文件"), scheme)
 	}
 	u, err := url.Parse(target)
 	if ue := (*url.Error)(nil); errors.As(err, &ue) {

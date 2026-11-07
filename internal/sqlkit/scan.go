@@ -22,6 +22,10 @@ const (
 	// that go by their case (§8.9).
 	ClickHouse
 	Trino // read as PG, but for its $tag$ strings, E'…' and nested comments, none of which it has (§8.10)
+	// Oracle is read as PG, but for its q'[…]' and N'…' strings, # in a name,
+	// no $tag$ strings, E'…', nested comments or `quoted` names, and its
+	// PL/SQL blocks, which a / on a line of its own ends (§8.11).
+	Oracle
 )
 
 // clickhouseWords are the first words of ClickHouse's statements that write
@@ -35,7 +39,8 @@ var clickhouseWords = map[string]bool{"system": true, "attach": true, "detach": 
 // ponytail: MySQL's tables on Linux go by case; SQLite's ASCII letters only
 // ClickHouse's names go by case, quoted or not, as PG's quoted ones do;
 // Trino's go by none, quoted ones too.
-func (d Dialect) CaseInsensitive() bool { return d != PG && d != ClickHouse }
+// Oracle's unquoted names fold to upper case, a quoted one is as it is: PG's way, the other case.
+func (d Dialect) CaseInsensitive() bool { return d != PG && d != ClickHouse && d != Oracle }
 
 // Kind is what a token is.
 type Kind int
@@ -101,11 +106,13 @@ func Scan(s string, d Dialect) []Token {
 			kind, i = Comment, blockComment(s, i, d == PG)
 		case r == '\'':
 			kind, i = String, quoted(s, i, d == MySQL || d == ClickHouse)
-		case d == MSSQL && (r == 'N' || r == 'n') && strings.HasPrefix(s[i+1:], "'"): // N'…'
+		case d == Oracle && qQuote(s, i) > 0: // q'[…]', nq'{…}': up to the delimiter's match and a '
+			kind, i = String, qQuote(s, i)
+		case (d == MSSQL || d == Oracle) && (r == 'N' || r == 'n') && strings.HasPrefix(s[i+1:], "'"): // N'…'
 			kind, i = String, quoted(s, i+1, false)
 		case r == '[' && d == MSSQL: // [name], a ] in it doubled
 			kind, i = Quoted, bracket(s, i)
-		case r == '"' && d != MySQL, r == '`' && d != PG && d != Trino:
+		case r == '"' && d != MySQL, r == '`' && d != PG && d != Trino && d != Oracle:
 			kind, i = Quoted, quoted(s, i, false)
 		case r == '"':
 			kind, i = String, quoted(s, i, true)
@@ -122,7 +129,7 @@ func Scan(s string, d Dialect) []Token {
 			i = advance(s, i, func(r rune) bool { return identStart(r) || r == '$' || r == '@' || r == '#' || r >= '0' && r <= '9' })
 			kind = Ident
 		case identStart(r): // before digits and blanks: past ASCII, those are a name's too
-			i = advance(s, i, func(r rune) bool { return identStart(r) || r == '$' || r >= '0' && r <= '9' })
+			i = advance(s, i, func(r rune) bool { return identStart(r) || r == '$' || r >= '0' && r <= '9' || d == Oracle && r == '#' })
 			kind = Ident
 			if w := strings.ToLower(s[start:i]); keywords[w] || d == ClickHouse && clickhouseWords[w] {
 				kind = Keyword
@@ -154,6 +161,28 @@ func Scan(s string, d Dialect) []Token {
 // the end, or a ! (#! for a script's first line); # is an operator otherwise.
 func hashComment(s string, i int) bool {
 	return s[i] == '#' && (i+1 >= len(s) || s[i+1] <= ' ' || s[i+1] == '!')
+}
+
+// qQuote is the end of Oracle's alternative quoting at i, q'X…X' or nq'X…X'
+// (X a bracket, its match closing it, or any other character itself), 0 when
+// none starts there; one left open runs to the end.
+func qQuote(s string, i int) int {
+	j := i
+	if j < len(s) && (s[j] == 'n' || s[j] == 'N') {
+		j++
+	}
+	if j+2 >= len(s) || s[j] != 'q' && s[j] != 'Q' || s[j+1] != '\'' {
+		return 0
+	}
+	open := s[j+2]
+	closing := map[byte]byte{'[': ']', '{': '}', '(': ')', '<': '>'}[open]
+	if closing == 0 {
+		closing = open
+	}
+	if k := strings.Index(s[j+3:], string(closing)+"'"); k >= 0 {
+		return j + 3 + k + 2
+	}
+	return len(s)
 }
 
 // blockComment is the end of the /* */ comment at i; PG's nest.

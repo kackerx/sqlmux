@@ -163,7 +163,7 @@ func TestCheckUpdate(t *testing.T) {
 	path := connectionsFile(t, body)
 	was := connA("postgres://h/a", false)
 	for label, c := range map[string]Connection{
-		"an engine that is none": {Name: "a", Engine: "oracle", DSN: "x"},
+		"an engine that is none": {Name: "a", Engine: "db2", DSN: "x"},
 		"a name taken":           {Name: "b", Engine: "postgres", DSN: "postgres://h/a"},
 		"a name with a /":        {Name: "x/y", Engine: "postgres", DSN: "postgres://h/a"},
 	} {

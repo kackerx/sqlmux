@@ -125,3 +125,62 @@ func TestFormErrorWraps(t *testing.T) {
 		t.Errorf("in a low window:\n%s", out)
 	}
 }
+
+// A row of choices too wide for its room shows the chosen one and as many
+// around it as fit, the ‹N and N› of the rest, scrolling as the choice moves.
+func TestSegmentWindow(t *testing.T) {
+	engines := []string{"postgres", "mysql", "sqlite", "redis", "mssql", "clickhouse", "trino", "oracle"}
+	full := 0
+	for _, e := range engines {
+		full += Width(e) + 3
+	}
+	for _, c := range []struct {
+		on, room, first, last int
+	}{
+		{0, full, 0, 7}, // all fit
+		{0, 40, 0, 3},   // from the start: postgres mysql sqlite redis, then 4›
+		{3, 40, 0, 3},   // still in sight: no scroll
+		{4, 40, 1, 4},   // mssql: ‹1 mysql sqlite redis mssql 3›, 38 columns
+		{7, 40, 4, 7},   // the last: ‹4 mssql clickhouse trino oracle, 40 columns
+		{5, 12, 5, 5},   // only the chosen one, cut if need be
+		{9, 40, 4, 7},   // past the end: the last
+	} {
+		first, last := segmentWindow(engines, c.on, c.room)
+		if first != c.first || last != c.last {
+			t.Errorf("on %d in %d: %d..%d, want %d..%d", c.on, c.room, first, last, c.first, c.last)
+		}
+		if first <= min(c.on, 7) && min(c.on, 7) <= last {
+			continue
+		}
+		t.Errorf("on %d in %d: not in sight", c.on, c.room)
+	}
+}
+
+// The engine row scrolls to the one chosen: the last shows with ‹N before
+// it, and a click on ‹N picks the one before those shown (§7.8).
+func TestSegmentsScroll(t *testing.T) {
+	engines := []string{"postgres", "mysql", "sqlite", "redis", "mssql", "clickhouse", "trino", "oracle"}
+	fm := Form{Save: "s", Cancel: "c", Fields: []FormField{{Label: "engine", Kind: FormSegments, Choices: engines, On: 7}}}
+	f := NewFrame(120, 12, TokyonightStorm)
+	ConnManager{Title: "t", Rows: []ConnRow{{Name: "a"}}, Form: fm}.Draw(f, f.Bounds())
+	row := ""
+	for _, l := range strings.Split(f.String(), "\n") {
+		if strings.Contains(l, "engine") {
+			row = l
+		}
+	}
+	if !strings.Contains(row, " oracle ") || !strings.Contains(row, "‹") || strings.Contains(row, "postgres") {
+		t.Fatalf("row %q", row)
+	}
+	y := strings.Count(f.String()[:strings.Index(f.String(), row)], "\n")
+	at := Width(row[:strings.Index(row, "‹")])
+	for _, h := range f.Hits {
+		if h.Target.Kind == KindSegment && h.Rect.Min.Y == y && h.Rect.Min.X <= at && at < h.Rect.Max.X {
+			if e := engines[h.Target.I]; strings.Contains(row, " "+e+" ") {
+				t.Errorf("‹N picks %s, which is in sight", e)
+			}
+			return
+		}
+	}
+	t.Error("‹N is not clickable")
+}

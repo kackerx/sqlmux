@@ -13,7 +13,7 @@
 │       ▸  schema_migrations ┌─ 连接 ───────────────────────────────────────────────────────────────────────────────────────────┐                             │
 │       ▸  t_order       1.2m│  doraemon               │          name doraemon                                               │                             │
 │       ▸  t_order_item  3.4m│  misc                   │         group                                                        │                             │
-│       ▸  t_payment     410k│ ── prod ──────────────── │        engine postgres│mysql│sqlite│redis│mssql│clickhouse│trino     │                             │
+│       ▸  t_payment     410k│ ── prod ──────────────── │        engine  postgres │ mysql │ sqlite │ redis │ mssql │3›         │                             │
 │       ▸  t_refund       12k│  stage                  │          host h                                                      │                             │
 │       ▸  t_sku         8.1k│  live                   │          port 5433                                                   │                             │
 │       ▸  t_user         38k│ ── dev ───────────────── │          user u                                                      │                             │

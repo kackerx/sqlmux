@@ -64,6 +64,9 @@ func placeOf(e Engine, q Query, limit, offset int) string {
 		}
 		return s
 	}
+	if e.Dialect() == sqlkit.Oracle { // 12c's row limiting (§8.11)
+		return fmt.Sprintf(" offset %d rows fetch next %d rows only", offset, limit)
+	}
 	if e.Dialect() == sqlkit.Trino { // OFFSET before LIMIT, as its grammar has them (§8.10)
 		return fmt.Sprintf(" offset %d limit %d", offset, limit)
 	}

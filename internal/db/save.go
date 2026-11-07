@@ -385,8 +385,8 @@ func DefaultRow(e Engine, schema, table string, kw func(string) string) string {
 }
 
 // insert is the INSERT of a row with cols set; with none set, every column's
-// DEFAULT (§10.6): an Unatomic engine's (ClickHouse has neither DEFAULT VALUES
-// nor () VALUES ()) as its first key column's DEFAULT, which the others follow.
+// DEFAULT (§10.6): an Unatomic engine's and Oracle's (neither DEFAULT VALUES
+// nor () VALUES () there) as its first key column's DEFAULT, which the others follow.
 func insert(e Engine, schema, table string, keyCols []string, cols []Change, arg arg) string {
 	var names, vals []string
 	for _, c := range cols {
@@ -394,7 +394,7 @@ func insert(e Engine, schema, table string, keyCols []string, cols []Change, arg
 			names, vals = append(names, e.Quote(c.Name)), append(vals, arg(c.Name, c.Val))
 		}
 	}
-	if _, ok := e.(Unatomic); ok && len(names) == 0 && len(keyCols) > 0 {
+	if _, ok := e.(Unatomic); (ok || e.Dialect() == sqlkit.Oracle) && len(names) == 0 && len(keyCols) > 0 {
 		names, vals = []string{e.Quote(keyCols[0])}, []string{"DEFAULT"}
 	}
 	if len(names) == 0 {

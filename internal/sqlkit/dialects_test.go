@@ -122,3 +122,50 @@ func TestAutoLimitClickHouseTrino(t *testing.T) {
 		}
 	}
 }
+
+// Oracle's strings, names and blocks (§8.11).
+func TestOracle(t *testing.T) {
+	for _, c := range []struct{ in, kinds string }{
+		{"q'[it's]' nq'{a}' N'x' 'b''c'", "s_s_s_s"}, // q-quotes take a ' inside
+		{"q'!a!' Q'<b>'", "s_s"},
+		{`"Mixed" emp#no a$b`, "q_i_i"}, // # and $ in a name
+		{"`x`", "oio"},                  // no `quoted` names
+		{"queue'x'", "is"},              // q only as a word's start
+	} {
+		if got := kinds(c.in, Oracle); got != c.kinds {
+			t.Errorf("%q: %s, want %s", c.in, got, c.kinds)
+		}
+	}
+	text := "select 1 from dual;\nbegin\n  insert into t values (1);\n  commit;\nend;\n/\ncreate or replace procedure p as begin null; end;\n/\nselect 2 from dual\n/\nselect 3 / 4 from dual;"
+	var got []string
+	for _, st := range Statements(text, Oracle) {
+		got = append(got, text[st.Start:st.End])
+	}
+	want := []string{"select 1 from dual", "begin\n  insert into t values (1);\n  commit;\nend;", "create or replace procedure p as begin null; end;", "select 2 from dual", "select 3 / 4 from dual"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("statements\n%q\nwant\n%q", got, want)
+	}
+	if !Oracle.NeedsQuote("emp") || Oracle.NeedsQuote("EMP") || !Oracle.NeedsQuote("LEVEL") || Oracle.CaseInsensitive() {
+		t.Error("Oracle folds names to upper case")
+	}
+	for s, want := range map[string]bool{"begin null; end;": true, "declare x number; begin null; end;": true, "select * from dual": false, "commit": false} {
+		if got := BreaksReadOnly(s, Oracle); got != want {
+			t.Errorf("BreaksReadOnly(%q) = %v", s, got)
+		}
+	}
+	for _, c := range []struct {
+		in, out   string
+		n, offset int
+	}{
+		{"select * from emp;", "select * from emp\nFETCH FIRST 501 ROWS ONLY", 501, 0},
+		{"select * from emp order by 1", "select * from emp order by 1\nOFFSET 500 ROWS FETCH NEXT 501 ROWS ONLY", 501, 500},
+		{"select * from emp fetch first 3 rows only", "select * from emp fetch first 3 rows only", 501, 0},
+	} {
+		if got, _ := AutoLimit(c.in, Oracle, c.n, c.offset); got != c.out {
+			t.Errorf("%q: %q, want %q", c.in, got, c.out)
+		}
+	}
+	if out, err := Format("select a from emp where rownum < 3 minus select b from t", Oracle, Options{KeywordCase: "upper", TabWidth: 2}); err != nil || !strings.Contains(out, "MINUS") {
+		t.Errorf("format: %q %v", out, err)
+	}
+}

@@ -18,7 +18,7 @@
 | 单元格编辑 | 按列属性提供选项：时间分段调整、NULL、DEFAULT、布尔、枚举 |
 | WHERE | 不做简写语法，直接输入完整的 SQL 条件表达式 |
 | 结果展示 | 每个 window 底部一个全宽结果区，内部用 tab 区分：日志、各 query 的结果、已固定的结果（已确认） |
-| 范围 | PostgreSQL、MySQL、SQLite（M14）、Redis（M16，键值引擎走表格 tab 下的接口缝，§5、§8.7）、SQL Server（M18）、ClickHouse 与 Trino（§8.9、§8.10，各自的 HTTP 协议，不用驱动） |
+| 范围 | PostgreSQL、MySQL、SQLite（M14）、Redis（M16，键值引擎走表格 tab 下的接口缝，§5、§8.7）、SQL Server（M18）、ClickHouse 与 Trino（§8.9、§8.10，各自的 HTTP 协议，不用驱动）、Oracle（§8.11，go-ora，纯 Go） |
 
 ## 1. 范围
 
@@ -97,7 +97,7 @@ sqlmux/
 │  ├─ keymap/                 键位记法解析（含 keymaps.toml 的键位语法 ParseKeys，M13 F13.15 起）、作用域 trie、次数前缀、用户映射、冲突检测、提示查询、default.toml（embed）；不 import config / ui
 │  ├─ editor/                 vim 编辑器的纯逻辑，不 import ui 和 bubbletea；testdata/ 放 nvim 差分用例
 │  ├─ sqlkit/                 词法扫描、分句、读写判定、自动 LIMIT、WHERE 拼接校验、补全上下文、格式化（内嵌 sql-formatter）
-│  ├─ db/                     Conn / Engine / Source 接口、Worker、postgres/、mysql/、sqlite/（M14 F14.1，modernc.org/sqlite，纯 Go）、mssql/（M18 F18.6，microsoft/go-mssqldb，纯 Go）、clickhouse/ 与 trino/（§8.9、§8.10，标准库 net/http）、redis/（M16，go-redis v9：连接、SCAN 树、键 tab 的数据源、控制台的命令词法与 COMMAND DOCS 补全）、exec/（M17 F17.7：外部执行器，子进程当连接，§8.8）、catalog 查询
+│  ├─ db/                     Conn / Engine / Source 接口、Worker、postgres/、mysql/、sqlite/（M14 F14.1，modernc.org/sqlite，纯 Go）、mssql/（M18 F18.6，microsoft/go-mssqldb，纯 Go）、clickhouse/ 与 trino/（§8.9、§8.10，标准库 net/http）、oracle/（§8.11，sijms/go-ora，纯 Go）、redis/（M16，go-redis v9：连接、SCAN 树、键 tab 的数据源、控制台的命令词法与 COMMAND DOCS 补全）、exec/（M17 F17.7：外部执行器，子进程当连接，§8.8）、catalog 查询
 │  ├─ config/                 config / connections / state / 布局文件的读写与 XDG 路径
 │  └─ i18n/                   界面文案的翻译：T(中文, 参数…)，en 表
 ├─ e2e/                       tester 的黑盒测试脚本，从 e2e 分支合并进来
@@ -123,7 +123,7 @@ sqlmux/
 依赖：
 
 - 界面：`charm.land/bubbletea/v2`、`github.com/charmbracelet/ultraviolet`，以及 `github.com/charmbracelet/x/ansi`（宽度计算、颜色解析）。不用 bubbles 的 textinput：它按 rune 删字，退格会把 é、👍🏽 这类字素簇拆开（M1 核对时实测）。单行输入框在 F0.4 命令行的输入处理上扩展。
-- 数据库驱动：`github.com/jackc/pgx/v5`、`github.com/go-sql-driver/mysql`、`modernc.org/sqlite`、`github.com/redis/go-redis/v9`（M16，BSD-2）
+- 数据库驱动：`github.com/jackc/pgx/v5`、`github.com/go-sql-driver/mysql`、`modernc.org/sqlite`、`github.com/redis/go-redis/v9`（M16，BSD-2）、`github.com/sijms/go-ora/v2`（§8.11，MIT）
 - 格式化：`github.com/dop251/goja`
 - 模糊匹配：`github.com/junegunn/fzf/src/algo`
 - 其他：`github.com/BurntSushi/toml`
