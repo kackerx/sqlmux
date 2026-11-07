@@ -174,6 +174,21 @@ func ParseTheme(data string, icons *Icons) (th *Theme, ic *Icons, unknown []stri
 	return th, ic, unknown, nil
 }
 
+// background is whether c is none, or one of the backgrounds a transparent
+// frame leaves unpainted: bg, pane_bg and gap (§7.3).
+func (th *Theme) background(c color.Color) bool {
+	return c == nil || sameColor(c, th.Bg) || sameColor(c, th.PaneBg) || sameColor(c, th.Gap)
+}
+
+func sameColor(a, b color.Color) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	ar, ag, ab, aa := a.RGBA()
+	br, bg, bb, ba := b.RGBA()
+	return ar == br && ag == bg && ab == bb && aa == ba
+}
+
 func isASCII(s string) bool {
 	for _, r := range s {
 		if r >= utf8.RuneSelf {

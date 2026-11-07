@@ -42,6 +42,9 @@ type Config struct {
 	// Tips is whether the status bar carries a line about a feature (`[ui]
 	// tips`, §7.8, F15.4).
 	Tips bool
+	// Transparent is `[ui] transparent`: the theme's bg, pane_bg and gap are
+	// not painted, the terminal's own background shows through (§7.3).
+	Transparent bool
 	// RedisDelimiter, RedisScanKeys, RedisLoadAll and RedisIndexKeys are
 	// `[redis]`'s: what the tree splits a key's name by, how many keys a db's
 	// scan reads, the length up to which a hash, set or zset is read whole
@@ -169,7 +172,8 @@ func Parse(data string) (*Config, error) {
 			Hints      *bool `toml:"hints"`
 		} `toml:"query"`
 		UI struct {
-			Tips *bool `toml:"tips"`
+			Tips        *bool `toml:"tips"`
+			Transparent *bool `toml:"transparent"`
 		} `toml:"ui"`
 		Redis struct {
 			Delimiter *string `toml:"delimiter"`
@@ -274,6 +278,9 @@ func Parse(data string) (*Config, error) {
 	}
 	if raw.UI.Tips != nil {
 		c.Tips = *raw.UI.Tips
+	}
+	if raw.UI.Transparent != nil {
+		c.Transparent = *raw.UI.Transparent
 	}
 	if d := raw.Redis.Delimiter; d != nil {
 		if *d == "" {

@@ -6,6 +6,10 @@ All notable changes to sqlmux are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `[ui] transparent = true` in `config.toml`: the theme's backgrounds (`bg`, `pane_bg`, `gap`) are left unpainted, so a transparent terminal shows through. Highlights, selections, the status bar and popups' borders keep their colors. Works with any theme.
+
 ## [0.9.0] - 2026-11-02
 
 ### Added

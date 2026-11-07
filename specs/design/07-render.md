@@ -45,6 +45,7 @@ type Frame struct {
 - `config.toml` 里写 `theme = "<名字>"` 选择主题：先找 `~/.config/sqlmux/themes/<名字>.toml`，没有再找内置主题。
 - 主题文件只需写要改的 token，没写的沿用 `tokyonight-storm`。颜色写成 `#rrggbb`。颜色写错、或者找不到这个主题时，启动报错并指出是哪一项；不认识的 token 名或 `[icon]` 名 M14 F14.7 起同 config.toml 的未知键：忽略它、启动后 toast「themes/<名>.toml: 不认识的键 …」，不阻止启动（原来也是启动错误，用户 2026-10-12 用旧版本读带新键的主题直接进不去）。
 - 主题文件里还可以用 `[icon]` 表自定义图标（§7.7）。
+- **透明背景**：`config.toml` 的 `[ui] transparent = true` 时，背景是 `bg`、`pane_bg`、`gap`（或和它们同色，如 tokyonight-storm 的 `row_alt`）的格子不画背景色，用终端的默认背景，半透明的终端就能透出来；光标行、选中、悬停、状态栏这些有自己颜色的照旧画。在出帧前统一换一次（`Frame.Transparent`），各组件照常按主题画；浮层的遮罩（§7.5）不把这些格子混成实色，浮层自己的底也透明。`bg` 作前景（色块上的深色字）的地方不受影响。主题不变，所以对内置主题和用户主题都一样。
 
 ```toml
 # ~/.config/sqlmux/themes/ristretto.toml

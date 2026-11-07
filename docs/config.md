@@ -36,7 +36,8 @@ confirm_dangerous = true               # ask before DELETE / UPDATE without WHER
 clipboard         = ""                 # "unnamedplus": y, d, c, x and p in the editors use the system clipboard, as in nvim
 
 [ui]
-tips = true                            # a feature tip in the status bar
+tips        = true                     # a feature tip in the status bar
+transparent = false                    # true: leave the theme's bg, pane_bg and gap unpainted, so a transparent terminal shows through
 
 [tree]
 width  = 32                            # sidebar width in columns, borders included

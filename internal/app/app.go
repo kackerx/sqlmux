@@ -71,6 +71,7 @@ type App struct {
 	autoPairs                    bool // a query's INSERT, a WHERE and the quick SQL (§7.9)
 	valueHints                   bool // a query's line of the field its value goes in (§11, F15.3)
 	tipsOn                       bool // the status bar's line about a feature (§7.8, F15.4)
+	transparent                  bool // [ui] transparent: the theme's backgrounds left to the terminal (§7.3)
 	tip                          tipState
 	// confirmDangerous asks before a run that would delete or drop, and a
 	// save that deletes rows (§13).
@@ -149,7 +150,7 @@ func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, 
 	editor.UnnamedPlus = cfg.Clipboard == "unnamedplus"
 	a := &App{
 		theme: cfg.Theme, icons: cfg.Icons, baseIcons: cfg.BaseIcons, plain: !cfg.Vim, themeName: cfg.ThemeName, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, redisDelim: cfg.RedisDelimiter, scanKeys: cfg.RedisScanKeys, indexKeys: cfg.RedisIndexKeys, loadAll: cfg.RedisLoadAll, resultHeight: cfg.ResultHeight, fullWidth: cfg.GridFullWidth, treeWidth: cfg.TreeWidth, treeFollow: cfg.TreeFollow, border: cfg.Border, newDesc: cfg.GridDesc, newTurned: cfg.GridTranspose,
-		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg, autoPairs: cfg.AutoPairs, valueHints: cfg.Hints, tipsOn: cfg.Tips, tip: tipState{cur: -1, pick: rand.IntN}, confirmDangerous: cfg.ConfirmDangerous, previewSave: cfg.PreviewSave,
+		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg, autoPairs: cfg.AutoPairs, valueHints: cfg.Hints, tipsOn: cfg.Tips, transparent: cfg.Transparent, tip: tipState{cur: -1, pick: rand.IntN}, confirmDangerous: cfg.ConfirmDangerous, previewSave: cfg.PreviewSave,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess, sessions: []*Session{sess},
 		mouse: uv.Pos(-1, -1), warning: JoinNotes(warning, sess.warning), state: st,
 	}
@@ -1004,6 +1005,9 @@ func (a *App) View() tea.View {
 		return a.seen
 	}
 	f := a.drawOn(a.rendered.NewFrame(a.w, a.h, a.theme))
+	if f.Transparent {
+		f.Unpaint()
+	}
 	a.hits, a.probes, a.seenAt = f.Hits, f.Probes, a.mouse // clicks are looked up in what was drawn
 	v := tea.NewView(f.RenderReusing(&a.rendered))
 	if c := f.Cursor; c != nil { // the terminal's own cursor, which input methods follow (§12)

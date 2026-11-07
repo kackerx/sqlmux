@@ -72,6 +72,7 @@ border       = "single"          # single | rounded | double | bold | hidden，p
 
 [ui]                             # M15 F15.4
 tips         = true              # 状态栏里一条特性提示，5 分钟换一条（§7.8）；false 关掉
+transparent  = false             # true：主题的 bg、pane_bg、gap 不画，透出终端自己的背景（半透明终端用，§7.3）
 
 [tree]                           # M8 F8.22
 width        = 32                # 侧栏宽度（列，含边框）

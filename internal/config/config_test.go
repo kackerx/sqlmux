@@ -400,6 +400,15 @@ func TestParseTips(t *testing.T) {
 	}
 }
 
+func TestParseTransparent(t *testing.T) {
+	if c, err := Parse(""); err != nil || c.Transparent {
+		t.Fatalf("default: %v %v", c, err)
+	}
+	if c, err := Parse("[ui]\ntransparent = true\n"); err != nil || !c.Transparent || len(c.Unknown) > 0 {
+		t.Fatalf("true: %v %v", c, err)
+	}
+}
+
 // [redis] has the delimiter, the scan budget and the length a key is read whole
 // up to, with the defaults of the design (§14, F16.1).
 func TestParseRedis(t *testing.T) {
