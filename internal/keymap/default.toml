@@ -74,6 +74,7 @@ leader = "<Space>"
 "gs" = "grid.order.cycle" # this column alone, the other way, the default (F12.3)
 "gS" = "grid.order.add" # joins the ORDER, or turns: space of its list
 "gj" = "grid.view.json" # the page as JSON, read only (F14.5)
+"gi" = "table.properties" # the table's properties, or its rows back
 "*" = "grid.filter.cell" # the cell as a condition of the WHERE
 "e" = "grid.value" # the cell in the value editor (F12.2)
 "O" = "grid.value" # the same
@@ -306,6 +307,15 @@ leader = "<Space>"
 "<Up>" = "form.group.prev"
 "<C-p>" = "form.group.prev"
 "<Esc>" = "form.group.close"
+
+[keys.engines] # the connection form's engine field with its list of the engines open: ↓ ↑ pick as they go, so ↵ is the form's save still; the form's keys come after
+"<Down>" = "form.engine.next"
+"<C-n>" = "form.engine.next"
+"j" = "form.engine.next"
+"<Up>" = "form.engine.prev"
+"<C-p>" = "form.engine.prev"
+"k" = "form.engine.prev"
+"<Esc>" = "form.engine.close"
 
 [keys.confirm] # §10.5: before changes are thrown away
 "y" = "confirm.yes"

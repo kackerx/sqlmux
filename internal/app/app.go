@@ -71,6 +71,7 @@ type App struct {
 	autoPairs                    bool // a query's INSERT, a WHERE and the quick SQL (§7.9)
 	valueHints                   bool // a query's line of the field its value goes in (§11, F15.3)
 	tipsOn                       bool // the status bar's line about a feature (§7.8, F15.4)
+	transparent                  bool // [ui] transparent: the theme's backgrounds left to the terminal (§7.3)
 	tip                          tipState
 	// confirmDangerous asks before a run that would delete or drop, and a
 	// save that deletes rows (§13).
@@ -108,6 +109,9 @@ type App struct {
 	spin      int         // the frame of every spinner (§7.8「转圈」)
 	spinOn    bool        // a spinTick is on its way
 	want      *startTable // the command line's table, to open when its catalog is in (F19.1)
+	// logos and logosGone are the escapes that put the engines' logos in the
+	// terminal and take them out (§7.7), "" when its icons are glyphs
+	logos, logosGone string
 
 	// Mouse (§7.4).
 	hits        []ui.Hit     // the last frame's hit table
@@ -149,7 +153,7 @@ func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, 
 	editor.UnnamedPlus = cfg.Clipboard == "unnamedplus"
 	a := &App{
 		theme: cfg.Theme, icons: cfg.Icons, baseIcons: cfg.BaseIcons, plain: !cfg.Vim, themeName: cfg.ThemeName, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, redisDelim: cfg.RedisDelimiter, scanKeys: cfg.RedisScanKeys, indexKeys: cfg.RedisIndexKeys, loadAll: cfg.RedisLoadAll, resultHeight: cfg.ResultHeight, fullWidth: cfg.GridFullWidth, treeWidth: cfg.TreeWidth, treeFollow: cfg.TreeFollow, border: cfg.Border, newDesc: cfg.GridDesc, newTurned: cfg.GridTranspose,
-		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg, autoPairs: cfg.AutoPairs, valueHints: cfg.Hints, tipsOn: cfg.Tips, tip: tipState{cur: -1, pick: rand.IntN}, confirmDangerous: cfg.ConfirmDangerous, previewSave: cfg.PreviewSave,
+		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg, autoPairs: cfg.AutoPairs, valueHints: cfg.Hints, tipsOn: cfg.Tips, transparent: cfg.Transparent, tip: tipState{cur: -1, pick: rand.IntN}, confirmDangerous: cfg.ConfirmDangerous, previewSave: cfg.PreviewSave,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess, sessions: []*Session{sess},
 		mouse: uv.Pos(-1, -1), warning: JoinNotes(warning, sess.warning), state: st,
 	}
@@ -205,8 +209,25 @@ func (a *App) Init() tea.Cmd {
 	if a.tipsOn {
 		cmds = append(cmds, tipTimer())
 	}
+	if a.logos != "" {
+		cmds = append(cmds, tea.Tick(logosDelay, func(time.Time) tea.Msg { return logosDue{} }))
+	}
 	return tea.Batch(cmds...)
 }
+
+// Logos is the escapes that send the engines' logos to the terminal and take
+// them back (ui.Logos), which the program sends itself, once it draws.
+func (a *App) Logos(setup, cleanup string) { a.logos, a.logosGone = setup, cleanup }
+
+// logosDue is the time to send the logos: kitty keeps an image to the screen
+// it came on, its alternate screen apart from the main one, and the program
+// is on the alternate one from its first frame, which this comes after (§7.7).
+// One that came late shows as it comes: the cells are drawn already.
+type logosDue struct{}
+
+// logosDelay is how long after the start the logos go: the first frame goes
+// out within one of the renderer's frames, 1/60 s.
+var logosDelay = 250 * time.Millisecond
 
 // plainQueries has every query without modes with vim = false (§6.9):
 // they are made all over, the sessions of a layout before the App, so what
@@ -354,6 +375,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotFormat(msg)
 	case spinTick:
 		return a, a.spinNext()
+	case logosDue:
+		return a, tea.Raw(a.logos)
 	case stateErr:
 		return a, a.showToast(msg.err.Error())
 	case tipTick:
@@ -529,10 +552,6 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols, a.confirm, a.keyHelp, a.sessList, a.menu, a.ddl = false, false, nil, nil, nil, nil, nil, nil, nil, nil
 		a.res.Reset()
 		return picked
-	case ui.KindSegment:
-		if a.form != nil {
-			a.formSegment(t.Pane, t.I)
-		}
 	case ui.KindConn: // a row of the manager's list: selected, and the list has the keys (F8.16)
 		if a.form != nil {
 			a.selectConn(t.I)
@@ -554,6 +573,9 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		case a.form != nil && t.Action == "form.pick": // a group of the list (F10.6)
 			a.form.groupSel = t.I
 			a.groupAccept()
+		case a.form != nil && t.Action == "form.engine.pick": // an engine of its list: picked, the list closed
+			a.formSegment(fieldEngine, t.I)
+			a.form.engineOff = true
 		case a.form != nil: // over the session list, as it has the keys (§6.4)
 			a.formClick(t.I)
 		case a.sessList != nil: // a row: there, then ↵ (§7.8)
@@ -953,6 +975,8 @@ func (a *App) overlayContext(ov string) keymap.Context {
 			return keymap.Context{Overlay: "conns", Mode: keymap.Command}
 		case len(a.groupCands()) > 0: // the group field's list over the form's keys (F10.6)
 			return keymap.Context{Overlay: "groups", Under: "form", Mode: keymap.Insert}
+		case a.form.enginesOpen(): // the engine field's list, the same way
+			return keymap.Context{Overlay: "engines", Under: "form", Mode: keymap.Insert}
 		}
 		return keymap.Context{Overlay: "form", Mode: keymap.Insert} // its inputs: unbound keys are text
 	case "rename":
@@ -1004,6 +1028,9 @@ func (a *App) View() tea.View {
 		return a.seen
 	}
 	f := a.drawOn(a.rendered.NewFrame(a.w, a.h, a.theme))
+	if f.Transparent {
+		f.Unpaint()
+	}
 	a.hits, a.probes, a.seenAt = f.Hits, f.Probes, a.mouse // clicks are looked up in what was drawn
 	v := tea.NewView(f.RenderReusing(&a.rendered))
 	if c := f.Cursor; c != nil { // the terminal's own cursor, which input methods follow (§12)

@@ -15,7 +15,7 @@
 │       ▸  t_order_item  3.4m┌─ 连接 ───────────────────────────────────────────────────────────────────────────────────────────┐                             │
 │       ▸  t_payment     410k│  doraemon               │          name doraemon                                               │                             │
 │       ▸  t_refund       12k│  新建                   │         group                                                        │                             │
-│       ▸  t_sku         8.1k│                          │        engine  postgres │ mysql │ sqlite │ redis │ mssql             │                             │
+│       ▸  t_sku         8.1k│                          │        engine  mysql ▾                                               │                             │
 │       ▸  t_user         38k│                          │          host db.example                                             │                             │
 │       ▸  t_user_address 52k│                          │          port 3307                                                   │                             │
 │       ▸  t_user_profile 38k│                          │          user app                                                    │                             │

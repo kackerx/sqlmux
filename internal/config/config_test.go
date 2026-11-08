@@ -400,6 +400,15 @@ func TestParseTips(t *testing.T) {
 	}
 }
 
+func TestParseTransparent(t *testing.T) {
+	if c, err := Parse(""); err != nil || c.Transparent {
+		t.Fatalf("default: %v %v", c, err)
+	}
+	if c, err := Parse("[ui]\ntransparent = true\n"); err != nil || !c.Transparent || len(c.Unknown) > 0 {
+		t.Fatalf("true: %v %v", c, err)
+	}
+}
+
 // [redis] has the delimiter, the scan budget and the length a key is read whole
 // up to, with the defaults of the design (§14, F16.1).
 func TestParseRedis(t *testing.T) {
@@ -426,5 +435,22 @@ func TestPreviewSave(t *testing.T) {
 		if c, err := Parse(toml); err != nil || c.PreviewSave != want {
 			t.Errorf("%q: %v %v", toml, c != nil && c.PreviewSave, err)
 		}
+	}
+}
+
+// icons unset leaves the engines' logos to the terminal; "images" asks for
+// them whatever it says; nerd or ascii said keeps glyphs (§7.7).
+func TestParseLogos(t *testing.T) {
+	for in, want := range map[string]string{"": "auto", `icons = "images"`: "on", `icons = "nerd"`: "off", `icons = "ascii"`: "off"} {
+		c, err := Parse(in)
+		if err != nil || c.Logos != want {
+			t.Errorf("%q: %v %v", in, c, err)
+		}
+	}
+	if c, _ := Parse(`icons = "images"`); c.Icons != ui.NerdIcons {
+		t.Error("images: the glyphs are no Nerd Font's")
+	}
+	if _, err := Parse(`icons = "svg"`); err == nil {
+		t.Error("an icon set there is not")
 	}
 }

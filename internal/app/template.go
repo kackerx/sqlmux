@@ -68,8 +68,17 @@ func alterSQL(c *Conn, kind alterKind, t db.Table, col, index string) (sql, why 
 	}
 	switch kind {
 	case addColumn:
+		if d == sqlkit.Oracle { // ADD takes no COLUMN there
+			return "alter table " + table + " add (<name> <type>);", ""
+		}
 		return "alter table " + table + " add column <name> <type>;", ""
 	case addIndex:
+		switch d {
+		case sqlkit.ClickHouse: // a data-skipping index, of the table (§8.9)
+			return "alter table " + table + " add index <name> " + name(col, "<column>") + " type minmax granularity 1;", ""
+		case sqlkit.Trino:
+			return "", i18n.T("Trino 没有索引")
+		}
 		on := table
 		if d == sqlkit.SQLite { // its ON takes a table with no schema
 			on = q(t.Name)
@@ -77,10 +86,12 @@ func alterSQL(c *Conn, kind alterKind, t db.Table, col, index string) (sql, why 
 		return "create index <name> on " + on + " (" + name(col, "<column>") + ");", ""
 	case renameTbl:
 		switch {
-		case d == sqlkit.MySQL:
+		case d == sqlkit.MySQL, d == sqlkit.ClickHouse:
 			return "rename table " + table + " to " + q(t.Schema) + ".<new_name>;", "" // in its own database, not the query's
 		case d == sqlkit.SQLite && t.View():
 			return "", i18n.T("SQLite 不能给视图改名")
+		case d == sqlkit.Oracle && t.View(): // RENAME, of the user's own schema's alone
+			return "rename " + q(t.Name) + " to <new_name>;", ""
 		}
 		object := "table"
 		switch t.Kind {
@@ -98,6 +109,10 @@ func alterSQL(c *Conn, kind alterKind, t db.Table, col, index string) (sql, why 
 			return "drop index " + name(index, "<index>") + " on " + table + ";", ""
 		case sqlkit.SQLite:
 			return "drop index " + name(index, "<index>") + ";", ""
+		case sqlkit.ClickHouse:
+			return "alter table " + table + " drop index " + name(index, "<index>") + ";", ""
+		case sqlkit.Trino:
+			return "", i18n.T("Trino 没有索引")
 		case sqlkit.PG:
 		}
 		return "drop index " + q(t.Schema) + "." + name(index, "<index>") + ";", ""

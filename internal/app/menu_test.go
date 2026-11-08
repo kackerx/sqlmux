@@ -66,9 +66,9 @@ func TestMenuItemsByNode(t *testing.T) {
 		node string
 		want []string
 	}{
-		{"t_user", []string{"打开", "在新 tab 打开", "删除表…", "加列…", "加索引…", "改名…", "删除列…", "删除索引…"}}, // and the structure changes' (F14.4)
-		{"v_paid", []string{"打开", "在新 tab 打开", "删除视图…", "改名…"}},
-		{"mv_sum", []string{"打开", "在新 tab 打开", "删除视图…", "改名…"}},
+		{"t_user", []string{"打开", "在新 tab 打开", "属性", "删除表…", "加列…", "加索引…", "改名…", "删除列…", "删除索引…"}}, // and the structure changes' (F14.4)
+		{"v_paid", []string{"打开", "在新 tab 打开", "属性", "删除视图…", "改名…"}},
+		{"mv_sum", []string{"打开", "在新 tab 打开", "属性", "删除视图…", "改名…"}},
 		{"queries/query_1", []string{"打开", "重命名…", "删除…"}},
 		{"public", nil},
 		{"Tables (14)", nil},
@@ -413,14 +413,15 @@ func TestMenuPlacement(t *testing.T) {
 			}
 			a.View()
 			first := find(t, a, ui.Target{Kind: ui.KindRow, I: 0}).Min.Y
-			y := hit.Rect.Min.Y
-			fits := y+1+len(a.menu.items)+2 <= a.window().Max.Y
-			want := y - len(a.menu.items) - 1
-			if fits {
-				want = y + 2
+			y, n := hit.Rect.Min.Y, len(a.menu.items)
+			down, up := a.window().Max.Y-y-3, y-a.window().Min.Y-2 // the rows of items each side has, in a border
+			fits := down >= n
+			want := y + 2 // below, all of it or as much as fits, scrolling with the selection
+			if !fits && up > down {
+				want = y - min(n, up) - 1 // above, ending on the row over the pointer, when that side has more room
 			}
 			if first != want {
-				t.Fatalf("h %d, pointer row %d: first item on row %d, want %d (fits below: %v)", h, y, first, want, fits)
+				t.Fatalf("h %d, pointer row %d: first item on row %d, want %d (fits below: %v, room %d below, %d above)", h, y, first, want, fits, down, up)
 			}
 			below, above = below || fits, above || !fits
 			a.Update(tea.WindowSizeMsg{Width: 160, Height: h}) // closes it, for the next
@@ -440,7 +441,7 @@ func TestMenuRightClickWhileOpen(t *testing.T) {
 	rightClickNode(t, a, "t_user")
 	a.View()
 	rightClickNode(t, a, "t_order")
-	if n, _ := a.treeNode(); a.menu == nil || n.Text != "t_order" || !slices.Equal(menuLabels(a)[:3], []string{"打开", "在新 tab 打开", "删除表…"}) {
+	if n, _ := a.treeNode(); a.menu == nil || n.Text != "t_order" || !slices.Equal(menuLabels(a)[:4], []string{"打开", "在新 tab 打开", "属性", "删除表…"}) {
 		t.Fatalf("on another node: menu %v, cursor %q", a.menu != nil, n.Text)
 	}
 	a.View()
@@ -602,7 +603,7 @@ func TestMenuMoveStopsAtTheEnds(t *testing.T) {
 // namespace's and a db's, and the grid's, a cell's and a head's (F16.11).
 func TestMenuItemsHaveIcons(t *testing.T) {
 	want := map[string]string{
-		"打开": "open", "在新 tab 打开": "open", "删除…": "trash", "重命名…": "rename", "删除表…": "trash", "删除视图…": "trash",
+		"打开": "open", "在新 tab 打开": "open", "属性": "table", "删除…": "trash", "重命名…": "rename", "删除表…": "trash", "删除视图…": "trash",
 		"改名…": "rename", "设 TTL…": "auto_refresh", "刷新": "refresh",
 		"加列…": "column", "加索引…": "index", "删除列…": "hide", "删除索引…": "trash",
 		"在值编辑器中打开": "edit", "按这个值过滤": "filter", "按这一列排序 ↑": "sort_asc", "按这一列排序 ↓": "sort_desc", "加入排序": "sort_asc",

@@ -97,7 +97,7 @@ var whereKeywords = []string{"and", "or", "not", "is null", "is not null", "in",
 // value of that column goes (§9.7).
 func (a *App) complete(t *dataTab) {
 	t.comp = nil
-	if !t.conn.sql() { // a MATCH pattern has no completion (§5)
+	if !t.conn.sql() || t.props != "" { // a MATCH pattern has no completion (§5), nor a properties tab's text
 		return
 	}
 	in := t.where
@@ -124,7 +124,7 @@ func (a *App) complete(t *dataTab) {
 			cols = append(cols, candidate{label: c.Name, insert: t.conn.ident(c.Name), note: c.Type, space: true, kind: kindColumn})
 		}
 		for _, k := range whereKeywords {
-			if k != "ilike" || t.conn.eng.Dialect() == sqlkit.PG { // PG's alone
+			if d := t.conn.eng.Dialect(); k != "ilike" || d == sqlkit.PG || d == sqlkit.ClickHouse { // PG's and ClickHouse's alone
 				kws = append(kws, candidate{label: k, insert: k, note: i18n.T("关键字"), kind: kindKeyword, space: sqlkit.SpaceAfter(k)})
 			}
 		}
@@ -162,7 +162,7 @@ func valueChoices(col db.Column, d sqlkit.Dialect) (out []candidate) {
 func valueCandidates(col db.Column, kind sqlkit.ValueKind, d sqlkit.Dialect) []candidate {
 	var out []candidate
 	if timeKind(col.Type) != ui.NotTime {
-		if d != sqlkit.SQLite {
+		if d != sqlkit.SQLite && d != sqlkit.Oracle { // neither has a now()
 			out = append(out, candidate{label: "now()", insert: "now()", note: i18n.T("值"), kind: kindValue})
 		}
 		out = append(out, candidate{label: "current_timestamp", insert: "current_timestamp", note: i18n.T("值"), kind: kindValue})
@@ -989,6 +989,9 @@ type histEntry struct {
 
 // tableState is t's history and favorites, made on first use.
 func (a *App) tableState(t *dataTab) *config.TableState {
+	if t.props != "" { // a properties tab's filter is no WHERE of the table's: kept nowhere
+		return &config.TableState{}
+	}
 	key := t.conn.tableKey(t.table)
 	if a.state.Tables == nil {
 		a.state.Tables = map[string]*config.TableState{}

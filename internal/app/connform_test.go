@@ -193,8 +193,10 @@ func TestConnFormFields(t *testing.T) {
 }
 
 // The 高级 fold holds dsn, password_cmd and ssh: closed, they are out of the
-// way; open, a dsn typed there is the connection and host, port, user and
-// database are dim and passed by Tab; password_cmd is its password.
+// way; open, a dsn typed there is the connection; one sqlmux cannot read
+// (SQL Server's keyword form) has host, port, user and database dim and passed
+// by Tab, one it can keeps them as its parts (TestConnFormDSNSync); password_cmd
+// is its password.
 func TestConnFormAdvanced(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	keychain(t, "none")
@@ -203,9 +205,11 @@ func TestConnFormAdvanced(t *testing.T) {
 	if a.form.sel != fieldAdvanced {
 		t.Fatalf("closed: S-Tab from name is on %d", a.form.sel)
 	}
-	feed(t, a, "<Space><Tab>postgres://u@h/d<Tab>printf pw")
+	a.formSegment(fieldEngine, slices.Index(a.form.fields[fieldEngine].Choices, "mssql"))
+	a.form.sel = fieldAdvanced
+	feed(t, a, "<Space><Tab>server=h;user id=u<Tab>printf pw")
 	if !a.form.dsnGiven() || !a.form.skipped(fieldHost) {
-		t.Fatal("host is not dim with a dsn")
+		t.Fatal("host is not dim with a dsn of keywords")
 	}
 	feed(t, a, "<Tab>")
 	if a.form.sel != fieldSSH {
@@ -230,7 +234,7 @@ func TestConnFormAdvanced(t *testing.T) {
 	feed(t, a, "<S-Tab><S-Tab>")
 	golden.RequireEqual(t, a.render().String())
 	feed(t, a, "<CR>")
-	if a.form != nil || connections() != "[[connection]]\nname = \"play\"\nengine = \"postgres\"\ndsn = \"postgres://u@h/d\"\npassword_cmd = \"printf pw\"\n" {
+	if a.form != nil || connections() != "[[connection]]\nname = \"play\"\nengine = \"mssql\"\ndsn = \"server=h;user id=u\"\npassword_cmd = \"printf pw\"\n" {
 		t.Errorf("saved: form %v, file:\n%s", a.form, connections())
 	}
 }
@@ -523,11 +527,8 @@ func TestConnFormColors(t *testing.T) {
 	if name(fieldName, "name") != th.Dim || name(fieldPort, "port") != th.Fg || name(fieldHost, "host") != th.Dim {
 		t.Errorf("names: name %v, port %v, host %v", name(fieldName, "name"), name(fieldPort, "port"), name(fieldHost, "host"))
 	}
-	seg := func(text string) color.Color {
-		return f.Buf.CellAt(colAt(t, f, row(fieldEngine), text), row(fieldEngine)).Style.Bg
-	}
-	if seg("postgres") != th.Select || seg("mysql") != th.Sep {
-		t.Errorf("segments: postgres %v, mysql %v", seg("postgres"), seg("mysql"))
+	if bg := f.Buf.CellAt(colAt(t, f, row(fieldEngine), "postgres ▾"), row(fieldEngine)).Style.Bg; bg != th.Sep {
+		t.Errorf("the engine's select: %v", bg)
 	}
 	feed(t, a, "<CR>") // host is empty: wrong
 	f = a.render()
@@ -542,7 +543,7 @@ func TestConnFormColors(t *testing.T) {
 }
 
 // Clicks: a row that takes no part is not given the keys, a check and the
-// fold turn over, a segment is picked by its own place, the buttons save and
+// fold turn over, an engine is picked by its row of the list, the buttons save and
 // cancel, and the ＋ of a tree with connections opens the form (§7.8).
 func TestConnFormClicks(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
@@ -564,19 +565,18 @@ func TestConnFormClicks(t *testing.T) {
 	if !a.form.advanced() {
 		t.Error("the fold does not open")
 	}
-	feed(t, a, "<Tab>postgres://u@h/d")
+	a.formSegment(fieldEngine, slices.Index(a.form.fields[fieldEngine].Choices, "mssql"))
+	a.form.sel = fieldAdvanced
+	feed(t, a, "<Tab>server=h;user id=u")
 	a.form.sel = fieldName
-	click(a, row(fieldHost)) // dim now
+	click(a, row(fieldHost)) // dim now: a dsn of keywords
 	if a.form.sel != fieldName {
 		t.Errorf("a dim row took the keys: %d", a.form.sel)
 	}
-	click(a, find(t, a, ui.Target{Kind: ui.KindSegment, Pane: fieldEngine, I: 1}).Min)
-	if a.form.fields[fieldEngine].On != 1 || a.form.fields[fieldPort].Input.Text != "3306" {
-		t.Errorf("mysql by its segment: %+v", a.form.fields[fieldEngine])
-	}
-	click(a, find(t, a, ui.Target{Kind: ui.KindSegment, Pane: fieldEngine, I: 1}).Min)
-	if a.form.fields[fieldEngine].On != 1 {
-		t.Error("a click on the segment that is on changes it")
+	click(a, row(fieldEngine)) // its list opens
+	click(a, find(t, a, ui.Target{Kind: ui.KindRow, Action: "form.engine.pick", I: 1}).Min)
+	if a.form.fields[fieldEngine].On != 1 || a.form.fields[fieldPort].Input.Text != "3306" || a.form.enginesOpen() {
+		t.Errorf("mysql by its row of the list: %+v, open %v", a.form.fields[fieldEngine], a.form.enginesOpen())
 	}
 	click(a, find(t, a, ui.Target{Kind: ui.KindButton, Action: "form.save"}).Min)
 	if a.form == nil || a.form.err != "缺少 name" {
@@ -763,7 +763,7 @@ func TestConnFormSQLite(t *testing.T) {
 		t.Fatalf("connections.toml:\n%s", got)
 	}
 	// edited, the file is in its field
-	if _, _, _, db := splitDSN("sqlite", "/a/b.db?mode=ro"); db != "/a/b.db?mode=ro" {
+	if _, _, _, db, _ := splitDSN("sqlite", "/a/b.db?mode=ro"); db != "/a/b.db?mode=ro" {
 		t.Errorf("file %q", db)
 	}
 	if got := versionText("sqlite", "3.53.4"); got != "SQLite 3.53.4" {
@@ -858,7 +858,7 @@ func TestConnFormRedis(t *testing.T) {
 		t.Errorf("a db below 0: %+v", c.form)
 	}
 	// a URL is split back into the rows, and written with no user when there is none
-	if host, port, user, database := splitDSN("redis", "redis://u:p@h:6380/3"); host != "h" || port != "6380" || user != "u" || database != "3" {
+	if host, port, user, database, _ := splitDSN("redis", "redis://u:p@h:6380/3"); host != "h" || port != "6380" || user != "u" || database != "3" {
 		t.Errorf("split: %q %q %q %q", host, port, user, database)
 	}
 	if got := composeDSN("redis", "h", "6379", "", "0"); got != "redis://h:6379/0" {
@@ -915,5 +915,100 @@ func TestConnFormProduction(t *testing.T) {
 		if c, err := config.ReadConnection("play"); err != nil || c.Production != on {
 			t.Errorf("production switched to %v: %+v %v", on, c, err)
 		}
+	}
+}
+
+// The engine field's list, while the field has the keys: every engine with its
+// logo in its own color, ↓ and ↑ picking as they go, round the ends, the port
+// going with them; esc closes it, ↵ saves the form as from any field (§7.8).
+func TestConnFormEngineList(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	keychain(t, "none")
+	a, _ := withSessions()
+	feed(t, a, "<C-p>conn.new<CR>play<Tab><Tab>")
+	if !a.form.enginesOpen() || a.context().Overlay != "engines" {
+		t.Fatalf("the engine field has the keys, no list: %+v", a.context())
+	}
+	f := a.render()
+	text := f.String()
+	for _, e := range []string{"PostgreSQL", "SQL Server", "Oracle", "ClickHouse"} {
+		if !strings.Contains(text, e) {
+			t.Errorf("%s not in the list", e)
+		}
+	}
+	oracle := find(t, a, ui.Target{Kind: ui.KindRow, Action: "form.engine.pick", I: 7})
+	if fg := f.Buf.CellAt(oracle.Min.X+1, oracle.Min.Y).Style.Fg; fg != a.icons.Oracle.Fg || fg == a.theme.Fg {
+		t.Errorf("Oracle's logo is %v, not its color", fg)
+	}
+	feed(t, a, "<Down><Down>")
+	if e := a.form.fields[fieldEngine]; e.Choices[e.On] != "sqlite" {
+		t.Errorf("two down: %s", e.Choices[e.On])
+	}
+	feed(t, a, "<Up><Up><Up>") // round the start
+	if e := a.form.fields[fieldEngine]; e.Choices[e.On] != "oracle" || a.form.fields[fieldPort].Input.Text != "1521" {
+		t.Errorf("round the start: %s, port %s", e.Choices[e.On], a.form.fields[fieldPort].Input.Text)
+	}
+	feed(t, a, "<Esc>")
+	if a.form == nil || a.form.enginesOpen() {
+		t.Fatal("esc closes the list first, not the form")
+	}
+	feed(t, a, "<Tab><S-Tab>") // back to it: open again
+	if !a.form.enginesOpen() {
+		t.Error("back on the field, no list")
+	}
+	feed(t, a, "<CR>") // the form's save, as from any field: host is missing
+	if a.form == nil || a.form.err == "" {
+		t.Errorf("↵ on the list does not save: %+v", a.form)
+	}
+}
+
+// A dsn sqlmux can read and the fields split from it are kept the same both
+// ways: a port or a user changed is written into the dsn, its scheme, its
+// parameters and a password in it as they were; a dsn changed is read back
+// into the fields; editing a connection, its user and port take the keys (F8.16).
+func TestConnFormDSNSync(t *testing.T) {
+	for _, c := range []struct {
+		engine, dsn, host, port, user, db, want string
+	}{
+		{"oracle", "oracle://user@127.0.0.1:51521/FREEPDB1", "127.0.0.1", "1522", "sqlmux", "FREEPDB1", "oracle://sqlmux@127.0.0.1:1522/FREEPDB1"},
+		{"postgres", "postgres://u:p%40w@h:5432/d?sslmode=disable", "h2", "5433", "me", "d2", "postgres://me:p%40w@h2:5433/d2?sslmode=disable"},
+		{"mysql", "root:pw@tcp(h:3306)/app?parseTime=true", "h", "3307", "me", "app", "me:pw@tcp(h:3307)/app?parseTime=true"},
+		{"mssql", "sqlserver://sa@h:1433?database=a&encrypt=disable", "h", "1433", "sa", "b", "sqlserver://sa@h:1433?database=b&encrypt=disable"},
+		{"trino", "trino://u@h:8080/hive/web", "h", "8080", "v", "hive/raw", "trino://v@h:8080/hive/raw"},
+		{"sqlite", "/a/b.db?mode=ro", "", "", "", "/a/c.db", "/a/c.db"},
+	} {
+		got, ok := rewriteDSN(c.engine, c.dsn, c.host, c.port, c.user, c.db)
+		if !ok || got != c.want {
+			t.Errorf("%s: %q %v, want %q", c.engine, got, ok, c.want)
+			continue
+		}
+		if c.engine == "sqlite" {
+			continue
+		}
+		host, port, user, db, ok := splitDSN(c.engine, got)
+		if !ok || host != c.host || port != c.port || user != c.user || db != c.db {
+			t.Errorf("%s: read back %q %q %q %q", c.engine, host, port, user, db)
+		}
+	}
+	if _, ok := rewriteDSN("mssql", "server=h;user id=u", "x", "1", "y", "z"); ok {
+		t.Error("a dsn of keywords was rewritten")
+	}
+	// in the form: the manager's connection, its port and user typed over
+	a := managed(t)
+	a.run("conn.manage", 0)
+	feed(t, a, "<Tab>")
+	a.form.sel = fieldPort
+	if a.form.skipped(fieldPort) || a.form.skipped(fieldUser) {
+		t.Fatal("port or user is not to edit")
+	}
+	feed(t, a, "<BS><BS><BS><BS>7777") // 5433 typed over, key by key
+	if dsn := fieldText(a, fieldDSN); !strings.Contains(dsn, "@h:7777/db") {
+		t.Errorf("the dsn after the port: %q", dsn)
+	}
+	a.form.sel = fieldDSN
+	a.form.fields[fieldDSN].Input = ui.Input{Text: "postgres://who@there:1/d", Pos: len("postgres://who@there:1/d")}
+	feed(t, a, "b") // the last key of a dsn typed
+	if fieldText(a, fieldUser) != "who" || fieldText(a, fieldHost) != "there" || fieldText(a, fieldPort) != "1" || fieldText(a, fieldDatabase) != "db" {
+		t.Errorf("the fields after the dsn: %q %q %q", fieldText(a, fieldUser), fieldText(a, fieldHost), fieldText(a, fieldPort))
 	}
 }

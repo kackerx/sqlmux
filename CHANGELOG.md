@@ -6,6 +6,26 @@ All notable changes to sqlmux are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **ClickHouse** (`engine = "clickhouse"`, `clickhouse://user@host:8123/db`) and **Trino** (`engine = "trino"`, `trino://user@host:8080/catalog/schema`): the tree (Trino's catalogs as databases), tables with WHERE, ORDER, paging, counts and export, the query editor with completion and formatting, quick SQL, DDL, and editing cells, adding and deleting rows. Both talk their HTTP protocols directly, so values are the server's own text. Neither has transactions for writes, so a save there checks each change matches exactly one row before sending it, and says what was written if it stops halfway. See [ClickHouse and Trino](docs/config.md#clickhouse-and-trino).
+- **Oracle** (`engine = "oracle"`, `oracle://user@host:1521/SERVICE`), with go-ora, so no Oracle client is needed: the tree of schemas, tables, views, indexes, keys, functions and sequences, the editable grid with one-transaction saves and the manual transaction mode, PL/SQL blocks ended by `/` in the query editor, `DBMS_METADATA` DDL, quick SQL in a read-only transaction. See [Oracle](docs/config.md#oracle).
+- The command line opens `sqlserver://`, `oracle://`, `clickhouse://` and `trino://` URLs, as it does `postgres://` and `mysql://`.
+
+### Changed
+
+- The connection form's engine is a select: its field shows the engine with `▾`, and while it has the focus a list of every engine, with its logo, opens under it; `↓` / `↑` (or `j` / `k`) pick as they go, `esc` closes the list, `↵` still saves.
+- The engines' icons are their real logos in their own colors, whatever the theme: SQL Server, Oracle and ClickHouse get theirs (Nerd Fonts 3.3 or later), and SQL Server no longer shows PostgreSQL's elephant.
+- In kitty and Ghostty (outside tmux), the engines' icons are DBeaver's full-color logos, drawn as images. `icons = "images"` forces them, `icons = "nerd"` turns them off.
+- **Properties** of a table or view, as DBeaver has them: `gi` in a table (or *Properties* in its right-click menu or the tree's) switches the same tab between its data and its properties, each kept as it was: columns (type, not null, default, key), keys, foreign keys and indexes a section at a time, switched by the chips over the filter, which searches the rows; and the DDL as a read-only text in SQL's colors, which you can move in, search, select and copy (`esc` goes back to the data).
+- Export to **Excel** (`.xlsx`), the page or all of it, beside CSV and JSON: the header bold and frozen, numbers as numbers where Excel holds them exactly (a longer one, such as a `NUMBER(38)` id, as text, every digit kept), NULL an empty cell. No new dependency.
+- A **Properties** button (ⓘ) in a table's toolbar switches to its properties and back, as `gi` does.
+- The tree shows each table's size (`12 KB`, `3.4 MB`) where the server tells it (PostgreSQL, MySQL, SQL Server, ClickHouse, Oracle), else its row estimate, and no longer `?` when it knows neither.
+- *Pick schemas…* lists the server's own schemas too (Oracle's SYS, SYSTEM, DVSYS…, PostgreSQL's pg_catalog and information_schema, MySQL's mysql and sys, SQL Server's sys, ClickHouse's system), after yours, marked *system* and off: the tree still leaves them out till you pick them. Its list's search (`/`) is now shown in its hints.
+- Editing a connection, its host, port, user and database can be changed in their fields again: they and the dsn are kept the same both ways, a field changing only its part of the dsn (its parameters and scheme as they were). Only a dsn sqlmux cannot read, such as SQL Server's `key=value;` form, keeps them read-only.
+
+- `[ui] transparent = true` in `config.toml`: the theme's backgrounds (`bg`, `pane_bg`, `gap`) are left unpainted, so a transparent terminal shows through. Highlights, selections, the status bar and popups' borders keep their colors. Works with any theme.
+
 ## [0.9.0] - 2026-11-02
 
 ### Added

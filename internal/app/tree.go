@@ -114,6 +114,9 @@ type catalogMsg struct {
 type catalogAll struct {
 	schemas, dbs []string
 	keep         string
+	// system is the server's own schemas, which the tree leaves out till they
+	// are picked (F17.13, db.Systemer)
+	system []string
 }
 
 // loadCatalog reads c's schemas and every schema's tables on its Meta; a
@@ -129,12 +132,16 @@ func (a *App) loadCatalog(c *Conn) tea.Cmd {
 		if err != nil {
 			return catalogMsg{conn: c, err: err}
 		}
-		pg := root.Kind() != "mysql"
+		pg := !root.SchemasAreDatabases()
 		keep := current // MySQL's is the DSN's database, PG's the first of the search_path, public when none is there
 		if pg && keep == "" {
 			keep = "public"
 		}
-		schemas := pickedSchemas(root.Schemas, pg, name, all, keep) // the picked ones are all that is read (F17.13)
+		var system []string // the server's own, to pick: one that is has its tables read
+		if s, ok := eng.(db.Systemer); ok {
+			system, _ = s.SystemSchemas(ctx, meta)
+		}
+		schemas := pickedSchemas(root.Schemas, pg, name, append(slices.Clone(all), system...), keep) // the picked ones are all that is read (F17.13)
 		tables, err := eng.Tables(ctx, meta, schemas)
 		if err != nil {
 			return catalogMsg{conn: c, err: err}
@@ -152,7 +159,7 @@ func (a *App) loadCatalog(c *Conn) tea.Cmd {
 		if schemas != nil {
 			loaded = schemas
 		}
-		return catalogMsg{conn: c, schemas: loaded, current: current, tables: tables, funcs: funcs, seqs: seqs, dbs: dbs, all: catalogAll{all, allDBs, keep}, err: err}
+		return catalogMsg{conn: c, schemas: loaded, current: current, tables: tables, funcs: funcs, seqs: seqs, dbs: dbs, all: catalogAll{all, allDBs, keep, system}, err: err}
 	}
 }
 
@@ -406,9 +413,12 @@ func (a *App) treeNodes() (ns []node, matches int) {
 				}
 				for _, t := range shown {
 					tid := tableNode(c, t)
-					rows := ui.Magnitude(t.Rows)
-					if t.Kind == "v" || flat { // a plain view has no rows to count, a file keeps no estimate
-						rows = ""
+					rows := ui.Size(t.Bytes) // its size when the server says it, else its rows' estimate, else nothing
+					switch {
+					case rows != "":
+					case t.Kind == "v" || flat || t.Rows < 0: // a plain view has no rows to count, a file keeps no estimate
+					default:
+						rows = ui.Magnitude(t.Rows)
 					}
 					tn := node{id: tid, kind: nodeTable, conn: c, schema: sc, table: t, TreeNode: ui.TreeNode{
 						Depth: depth(3), Branch: true, Open: !filtering && a.sess.opened(tid, false), Icon: icon, IconFg: th.Func, Text: t.Name, Pos: pos[tid],
@@ -487,7 +497,7 @@ func (a *App) treeNodes() (ns []node, matches int) {
 		if c.readOnly { // dim after the name, as … (§7.8)
 			cn.Aside = ic.Lock.Text
 		}
-		if c.Spec.Kind() == "mysql" { // its schemas are what is picked; a PG connection's databases
+		if c.Spec.SchemasAreDatabases() { // its schemas are what is picked; a PG connection's databases
 			cn.Note, cn.NoteFg = pickedNote(len(c.Schemas), len(c.all.schemas)), th.Dim
 		} else {
 			cn.Note, cn.NoteFg = pickedNote(len(c.Databases), len(c.all.dbs)), th.Dim

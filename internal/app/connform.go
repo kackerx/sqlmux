@@ -37,8 +37,13 @@ type connForm struct {
 	// the group field's list of the groups there are (F10.6): the one picked
 	// with ↓ and ↑, -1 for none; esc closes it till something is typed
 	groupSel int
-	groupTop int // the first group shown, held while the selection is in view (F13.10)
 	groupOff bool
+	// pickTop is the first row the field's list shows, the group's or the
+	// engine's, held while the selection is in view (F13.10)
+	pickTop int
+	// engineOff is the engine field's list closed, by esc or a pick, till the
+	// field gets the keys again
+	engineOff bool
 	// testing is the number of the connection test out, 0 for none; result is
 	// what a test found, a connection made (resultOK) or why not, shown while
 	// err, why a save or a field did not do, is not (F12.5)
@@ -71,11 +76,13 @@ var connFields = []string{fieldName: "name", fieldGroup: "group", fieldEngine: "
 	fieldPassword: "password", fieldDatabase: "database", fieldReadOnly: "read_only", fieldProduction: "production", fieldAdvanced: "", fieldDSN: "dsn", fieldPasswordCmd: "password_cmd", fieldSSH: "ssh"}
 
 // defaultPort is the port of an engine's server.
-var defaultPort = map[string]string{"postgres": "5432", "mysql": "3306", "redis": "6379", "mssql": "1433"} // none for SQLite
+var defaultPort = map[string]string{"postgres": "5432", "mysql": "3306", "redis": "6379", "mssql": "1433", "clickhouse": "8123", "trino": "8080", "oracle": "1521"} // none for SQLite
 
 // dsnExample is what an empty dsn field shows of each engine, the URL form
 // of both (§8): the driver's own form of MySQL is read as well, not shown.
-var dsnExample = map[string]string{"postgres": "postgres://user:pass@host:5432/db?sslmode=prefer", "mysql": "mysql://user:pass@host:3306/db", "sqlite": "~/data.db?mode=ro", "redis": "redis://user:pass@host:6379/0", "mssql": "sqlserver://user:pass@host:1433?database=db&TrustServerCertificate=true"}
+var dsnExample = map[string]string{"postgres": "postgres://user:pass@host:5432/db?sslmode=prefer", "mysql": "mysql://user:pass@host:3306/db", "sqlite": "~/data.db?mode=ro", "redis": "redis://user:pass@host:6379/0", "mssql": "sqlserver://user:pass@host:1433?database=db&TrustServerCertificate=true",
+	"clickhouse": "clickhouse://user:pass@host:8123/db?secure=false", "trino": "trino://user@host:8080/catalog/schema?ssl=false",
+	"oracle": "oracle://user:pass@host:1521/SERVICE_NAME"}
 
 // managed are the connections the manager lists: those of connections.toml,
 // not one of the command line, which is nowhere to find, edit or delete (F14.1).
@@ -101,7 +108,7 @@ func blankFields() []ui.FormField {
 		fs[i].Label = name
 	}
 	fs[fieldAdvanced].Label = i18n.T("高级")
-	fs[fieldEngine].Kind, fs[fieldEngine].Choices = ui.FormSegments, []string{"postgres", "mysql", "sqlite", "redis", "mssql"}
+	fs[fieldEngine].Kind, fs[fieldEngine].Choices = ui.FormSelect, []string{"postgres", "mysql", "sqlite", "redis", "mssql", "clickhouse", "trino", "oracle"}
 	fs[fieldReadOnly].Kind = ui.FormCheck
 	fs[fieldProduction].Kind = ui.FormCheck
 	fs[fieldAdvanced].Kind = ui.FormFold
@@ -151,7 +158,7 @@ func (a *App) selectConn(i int) {
 	text(fieldName, c.Name)
 	text(fieldGroup, c.Group)
 	f.fields[fieldEngine].On = slices.Index(f.fields[fieldEngine].Choices, c.Engine)
-	host, port, user, database := splitDSN(c.Engine, c.DSN)
+	host, port, user, database, _ := splitDSN(c.Engine, c.DSN)
 	text(fieldHost, host)
 	text(fieldPort, port)
 	text(fieldUser, user)
@@ -168,31 +175,122 @@ func (a *App) selectConn(i int) {
 	text(fieldSSH, c.SSH)
 }
 
-// mysqlDSN is the go-sql-driver's `user:password@tcp(host:port)/database?…`.
-var mysqlDSN = regexp.MustCompile(`^(?:([^:@/]*)(?::[^@]*)?@)?tcp\(([^)]*)\)/([^?]*)`)
+// mysqlDSN is the go-sql-driver's `user:password@tcp(host:port)/database?…`:
+// the user, the password, the address and the database.
+var mysqlDSN = regexp.MustCompile(`^(?:([^:@/]*)(?::([^@]*))?@)?tcp\(([^)]*)\)/([^?]*)`)
 
 // splitDSN is the host, port, user and database a dsn says, as far as it
 // says them in a form it knows: a URL, which is what the form writes for
-// both engines, or the go-sql-driver's; "" for what it cannot read.
-func splitDSN(engine, dsn string) (host, port, user, database string) {
+// every engine but SQLite, or the go-sql-driver's; ok is false for what it
+// cannot read, SQL Server's keyword form say.
+func splitDSN(engine, dsn string) (host, port, user, database string, ok bool) {
 	if engine == "sqlite" { // the file is all there is
-		return "", "", "", dsn
+		return "", "", "", dsn, true
 	}
 	if engine == "mysql" && !strings.Contains(dsn, "://") {
 		if m := mysqlDSN.FindStringSubmatch(dsn); m != nil {
-			host, port, err := net.SplitHostPort(m[2])
+			host, port, err := net.SplitHostPort(m[3])
 			if err != nil { // no port written
-				host, port = m[2], ""
+				host, port = m[3], ""
 			}
-			return host, port, m[1], m[3]
+			return host, port, m[1], m[4], true
 		}
 		return
 	}
 	u, err := url.Parse(dsn)
-	if err != nil {
+	if err != nil || u.Scheme == "" || u.Host == "" {
 		return
 	}
-	return u.Hostname(), u.Port(), u.User.Username(), strings.TrimPrefix(u.Path, "/")
+	database = strings.TrimPrefix(u.Path, "/")
+	if engine == "mssql" { // the driver's URL has its database as a parameter (F18.6)
+		database = u.Query().Get("database")
+	}
+	return u.Hostname(), u.Port(), u.User.Username(), database, true
+}
+
+// rewriteDSN is dsn with its host, port, user and database the ones given and
+// all else of it as it was: its scheme, its parameters, a password written in
+// it; ok is false for a dsn splitDSN cannot read, which only its own field
+// changes.
+func rewriteDSN(engine, dsn, host, port, user, database string) (string, bool) {
+	if _, _, _, _, ok := splitDSN(engine, dsn); !ok {
+		return dsn, false
+	}
+	if engine == "sqlite" {
+		return database, true
+	}
+	addr := host
+	if port != "" {
+		addr = net.JoinHostPort(strings.Trim(host, "[]"), port)
+	}
+	if engine == "mysql" && !strings.Contains(dsn, "://") {
+		m := mysqlDSN.FindStringSubmatchIndex(dsn)
+		who := user
+		if m[4] >= 0 { // its password stays
+			who += ":" + dsn[m[4]:m[5]]
+		}
+		if who != "" {
+			who += "@"
+		}
+		return who + "tcp(" + addr + ")/" + database + dsn[m[1]:], true
+	}
+	u, _ := url.Parse(dsn)
+	u.Host = addr
+	switch pw, has := u.User.Password(); {
+	case has:
+		u.User = url.UserPassword(user, pw)
+	case user != "":
+		u.User = url.User(user)
+	default:
+		u.User = nil
+	}
+	if engine == "mssql" {
+		q := u.Query()
+		if database == "" {
+			q.Del("database")
+		} else {
+			q.Set("database", database)
+		}
+		u.RawQuery = q.Encode()
+	} else {
+		u.Path = "/" + database
+	}
+	return u.String(), true
+}
+
+// syncDSN keeps a dsn that is typed and the fields split from it the same:
+// a change of host, port, user or database is written into the dsn, the rest
+// of it as it was; a change of the dsn is read back into them (F8.16).
+func (f *connForm) syncDSN(i int) {
+	if !f.dsnGiven() {
+		return
+	}
+	engine := f.fields[fieldEngine].Choices[f.fields[fieldEngine].On]
+	in := func(i int) *ui.Input { return &f.fields[i].Input }
+	set := func(i int, s string) { *in(i) = ui.Input{Text: s, Pos: len(s)} }
+	switch i {
+	case fieldHost, fieldPort, fieldUser, fieldDatabase:
+		if dsn, ok := rewriteDSN(engine, in(fieldDSN).Text, in(fieldHost).Text, in(fieldPort).Text, in(fieldUser).Text, in(fieldDatabase).Text); ok {
+			set(fieldDSN, dsn)
+		}
+	case fieldDSN:
+		if host, port, user, database, ok := splitDSN(engine, in(fieldDSN).Text); ok {
+			set(fieldHost, host)
+			set(fieldPort, port)
+			set(fieldUser, user)
+			set(fieldDatabase, database)
+		}
+	}
+}
+
+// dsnFixed is whether a dsn is typed that splitDSN cannot read: then the
+// fields split from it take no part, the dsn alone says where to connect.
+func (f *connForm) dsnFixed() bool {
+	if !f.dsnGiven() {
+		return false
+	}
+	_, _, _, _, ok := splitDSN(f.fields[fieldEngine].Choices[f.fields[fieldEngine].On], strings.TrimSpace(f.fields[fieldDSN].Input.Text))
+	return !ok
 }
 
 // advanced is whether the fold is open; dsnGiven whether a dsn is typed in
@@ -210,11 +308,11 @@ func (f *connForm) skipped(i int) bool {
 	case fieldSSH: // a file has no network to go through (F15.2)
 		return !f.advanced() || f.sqlite()
 	case fieldHost, fieldPort, fieldUser:
-		return f.dsnGiven() || f.sqlite()
+		return f.dsnFixed() || f.sqlite()
 	case fieldPassword:
 		return f.sqlite()
 	case fieldDatabase:
-		return f.dsnGiven()
+		return f.dsnFixed()
 	}
 	return false
 }
@@ -255,7 +353,7 @@ func (f *connForm) clearErr() {
 func (a *App) formMove(d int) {
 	f := a.form
 	f.clearErr()
-	f.groupSel, f.groupOff = -1, false
+	f.groupSel, f.groupOff, f.engineOff, f.pickTop = -1, false, false, 0
 	for range f.fields {
 		f.sel = (f.sel + d + len(f.fields)) % len(f.fields)
 		if !f.skipped(f.sel) {
@@ -273,10 +371,13 @@ func (a *App) formKey(k keymap.Key) {
 	fd := &f.fields[f.sel]
 	switch fd.Kind {
 	case ui.FormInput:
-		if editInput(&fd.Input, k) && f.sel == fieldGroup {
-			f.groupSel, f.groupOff = -1, false
+		if editInput(&fd.Input, k) {
+			if f.sel == fieldGroup {
+				f.groupSel, f.groupOff = -1, false
+			}
+			f.syncDSN(f.sel)
 		}
-	case ui.FormSegments:
+	case ui.FormSelect:
 		switch k {
 		case "<Space>", "<Right>":
 			a.formSegment(f.sel, (fd.On+1)%len(fd.Choices))
@@ -324,7 +425,10 @@ func (a *App) formClick(i int) {
 	}
 	f.list = false
 	f.clearErr()
-	f.sel, f.groupSel, f.groupOff = i, -1, false
+	if f.sel != i {
+		f.pickTop = 0
+	}
+	f.sel, f.groupSel, f.groupOff, f.engineOff = i, -1, false, false
 	if k := f.fields[i].Kind; k == ui.FormCheck || k == ui.FormFold {
 		a.formKey("<Space>")
 	}
@@ -355,6 +459,8 @@ func composeDSN(engine, host, port, user, database string) string {
 	case "postgres":
 		u.Path = "/" + database
 		u.RawQuery = "sslmode=prefer"
+	case "trino": // the database field is the catalog, the schema after it a /: catalog/schema
+		u.Path = "/" + strings.TrimPrefix(database, "/")
 	default:
 		u.Path = "/" + database
 	}
@@ -513,7 +619,7 @@ func (a *App) connsOf(name string, is func(*Conn) bool) (out []*Conn) {
 // changed is how many of tabs are tables with changes not saved.
 func changed(tabs []connTab) (n int) {
 	for _, t := range tabs {
-		if d := t.p.Tabs[t.i].Data; d != nil && d.changes() > 0 {
+		if d := t.p.Tabs[t.i].table(); d != nil && d.changes() > 0 {
 			n++
 		}
 	}
@@ -659,6 +765,10 @@ func testConn(spec config.Connection, password string) (string, error) {
 		version = "select sqlite_version()"
 	case "mssql": // no version(): the server's number is here (F18.6)
 		version = "select convert(nvarchar(max), serverproperty('ProductVersion'))"
+	case "trino": // the coordinator's version
+		version = "select node_version from system.runtime.nodes where coordinator"
+	case "oracle": // v$version wants a grant; this one is everyone's
+		version = "select version_full from product_component_version where product like 'Oracle%'"
 	case "redis": // PING, then what the server says it is
 		if _, err := conn.Query(ctx, "PING"); err != nil {
 			return "", err
@@ -679,6 +789,12 @@ func versionText(engine, v string) string {
 	switch engine {
 	case "mssql":
 		return "SQL Server " + v
+	case "clickhouse":
+		return "ClickHouse " + v
+	case "trino":
+		return "Trino " + v
+	case "oracle":
+		return "Oracle " + v
 	case "mysql":
 		return "MySQL " + v
 	case "sqlite":
@@ -933,13 +1049,38 @@ func (a *App) formView() ui.Form {
 	fields[fieldDSN].Example = dsnExample[fields[fieldEngine].Choices[fields[fieldEngine].On]]
 	form := ui.Form{Fields: fields, Sel: f.sel, Err: note, OK: f.err == "" && (f.resultOK || f.testing != 0), Save: i18n.T("保存"), Test: i18n.T("测试"), Cancel: i18n.T("取消"), Delete: del, Hints: hints, PickAt: fieldGroup}
 	if cands := a.groupCands(); len(cands) > 0 { // under the group field (F10.6)
-		form.Pick = &ui.Complete{Sel: f.groupPick(len(cands)), Top: f.groupTop, Act: "form.pick"}
+		form.Pick = &ui.Complete{Sel: f.groupPick(len(cands)), Top: f.pickTop, Act: "form.pick"}
 		for _, g := range cands {
 			form.Pick.Items = append(form.Pick.Items, ui.CompleteItem{Text: g})
 		}
 	}
+	if f.enginesOpen() { // under the engine field, each with its logo: the one picked as ↓ and ↑ go
+		e := f.fields[fieldEngine]
+		form.PickAt, form.Pick = fieldEngine, &ui.Complete{Sel: e.On, Top: f.pickTop, Act: "form.engine.pick"}
+		for _, name := range e.Choices {
+			form.Pick.Items = append(form.Pick.Items, ui.CompleteItem{Icon: ic.Engine(name), Text: name, Note: engineNames[name]})
+		}
+	}
 	return form
 }
+
+// enginesOpen is whether the engine field shows its list of the engines: while
+// it has the keys, till esc or a pick closes it.
+func (f *connForm) enginesOpen() bool {
+	return f != nil && !f.list && f.sel == fieldEngine && !f.engineOff
+}
+
+// engineMove is ↓ (d 1) and ↑ on the engine list: the engine before or after,
+// round the ends, picked at once.
+func (a *App) engineMove(d int) {
+	e := a.form.fields[fieldEngine]
+	a.formSegment(fieldEngine, (e.On+d+len(e.Choices))%len(e.Choices))
+}
+
+// engineNames are the engines as their makers name them, dim beside each in
+// the list.
+var engineNames = map[string]string{"postgres": "PostgreSQL", "mysql": "MySQL", "sqlite": "SQLite", "redis": "Redis",
+	"mssql": "SQL Server", "clickhouse": "ClickHouse", "trino": "Trino", "oracle": "Oracle"}
 
 // groupCands are the groups the group field's list offers: those that start
 // as what is typed does, in either case, but not what is typed exactly; none

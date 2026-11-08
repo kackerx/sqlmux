@@ -236,7 +236,7 @@ func TestListsHoldTheirTop(t *testing.T) {
 	for _, k := range strings.Fields("Down Down Down Down Down Down Down Down Down Up Up Up") {
 		feed(t, a, "<"+k+">")
 		a.render()
-		tops = append(tops, a.form.groupTop)
+		tops = append(tops, a.form.pickTop)
 	}
 	if tops[8] == 0 || tops[9] != tops[8] || tops[10] != tops[8] || tops[11] != tops[8] {
 		t.Errorf("the groups' top while ↓ then ↑: %v", tops)

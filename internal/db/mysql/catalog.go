@@ -36,9 +36,9 @@ func (Engine) Schemas(ctx context.Context, c db.Conn) (schemas []string, current
 // day by default, so counts lag behind; ANALYZE TABLE refreshes them
 func (Engine) Tables(ctx context.Context, c db.Conn, only []string) ([]db.Table, error) {
 	r, err := c.Query(ctx, `
-select table_schema, table_name, coalesce(table_rows, -1), table_type
+select table_schema, table_name, coalesce(table_rows, -1), table_type, coalesce(data_length + index_length, 0)
 from information_schema.tables
-where table_schema `+userSchema+db.SchemaIn("table_schema", only, sqlkit.MySQL)+`
+where `+db.Scope("table_schema "+userSchema, "table_schema", only, sqlkit.MySQL)+`
 order by 1, 2`)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ order by 1, 2`)
 		if row[3].S == "VIEW" {
 			kind = "v"
 		}
-		ts[i] = db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: kind}
+		ts[i] = db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: kind, Bytes: db.BytesOf(row[4])}
 	}
 	return ts, nil
 }
@@ -288,7 +288,7 @@ select r.routine_schema, r.routine_name,
                  from information_schema.parameters p
                  where p.specific_schema = r.routine_schema and p.specific_name = r.specific_name and p.ordinal_position > 0), '')
 from information_schema.routines r
-where r.routine_type = 'FUNCTION' and r.routine_schema `+userSchema+db.SchemaIn("r.routine_schema", only, sqlkit.MySQL)+`
+where r.routine_type = 'FUNCTION' and `+db.Scope("r.routine_schema "+userSchema, "r.routine_schema", only, sqlkit.MySQL)+`
 order by 1, 2`)
 	if err != nil {
 		return nil, err
@@ -316,4 +316,10 @@ func (e Engine) FunctionDef(ctx context.Context, c db.Conn, f db.Function) (stri
 		return "", errors.New(i18n.T("没有读函数定义的权限：要 SHOW_ROUTINE，或是它的 DEFINER"))
 	}
 	return r.Rows[0][2].S + ";", nil
+}
+
+// SystemSchemas are MySQL's own databases: mysql, sys and the two schemas of
+// metadata.
+func (Engine) SystemSchemas(ctx context.Context, c db.Conn) ([]string, error) {
+	return db.Names(ctx, c, "select schema_name from information_schema.schemata where not (schema_name "+userSchema+") order by 1")
 }

@@ -594,7 +594,7 @@ func TestNext(t *testing.T) {
 		t.Error("Next after the sequence ended")
 	}
 	press(t, r, grid, "g")
-	if n := r.Next(); len(n) != 11 || n[0].Key != "g" || n[9].Key != "t" { // grid's g-keys first, then normal's
+	if n := r.Next(); len(n) != 12 || n[0].Key != "g" || n[10].Key != "t" { // grid's g-keys first, then normal's
 		t.Errorf("g next: %+v", n)
 	}
 }
@@ -617,7 +617,7 @@ func TestMapNext(t *testing.T) {
 	for _, n := range m.Next(grid, []Key{"g"}) {
 		got = append(got, string(n.Key)+" "+n.Table)
 	}
-	if want := []string{"g keys.grid", "o keys.grid", "l keys.grid", "p keys.grid", "c keys.grid", "e keys.grid", "s keys.grid", "S keys.grid", "j keys.grid", "t keys.normal", "T keys.normal", "z keys.normal"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"g keys.grid", "o keys.grid", "l keys.grid", "p keys.grid", "c keys.grid", "e keys.grid", "s keys.grid", "S keys.grid", "j keys.grid", "i keys.grid", "t keys.normal", "T keys.normal", "z keys.normal"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("g: %v", got)
 	}
 	if m.Next(grid, []Key{"x", "y"}) != nil {

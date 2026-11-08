@@ -32,7 +32,6 @@ const (
 	KindCell                     // a grid cell: focus its pane, then run Action (grid.goto r c)
 	KindRowNo                    // a grid row number: as KindCell, to that row in the current column
 	KindText                     // a query's text: a click puts the cursor there, a drag selects (§11)
-	KindSegment                  // a segment of a form's switch (Pane: its field, I: the segment)
 	KindConn                     // a row of the connection manager's list (I: its index)
 	KindHead                     // a table's column head (I: the column's index among those shown): click sorts by it (§7.6)
 	KindColEdge                  // the │ right of a column head (I: the column): drag to set the column's width (F17.14)
@@ -62,6 +61,9 @@ type Frame struct {
 	Theme  *Theme
 	Cursor *uv.Position // the terminal cursor, while an input has focus
 	Border uv.Border    // the characters every box is drawn with (§7.1, F8.10)
+	// Transparent is `[ui] transparent` (§7.3): Dim leaves the theme's
+	// backgrounds be, and Unpaint clears them before the frame goes out.
+	Transparent bool
 }
 
 func NewFrame(w, h int, th *Theme) *Frame {
@@ -183,14 +185,34 @@ func (f *Frame) TextMatch(x, y, right int, s string, pos []int, st uv.Style) int
 }
 
 // Dim blends every cell 60% of the way to bg, so what an overlay covers
-// reads as behind it (§7.5): a terminal has no alpha.
+// reads as behind it (§7.5): a terminal has no alpha. A transparent frame's
+// backgrounds stay as they are, for Unpaint to clear: mixed, they would be
+// solid.
 func (f *Frame) Dim() {
 	th := f.Theme
 	for y := range f.Buf.Height() {
 		for x := range f.Buf.Width() {
 			c := f.Buf.CellAt(x, y)
+			if c != nil && IsPlaceholder(c.Content) { // its color is an image's id, which a mix would lose
+				continue
+			}
 			c.Style.Fg = mix(cmp.Or(c.Style.Fg, th.Fg), th.Bg, 0.6)
-			c.Style.Bg = mix(cmp.Or(c.Style.Bg, th.Bg), th.Bg, 0.6)
+			if !f.Transparent || !th.background(c.Style.Bg) {
+				c.Style.Bg = mix(cmp.Or(c.Style.Bg, th.Bg), th.Bg, 0.6)
+			}
+		}
+	}
+}
+
+// Unpaint gives every cell on one of the theme's backgrounds the terminal's
+// own (§7.3 透明背景): drawn last, so no part has to know of it.
+func (f *Frame) Unpaint() {
+	th := f.Theme
+	for y := range f.Buf.Height() {
+		for x := range f.Buf.Width() {
+			if c := f.Buf.CellAt(x, y); c != nil && th.background(c.Style.Bg) {
+				c.Style.Bg = nil
+			}
 		}
 	}
 }

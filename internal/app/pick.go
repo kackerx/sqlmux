@@ -25,6 +25,7 @@ type pickMenu struct {
 	on, was []bool
 	fixed   string         // the DSN's database, which stays on
 	tables  map[string]int // schemas: the tables loaded of each
+	system  int            // schemas: the names from this one on are the server's own, after the user's
 }
 
 // set puts name i on or off; the DSN's database cannot go off.
@@ -37,22 +38,25 @@ func (p *pickMenu) set(i int, on bool) {
 // note is what ends a schema's row: how many tables of it are loaded, for one that is.
 func (p *pickMenu) note(i int) string {
 	if p.dbs || !p.was[i] {
+		if !p.dbs && i >= p.system {
+			return i18n.T("系统")
+		}
 		return ""
 	}
 	return strconv.Itoa(p.tables[p.names[i]])
 }
 
 // pickable is whether n has a list of databases or schemas to pick from, and which:
-// a PG or SQL Server connection its databases, a MySQL one and a database of
-// PG's or SQL Server's its schemas.
+// a PG, SQL Server or Trino connection its databases, a MySQL or ClickHouse one and
+// a database of the others its schemas.
 func pickable(n node) (dbs, ok bool) {
 	switch {
-	case n.kind == nodeConn && n.conn.Spec.Kind() == "mysql":
+	case n.kind == nodeConn && n.conn.Spec.SchemasAreDatabases():
 		return false, true
-	case n.kind == nodeConn && (n.conn.Spec.Kind() == "postgres" || n.conn.Spec.Kind() == "mssql"):
+	case n.kind == nodeConn && n.conn.Spec.HasDatabases():
 		return true, true
 	case n.kind == nodeDatabase:
-		return false, n.conn.Spec.Kind() == "postgres" || n.conn.Spec.Kind() == "mssql"
+		return false, n.conn.Spec.HasDatabases()
 	}
 	return false, false
 }
@@ -89,7 +93,14 @@ func (a *App) openPick(n node) tea.Cmd {
 	if dbs {
 		names, loaded, p.fixed = cmpOr(c.all.dbs, c.Databases), c.Databases, c.DB
 	}
-	p.names = slices.Clone(names)
+	p.names, p.system = slices.Clone(names), len(names)
+	if !dbs { // the server's own after them, off till picked: the tree leaves them out (F17.13)
+		for _, s := range c.all.system {
+			if !slices.Contains(p.names, s) {
+				p.names = append(p.names, s)
+			}
+		}
+	}
 	if !dbs && slices.Contains(p.names, c.all.keep) { // the schema names go to stays picked, as the database does
 		p.fixed = c.all.keep
 	}
@@ -136,6 +147,7 @@ func (a *App) pickView() ui.Dropdown {
 		Pane:  m.pane.ID,
 		Count: fmt.Sprintf("%d/%d", on, len(p.names)),
 		Hints: bound(
+			ui.Hint{Key: a.keys.Hint("cols.filter", "cols"), Label: i18n.T("搜索"), Action: "cols.filter"},
 			ui.Hint{Key: a.keys.Hint("cols.all", "cols"), Label: i18n.T("全选"), Action: "cols.all"},
 			ui.Hint{Key: a.keys.Hint("cols.none", "cols"), Label: i18n.T("全不选"), Action: "cols.none"},
 		),
@@ -165,7 +177,7 @@ func (a *App) applyPick(p *pickMenu) tea.Cmd {
 	if len(picked) == 0 { // none to keep: nothing is written
 		return nil
 	}
-	all := len(picked) == len(p.names)
+	all := len(picked) == p.system && !slices.ContainsFunc(picked, func(s string) bool { return slices.Index(p.names, s) >= p.system }) // the user's, none of the server's: no line
 	root := p.conn.root()
 	base := root.Spec
 	if !root.Spec.Temp { // the file may have changed since: its lists are what this one changes
@@ -181,7 +193,7 @@ func (a *App) applyPick(p *pickMenu) tea.Cmd {
 		if !all {
 			next.Databases = picked
 		}
-	case root.Spec.Kind() == "mysql":
+	case root.Spec.SchemasAreDatabases():
 		next.Schemas = nil
 		if !all {
 			next.Schemas = picked

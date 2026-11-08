@@ -1,6 +1,10 @@
 package db
 
-import "slices"
+import (
+	"context"
+	"slices"
+	"strconv"
+)
 
 // Table is one relation the schema tree lists (§8.4): a table, a view,
 // a materialized view, a foreign table, or a partitioned table's parent.
@@ -8,6 +12,26 @@ type Table struct {
 	Schema, Name string
 	Rows         float64 // the server's estimate; < 0 when it has none
 	Kind         string  // pg_class.relkind: r, p, f are tables; v, m views
+	// Bytes is what it takes on disk, its indexes with it where the server
+	// says them together; 0 when it does not say
+	Bytes int64
+}
+
+// bytesOf is a catalog's size text as Bytes: 0 for none.
+func bytesOf(s string) int64 {
+	n, err := strconv.ParseFloat(s, 64)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return int64(n)
+}
+
+// BytesOf is a size a catalog query read as text, 0 when it has none (NULL, -1).
+func BytesOf(v Val) int64 {
+	if v.Null {
+		return 0
+	}
+	return bytesOf(v.S)
 }
 
 // View reports whether t is listed under Views, not Tables (§7.8).
@@ -99,3 +123,17 @@ type Function struct {
 
 // Sequence is one sequence of a schema (§8.4).
 type Sequence struct{ Schema, Name string }
+
+// Names is the first column of what sql reads on c, as text: a catalog's list
+// of names.
+func Names(ctx context.Context, c Conn, sql string) ([]string, error) {
+	r, err := c.Query(ctx, sql)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, len(r.Rows))
+	for i, row := range r.Rows {
+		out[i] = row[0].S
+	}
+	return out, nil
+}

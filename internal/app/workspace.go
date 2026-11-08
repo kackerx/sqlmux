@@ -16,12 +16,15 @@ import (
 
 	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db"
+	"github.com/kackerx/sqlmux/internal/db/clickhouse"
 	dbexec "github.com/kackerx/sqlmux/internal/db/exec"
 	"github.com/kackerx/sqlmux/internal/db/mssql"
 	"github.com/kackerx/sqlmux/internal/db/mysql"
+	"github.com/kackerx/sqlmux/internal/db/oracle"
 	"github.com/kackerx/sqlmux/internal/db/postgres"
 	"github.com/kackerx/sqlmux/internal/db/redis"
 	"github.com/kackerx/sqlmux/internal/db/sqlite"
+	"github.com/kackerx/sqlmux/internal/db/trino"
 	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/keymap"
 	"github.com/kackerx/sqlmux/internal/sqlkit"
@@ -60,10 +63,22 @@ func landing() Tab { return Tab{Name: i18n.T("新 tab")} }
 // landing reports whether t shows the landing page: a new tab, or no tab.
 func (t *Tab) landing() bool { return t == nil || t.Data == nil && t.Query == nil && t.Result == nil }
 
+// table is a table tab's rows, whichever of them and its properties it shows
+// (props.go): what has its changes, its layout, its refreshes.
+func (t Tab) table() *dataTab {
+	if d := t.Data; d != nil && d.props != "" {
+		return d.other
+	}
+	return t.Data
+}
+
 // tableTab is the index of pane p's tab of table t of connection c, -1 for
 // none: a pane has a table once (F3.37).
 func (p *Pane) tableTab(c *Conn, t db.Table) int {
-	return slices.IndexFunc(p.Tabs, func(tb Tab) bool { return tb.Data != nil && tb.Data.conn == c && idOf(tb.Data.table) == idOf(t) })
+	return slices.IndexFunc(p.Tabs, func(tb Tab) bool {
+		d := tb.table()
+		return d != nil && d.conn == c && idOf(d.table) == idOf(t)
+	})
 }
 
 // putTab puts tab in pane p: over the current tab, or after the last one,
@@ -440,7 +455,8 @@ func (c *Conn) liveSpec() config.Connection {
 }
 
 // drivers are the servers connections.toml names (§8.1, §5「连接缝」).
-var drivers = map[string]db.Driver{"postgres": postgres.Engine{}, "mysql": mysql.Engine{}, "sqlite": sqlite.Engine{}, "redis": redis.Driver{}, "mssql": mssql.Engine{}}
+var drivers = map[string]db.Driver{"postgres": postgres.Engine{}, "mysql": mysql.Engine{}, "sqlite": sqlite.Engine{}, "redis": redis.Driver{}, "mssql": mssql.Engine{},
+	"clickhouse": clickhouse.Engine{}, "trino": trino.Engine{}, "oracle": oracle.Engine{}}
 
 // driverOf is the driver of spec's engine: an exec connection's is the engine of its
 // dialect over its command (§8.8).
@@ -855,6 +871,8 @@ func connectTo(ctx context.Context, spec config.Connection, readOnly bool) (db.C
 			withDB = redis.WithDB
 		case "mssql": // the DSN's database parameter (F18.6)
 			withDB = mssql.WithDatabase
+		case "trino": // the catalog (§8.10)
+			withDB = trino.WithDatabase
 		}
 		if dsn, err = withDB(dsn, spec.Database); err != nil {
 			return nil, db.Info{}, err
@@ -1253,7 +1271,7 @@ func (a *App) closeTabThen(p *Pane, i int, after func() tea.Cmd) tea.Cmd {
 		})
 	}
 	n, name := 0, ""
-	if t := p.Tabs[i].Data; t != nil {
+	if t := p.Tabs[i].table(); t != nil {
 		n, name = t.changes(), t.table.Name+" "
 	}
 	return a.unlessLost(n, name, nil, verbClose, func() tea.Cmd { a.closeTab(p, i); return after() })

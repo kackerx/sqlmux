@@ -13,16 +13,16 @@
 │       ▸  schema_migrations ┌─ 连接 ───────────────────────────────────────────────────────────────────────────────────────────┐                             │
 │       ▸  t_order       1.2m│  doraemon               │          name play                                                   │                             │
 │       ▸  t_order_item  3.4m│  新建                   │         group                                                        │                             │
-│       ▸  t_payment     410k│                          │        engine  postgres │ mysql │ sqlite │ redis │ mssql             │                             │
+│       ▸  t_payment     410k│                          │        engine  mssql ▾                                               │                             │
 │       ▸  t_refund       12k│                          │          host                                                        │                             │
-│       ▸  t_sku         8.1k│                          │          port 5432                                                   │                             │
+│       ▸  t_sku         8.1k│                          │          port 1433                                                   │                             │
 │       ▸  t_user         38k│                          │          user                                                        │                             │
 │       ▸  t_user_address 52k│                          │      password                                                        │                             │
 │       ▸  t_user_profile 38k│                          │      database                                                        │                             │
 │        Views (0)           │                          │     read_only [ ]                                                    │                             │
 │ ▾  工作区                  │                          │    production [ ]                                                    │                             │
 │   ▾  data                  │                          │          高级 ▾                                                      │                             │
-│       ②  query_1           │                          │           dsn postgres://u@h/d                                       │                             │
+│       ②  query_1           │                          │           dsn server=h;user id=u                                     │                             │
 │ ▾  Queries                 │                          │  password_cmd printf pw                                              │                             │
 │      query_1               │                          │           ssh                                                        │                             │
 │      query_2               │                          │                                                                       │                             │

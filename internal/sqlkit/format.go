@@ -65,7 +65,7 @@ func format(sql string, d Dialect, o Options, deadline time.Time) (string, error
 		return "", f.err
 	}
 	opts := f.vm.NewObject()
-	_ = opts.Set("language", map[Dialect]string{PG: "postgresql", MySQL: "mysql", SQLite: "sqlite", MSSQL: "transactsql"}[d])
+	_ = opts.Set("language", map[Dialect]string{PG: "postgresql", MySQL: "mysql", SQLite: "sqlite", MSSQL: "transactsql", ClickHouse: "clickhouse", Trino: "trino", Oracle: "plsql"}[d])
 	_ = opts.Set("keywordCase", o.KeywordCase)
 	_ = opts.Set("dataTypeCase", o.KeywordCase) // PG's type names are keywords (15.x has them apart)
 	_ = opts.Set("tabWidth", o.TabWidth)

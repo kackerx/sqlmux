@@ -12,11 +12,15 @@ func TestTempConnection(t *testing.T) {
 		"./x.db":                          {Name: "x", Engine: "sqlite", DSN: "./x.db", Temp: true},
 		"/tmp/data/my.app.sqlite?mode=ro": {Name: "my.app", Engine: "sqlite", DSN: "/tmp/data/my.app.sqlite?mode=ro", Temp: true},
 		"~/notes":                         {Name: "notes", Engine: "sqlite", DSN: "~/notes", Temp: true},
-		"postgres://u:pw@db.example:5432/shop?x=1": {Name: "shop@db.example", Engine: "postgres", DSN: "postgres://u:pw@db.example:5432/shop?x=1", Temp: true},
-		"postgresql://localhost/app":               {Name: "app@localhost", Engine: "postgres", DSN: "postgresql://localhost/app", Temp: true},
-		"mysql://root@127.0.0.1:3306/":             {Name: "127.0.0.1", Engine: "mysql", DSN: "mysql://root@127.0.0.1:3306/", Temp: true},
-		"mysql:///tmp/sock":                        {Name: "mysql", Engine: "mysql", DSN: "mysql:///tmp/sock", Temp: true},
-		`D:/x.db`:                                  {Name: "x", Engine: "sqlite", DSN: `D:/x.db`, Temp: true}, // a windows drive, both separators taken
+		"postgres://u:pw@db.example:5432/shop?x=1":       {Name: "shop@db.example", Engine: "postgres", DSN: "postgres://u:pw@db.example:5432/shop?x=1", Temp: true},
+		"postgresql://localhost/app":                     {Name: "app@localhost", Engine: "postgres", DSN: "postgresql://localhost/app", Temp: true},
+		"mysql://root@127.0.0.1:3306/":                   {Name: "127.0.0.1", Engine: "mysql", DSN: "mysql://root@127.0.0.1:3306/", Temp: true},
+		"mysql:///tmp/sock":                              {Name: "mysql", Engine: "mysql", DSN: "mysql:///tmp/sock", Temp: true},
+		`D:/x.db`:                                        {Name: "x", Engine: "sqlite", DSN: `D:/x.db`, Temp: true}, // a windows drive, both separators taken
+		"clickhouse://u:p@ch.example:8123/events":        {Name: "events@ch.example", Engine: "clickhouse", DSN: "clickhouse://u:p@ch.example:8123/events", Temp: true},
+		"trino://u@tr.example:8080/hive/web":             {Name: "hive@tr.example", Engine: "trino", DSN: "trino://u@tr.example:8080/hive/web", Temp: true}, // the catalog names it
+		"sqlserver://sa:p@db.example:1433?database=shop": {Name: "shop@db.example", Engine: "mssql", DSN: "sqlserver://sa:p@db.example:1433?database=shop", Temp: true},
+		"oracle://scott:tiger@ora.example:1521/ORCLPDB1": {Name: "ORCLPDB1@ora.example", Engine: "oracle", DSN: "oracle://scott:tiger@ora.example:1521/ORCLPDB1", Temp: true},
 	}
 	if runtime.GOOS == "windows" { // unix's filepath.Base does not cut at a backslash
 		targets[`C:\data\a.db`] = Connection{Name: "a", Engine: "sqlite", DSN: `C:\data\a.db`, Temp: true}
@@ -30,7 +34,7 @@ func TestTempConnection(t *testing.T) {
 			t.Errorf("%s: %s %s", target, f, p)
 		}
 	}
-	if _, err := TempConnection("oracle://x/y", nil); err == nil {
+	if _, err := TempConnection("db2://x/y", nil); err == nil {
 		t.Error("an engine there is not")
 	}
 	// the password in a URL that does not parse is not in the error

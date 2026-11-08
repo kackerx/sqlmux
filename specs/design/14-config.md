@@ -57,7 +57,7 @@
 ```toml
 # config.toml
 theme        = "tokyonight-storm"
-icons        = "nerd"            # nerd | ascii
+icons        = "nerd"            # nerd | ascii | images；不写时由终端定：kitty / Ghostty（不在 tmux 里）里引擎图标是 DBeaver 的彩色图（§7.7）
 vim          = true              # false 时 query / WHERE 是普通编辑器，表格、树多一层方向键（§6.9，M6）
 clipboard    = ""                # M20 F20.5："unnamedplus" 时编辑器里不带寄存器的 y / d / p 同时走系统剪贴板，同 nvim（§11「寄存器」）
 language     = "en"              # en | zh，界面文案的语言（M6；默认 en，M7 F7.6）
@@ -72,6 +72,7 @@ border       = "single"          # single | rounded | double | bold | hidden，p
 
 [ui]                             # M15 F15.4
 tips         = true              # 状态栏里一条特性提示，5 分钟换一条（§7.8）；false 关掉
+transparent  = false             # true：主题的 bg、pane_bg、gap 不画，透出终端自己的背景（半透明终端用，§7.3）
 
 [tree]                           # M8 F8.22
 width        = 32                # 侧栏宽度（列，含边框）
@@ -123,7 +124,7 @@ H = "0"
 # connections.toml
 [[connection]]
 name         = "doraemon"
-engine       = "postgres"        # postgres | mysql | sqlite（M14 F14.1；sqlite 的 dsn 是文件路径）| mssql（M18 F18.6；dsn 是 sqlserver://user:pass@host:1433?database=x，本地容器加 &TrustServerCertificate=true）| redis（M16；dsn 是 redis:// 或 rediss:// URL，db 号在路径里）| exec（M17；见下面的例子）
+engine       = "postgres"        # postgres | mysql | sqlite（M14 F14.1；sqlite 的 dsn 是文件路径）| mssql（M18 F18.6；dsn 是 sqlserver://user:pass@host:1433?database=x，本地容器加 &TrustServerCertificate=true）| clickhouse（§8.9；dsn 是 clickhouse://user:pass@host:8123/db，HTTP 端口）| trino（§8.10；dsn 是 trino://user@host:8080/catalog/schema）| oracle（§8.11；dsn 是 oracle://user:pass@host:1521/<service>）| redis（M16；dsn 是 redis:// 或 rediss:// URL，db 号在路径里）| exec（M17；见下面的例子）
 dsn          = "postgres://ctw@localhost:5432/doraemon?sslmode=disable"
 password_cmd = "security find-generic-password -s sqlmux-doraemon -w"
 read_only    = false
@@ -131,8 +132,8 @@ production   = false             # M17 F17.9：true 时警示色、每次写都�
 ssh          = "user@host"       # M15 F15.2：先经这台机器的 ssh 再连 host:port；可选，端口、密钥、ProxyJump 走 ~/.ssh/config
 delimiter    = ":"               # M16，只对 redis：这个连接的命名空间分隔符，盖过 [redis] delimiter
 group        = "prod"            # optional (M10 F10.6)
-databases    = ["doraemon"]      # M17 F17.13，只对 postgres：树只列这些库；没写 = 全部。树上「选择库…」写回这里
-schemas      = ["doraemon.public"]   # M17 F17.13：树只列、catalog 只加载这些 schema；postgres 写 库.schema，mysql 写 schema 名；没写 = 全部非系统 schema。「选择 schema…」写回这里
+databases    = ["doraemon"]      # M17 F17.13，只对 postgres、mssql、trino（catalog）：树只列这些库；没写 = 全部。树上「选择库…」写回这里
+schemas      = ["doraemon.public"]   # M17 F17.13：树只列、catalog 只加载这些 schema；postgres、mssql、trino 写 库.schema，mysql、clickhouse 写库名、oracle 写 schema（用户）名；没写 = 全部非系统 schema。「选择 schema…」写回这里
 
 [[connection]]                   # M17 F17.7 / F17.8：外部执行器——SQL 或 Redis 命令交给一个外部命令跑（§8.8）
 name    = "prod-pg"

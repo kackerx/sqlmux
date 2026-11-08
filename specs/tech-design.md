@@ -17,7 +17,7 @@
 | §5 核心数据模型 | [`design/05-model.md`](design/05-model.md) | — |
 | §6 输入系统 | [`design/06-input.md`](design/06-input.md) | 6.1 Action；6.2 终端兼容：默认键位只用处处可用的键；6.3 键位记法；6.4 作用域与解析；6.5 按键序列、leader 与 which-key；6.6 次数前缀与用户映射；6.7 配置、冲突、提示、导出（PRD 6.3）；6.8 默认键位；6.9 非 vim 模式（M6 F6.6）；6.10 flash 式跳转（M10 F10.8） |
 | §7 渲染与鼠标 | [`design/07-render.md`](design/07-render.md) | 7.1 Frame；7.2 Block；7.3 主题；7.4 命中表与鼠标（PRD 第 7 章）；7.5 半透明遮罩；7.6 表格；7.7 图标；7.8 默认尺寸与样式（取自设计稿）；7.9 文本输入：删词与自动配对（M2/M3 验收时定） |
-| §8 数据访问 | [`design/08-data.md`](design/08-data.md) | 8.1 接口；8.2 连接模型；8.3 取消、超时、过期响应；8.4 元数据；8.5 分页与计数；8.6 PG 的 schema 与 search_path；8.7 键值引擎（Redis，M16） |
+| §8 数据访问 | [`design/08-data.md`](design/08-data.md) | 8.1 接口；8.2 连接模型；8.3 取消、超时、过期响应；8.4 元数据；8.5 分页与计数；8.6 PG 的 schema 与 search_path；8.7 键值引擎（Redis，M16）；8.8 外部执行器；8.9 ClickHouse；8.10 Trino；8.11 Oracle |
 | §9 SQL 处理（`internal/sqlkit`） | [`design/09-sqlkit.md`](design/09-sqlkit.md) | 9.1 词法扫描器；9.2 分句、可执行标记与执行前高亮（C-01、C-02）；9.3 读写判定；9.4 自动 LIMIT（F-05）；9.5 格式化（C-03 gq）；9.6 WHERE 条件（Q-01）；9.7 模糊匹配与补全（query、WHERE）；9.8 Redis 控制台的词法与补全（M16） |
 | §10 单元格编辑与提交（G-02、G-03） | [`design/10-edit.md`](design/10-edit.md) | 10.1 进入与记录；10.2 按列属性提供选项；10.3 保存（C-s / `:w`）；10.4 刷新（R）；10.5 未保存修改的确认框；10.6 新增与删除行（M2/M3 验收时定）；10.7 字段的前置校验（M2/M3 验收时定） |
 | §11 Query 与 result | [`design/11-query.md`](design/11-query.md) | — |

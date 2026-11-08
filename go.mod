@@ -21,6 +21,7 @@ require (
 require (
 	github.com/microsoft/go-mssqldb v1.11.2
 	github.com/redis/go-redis/v9 v9.23.0
+	github.com/sijms/go-ora/v2 v2.9.0
 	golang.org/x/sys v0.48.0
 	modernc.org/sqlite v1.60.1
 )

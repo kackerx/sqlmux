@@ -17,8 +17,8 @@
 │       ▸ + t_refund       12k │ │  12 │   12 │ │ 复制行为 JSON     │   │ {"n": 12, "tags": ["a│ │                                                             │
 │       ▸ + t_sku         8.1k │ │  13 │   13 │ │ 以 JSON 查看      │   │ {"n": 13, "tags": ["a│ │                                                             │
 │       ▸ + t_user         38k │ │  14 │   14 │ │ 导出…             │   │ {"n": 14, "tags": ["a│ │                                                             │
-│       ▸ + t_user_address 52k │ │  15 │   15 │ └───────────────────┘   │ {"n": 15, "tags": ["a│ │                                                             │
-│       ▸ + t_user_profile 38k │ │  16 │   16 │ pending │  16.99 │ t    │ {"n": 16, "tags": ["a│ │                                                             │
+│       ▸ + t_user_address 52k │ │  15 │   15 │ │ 属性              │   │ {"n": 15, "tags": ["a│ │                                                             │
+│       ▸ + t_user_profile 38k │ │  16 │   16 │ └───────────────────┘   │ {"n": 16, "tags": ["a│ │                                                             │
 │       v Views (0)            │ │  17 │   17 │ running │  17.99 │ t    │ {"n": 17, "tags": ["a│ │                                                             │
 │ ▾ [] 工作区                  │ │  18 │   18 │ done    │  18.99 │ t    │ {"n": 18, "tags": ["a│ │                                                             │
 │   ▾ [] data                  │ │  19 │   19 │ failed  │  19.99 │ t    │ {"n": 19, "tags": ["a│ │                                                             │

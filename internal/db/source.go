@@ -128,7 +128,18 @@ func (s SQLTable) Preview(ch Changes) []string {
 	if s.Known.Cols == nil {
 		return nil
 	}
-	return Preview(s.E, s.Schema, s.Name, s.Known.Key(), ch)
+	return Preview(s.E, s.Schema, s.Name, s.Known.Key(), withTypes(ch, s.Known))
+}
+
+// withTypes is ch with the columns' types, which a Typer's arguments take.
+func withTypes(ch Changes, cols Columns) Changes {
+	if ch.Types == nil {
+		ch.Types = map[string]string{}
+		for _, c := range cols.Cols {
+			ch.Types[c.Name] = c.Type
+		}
+	}
+	return ch
 }
 
 func (s SQLTable) Save(ctx context.Context, ch Changes, manual bool) (int, byte, error) {
@@ -139,5 +150,5 @@ func (s SQLTable) Save(ctx context.Context, ch Changes, manual bool) (int, byte,
 	if err != nil {
 		return -1, 0, err
 	}
-	return Save(ctx, s.Main, s.E, s.Schema, s.Name, cols.Key(), ch, manual)
+	return Save(ctx, s.Main, s.E, s.Schema, s.Name, cols.Key(), withTypes(ch, cols), manual)
 }

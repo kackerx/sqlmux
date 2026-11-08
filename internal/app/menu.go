@@ -52,6 +52,7 @@ func (a *App) menuItems(n node) []menuItem {
 		items := []menuItem{
 			{i18n.T("打开"), "open", func() tea.Cmd { return a.treeOpen(false) }},
 			{i18n.T("在新 tab 打开"), "open", func() tea.Cmd { return a.treeOpen(true) }},
+			{i18n.T("属性"), "table", func() tea.Cmd { return a.openProps(n.conn, n.table) }},
 			{drop, "trash", a.dropTable},
 		}
 		return append(items, a.alterItems(n)...)

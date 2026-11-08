@@ -53,12 +53,13 @@ func (Engine) Databases(ctx context.Context, c db.Conn) ([]string, error) {
 // rows the partition stats estimate, a view none of.
 func (Engine) Tables(ctx context.Context, c db.Conn, only []string) ([]db.Table, error) {
 	r, err := c.Query(ctx, `
-select s.name, o.name, coalesce(sum(ps.row_count), -1), rtrim(o.type)
+select s.name, o.name, coalesce(sum(ps.row_count), -1), rtrim(o.type),
+       coalesce((select sum(a.used_page_count) from sys.dm_db_partition_stats a where a.object_id = o.object_id), 0) * 8192
 from sys.objects o
 join sys.schemas s on s.schema_id = o.schema_id
 left join sys.dm_db_partition_stats ps on ps.object_id = o.object_id and ps.index_id in (0, 1)
-where o.type in ('U', 'V') and `+userSchema+db.SchemaIn("s.name", only, sqlkit.MSSQL)+`
-group by s.name, o.name, o.type
+where o.type in ('U', 'V') and `+db.Scope(userSchema, "s.name", only, sqlkit.MSSQL)+`
+group by s.name, o.name, o.type, o.object_id
 order by 1, 2`)
 	if err != nil {
 		return nil, err
@@ -73,7 +74,7 @@ order by 1, 2`)
 		if row[3].S == "V" {
 			kind = "v"
 		}
-		ts[i] = db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: kind}
+		ts[i] = db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: kind, Bytes: db.BytesOf(row[4])}
 	}
 	return ts, nil
 }
@@ -359,7 +360,7 @@ select s.name, o.name, convert(nvarchar(max), o.object_id),
                  where p.object_id = o.object_id and p.parameter_id > 0), '')
 from sys.objects o
 join sys.schemas s on s.schema_id = o.schema_id
-where o.type in ('FN', 'IF', 'TF') and `+userSchema+db.SchemaIn("s.name", only, sqlkit.MSSQL)+`
+where o.type in ('FN', 'IF', 'TF') and `+db.Scope(userSchema, "s.name", only, sqlkit.MSSQL)+`
 order by 1, 2`)
 	if err != nil {
 		return nil, err
@@ -377,7 +378,7 @@ func (Engine) Sequences(ctx context.Context, c db.Conn, only []string) ([]db.Seq
 select s.name, q.name
 from sys.sequences q
 join sys.schemas s on s.schema_id = q.schema_id
-where `+userSchema+db.SchemaIn("s.name", only, sqlkit.MSSQL)+`
+where `+db.Scope(userSchema, "s.name", only, sqlkit.MSSQL)+`
 order by 1, 2`)
 	if err != nil {
 		return nil, err
@@ -399,4 +400,10 @@ func (Engine) FunctionDef(ctx context.Context, c db.Conn, f db.Function) (string
 		return "", errors.New(i18n.T("函数已不存在，按 R 刷新"))
 	}
 	return r.Rows[0][0].S + ";", nil
+}
+
+// SystemSchemas are SQL Server's own schemas: sys, INFORMATION_SCHEMA, guest
+// and the fixed roles' db_*.
+func (Engine) SystemSchemas(ctx context.Context, c db.Conn) ([]string, error) {
+	return db.Names(ctx, c, `select s.name from sys.schemas s where not (`+userSchema+`) order by 1`)
 }

@@ -24,8 +24,18 @@ func (a *App) setTxMode(c *Conn, manual bool) tea.Cmd {
 	if !manual && c.inTx() {
 		return a.showToast(i18n.T(txOpen))
 	}
+	if c.unatomic() && manual { // its writes are each its own: nothing to hold them till a commit (§10.3)
+		return a.showToast(i18n.T("%s 的写入不在事务里，没有手动事务模式", c.label()))
+	}
 	c.Manual = manual
 	return nil
+}
+
+// unatomic is whether c's engine writes each statement on its own, with no
+// transaction around a save's (§10.3): ClickHouse, Trino.
+func (c *Conn) unatomic() bool {
+	_, ok := c.eng.(db.Unatomic)
+	return ok
 }
 
 // noConnection is the toast of a command that needs a connection when there

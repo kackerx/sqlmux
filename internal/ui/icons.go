@@ -22,6 +22,15 @@ func (i Icon) On(st uv.Style) uv.Style {
 	return st
 }
 
+// brand is each engine's own color, its logo's, which its icon is drawn in
+// whatever the theme (§7.7): a theme's [icon.<engine>] fg still wins. Where a
+// logo is darker than a dark background reads, its lighter color is taken
+// (SQLite's feather, not its navy).
+var brand = struct{ postgres, mysql, sqlite, redis, mssql, oracle, clickhouse, trino color.Color }{
+	postgres: c("#336791"), mysql: c("#00758f"), sqlite: c("#0f80cc"), redis: c("#dc382d"),
+	mssql: c("#cc2927"), oracle: c("#f80000"), clickhouse: c("#faff69"), trino: c("#dd00a1"),
+}
+
 // Icons are the glyphs used in titles and the sidebar (§7.7).
 type Icons struct {
 	Schema, Table Icon
@@ -33,6 +42,7 @@ type Icons struct {
 	// A Redis key's type in the tree (F16.2)
 	Str, Hash, List, Set, ZSet, Stream, JSON Icon
 	SQLite                                   Icon
+	ClickHouse, Trino, Oracle, MSSQL         Icon // engines of §8.9, §8.10, §8.11 and SQL Server's
 	Search, Keys                             Icon // status bar: palette entry, pending keys
 	Conn                                     Icon
 	Key                                      Icon // primary key columns
@@ -55,6 +65,7 @@ type Icons struct {
 	Index, Func, Sequence    Icon // and a table's indexes, a schema's functions and sequences (F14.3)
 	Lock                     Icon // a read-only connection's (§13)
 	Result, Pin, Export, Log Icon // the result area's (§11)
+	Properties               Icon // a table's properties button (§7.8「属性」)
 	Close                    Icon
 	Star, History            Icon // a WHERE's favorites and history (§9.7)
 	Zoom                     Icon // after the number of the pane zoomed (F9.6), and its button
@@ -72,78 +83,83 @@ type Icons struct {
 
 // Nerd Font glyphs, from the private use areas.
 var NerdIcons = &Icons{
-	Schema:      Icon{Text: "\uf0e8"},     // nf-fa-sitemap
-	Table:       Icon{Text: "\uf0ce"},     // nf-fa-table
-	Query:       Icon{Text: "\uf489"},     // nf-oct-terminal
-	Filter:      Icon{Text: "\uf0b0"},     // nf-fa-filter
-	Postgres:    Icon{Text: "\ue76e"},     // nf-dev-postgresql
-	MySQL:       Icon{Text: "\ue704"},     // nf-dev-mysql
-	Redis:       Icon{Text: "\ue76d"},     // nf-dev-redis
-	Str:         Icon{Text: "\uf031"},     // nf-fa-font
-	Hash:        Icon{Text: "\uf292"},     // nf-fa-hashtag
-	List:        Icon{Text: "\uf03a"},     // nf-fa-list
-	Set:         Icon{Text: "\uf009"},     // nf-fa-th_large
-	ZSet:        Icon{Text: "\uf091"},     // nf-fa-trophy
-	Stream:      Icon{Text: "\uf043"},     // nf-fa-tint
-	JSON:        Icon{Text: "\uf1c9"},     // nf-fa-file_code_o
-	SQLite:      Icon{Text: "\ue7c4"},     // nf-dev-sqllite
-	Search:      Icon{Text: "\uf002"},     // nf-fa-search
-	Keys:        Icon{Text: "\uf11c"},     // nf-fa-keyboard_o
-	Conn:        Icon{Text: "\uf1e6"},     // nf-fa-plug
-	Key:         Icon{Text: "\uf084"},     // nf-fa-key
-	Command:     Icon{Text: "\uf0e7"},     // nf-fa-bolt
-	Window:      Icon{Text: "\uf2d2"},     // nf-fa-window_restore
-	Save:        Icon{Text: "\uf0c7"},     // nf-fa-save
-	Refresh:     Icon{Text: "\uf021"},     // nf-fa-refresh
-	Transpose:   Icon{Text: "\uf0ec"},     // nf-fa-exchange
-	RowAdd:      Icon{Text: "\uf067"},     // nf-fa-plus
-	RowDelete:   Icon{Text: "\uf068"},     // nf-fa-minus
-	AutoRefresh: Icon{Text: "\uf017"},     // nf-fa-clock_o
-	Stop:        Icon{Text: "\uf04d"},     // nf-fa-stop
-	SortAsc:     Icon{Text: "\uf160"},     // nf-fa-sort_amount_asc
-	SortDesc:    Icon{Text: "\uf161"},     // nf-fa-sort_amount_desc
-	View:        Icon{Text: "\uf06e"},     // nf-fa-eye
-	Column:      Icon{Text: "\ueb5f"},     // nf-cod-symbol_field
-	Lock:        Icon{Text: "\uf023"},     // nf-fa-lock
-	Result:      Icon{Text: "\uf022"},     // nf-fa-list_alt
-	Pin:         Icon{Text: "\uf435"},     // nf-oct-pin
-	Export:      Icon{Text: "\uf019"},     // nf-fa-download
-	Close:       Icon{Text: "\uf00d"},     // nf-fa-times
-	Log:         Icon{Text: "\uf0f6"},     // nf-fa-file_text_o
-	Star:        Icon{Text: "\uf005"},     // nf-fa-star
-	Zoom:        Icon{Text: "\uf065"},     // nf-fa-expand
-	Unzoom:      Icon{Text: "\uf066"},     // nf-fa-compress
-	SplitRight:  Icon{Text: "\ueb56"},     // nf-cod-split_horizontal: a line between left and right
-	SplitBelow:  Icon{Text: "\ueb57"},     // nf-cod-split_vertical: a line between top and bottom
-	History:     Icon{Text: "\uf1da"},     // nf-fa-history
-	Tag:         Icon{Text: "\uf02b"},     // nf-fa-tag
-	Host:        Icon{Text: "\uf233"},     // nf-fa-server
-	Port:        Icon{Text: "\uf1e6"},     // nf-fa-plug
-	User:        Icon{Text: "\uf007"},     // nf-fa-user
-	Database:    Icon{Text: "\uf1c0"},     // nf-fa-database
-	Advanced:    Icon{Text: "\uf013"},     // nf-fa-cog
-	Group:       Icon{Text: "\uf02c"},     // nf-fa-tags
-	Link:        Icon{Text: "\uf0c1"},     // nf-fa-link
-	Index:       Icon{Text: "\uf0dc"},     // nf-fa-sort
-	Func:        Icon{Text: "\uf121"},     // nf-fa-code
-	Sequence:    Icon{Text: "\uf162"},     // nf-fa-sort_numeric_asc
-	Keyword:     Icon{Text: "\U000f030b"}, // nf-md-key_variant, as blink.cmp's kind_icons in the user's nvim
-	Value:       Icon{Text: "\U000f03a0"}, // nf-md-numeric
-	Snippet:     Icon{Text: "\ueb66"},     // nf-cod-symbol_snippet
-	Open:        Icon{Text: "\uf115"},     // nf-fa-folder_open_o
-	Edit:        Icon{Text: "\uf040"},     // nf-fa-pencil
-	Copy:        Icon{Text: "\uf0ea"},     // nf-fa-clipboard
-	Trash:       Icon{Text: "\uf1f8"},     // nf-fa-trash
-	Rename:      Icon{Text: "\uf246"},     // nf-fa-i_cursor
-	Hide:        Icon{Text: "\uf070"},     // nf-fa-eye_slash
+	Schema:      Icon{Text: "\uf0e8"},                       // nf-fa-sitemap
+	Table:       Icon{Text: "\uf0ce"},                       // nf-fa-table
+	Query:       Icon{Text: "\uf489"},                       // nf-oct-terminal
+	Filter:      Icon{Text: "\uf0b0"},                       // nf-fa-filter
+	Postgres:    Icon{Text: "\ue76e", Fg: brand.postgres},   // nf-dev-postgresql
+	MySQL:       Icon{Text: "\ue704", Fg: brand.mysql},      // nf-dev-mysql
+	Redis:       Icon{Text: "\ue76d", Fg: brand.redis},      // nf-dev-redis
+	Str:         Icon{Text: "\uf031"},                       // nf-fa-font
+	Hash:        Icon{Text: "\uf292"},                       // nf-fa-hashtag
+	List:        Icon{Text: "\uf03a"},                       // nf-fa-list
+	Set:         Icon{Text: "\uf009"},                       // nf-fa-th_large
+	ZSet:        Icon{Text: "\uf091"},                       // nf-fa-trophy
+	Stream:      Icon{Text: "\uf043"},                       // nf-fa-tint
+	JSON:        Icon{Text: "\uf1c9"},                       // nf-fa-file_code_o
+	SQLite:      Icon{Text: "\ue7c4", Fg: brand.sqlite},     // nf-dev-sqlite
+	ClickHouse:  Icon{Text: "\ue8fe", Fg: brand.clickhouse}, // nf-dev-clickhouse (Nerd Fonts 3.3)
+	Trino:       Icon{Text: "\U000f0907", Fg: brand.trino},  // nf-md-rabbit: Nerd Fonts have no Trino; its mascot is a bunny
+	Oracle:      Icon{Text: "\ue859", Fg: brand.oracle},     // nf-dev-oracle (Nerd Fonts 3.3)
+	MSSQL:       Icon{Text: "\ue82e", Fg: brand.mssql},      // nf-dev-microsoftsqlserver (Nerd Fonts 3.3)
+	Search:      Icon{Text: "\uf002"},                       // nf-fa-search
+	Keys:        Icon{Text: "\uf11c"},                       // nf-fa-keyboard_o
+	Conn:        Icon{Text: "\uf1e6"},                       // nf-fa-plug
+	Key:         Icon{Text: "\uf084"},                       // nf-fa-key
+	Command:     Icon{Text: "\uf0e7"},                       // nf-fa-bolt
+	Window:      Icon{Text: "\uf2d2"},                       // nf-fa-window_restore
+	Save:        Icon{Text: "\uf0c7"},                       // nf-fa-save
+	Refresh:     Icon{Text: "\uf021"},                       // nf-fa-refresh
+	Transpose:   Icon{Text: "\uf0ec"},                       // nf-fa-exchange
+	RowAdd:      Icon{Text: "\uf067"},                       // nf-fa-plus
+	RowDelete:   Icon{Text: "\uf068"},                       // nf-fa-minus
+	AutoRefresh: Icon{Text: "\uf017"},                       // nf-fa-clock_o
+	Stop:        Icon{Text: "\uf04d"},                       // nf-fa-stop
+	SortAsc:     Icon{Text: "\uf160"},                       // nf-fa-sort_amount_asc
+	SortDesc:    Icon{Text: "\uf161"},                       // nf-fa-sort_amount_desc
+	View:        Icon{Text: "\uf06e"},                       // nf-fa-eye
+	Column:      Icon{Text: "\ueb5f"},                       // nf-cod-symbol_field
+	Lock:        Icon{Text: "\uf023"},                       // nf-fa-lock
+	Result:      Icon{Text: "\uf022"},                       // nf-fa-list_alt
+	Pin:         Icon{Text: "\uf435"},                       // nf-oct-pin
+	Export:      Icon{Text: "\uf019"},                       // nf-fa-download
+	Properties:  Icon{Text: "\uf05a"},                       // nf-fa-info_circle
+	Close:       Icon{Text: "\uf00d"},                       // nf-fa-times
+	Log:         Icon{Text: "\uf0f6"},                       // nf-fa-file_text_o
+	Star:        Icon{Text: "\uf005"},                       // nf-fa-star
+	Zoom:        Icon{Text: "\uf065"},                       // nf-fa-expand
+	Unzoom:      Icon{Text: "\uf066"},                       // nf-fa-compress
+	SplitRight:  Icon{Text: "\ueb56"},                       // nf-cod-split_horizontal: a line between left and right
+	SplitBelow:  Icon{Text: "\ueb57"},                       // nf-cod-split_vertical: a line between top and bottom
+	History:     Icon{Text: "\uf1da"},                       // nf-fa-history
+	Tag:         Icon{Text: "\uf02b"},                       // nf-fa-tag
+	Host:        Icon{Text: "\uf233"},                       // nf-fa-server
+	Port:        Icon{Text: "\uf1e6"},                       // nf-fa-plug
+	User:        Icon{Text: "\uf007"},                       // nf-fa-user
+	Database:    Icon{Text: "\uf1c0"},                       // nf-fa-database
+	Advanced:    Icon{Text: "\uf013"},                       // nf-fa-cog
+	Group:       Icon{Text: "\uf02c"},                       // nf-fa-tags
+	Link:        Icon{Text: "\uf0c1"},                       // nf-fa-link
+	Index:       Icon{Text: "\uf0dc"},                       // nf-fa-sort
+	Func:        Icon{Text: "\uf121"},                       // nf-fa-code
+	Sequence:    Icon{Text: "\uf162"},                       // nf-fa-sort_numeric_asc
+	Keyword:     Icon{Text: "\U000f030b"},                   // nf-md-key_variant, as blink.cmp's kind_icons in the user's nvim
+	Value:       Icon{Text: "\U000f03a0"},                   // nf-md-numeric
+	Snippet:     Icon{Text: "\ueb66"},                       // nf-cod-symbol_snippet
+	Open:        Icon{Text: "\uf115"},                       // nf-fa-folder_open_o
+	Edit:        Icon{Text: "\uf040"},                       // nf-fa-pencil
+	Copy:        Icon{Text: "\uf0ea"},                       // nf-fa-clipboard
+	Trash:       Icon{Text: "\uf1f8"},                       // nf-fa-trash
+	Rename:      Icon{Text: "\uf246"},                       // nf-fa-i_cursor
+	Hide:        Icon{Text: "\uf070"},                       // nf-fa-eye_slash
 }
 
 var ASCIIIcons = &Icons{
 	Schema: Icon{Text: "#"}, Table: Icon{Text: "+"}, Query: Icon{Text: ">"},
 	Filter:      Icon{Text: "?"},
-	Postgres:    Icon{Text: "pg"},
-	MySQL:       Icon{Text: "my"},
-	Redis:       Icon{Text: "re"},
+	Postgres:    Icon{Text: "pg", Fg: brand.postgres},
+	MySQL:       Icon{Text: "my", Fg: brand.mysql},
+	Redis:       Icon{Text: "re", Fg: brand.redis},
 	Str:         Icon{Text: "s"},
 	Hash:        Icon{Text: "h"},
 	List:        Icon{Text: "l"},
@@ -151,7 +167,11 @@ var ASCIIIcons = &Icons{
 	ZSet:        Icon{Text: "z"},
 	Stream:      Icon{Text: "x"},
 	JSON:        Icon{Text: "j"},
-	SQLite:      Icon{Text: "sq"},
+	SQLite:      Icon{Text: "sq", Fg: brand.sqlite},
+	ClickHouse:  Icon{Text: "ch", Fg: brand.clickhouse},
+	Trino:       Icon{Text: "tr", Fg: brand.trino},
+	Oracle:      Icon{Text: "or", Fg: brand.oracle},
+	MSSQL:       Icon{Text: "ms", Fg: brand.mssql},
 	Search:      Icon{Text: "~"},
 	Keys:        Icon{Text: "kb"},
 	Conn:        Icon{Text: "@"},
@@ -173,6 +193,7 @@ var ASCIIIcons = &Icons{
 	Result:      Icon{Text: "="},
 	Pin:         Icon{Text: "*"},
 	Export:      Icon{Text: ">"},
+	Properties:  Icon{Text: "i"},
 	Close:       Icon{Text: "x"},
 	Log:         Icon{Text: "L"},
 	Star:        Icon{Text: "*"},
@@ -259,6 +280,14 @@ func (ic *Icons) Engine(engine string) Icon {
 		return ic.SQLite
 	case "redis":
 		return ic.Redis
+	case "clickhouse":
+		return ic.ClickHouse
+	case "trino":
+		return ic.Trino
+	case "oracle":
+		return ic.Oracle
+	case "mssql":
+		return ic.MSSQL
 	}
 	return ic.Postgres
 }
@@ -280,11 +309,11 @@ func (ic *Icons) byName() map[string]*Icon {
 	return map[string]*Icon{
 		"schema": &ic.Schema, "table": &ic.Table, "query": &ic.Query,
 		"filter": &ic.Filter, "search": &ic.Search, "keys": &ic.Keys, "conn": &ic.Conn,
-		"key": &ic.Key, "postgres": &ic.Postgres, "mysql": &ic.MySQL, "redis": &ic.Redis, "str": &ic.Str, "hash": &ic.Hash, "list": &ic.List, "set": &ic.Set, "zset": &ic.ZSet, "stream": &ic.Stream, "json": &ic.JSON, "sqlite": &ic.SQLite, "command": &ic.Command, "window": &ic.Window,
+		"key": &ic.Key, "postgres": &ic.Postgres, "mysql": &ic.MySQL, "redis": &ic.Redis, "str": &ic.Str, "hash": &ic.Hash, "list": &ic.List, "set": &ic.Set, "zset": &ic.ZSet, "stream": &ic.Stream, "json": &ic.JSON, "sqlite": &ic.SQLite, "clickhouse": &ic.ClickHouse, "trino": &ic.Trino, "oracle": &ic.Oracle, "mssql": &ic.MSSQL, "command": &ic.Command, "window": &ic.Window,
 		"save": &ic.Save, "refresh": &ic.Refresh, "transpose": &ic.Transpose,
 		"row_add": &ic.RowAdd, "row_delete": &ic.RowDelete, "auto_refresh": &ic.AutoRefresh, "stop": &ic.Stop,
 		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column, "lock": &ic.Lock,
-		"result": &ic.Result, "pin": &ic.Pin, "export": &ic.Export, "close": &ic.Close,
+		"result": &ic.Result, "pin": &ic.Pin, "export": &ic.Export, "properties": &ic.Properties, "close": &ic.Close,
 		"pane": &ic.Pane, "log": &ic.Log, "star": &ic.Star, "history": &ic.History, "zoom": &ic.Zoom, "unzoom": &ic.Unzoom, "split_right": &ic.SplitRight, "split_below": &ic.SplitBelow,
 		"tag": &ic.Tag, "host": &ic.Host, "port": &ic.Port, "user": &ic.User, "database": &ic.Database,
 		"advanced": &ic.Advanced, "link": &ic.Link, "group": &ic.Group,

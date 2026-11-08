@@ -255,6 +255,18 @@ func init() {
 			}
 		})},
 		"tree.refresh": {Title: i18n.N("刷新表列表"), Run: func(a *App, _ Args) tea.Cmd { return a.refreshTree() }},
+		"table.properties": {Title: i18n.N("表的属性 / 数据"), SQL: true, Run: func(a *App, _ Args) tea.Cmd {
+			if p := a.focused(); dataOf(p) != nil { // its properties, or its rows back
+				return a.showProps(p, dataOf(p).props == "")
+			}
+			c, t, ok := a.propsTarget()
+			if !ok {
+				return a.showToast(i18n.T("先选中一张表"))
+			}
+			return a.openProps(c, t)
+		}},
+		// "props.section <name>" is a chip of a properties tab's section row
+		"props.section": {Run: func(a *App, args Args) tea.Cmd { return a.propsSection(dataOf(a.focused()), args.Arg) }},
 		"tree.pick": {Title: i18n.N("选择库 / schema…"), Run: func(a *App, _ Args) tea.Cmd {
 			n, ok := a.treeNode()
 			if !ok {
@@ -391,9 +403,12 @@ func init() {
 			}
 			return a.saveConnForm()
 		})},
-		"form.group.next":  {Title: i18n.N("分组下一项"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.groupMove(1); return nil })},
-		"form.group.prev":  {Title: i18n.N("分组上一项"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.groupMove(-1); return nil })},
-		"form.group.close": {Title: i18n.N("关闭分组列表"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.form.groupOff = true; return nil })},
+		"form.group.next":   {Title: i18n.N("分组下一项"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.groupMove(1); return nil })},
+		"form.group.prev":   {Title: i18n.N("分组上一项"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.groupMove(-1); return nil })},
+		"form.group.close":  {Title: i18n.N("关闭分组列表"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.form.groupOff = true; return nil })},
+		"form.engine.next":  {Title: i18n.N("下一个引擎"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.engineMove(1); return nil })},
+		"form.engine.prev":  {Title: i18n.N("上一个引擎"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.engineMove(-1); return nil })},
+		"form.engine.close": {Title: i18n.N("关闭引擎列表"), Local: true, Run: when(inForm, func(a *App) tea.Cmd { a.form.engineOff = true; return nil })},
 		// the connection manager's list (F8.16)
 		"conns.down":   {Title: i18n.N("下移"), Local: true, Run: when(inConns, func(a *App) tea.Cmd { a.connsMove(1); return nil })},
 		"conns.up":     {Title: i18n.N("上移"), Local: true, Run: when(inConns, func(a *App) tea.Cmd { a.connsMove(-1); return nil })},
@@ -587,7 +602,10 @@ func init() {
 			}
 			return a.unlessLost(t.changes(), "", nil, verbRefresh, func() tea.Cmd { // R drops the changes (§10.4)
 				t.edits, t.added, t.deleted = nil, nil, nil
-				t.deselect() // the rows are others
+				t.deselect()       // the rows are others
+				if t.props != "" { // read anew: its source keeps what it read
+					t.src = newProps(t.conn, t.table, t.props)
+				}
 				return a.fetch(t, true)
 			})
 		}},

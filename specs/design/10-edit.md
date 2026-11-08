@@ -126,6 +126,8 @@ WHERE pk = $2 AND format('%s', c1) = $3 AND c2 IS NULL
 - **auto 事务模式**：所有 UPDATE 放在同一个事务里，每条都必须恰好影响 1 行。否则整体回滚，保留修改标记，并在出问题的行上提示「数据已变化或行不存在」，以免悄悄覆盖别人的修改。
 - **manual 事务模式**（M5 F5.3），以及 auto 模式下 `Main` 已经在事务里时（用户在 query 里自己 begin 了；在保存的同一次 Run 里读 TxStatus 判断，原来的 BEGIN…COMMIT 会把用户的事务一起提交，M3 的已知上限就此去掉）：不在事务里就先 BEGIN；整次保存包在 `SAVEPOINT sqlmux_save` … `RELEASE SAVEPOINT sqlmux_save` 里，任何一步出错就 `ROLLBACK TO SAVEPOINT sqlmux_save`，只撤掉这一次保存，用户在这个事务里之前做的修改都还在；不 COMMIT，成功时查询条显示「已保存 N 行（未提交）· 12ms」；失败的提示同 auto 模式，其中的「已回滚」指撤掉了这次保存。提交、回滚用 query 标题上的 ✓ ↺ 或 `tx.commit` / `tx.rollback`。
 - **保存成功后**：重新加载当前页，拿到数据库规整过的值，例如数值格式、触发器写入的字段。
+- **没有事务的引擎**（ClickHouse §8.9、Trino §8.10，引擎实现 `db.Unatomic`）：一次保存里的语句逐条单独执行，没有 BEGIN / COMMIT。每条 UPDATE、DELETE 发出之前先用同一个 WHERE（行标识加被改列的旧值）`select count(*)`，不是正好 1 行就停下，报「行数据已变化或行不存在」/「行不存在」；能报影响行数的（Trino 的 updateCount、ClickHouse 的 INSERT）发出后再核一次。中途失败时前面的已经写进去、撤不回：错误是 `db.Written{N}`，表格只清掉这 N 条对应的修改并重新加载，错误栏末尾写「前 N 条已写入，不能回滚」（不是「已回滚」）；第一条就失败时写「没有写入」。保存前预览多一行「逐条写入，不在一个事务里」。这两种引擎没有手动事务模式（切换时 toast 拒绝）。计数和写之间别的会话改了这一行，仍可能写到（无事务可锁），已知上限。
+- **按列的类型传参**（引擎实现 `db.Typer`：ClickHouse、Trino 不把字符串当数字、日期比较或赋值）：保存语句里每个参数包成 `CAST(参数 AS 列的类型)`（Trino 的 json 列用 `json_parse`），旧值校验因此是类型相等 `列 = CAST(旧文本 AS 类型)`：旧文本是服务端自己写出的，CAST 回去是同一个值（逐类型实测：Decimal、Float64、DateTime64、Enum8、Array、Nullable(Bool)；Trino 的 decimal、timestamp with time zone、json、boolean）。类型取表 tab 已有的列信息（`db.Changes.Types`）。
 
 ### 10.4 刷新（R）
 

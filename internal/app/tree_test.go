@@ -108,7 +108,7 @@ func TestTreeNodes(t *testing.T) {
 	feed(t, a, "<C-h><CR>")
 	ns, _ = a.treeNodes()
 	for _, n := range ns {
-		if n.Text == "v_paid" && n.Note != "" || n.Text == "mv_sum" && n.Note != "?" || n.Text == "v_paid" && n.Icon != ui.NerdIcons.View {
+		if n.Text == "v_paid" && n.Note != "" || n.Text == "mv_sum" && n.Note != "" || n.Text == "v_paid" && n.Icon != ui.NerdIcons.View {
 			t.Errorf("%s: %+v", n.Text, n.TreeNode) // a plain view has no rows to count
 		}
 	}

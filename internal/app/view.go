@@ -85,7 +85,7 @@ func (a *App) layout() map[int]uv.Rectangle {
 // one a frame two before it was drawn in: it fills all of it first.
 func (a *App) drawOn(f *ui.Frame) *ui.Frame {
 	th := a.theme
-	f.Border = a.border
+	f.Border, f.Transparent = a.border, a.transparent
 	f.Fill(f.Bounds(), uv.Style{Fg: th.Fg, Bg: th.Bg})
 	if a.w <= 0 || a.h <= 0 {
 		return f
@@ -185,7 +185,7 @@ func (a *App) drawOn(f *ui.Frame) *ui.Frame {
 			f.Cursor = &c
 		}
 		if v.Form.Pick != nil { // where its list was left scrolled
-			a.form.groupTop = v.Form.Pick.Top
+			a.form.pickTop = v.Form.Pick.Top
 		}
 	}
 	if a.palette != nil { // over the list and the form, whose keys it takes (context)
@@ -368,7 +368,11 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	if t == nil {
 		return
 	}
-	if c := a.queryBar(p, t).Draw(f, bodyRect(r)); c.X >= 0 {
+	bar := bodyRect(r)
+	if t.props == "ddl" { // its section row alone: no filter, no buttons over a text
+		bar.Max.Y = min(bar.Max.Y, bar.Min.Y+ui.InfoRows)
+	}
+	if c := a.queryBar(p, t).Draw(f, bar); c.X >= 0 {
 		f.Cursor = &c
 	}
 	switch {

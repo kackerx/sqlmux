@@ -15,6 +15,7 @@ import (
 	uv "github.com/charmbracelet/ultraviolet"
 
 	"github.com/kackerx/sqlmux/internal/db"
+	"github.com/kackerx/sqlmux/internal/db/clickhouse"
 	"github.com/kackerx/sqlmux/internal/db/redis"
 	"github.com/kackerx/sqlmux/internal/editor"
 	"github.com/kackerx/sqlmux/internal/i18n"
@@ -77,8 +78,13 @@ type dataTab struct {
 	// page 0's "": it pages by cursor, to the pages seen and one more.
 	src     db.Source
 	cursors []string
-	seq     int       // the last request's; older answers are dropped (§8.3)
-	bar     *errorBar // the last fetch's or save's error, under the table (§7.8「错误栏」)
+	// props is the section shown when this is a table's properties (props.go),
+	// "" for its rows; other is the other of the two, the tab showing one at a
+	// time (Tab.Data), nil before the properties are first shown
+	props string
+	other *dataTab
+	seq   int       // the last request's; older answers are dropped (§8.3)
+	bar   *errorBar // the last fetch's or save's error, under the table (§7.8「错误栏」)
 
 	// The query bar's. request is what the last request asked for, shown
 	// what the rows on screen came from: row numbers and chips are shown's,
@@ -497,7 +503,10 @@ func gridRect(r uv.Rectangle, t *dataTab) uv.Rectangle {
 
 // barRows is how tall t's query bar is: a key's has its Info row (§8.7).
 func (t *dataTab) barRows() int {
-	if t.table.Kind == "k" {
+	switch {
+	case t.props == "ddl": // the section row over the text
+		return ui.InfoRows
+	case t.table.Kind == "k" || t.props != "":
 		return ui.QueryBarRows + ui.InfoRows
 	}
 	return ui.QueryBarRows
@@ -735,8 +744,11 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 		Chips:   chips,
 		Buttons: a.toolButtons(t),
 	}
-	if t.table.Kind == "k" { // its filter is a MATCH pattern (§8.7)
+	switch {
+	case t.table.Kind == "k": // its filter is a MATCH pattern (§8.7)
 		bar.Info, bar.Label = a.keyInfo(t), "MATCH"
+	case t.props != "": // its sections; its filter is text (props.go)
+		bar.Info, bar.Label = a.propsInfo(t), "FILTER"
 	}
 	return bar
 }
@@ -774,11 +786,19 @@ func (a *App) toolButtons(t *dataTab) []ui.ButtonGroup {
 	if t.out > 0 {
 		stop.Fg, stop.Plain, stop.Action = th.Error, false, "grid.stop"
 	}
+	last := []ui.Button{{Icon: ic.Transpose, Action: "grid.transpose", Fg: th.Info}, {Icon: ic.Export, Action: "grid.export", Fg: th.Info}}
+	if t.conn.sql() && t.table.Kind != "k" { // its properties, or its rows back from them: lit while they show (§7.8「属性」)
+		props := ui.Button{Icon: ic.Properties, Action: "table.properties", Fg: th.Info}
+		if t.props != "" {
+			props.Fg = th.Focus
+		}
+		last = append(last, props)
+	}
 	return []ui.ButtonGroup{
 		{Buttons: []ui.Button{{Icon: ic.RowAdd, Action: "grid.row.add", Fg: th.Focus}, {Icon: ic.RowDelete, Action: "grid.row.delete", Fg: th.Error}}, Stay: stayRows},
 		{Buttons: []ui.Button{save, {Icon: ic.Refresh, Action: "grid.refresh", Fg: th.Info}}, Stay: staySave},
 		{Buttons: []ui.Button{auto, stop}, Stay: stayAuto},
-		{Buttons: []ui.Button{{Icon: ic.Transpose, Action: "grid.transpose", Fg: th.Info}, {Icon: ic.Export, Action: "grid.export", Fg: th.Info}}, Stay: stayTranspose},
+		{Buttons: last, Stay: stayTranspose},
 	}
 }
 
@@ -832,7 +852,7 @@ func (a *App) gotAuto(m autoMsg) tea.Cmd {
 func (a *App) tabOpen(t *dataTab) bool {
 	for _, s := range a.sessions {
 		for _, p := range s.panes() {
-			if slices.ContainsFunc(p.Tabs, func(tb Tab) bool { return tb.Data == t }) {
+			if slices.ContainsFunc(p.Tabs, func(tb Tab) bool { return tb.table() == t }) {
 				return true
 			}
 		}
@@ -1047,14 +1067,27 @@ func plainType(t string) string {
 	return strings.TrimPrefix(strings.TrimSuffix(strings.TrimSuffix(t, " zerofill"), " unsigned"), "unsigned ")
 }
 
-// timeKind is the parts a column of catalog type t steps (§10.2), PG's
-// and MySQL's; interval has none.
+// timeKind is the parts a column of catalog type t steps (§10.2), PG's,
+// MySQL's, ClickHouse's (Nullable(DateTime64(3, 'UTC'))) and Trino's; interval
+// has none.
 func timeKind(t string) ui.TimeKind {
 	return map[string]ui.TimeKind{
 		"date": ui.Date, "time without time zone": ui.Time, "time with time zone": ui.TimeTZ,
 		"timestamp without time zone": ui.Timestamp, "timestamp with time zone": ui.TimestampTZ,
 		"time": ui.Time, "datetime": ui.Timestamp, "timestamp": ui.Timestamp,
-	}[baseType(t)]
+		"date32": ui.Date, "datetime64": ui.Timestamp, "timestamp with local time zone": ui.Timestamp,
+		"date ": ui.Timestamp, // Oracle's DATE, which holds the time: see below
+	}[oracleDate(strings.ToLower(baseType(clickhouse.Unwrap(t))), t)]
+}
+
+// oracleDate is lower, the type name timeKind goes by, made "date " for
+// Oracle's DATE, which its catalog writes in upper case and which has a time
+// of day; PG's and MySQL's date, lower case, is a day alone (§8.11).
+func oracleDate(lower, t string) string {
+	if t == "DATE" {
+		return "date "
+	}
+	return lower
 }
 
 // colType is the grid's class for a column of the catalog's type (§7.6).
@@ -1065,18 +1098,21 @@ func colType(t string) ui.ColType {
 	case t == "tinyint(1)": // MySQL's boolean
 		return ui.ColBool
 	}
-	t = plainType(t)
+	t = plainType(clickhouse.Unwrap(t))
 	// after format_type's names, pgx's for a result's OIDs (quick SQL, §12),
-	// then MySQL's COLUMN_TYPE and the driver's
+	// then MySQL's COLUMN_TYPE and the driver's, then ClickHouse's (Trino's are PG's)
 	switch t {
 	case "smallint", "integer", "bigint", "numeric", "real", "double precision", "oid",
 		"int2", "int4", "int8", "float4", "float8",
-		"tinyint", "mediumint", "int", "decimal", "float", "double":
+		"tinyint", "mediumint", "int", "decimal", "float", "double",
+		"uint8", "uint16", "uint32", "uint64", "uint128", "uint256", "int16", "int32", "int64", "int128", "int256",
+		"float32", "float64", "decimal32", "decimal64", "decimal128", "decimal256",
+		"number", "binary_double", "binary_float":
 		return ui.ColNumber
 	case "date", "time without time zone", "time with time zone",
 		"timestamp without time zone", "timestamp with time zone",
 		"time", "timetz", "timestamp", "timestamptz",
-		"datetime", "year":
+		"datetime", "year", "date32", "datetime64", "timestamp with local time zone":
 		return ui.ColTime
 	case "boolean", "bool":
 		return ui.ColBool
@@ -1084,7 +1120,9 @@ func colType(t string) ui.ColType {
 		return ui.ColJSON
 	case "text", "character varying", "character", `"char"`, "name", "citext",
 		"varchar", "bpchar", "char",
-		"tinytext", "mediumtext", "longtext", "enum", "set":
+		"tinytext", "mediumtext", "longtext", "enum", "set",
+		"string", "fixedstring", "enum8", "enum16",
+		"varchar2", "nvarchar2", "nchar", "clob", "nclob":
 		return ui.ColString
 	}
 	if t == "interval" || strings.HasPrefix(t, "interval ") { // "interval day to second"

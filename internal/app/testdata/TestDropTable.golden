@@ -19,10 +19,10 @@
 │       ▸  t_user         38k │ │                                                             │ │                                                             │
 │       ▸  t_user_address 52k │ │                            ┌──────────────────────────────────┐                                                             │
 │       ▸  t_user_profile 38k │ │                            │ 删除表 public.t_user，不能撤销： │                                                             │
-│       ▸  ft_remote        ? │ │                            │   DROP TABLE "public"."t_user"   │                                                             │
+│       ▸  ft_remote          │ │                            │   DROP TABLE "public"."t_user"   │                                                             │
 │     ▾  Views (2)            │ │                            │                                  │                                                             │
 │       ▸  v_paid             │ │                            │                 y 删除   n 取消  │                                                             │
-│       ▸  mv_sum           ? │ │                            └──────────────────────────────────┘                                                             │
+│       ▸  mv_sum             │ │                            └──────────────────────────────────┘                                                             │
 │ ▾  工作区                   │ │                                                             │ │                                                             │
 │   ▾  data                   │ │                                                             │ │                                                             │
 │       ①  t_user             │ │                                                             │ │                                                             │

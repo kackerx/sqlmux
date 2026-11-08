@@ -61,8 +61,8 @@ func managedWith(t *testing.T, mode string) *App {
 func fieldText(a *App, i int) string { return a.form.fields[i].Input.Text }
 
 // conn.manage opens the list on the connection in use with the keys; the
-// form is filled from the one selected, its dsn split for the eye and
-// dim; j and k move, Tab goes to the form, esc back and then out (F8.16).
+// form is filled from the one selected, its dsn split into the fields, which
+// stay editable; j and k move, Tab goes to the form, esc back and then out (F8.16).
 func TestConnManagerKeys(t *testing.T) {
 	a := managed(t)
 	a.run("conn.manage", 0)
@@ -72,8 +72,8 @@ func TestConnManagerKeys(t *testing.T) {
 	if fieldText(a, fieldName) != "doraemon" || fieldText(a, fieldHost) != "h" || fieldText(a, fieldPort) != "5433" || fieldText(a, fieldUser) != "u" || fieldText(a, fieldDatabase) != "db" || !strings.HasPrefix(fieldText(a, fieldDSN), "postgres://u@h") {
 		t.Errorf("the form of doraemon: %q %q %q %q %q", fieldText(a, fieldName), fieldText(a, fieldHost), fieldText(a, fieldPort), fieldText(a, fieldUser), fieldText(a, fieldDatabase))
 	}
-	if fs := a.formView().Fields; !fs[fieldHost].Dim || fs[fieldDSN].Hidden {
-		t.Error("the parts of the dsn are dim, the dsn shown")
+	if fs := a.formView().Fields; fs[fieldHost].Dim || fs[fieldDSN].Hidden {
+		t.Error("the parts of the dsn are not to edit, or the dsn is not shown")
 	}
 	feed(t, a, "j")
 	if a.form.cur != 1 || fieldText(a, fieldName) != "second" || fieldText(a, fieldHost) != "m" || fieldText(a, fieldDatabase) != "s" || a.form.fields[fieldReadOnly].On != 1 || a.form.fields[fieldEngine].On != 1 {
@@ -691,7 +691,7 @@ func TestSplitDSN(t *testing.T) {
 		{"mysql", "tcp(m:3306)/s", "m", "3306", "", "s"},
 		{"mysql", "not a dsn", "", "", "", ""},
 	} {
-		if host, port, user, base := splitDSN(c.engine, c.dsn); host != c.host || port != c.port || user != c.user || base != c.base {
+		if host, port, user, base, _ := splitDSN(c.engine, c.dsn); host != c.host || port != c.port || user != c.user || base != c.base {
 			t.Errorf("%s %q: %q %q %q %q", c.engine, c.dsn, host, port, user, base)
 		}
 	}

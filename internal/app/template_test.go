@@ -218,15 +218,15 @@ func TestAlterMenu(t *testing.T) {
 	c := a.sess.Conns[0]
 	table := node{kind: nodeTable, conn: c, table: db.Table{Schema: "public", Name: "t", Kind: "r"}}
 	view := node{kind: nodeTable, conn: c, table: db.Table{Schema: "public", Name: "v", Kind: "v"}}
-	if got, want := labels(table), "打开|在新 tab 打开|删除表…|加列…|加索引…|改名…|删除列…|删除索引…"; got != want {
+	if got, want := labels(table), "打开|在新 tab 打开|属性|删除表…|加列…|加索引…|改名…|删除列…|删除索引…"; got != want {
 		t.Errorf("table: %s", got)
 	}
-	if got, want := labels(view), "打开|在新 tab 打开|删除视图…|改名…"; got != want {
+	if got, want := labels(view), "打开|在新 tab 打开|属性|删除视图…|改名…"; got != want {
 		t.Errorf("view: %s", got)
 	}
 	lite := &Conn{eng: sqlite.Engine{}}
 	view.conn = lite
-	if got, want := labels(view), "打开|在新 tab 打开|删除视图…"; got != want {
+	if got, want := labels(view), "打开|在新 tab 打开|属性|删除视图…"; got != want {
 		t.Errorf("a SQLite view: %s", got)
 	}
 }

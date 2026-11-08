@@ -11,10 +11,10 @@ import (
 type FormKind int
 
 const (
-	FormInput    FormKind = iota // a line of text
-	FormSegments                 // one of Choices, all shown
-	FormCheck                    // [x] or [ ]
-	FormFold                     // a row that opens and closes the rows after it
+	FormInput  FormKind = iota // a line of text
+	FormSelect                 // one of Choices, the one on shown with ▾; the form's Pick lists them under it
+	FormCheck                  // [x] or [ ]
+	FormFold                   // a row that opens and closes the rows after it
 )
 
 // FormField is a row of a form (§7.8「新建连接表单」): an icon, a name and
@@ -46,7 +46,8 @@ type Form struct {
 	Delete             string // a third button's word, when a connection there already is can go (F8.16); "" for none
 	Hints              []Hint
 	// Pick is a list opened under the input of field PickAt, drawn over what
-	// is below it (the connection form's groups, F10.6); nil for none
+	// is below it (the connection form's groups, F10.6, and its engines); nil
+	// for none
 	Pick   *Complete
 	PickAt int
 }
@@ -155,19 +156,8 @@ func (fm Form) drawIn(f *Frame, area uv.Rectangle, focus bool) uv.Position {
 				in.Fg = th.Dim
 				f.Text(r.Min.X, y, r.Max.X, fd.Example, in)
 			}
-		case FormSegments:
-			x := r.Min.X
-			for j, ch := range fd.Choices {
-				st := uv.Style{Fg: th.Dim, Bg: th.Sep}
-				if j == fd.On {
-					st = uv.Style{Fg: th.Fg, Bg: th.Select}
-				}
-				if j > 0 {
-					x = f.Text(x, y, r.Max.X, "│", dim)
-				}
-				f.Region(uv.Rect(x, y, Width(ch)+2, 1), Target{Kind: KindSegment, Pane: i, I: j})
-				x = f.Text(x, y, r.Max.X, " "+ch+" ", st)
-			}
+		case FormSelect:
+			f.Text(r.Min.X, y, r.Max.X, " "+fd.Choices[fd.On]+" ▾", in)
 		case FormCheck:
 			mark := "[ ]"
 			if fd.On == 1 {
@@ -218,7 +208,14 @@ func (fm Form) drawIn(f *Frame, area uv.Rectangle, focus bool) uv.Position {
 	if fm.Pick != nil && len(fm.Pick.Items) > 0 {
 		w := 20
 		for _, it := range fm.Pick.Items {
-			w = max(w, Width(it.Text)+4)
+			iw, nw := 0, 0
+			if it.Icon.Text != "" {
+				iw = Width(it.Icon.Text) + 1
+			}
+			if it.Note != "" {
+				nw = Width(it.Note) + 2
+			}
+			w = max(w, iw+Width(it.Text)+nw+4)
 		}
 		box, rows := CompleteBox(f.Bounds(), pickAt, min(w, area.Max.X-pickAt.X), len(fm.Pick.Items), 0, CompleteRows)
 		_, fm.Pick.Top = ListView(fm.Pick.Sel, fm.Pick.Top, len(fm.Pick.Items), rows) // the app keeps it for the next frame

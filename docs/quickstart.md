@@ -42,7 +42,7 @@ To keep a connection, add it to `~/.config/sqlmux/connections.toml`:
 ```toml
 [[connection]]
 name         = "local"
-engine       = "postgres"          # postgres | mysql | sqlite | mssql | redis
+engine       = "postgres"          # postgres | mysql | sqlite | mssql | clickhouse | trino | oracle | redis
 dsn          = "postgres://me@localhost:5432/app?sslmode=disable"
 password_env = "PGPASSWORD"        # or password_cmd = "…", or password = "…"
 ```

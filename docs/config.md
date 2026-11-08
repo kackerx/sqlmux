@@ -22,7 +22,7 @@ Every option with its default. Only write the ones you change.
 
 ```toml
 theme             = "tokyonight-storm" # built in: tokyonight-storm, ristretto; or a file in themes/
-icons             = "nerd"             # nerd | ascii (no Nerd Font needed)
+icons             = "nerd"             # nerd | ascii (no Nerd Font needed) | images; unset: images where the terminal draws them
 border            = "single"           # single | rounded | double | bold | hidden
 language          = "en"               # en | zh
 vim               = true               # false: query and WHERE are plain editors; the grid and tree also take PgUp / PgDn / Delete
@@ -36,7 +36,8 @@ confirm_dangerous = true               # ask before DELETE / UPDATE without WHER
 clipboard         = ""                 # "unnamedplus": y, d, c, x and p in the editors use the system clipboard, as in nvim
 
 [ui]
-tips = true                            # a feature tip in the status bar
+tips        = true                     # a feature tip in the status bar
+transparent = false                    # true: leave the theme's bg, pane_bg and gap unpainted, so a transparent terminal shows through
 
 [tree]
 width  = 32                            # sidebar width in columns, borders included
@@ -71,13 +72,13 @@ sqlmux uses `pbcopy` / `pbpaste`, `wl-copy` / `wl-paste`, `xclip` or `xsel`, whi
 ```toml
 [[connection]]
 name     = "local"                     # required, unique; no / or \, not starting with .
-engine   = "postgres"                  # postgres | mysql | sqlite | mssql | redis
+engine   = "postgres"                  # postgres | mysql | sqlite | mssql | clickhouse | trino | oracle | redis
 dsn      = "postgres://me@localhost:5432/app?sslmode=disable"
 password_cmd = "security find-generic-password -s sqlmux-local -w"
 read_only = false                      # refuse writes on this connection
 production = false                     # warning color, confirm every write, read-only unless read_only = false is written
-databases = ["app"]                    # postgres: the databases the tree lists; unset = all
-schemas   = ["app.public"]             # the schemas listed and loaded: "db.schema" on postgres, the name on mysql; unset = all non-system ones
+databases = ["app"]                    # postgres, mssql, trino (catalogs): the databases the tree lists; unset = all
+schemas   = ["app.public"]             # the schemas listed and loaded: "db.schema" on postgres, mssql and trino, the name on mysql, clickhouse and oracle; unset = all non-system ones
 group     = "dev"                      # optional: a labelled section in the tree
 ssh       = "me@bastion"               # optional: connect through this machine
 ```
@@ -90,6 +91,9 @@ DSN per engine:
 | `mysql` | `user@tcp(host:3306)/db` or `mysql://user@host:3306/db` |
 | `sqlite` | a file path; `~` is expanded, `?mode=ro` and other query parameters pass through; a missing file is not created |
 | `mssql` | `sqlserver://user@host:1433?database=app` (`mssql://` works too); driver options such as `encrypt` pass through. A server with a self-signed certificate, like the official Docker image, needs `&TrustServerCertificate=true` |
+| `clickhouse` | `clickhouse://user@host:8123/db`, or the HTTP interface's own `http(s)://` URL; `?secure=true` for TLS (port 8443), `?skip_verify=true` for a self-signed certificate. Any other parameter is sent as a server setting (`?max_execution_time=60`). sqlmux uses the HTTP port, not the native 9000. See [ClickHouse and Trino](#clickhouse-and-trino) |
+| `trino` | `trino://user@host:8080/catalog/schema`, `?ssl=true` for TLS (port 443); the Go client's `http(s)://user@host:8080?catalog=c&schema=s` works too, as does `session_properties=a:1;b:2`. The tree lists the server's other catalogs as databases |
+| `oracle` | `oracle://user@host:1521/SERVICE`, the service usually a PDB such as `FREEPDB1` or `ORCLPDB1`; go-ora's options pass through (`?SSL=true`, `?TRACE FILE=…`). No Oracle client is needed. See [Oracle](#oracle) |
 | `redis` | `redis://user@host:6379/0` or `rediss://…`; the number is the database. See [Redis](redis.md) |
 | `exec` | no `dsn`: `dialect` and `command`, see [External commands](#external-commands-engine--exec) |
 
@@ -111,6 +115,25 @@ The connection form (`+` at the top of the sidebar, or *New connection…* in th
 `production = true` marks a connection whose data matters: its borders, status bar block and tab titles use the `production` theme color, every write asks first (table saves, write statements, Redis write commands, deletes and renames in the tree), and it is read-only unless `read_only = false` is written as well. See [Safety](../README.md#safety).
 
 `ssh = "user@host"` runs `ssh -W host:port user@host` for each connection; the port, key and `ProxyJump` come from `~/.ssh/config`, and no local port is opened. ssh cannot ask for a password or passphrase here, so `ssh-add` the key first. It does not apply to SQLite or to connections given on the command line.
+
+### ClickHouse and Trino
+
+Both are browsed, queried and edited like the other engines, with a few differences:
+
+- **Edits are not one transaction.** Neither has transactions for writes (ClickHouse's UPDATE and DELETE are mutations; every Trino connector writes in autocommit only). So a save sends its statements one at a time, and before each UPDATE or DELETE it counts the rows that still match the key and the values you loaded: anything but exactly one, and it stops there with "row changed or gone". If a save stops halfway, the statements before it stay written: the error says how many, those edits are cleared and the table reloads. The save preview says this too, and there is no manual transaction mode.
+- **ClickHouse**: rows are identified by the table's primary key, which ClickHouse does not keep unique, hence the count. Columns of the sorting, partition or primary key, `MATERIALIZED` / `ALIAS` columns and `Map` / `Tuple` / `JSON` columns can't be edited, nor can tables whose engine isn't a `MergeTree` (Memory, Log, Distributed…). `read_only = true` is enforced by the server as well (`readonly = 2`).
+- **Trino**: catalogs are the tree's databases. Trino doesn't tell any connector's primary keys, so a row is identified by its `NOT NULL` columns (a table without any is read-only). Whether a table takes writes is up to its connector: the PostgreSQL connector updates tables that have a primary key in PostgreSQL; memory, Hive and most lake connectors refuse UPDATE and DELETE, and their error is shown as it is. Trino has no read-only session, so `read_only = true` is sqlmux's check alone (quick SQL runs in a `START TRANSACTION READ ONLY` the server enforces).
+
+### Oracle
+
+Oracle works like PostgreSQL in sqlmux: saves are one transaction, there is a manual transaction mode, and the tree lists the schemas (users) you can see, without Oracle's own. A few things are Oracle's own:
+
+- In a query, end a PL/SQL block (`BEGIN … END;`, `CREATE OR REPLACE PROCEDURE …`) with a `/` on a line of its own, as in SQL*Plus; `;` inside it doesn't split it.
+- Dates and timestamps show as `2026-01-31 14:05:00`, timestamps with their fraction, and time zones as `+02:00`; sqlmux sets the session's `NLS_*_FORMAT`s to match, so these texts also work in your own WHERE clauses.
+- DDL commits the transaction it runs in, as Oracle does: after one, sqlmux shows no transaction going on.
+- Tables need a primary key (or a unique key over NOT NULL columns) to be edited. LONG, BLOB, BFILE and object-typed columns can't be edited in the grid.
+- Oracle has no read-only session, so `read_only = true` is sqlmux's check (quick SQL runs in a `SET TRANSACTION READ ONLY` the server enforces).
+- On a server that just started, the first DDL preview of a table can take many seconds: Oracle's `DBMS_METADATA` warms up slowly.
 
 ### External commands (`engine = "exec"`)
 
@@ -201,7 +224,9 @@ fg   = "#fc9867"
 
 Color tokens: `production` (production connections, defaults to `error`), `bg`, `pane_bg`, `gap` (the space between panes, defaults to `pane_bg`), `fg`, `fg_muted`, `dim`, `border`, `border_focus` (the focused pane's and overlays' borders, defaults to `focus`), `focus`, `warn`, `zoom`, `match`, `cursor`, `cursor_blur`, `select`, `row`, `row_alt`, `visual`, `selected`, `search`, `search_current`, `yank`, `edited_bg`, `error`, `error_bg`, `info`, `bar`, `sep`; SQL text: `keyword`, `sql_string`, `comment`, `sql_table`, `sql_column`, `sql_operator`; grid values by column type: `number`, `string`, `time`, `bool`, `json`, `pk`, `func`.
 
-Icon names: `schema`, `table`, `view`, `column`, `key`, `index`, `func`, `sequence`, `query`, `result`, `log`, `conn`, `postgres`, `mysql`, `sqlite`, `redis`, `str`, `hash`, `list`, `set`, `zset`, `stream`, `json`, `window`, `pane`, `filter`, `search`, `keys`, `command`, `save`, `refresh`, `transpose`, `row_add`, `row_delete`, `auto_refresh`, `stop`, `sort_asc`, `sort_desc`, `lock`, `pin`, `export`, `close`, `star`, `history`, `zoom`, `unzoom`, `split_right`, `split_below`, `tag`, `host`, `port`, `user`, `database`, `advanced`, `link`, `group`; completion kinds: `keyword`, `value`, `snippet`; right-click menus: `open`, `edit`, `copy`, `trash`, `rename`, `hide` (the menu's *View as JSON* uses `json`). With `icons = "ascii"`, completion shows a letter per kind and menus show no icons, and an `[icon.<name>]` `text` that is not plain ASCII is ignored (its `fg` still applies), so a theme written with Nerd Font glyphs works without one.
+In kitty and Ghostty (not under tmux), the engines' icons are DBeaver's color logos, drawn as images by kitty's graphics protocol; Redis, which DBeaver has none for, keeps its glyph. `icons = "images"` asks for them whatever the terminal seems to be, `icons = "nerd"` turns them off. Elsewhere, the engines' icons are their own logos in their brands' colors, whatever the theme (an `[icon.<engine>]` `fg` still changes one). The SQL Server, Oracle and ClickHouse logos are in Nerd Fonts 3.3 and later; with an older font they show as boxes, so update the font or give them a glyph of your own, e.g. `[icon.oracle] text = "\uf1c0"`.
+
+Icon names: `schema`, `table`, `view`, `column`, `key`, `index`, `func`, `sequence`, `query`, `result`, `log`, `conn`, `postgres`, `mysql`, `sqlite`, `redis`, `mssql`, `oracle`, `clickhouse`, `trino`, `str`, `hash`, `list`, `set`, `zset`, `stream`, `json`, `window`, `pane`, `filter`, `search`, `keys`, `command`, `save`, `refresh`, `transpose`, `row_add`, `row_delete`, `auto_refresh`, `stop`, `sort_asc`, `sort_desc`, `lock`, `pin`, `export`, `close`, `star`, `history`, `zoom`, `unzoom`, `split_right`, `split_below`, `tag`, `host`, `port`, `user`, `database`, `advanced`, `link`, `group`; completion kinds: `keyword`, `value`, `snippet`; right-click menus: `open`, `edit`, `copy`, `trash`, `rename`, `hide` (the menu's *View as JSON* uses `json`). With `icons = "ascii"`, completion shows a letter per kind and menus show no icons, and an `[icon.<name>]` `text` that is not plain ASCII is ignored (its `fg` still applies), so a theme written with Nerd Font glyphs works without one.
 
 ## Layouts
 

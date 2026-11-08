@@ -1,5 +1,5 @@
 # Databases for the integration tests and e2e (tech-design §15). Ports stay
-# off the local defaults so a developer's own PG / MySQL keeps running.
+# off the local defaults so a developer's own PG / MySQL / ClickHouse keeps running.
 #   docker compose up -d --wait
 #   SQLMUX_TEST_PG='postgres://sqlmux:sqlmux@localhost:55432/sqlmux?sslmode=disable' \
 #   SQLMUX_TEST_MYSQL='sqlmux:sqlmux@tcp(localhost:53306)/sqlmux' go test -tags integration ./...
@@ -79,3 +79,52 @@ services:
     volumes: ["./testdata/seed/mssql.sql:/seed/mssql.sql:ro"]
     entrypoint: ["/bin/bash", "-c", "q=\"/opt/mssql-tools18/bin/sqlcmd -C -b -W -S mssql -U sa -P $$MSSQL_SA_PASSWORD -h -1\"; [ \"$$($$q -Q 'set nocount on; select count(*) from sys.databases where name = ''sqlmux''')\" = 1 ] || $$q -i /seed/mssql.sql"]
     restart: "no"
+
+  # ClickHouse over its HTTP interface, on 58123 (§8.9). The image loads
+  # testdata/seed/clickhouse.sql on the first start of an empty volume.
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    environment:
+      CLICKHOUSE_USER: sqlmux
+      CLICKHOUSE_PASSWORD: sqlmux
+      CLICKHOUSE_DB: sqlmux
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports: ["58123:8123"]
+    volumes: ["./testdata/seed/clickhouse.sql:/docker-entrypoint-initdb.d/clickhouse.sql:ro"]
+    ulimits: {nofile: {soft: 262144, hard: 262144}}
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "sqlmux", "--password", "sqlmux", "-q", "select count() from sqlmux.t_user"]
+      interval: 1s
+      retries: 60
+
+  # Trino on 58080 (§8.10): catalogs memory, tpch (read-only sample data) and
+  # postgresql, the seeded PG above, which takes UPDATE and DELETE. No seed of
+  # its own: what a test writes it writes in memory or in a database of its own.
+  trino:
+    image: trinodb/trino:478
+    depends_on:
+      postgres: {condition: service_healthy}
+    ports: ["58080:8080"]
+    volumes: ["./testdata/seed/trino:/etc/trino/catalog:ro"]
+    healthcheck:
+      test: ["CMD", "trino", "--execute", "select 1"]
+      interval: 3s
+      retries: 60
+      start_period: 10s
+
+  # Oracle Database 23ai Free on 51521, its PDB FREEPDB1 (§8.11). The image
+  # makes the sqlmux user, then runs testdata/seed/oracle.sql as SYS on the
+  # first start of an empty volume; that start takes a minute or two.
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    environment:
+      ORACLE_PASSWORD: sqlmux
+      APP_USER: sqlmux
+      APP_USER_PASSWORD: sqlmux
+    ports: ["51521:1521"]
+    volumes: ["./testdata/seed/oracle.sql:/container-entrypoint-initdb.d/oracle.sql:ro"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 5s
+      retries: 60
+      start_period: 30s

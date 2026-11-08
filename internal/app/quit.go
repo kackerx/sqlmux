@@ -3,6 +3,7 @@ package app
 import (
 	"slices"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -22,8 +23,8 @@ func unsaved(panes ...*Pane) int {
 	n := 0
 	for _, p := range panes {
 		for _, tab := range p.Tabs {
-			if tab.Data != nil {
-				n += tab.Data.changes()
+			if t := tab.table(); t != nil {
+				n += t.changes()
 			}
 		}
 	}
@@ -103,6 +104,10 @@ func (a *App) quit() tea.Cmd {
 			return cmd
 		}
 		a.saveLast()
+		if a.logosGone != "" { // on the alternate screen still, where the logos are: Raw goes out with the
+			// renderer's next frame, and a quit at once restores the screen before it
+			return tea.Sequence(tea.Raw(a.logosGone), tea.Tick(logosDelay/5, func(time.Time) tea.Msg { return tea.QuitMsg{} }))
+		}
 		return tea.Quit
 	})
 }
