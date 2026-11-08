@@ -71,6 +71,7 @@ func TestBorderFocusStyle(t *testing.T) {
 		{`border = "rounded"`, rounded, rounded}, // not written: the border's
 		{"border = \"rounded\"\nborder_focus_style = \"bold\"", rounded, bold},
 		{`border_focus_style = "bold"`, single, bold},
+		{"border = \"rounded\"\nborder_focus_style = \"\"", rounded, rounded}, // the sample of the design writes it empty
 	} {
 		if c, err := Parse(tc.toml); err != nil || !reflect.DeepEqual(c.Border, tc.border) || !reflect.DeepEqual(c.FocusBorder, tc.focus) {
 			t.Errorf("%q: %+v %+v %v", tc.toml, c.Border, c.FocusBorder, err)

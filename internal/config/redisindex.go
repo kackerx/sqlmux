@@ -4,13 +4,18 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // RedisIndexPath is the file that keeps the names of the keys of db number db
 // of connection conn: $XDG_DATA_HOME/sqlmux/redis-index/<connection>/db<n>
 // (§9.8, F21.4). A name with a / in it is one directory.
 func RedisIndexPath(conn, db string) string {
-	return filepath.Join(DataDir(), "redis-index", url.PathEscape(conn), "db"+db)
+	dir := url.QueryEscape(conn) // nothing a file system keeps for itself: not : * | < > " or a /
+	if strings.Trim(dir, ".") == "" {
+		dir = strings.ReplaceAll(dir, ".", "%2E") // not . or ..
+	}
+	return filepath.Join(DataDir(), "redis-index", dir, "db"+db)
 }
 
 // ReadRedisIndex is that file's text; nil when it is not there or cannot be read.

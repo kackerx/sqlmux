@@ -45,8 +45,12 @@ func TestKeyIndexOfARedisDB(t *testing.T) {
 	}
 	build := func() (batches int) {
 		for cmd := a.startIndex(c); cmd != nil; {
-			m, ok := cmd().(indexMsg)
+			msg := cmd()
+			m, ok := msg.(indexMsg)
 			if !ok { // the last batch's answer is the write of the file
+				if _, batch := msg.(tea.BatchMsg); msg != nil && !batch {
+					t.Fatalf("a batch answered %T", msg)
+				}
 				break
 			}
 			batches++
@@ -73,10 +77,14 @@ func TestKeyIndexOfARedisDB(t *testing.T) {
 
 // buildIndex runs the batches of the index cmd asks for, one answer after the other, to
 // the last, whose answer is the write of its file.
-func buildIndex(a *App, cmd tea.Cmd) {
+func buildIndex(t *testing.T, a *App, cmd tea.Cmd) {
+	t.Helper()
 	for cmd != nil {
-		m, ok := cmd().(indexMsg)
-		if !ok {
+		msg := cmd()
+		m, ok := msg.(indexMsg)
+		if _, batch := msg.(tea.BatchMsg); !ok && msg != nil && !batch {
+			t.Fatalf("a batch answered %T", msg)
+		} else if !ok {
 			return
 		}
 		cmd = a.gotIndex(m)
@@ -104,7 +112,7 @@ func TestKeyIndexOfARedisDBFromTheFile(t *testing.T) {
 	}
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	a, c := redisApp(t, dsn, 1)
-	buildIndex(a, a.startIndex(c))
+	buildIndex(t, a, a.startIndex(c))
 	if c.index == nil || len(c.index.names) < 20000 {
 		t.Fatalf("built: %+v", c.index)
 	}
@@ -120,7 +128,7 @@ func TestKeyIndexOfARedisDBFromTheFile(t *testing.T) {
 	if got, foot, _ := a2.keyCandidates(&queryTab{conn: c2}, "ns7:item:7"); len(got) == 0 || foot != "索引更新中" {
 		t.Errorf("before the first SCAN: %d candidates, foot %q", len(got), foot)
 	}
-	buildIndex(a2, first)
+	buildIndex(t, a2, first)
 	if c2.index.stale || len(c2.index.names) != built || c2.building != nil {
 		t.Errorf("the index made takes its place: %d names, stale %v", len(c2.index.names), c2.index.stale)
 	}
@@ -142,7 +150,7 @@ func TestKeyIndexFollowsWrites(t *testing.T) {
 		cl.Set(context.Background(), k, "x", 0)
 	}
 	a, c := redisApp(t, dsn, 1) // a budget of one key: the tree does not read it all, the index is built
-	build := func(cmd tea.Cmd) { buildIndex(a, cmd) }
+	build := func(cmd tea.Cmd) { buildIndex(t, a, cmd) }
 	if c.scan == nil || !c.scan.more {
 		t.Fatalf("the tree reads it all: %+v", c.scan)
 	}
@@ -215,7 +223,7 @@ func TestKeyIndexFollowsKeyTab(t *testing.T) {
 	cl.HSet(context.Background(), "kt:solo", "a", "1")
 	cl.Set(context.Background(), "kt:plain", "x", 0)
 	a, c := redisApp(t, dsn, 1) // the tree does not read it all: the index is built
-	buildIndex(a, a.startIndex(c))
+	buildIndex(t, a, a.startIndex(c))
 	names := func() string {
 		var out []string
 		for _, n := range c.index.names {

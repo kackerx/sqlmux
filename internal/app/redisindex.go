@@ -577,9 +577,9 @@ func (a *App) keysChanged(c *Conn, keys ...string) tea.Cmd {
 // is let go.
 func (a *App) clearIndex(c *Conn) tea.Cmd {
 	c.hints, c.building = nil, nil
-	c.epoch++ // what was asked of the keys before is of the db as it was
-	if c.index == nil && c.scan == nil {
-		return nil
+	c.epoch++                            // what was asked of the keys before is of the db as it was
+	if c.index == nil && c.scan == nil { // none in memory: the file, which a start would take for the db, is emptied all the same
+		return a.writeIndex(c, &keyIndex{})
 	}
 	c.index = &keyIndex{done: true}
 	c.index.makeCands()
@@ -661,6 +661,7 @@ func (a *App) gotDelta(m indexDelta) tea.Cmd {
 // old ones are not touched: a match going on over them in the background sees the
 // index as it was (F20.8).
 func (ix *keyIndex) update(add, del []string) {
+	add = slices.Clone(add) // sorted and compacted here: the delta that keeps it for the index being made is not
 	gone := make(map[string]bool, len(del))
 	for _, n := range del {
 		gone[n] = true
@@ -735,10 +736,11 @@ func decodeIndex(data []byte, limit int) *keyIndex {
 		return nil
 	}
 	ix := &keyIndex{total: total, capped: capped == 1, done: true, stale: true}
+	if rest == "" { // a db with no keys
+		ix.makeCands()
+		return ix
+	}
 	for line := range strings.SplitSeq(strings.TrimSuffix(rest, "\n"), "\n") {
-		if line == "" && rest == "" { // a db with no keys
-			break
-		}
 		words, err := redis.SplitLine(line)
 		if len(words) != 1 || err != nil || len(ix.names) >= limit {
 			return nil
@@ -750,6 +752,8 @@ func decodeIndex(data []byte, limit int) *keyIndex {
 }
 
 // loadIndex is the index of c's db as its file has it; nil for none.
+// shortcut: read and decoded on the update loop, 23ms for 100000 names, once per db; a Cmd with
+// its own message when a slow disk makes the first completion wait.
 func (a *App) loadIndex(c *Conn) *keyIndex {
 	if data := config.ReadRedisIndex(indexFile(c)); data != nil {
 		return decodeIndex(data, a.indexKeys)
@@ -762,10 +766,19 @@ func (a *App) loadIndex(c *Conn) *keyIndex {
 // move. A failed write is no loss, the file is a cache.
 func (a *App) saveIndex(c *Conn) tea.Cmd {
 	ix := c.index
-	if !a.indexCache || ix == nil || ix.stale || c.Spec.Engine == "exec" {
+	if ix == nil || ix.stale {
 		return nil
 	}
-	path, snap := indexFile(c), &keyIndex{names: ix.names, total: ix.total, capped: ix.capped}
+	return a.writeIndex(c, &keyIndex{names: ix.names, total: ix.total, capped: ix.capped})
+}
+
+// writeIndex writes snap as c's db's file in the background; none for a connection that is a
+// command or with index_cache = false.
+func (a *App) writeIndex(c *Conn, snap *keyIndex) tea.Cmd {
+	if !a.indexCache || c.Spec.Engine == "exec" {
+		return nil
+	}
+	path := indexFile(c)
 	return func() tea.Msg {
 		_ = config.WriteRedisIndex(path, encodeIndex(snap))
 		return nil

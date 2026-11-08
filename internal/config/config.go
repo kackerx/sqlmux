@@ -241,7 +241,7 @@ func Parse(data string) (*Config, error) {
 		}
 		c.Border, c.FocusBorder = b, b
 	}
-	if raw.FocusStyle != nil {
+	if raw.FocusStyle != nil && *raw.FocusStyle != "" { // "" is not written: the border's (§14)
 		b, ok := ui.BorderOf(*raw.FocusStyle)
 		if !ok {
 			return nil, fmt.Errorf(`border_focus_style = %q: must be "single", "rounded", "double", "bold" or "hidden"`, *raw.FocusStyle)

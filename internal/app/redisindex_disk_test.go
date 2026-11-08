@@ -73,8 +73,10 @@ func TestIndexFile(t *testing.T) {
 	if fi, err := os.Stat(path); err != nil || fi.Mode().Perm() != 0o600 {
 		t.Errorf("the file: %v %v", fi, err)
 	}
-	if want := filepath.Join(config.DataDir(), "redis-index", "a%2Fb", "db3"); config.RedisIndexPath("a/b", "3") != want {
-		t.Errorf("path %q, want %q", config.RedisIndexPath("a/b", "3"), want)
+	for conn, dir := range map[string]string{"a/b": "a%2Fb", "prod:6379": "prod%3A6379", "..": "%2E%2E", ".": "%2E", "a.b": "a.b"} {
+		if want := filepath.Join(config.DataDir(), "redis-index", dir, "db3"); config.RedisIndexPath(conn, "3") != want {
+			t.Errorf("connection %q: path %q, want %q", conn, config.RedisIndexPath(conn, "3"), want)
+		}
 	}
 
 	for name, text := range map[string]string{
@@ -211,5 +213,31 @@ func TestKeyIndexDiskDebounce(t *testing.T) {
 	conn.index.stale = true // one read from its file, the new one on its way: nothing of it is written
 	if a.indexChanged(conn) != nil || a.saveIndex(conn) != nil {
 		t.Error("a stale index is written")
+	}
+}
+
+// A write that names a key twice, answered while the index is made again, leaves the key once in
+// the delta kept for the new one; a FLUSH when no index is in memory still empties the file, which
+// the next start would take for the db (F21.4).
+func TestKeyIndexDiskWrites(t *testing.T) {
+	a, _, conn := diskConsole(t)
+	conn.index = &keyIndex{names: []string{"a"}, total: 1, done: true}
+	conn.index.makeCands()
+	a.rebuildIndex(conn)
+	a.gotDelta(indexDelta{conn: conn, epoch: conn.epoch, keys: []string{"k", "k"}, found: []bool{true, true}})
+	a.gotIndex(indexMsg{conn: conn, ix: conn.building, names: []string{"a"}, total: 1})
+	if got := strings.Join(conn.index.names, ","); got != "a,k" {
+		t.Errorf("names %q: a delta with a repeated key leaves another in it", got)
+	}
+
+	writeIndexFile(t, conn, &keyIndex{names: []string{"A", "B"}, total: 2})
+	conn.index, conn.scan, conn.building = nil, nil, nil
+	cmd := a.clearIndex(conn)
+	if cmd == nil {
+		t.Fatal("a flush with no index in memory writes nothing")
+	}
+	cmd()
+	if got := fileNames(t, conn); len(got) != 0 {
+		t.Errorf("the file after FLUSHDB: %q", got)
 	}
 }
