@@ -78,8 +78,11 @@ type dataTab struct {
 	// page 0's "": it pages by cursor, to the pages seen and one more.
 	src     db.Source
 	cursors []string
-	seq     int       // the last request's; older answers are dropped (§8.3)
-	bar     *errorBar // the last fetch's or save's error, under the table (§7.8「错误栏」)
+	// props is the section a table's properties tab shows (props.go), "" for a
+	// tab of the table's rows
+	props string
+	seq   int       // the last request's; older answers are dropped (§8.3)
+	bar   *errorBar // the last fetch's or save's error, under the table (§7.8「错误栏」)
 
 	// The query bar's. request is what the last request asked for, shown
 	// what the rows on screen came from: row numbers and chips are shown's,
@@ -498,7 +501,7 @@ func gridRect(r uv.Rectangle, t *dataTab) uv.Rectangle {
 
 // barRows is how tall t's query bar is: a key's has its Info row (§8.7).
 func (t *dataTab) barRows() int {
-	if t.table.Kind == "k" {
+	if t.table.Kind == "k" || t.props != "" {
 		return ui.QueryBarRows + ui.InfoRows
 	}
 	return ui.QueryBarRows
@@ -736,8 +739,11 @@ func (a *App) queryBar(p *Pane, t *dataTab) ui.QueryBar {
 		Chips:   chips,
 		Buttons: a.toolButtons(t),
 	}
-	if t.table.Kind == "k" { // its filter is a MATCH pattern (§8.7)
+	switch {
+	case t.table.Kind == "k": // its filter is a MATCH pattern (§8.7)
 		bar.Info, bar.Label = a.keyInfo(t), "MATCH"
+	case t.props != "": // its sections; its filter is text (props.go)
+		bar.Info, bar.Label = a.propsInfo(t), "FILTER"
 	}
 	return bar
 }

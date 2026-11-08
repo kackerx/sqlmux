@@ -66,7 +66,9 @@ func (t *Tab) landing() bool { return t == nil || t.Data == nil && t.Query == ni
 // tableTab is the index of pane p's tab of table t of connection c, -1 for
 // none: a pane has a table once (F3.37).
 func (p *Pane) tableTab(c *Conn, t db.Table) int {
-	return slices.IndexFunc(p.Tabs, func(tb Tab) bool { return tb.Data != nil && tb.Data.conn == c && idOf(tb.Data.table) == idOf(t) })
+	return slices.IndexFunc(p.Tabs, func(tb Tab) bool {
+		return tb.Data != nil && tb.Data.props == "" && tb.Data.conn == c && idOf(tb.Data.table) == idOf(t)
+	})
 }
 
 // putTab puts tab in pane p: over the current tab, or after the last one,

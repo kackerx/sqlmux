@@ -255,6 +255,15 @@ func init() {
 			}
 		})},
 		"tree.refresh": {Title: i18n.N("刷新表列表"), Run: func(a *App, _ Args) tea.Cmd { return a.refreshTree() }},
+		"table.properties": {Title: i18n.N("表的属性"), SQL: true, Run: func(a *App, _ Args) tea.Cmd {
+			c, t, ok := a.propsTarget()
+			if !ok {
+				return a.showToast(i18n.T("先选中一张表"))
+			}
+			return a.openProps(c, t)
+		}},
+		// "props.section <name>" is a chip of a properties tab's section row
+		"props.section": {Run: func(a *App, args Args) tea.Cmd { return a.propsSection(dataOf(a.focused()), args.Arg) }},
 		"tree.pick": {Title: i18n.N("选择库 / schema…"), Run: func(a *App, _ Args) tea.Cmd {
 			n, ok := a.treeNode()
 			if !ok {
@@ -590,7 +599,10 @@ func init() {
 			}
 			return a.unlessLost(t.changes(), "", nil, verbRefresh, func() tea.Cmd { // R drops the changes (§10.4)
 				t.edits, t.added, t.deleted = nil, nil, nil
-				t.deselect() // the rows are others
+				t.deselect()       // the rows are others
+				if t.props != "" { // read anew: its source keeps what it read
+					t.src = newProps(t.conn, t.table, t.props)
+				}
 				return a.fetch(t, true)
 			})
 		}},

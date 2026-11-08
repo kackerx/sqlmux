@@ -97,7 +97,7 @@ var whereKeywords = []string{"and", "or", "not", "is null", "is not null", "in",
 // value of that column goes (§9.7).
 func (a *App) complete(t *dataTab) {
 	t.comp = nil
-	if !t.conn.sql() { // a MATCH pattern has no completion (§5)
+	if !t.conn.sql() || t.props != "" { // a MATCH pattern has no completion (§5), nor a properties tab's text
 		return
 	}
 	in := t.where
@@ -989,6 +989,9 @@ type histEntry struct {
 
 // tableState is t's history and favorites, made on first use.
 func (a *App) tableState(t *dataTab) *config.TableState {
+	if t.props != "" { // a properties tab's filter is no WHERE of the table's: kept nowhere
+		return &config.TableState{}
+	}
 	key := t.conn.tableKey(t.table)
 	if a.state.Tables == nil {
 		a.state.Tables = map[string]*config.TableState{}

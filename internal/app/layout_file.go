@@ -80,6 +80,8 @@ func paneLayout(p *Pane) config.LayoutPane {
 	for i, tb := range p.Tabs {
 		var lt config.LayoutTab
 		switch {
+		case tb.Data != nil && tb.Data.props != "": // the table's properties: opened again from it, not kept
+			continue
 		case tb.Data != nil:
 			d := tb.Data
 			lt = config.LayoutTab{Kind: "table", Connection: d.conn.Spec.Name, DB: d.conn.Spec.Database, Schema: d.table.Schema, Table: d.table.Name,

@@ -924,3 +924,29 @@ func databasesWithCatalog(t *testing.T, eng, dsn string) {
 		t.Error("the DSN's database is the connection itself")
 	}
 }
+
+// Every SQL engine's table has its properties: t_order's columns, with its key,
+// a foreign key to t_user, and its DDL (§7.8「属性」).
+func TestProperties(t *testing.T) {
+	eachEngine(t, func(t *testing.T, eng, dsn string) {
+		a := opened(t, config.Connection{Name: "play", Engine: eng, DSN: dsn})
+		play := a.sess.Conns[0]
+		i := slices.IndexFunc(play.Tables, func(tb db.Table) bool { return tb.Schema == play.Schema && tb.Name == "t_order" })
+		if i < 0 {
+			t.Fatalf("no t_order in %s", play.Schema)
+		}
+		settle(a, a.openProps(play, play.Tables[i]))
+		tab := dataOf(a.focused())
+		if tab == nil || tab.props != "columns" || len(tab.page.Rows) == 0 || tab.page.Rows[0][1].S != "id" || tab.page.Rows[0][5].S != "PK" {
+			t.Fatalf("columns: %+v", tab.page.Rows)
+		}
+		settle(a, a.run("props.section foreign_keys", 0))
+		if !slices.ContainsFunc(tab.page.Rows, func(r []db.Val) bool { return r[1].S == "user_id" && strings.HasSuffix(r[2].S, "t_user") }) {
+			t.Errorf("foreign keys: %v", tab.page.Rows)
+		}
+		settle(a, a.run("props.section ddl", 0))
+		if len(tab.page.Rows) == 0 || !strings.Contains(strings.ToLower(tab.page.Rows[0][0].S), "create") {
+			t.Errorf("ddl: %v", tab.page.Rows)
+		}
+	})
+}
