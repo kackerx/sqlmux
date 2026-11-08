@@ -150,10 +150,10 @@
 
 **开发**
 - [ ] a. 测试修对：权限断言在 Windows 上跳过（同 query_test.go 那行的写法），产品代码不动。
-- [ ] b. 机制：`just test-windows` —— `GOOS=windows go test -exec <wrapper> ./...`，wrapper 是仓库里的一个小脚本：把 go 交给它的测试 exe 通过 WSL interop 在 Windows 上跑（exe 先拷到 `%LOCALAPPDATA%\Temp` 下再起，不从 `\\wsl.localhost` 起；带 `-test.short`；集成标签不带）。只在 `/mnt/c` 存在时能跑，不在时打印一句跳过。不进 `just check`（慢、只有 WSL 有），**打 tag 前必跑**，写进 AGENTS.md 的推送规则。
+- 用户 2026-11-08：只是一个 `_test` 文件的平台问题，快速改掉重跑 CI 就行，不走审查 / 测试流程。所以 a 由 worker 直接改、推 release PR；b 不做，记为候选（plan.md）；tester 的对照取消。
+- [ ] ~~b.~~（候选）机制：`just test-windows` —— `GOOS=windows go test -exec <wrapper> ./...`，wrapper 是仓库里的一个小脚本：把 go 交给它的测试 exe 通过 WSL interop 在 Windows 上跑（exe 先拷到 `%LOCALAPPDATA%\Temp` 下再起，不从 `\\wsl.localhost` 起；带 `-test.short`；集成标签不带）。只在 `/mnt/c` 存在时能跑，不在时打印一句跳过。不进 `just check`（慢、只有 WSL 有），**打 tag 前必跑**，写进 AGENTS.md 的推送规则。
 - [ ] c. 发版收尾：删掉远程的 `v0.10.0` tag（它没有产出任何包，brew / npm 都没看到它，等于没发过）；a、b 合进 main 后再走一次 release PR，用户合完在新的合入 commit 上重新打 `v0.10.0` 推送。CHANGELOG 不加 0.10.1。
 
 **验收**
-- [ ] `just test-windows` 在这台 WSL 上全绿，而且在 a 之前的 093707b 上能抓到这个红（tester 跑一次对照）。
 - [ ] CI 的 `ci / windows` 绿；Release workflow 全绿、七个包、brew / npm 到 0.10.0。
 
