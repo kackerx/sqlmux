@@ -6,6 +6,26 @@ All notable changes to sqlmux are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-08
+
+### Added
+
+- Run one statement straight from the command line: `sqlmux [connection] --sql "select status, count(*) from orders group by 1"`. It opens a window with only the tree, a query holding the statement and its result, and runs it as `↵` would; read-only connections and dangerous statements are checked as in any query. The query is not saved as a file unless you edit it, and quitting does not overwrite the layout `sqlmux` restores. `--sql` cannot go with `--table`, `--where` or `--layout`.
+- `--schema` picks the schema for `--sql` and `--table`, written as in the query title's dropdown: `[database.]schema` on PostgreSQL and SQL Server, the database on MySQL, the db number on Redis (`--schema 1`). A schema that does not exist is reported in a toast, and the connection's own is used.
+- `default_connection = "<name>"` in `config.toml`: the connection that `--table`, `--sql` and a start without a saved layout use when you name none (until now, always the first one in `connections.toml`). A name that is not in `connections.toml` is reported in a toast, and the first connection is used.
+- **Redis key completion is ready at once on the next start**: the index of a database's key names is saved under `~/.local/share/sqlmux/redis-index/` (mode 0600), loaded on the first completion, and replaced when a fresh scan in the background finishes. `[redis] index_cache = false` turns it off.
+- `border_focus_style` in `config.toml`: the line style of the focused pane and of overlays (`single`, `rounded`, `double`, `bold`, `hidden`), so the focused pane can be bold and the others thin. Unset, it follows `border`.
+- `[pane] outer_nav = "auto"`: inside tmux, `C-h` / `C-j` / `C-k` / `C-l` at the edge of sqlmux move on to the next tmux pane, as vim-tmux-navigator does for vim. The tmux side is in [Configuration](docs/config.md#moving-between-tmux-and-sqlmux-panes). ([#4](https://github.com/kackerx/sqlmux/issues/4), idea by qumn)
+
+### Changed
+
+- While a Redis database's first key index is being built, typing a key opens the completion list at once, with "Building the index" at its foot; prefix matches fill in as they arrive. If the index cannot be built (the connection dropped, no permission to `SCAN`), that line says why, and `R` in the tree builds it again.
+- Redis completion on a slow link is ready much sooner after connecting: `COMMAND DOCS` is sent as soon as the connection is up instead of after the tree has loaded, the tree loads one batch at a time so completion can go in between, and the key index goes ahead of the tree. Over a 1-second round trip, a 60000-key index now builds in about 20 seconds.
+
+### Fixed
+
+- On a slow Redis link, key index batches, prefix lookups and `EXISTS` checks could time out while still waiting their turn and close the connection under the request that was running, so the index never finished. Their timeouts now start when they run (20 s for index batches and prefix lookups, 3 s for `EXISTS`).
+
 ## [0.9.0] - 2026-11-02
 
 ### Added

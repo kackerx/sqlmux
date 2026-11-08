@@ -52,7 +52,10 @@ and open it by name:
 ```sh
 sqlmux local
 sqlmux local --table orders --where "user_id = 42"   # straight to one table, already filtered
+sqlmux local --sql "select status, count(*) from orders group by 1"   # run one statement
 ```
+
+Add `--schema sales` to either to look in another schema; `default_connection` in `config.toml` lets you leave out `local`.
 
 Running `sqlmux` with no connections opens a form instead (name, engine, host, port, user, password, database); its password goes to the OS keychain. All the connection fields are in [Configuration](config.md#connectionstoml).
 
