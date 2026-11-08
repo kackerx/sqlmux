@@ -109,6 +109,9 @@ type App struct {
 	spin      int         // the frame of every spinner (§7.8「转圈」)
 	spinOn    bool        // a spinTick is on its way
 	want      *startTable // the command line's table, to open when its catalog is in (F19.1)
+	// logos and logosGone are the escapes that put the engines' logos in the
+	// terminal and take them out (§7.7), "" when its icons are glyphs
+	logos, logosGone string
 
 	// Mouse (§7.4).
 	hits        []ui.Hit     // the last frame's hit table
@@ -206,8 +209,25 @@ func (a *App) Init() tea.Cmd {
 	if a.tipsOn {
 		cmds = append(cmds, tipTimer())
 	}
+	if a.logos != "" {
+		cmds = append(cmds, tea.Tick(logosDelay, func(time.Time) tea.Msg { return logosDue{} }))
+	}
 	return tea.Batch(cmds...)
 }
+
+// Logos is the escapes that send the engines' logos to the terminal and take
+// them back (ui.Logos), which the program sends itself, once it draws.
+func (a *App) Logos(setup, cleanup string) { a.logos, a.logosGone = setup, cleanup }
+
+// logosDue is the time to send the logos: kitty keeps an image to the screen
+// it came on, its alternate screen apart from the main one, and the program
+// is on the alternate one from its first frame, which this comes after (§7.7).
+// One that came late shows as it comes: the cells are drawn already.
+type logosDue struct{}
+
+// logosDelay is how long after the start the logos go: the first frame goes
+// out within one of the renderer's frames, 1/60 s.
+var logosDelay = 250 * time.Millisecond
 
 // plainQueries has every query without modes with vim = false (§6.9):
 // they are made all over, the sessions of a layout before the App, so what
@@ -355,6 +375,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotFormat(msg)
 	case spinTick:
 		return a, a.spinNext()
+	case logosDue:
+		return a, tea.Raw(a.logos)
 	case stateErr:
 		return a, a.showToast(msg.err.Error())
 	case tipTick:

@@ -168,15 +168,14 @@ func run(args []string) error {
 	if err != nil { // the broken file is kept aside; start empty (§14)
 		warning = app.JoinNotes(warning, err.Error())
 	}
+	var setup, cleanup string
 	if cfg.Logos == "on" || cfg.Logos == "auto" && ui.KittyGraphics(os.Getenv) { // the engines' logos as images (§7.7)
-		var setup, cleanup string
 		cfg.Icons, setup, cleanup = ui.Logos(cfg.Icons)
 		cfg.BaseIcons, _, _ = ui.Logos(cfg.BaseIcons)
-		fmt.Print(setup)
-		defer fmt.Print(cleanup)
 	}
 	keys, problems := keymap.New(cfg.Leader, cfg.Vim, cfg.Timeoutlen, cfg.Bindings)
 	a := app.New(cfg, keys, sess, st, warning)
+	a.Logos(setup, cleanup)
 	if restored != nil {
 		a.Adopt(restored)
 	}
