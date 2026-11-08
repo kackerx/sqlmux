@@ -150,11 +150,17 @@ func (a *App) drawOn(f *ui.Frame) *ui.Frame {
 			v.Draw(f, box, rows)
 		}
 	}
-	if t := a.focusedQuery(); t != nil && t.comp != nil && f.Cursor != nil { // under what it completes, which ends at the cursor
+	if t := a.focusedQuery(); t != nil && f.Cursor != nil { // under what it completes, which ends at the cursor
 		at, cur := *f.Cursor, t.ed.Cursor()
-		at.X -= ui.Width(t.ed.Lines()[cur.Line][t.comp.start:cur.Col])
-		v, box, rows := a.completeView(t.comp, at)
-		v.Draw(f, box, rows)
+		switch {
+		case t.comp != nil:
+			at.X -= ui.Width(t.ed.Lines()[cur.Line][t.comp.start:cur.Col])
+			v, box, rows := a.completeView(t.comp, at)
+			v.Draw(f, box, rows)
+		case t.foot != "" && t.ed.Mode() == editor.Insert && t.wait != nil && t.wait.at == cur && t.wait.ver == t.ver: // for this word, here
+			at.X -= ui.Width(t.ed.Lines()[cur.Line][t.footStart:cur.Col])
+			a.drawFootBox(f, t.foot, at)
+		}
 	}
 	if a.cols != nil {
 		f.Cursor = nil // what is under has not the keys: its own, if it has one, is set below
@@ -191,11 +197,15 @@ func (a *App) drawOn(f *ui.Frame) *ui.Frame {
 	if a.palette != nil { // over the list and the form, whose keys it takes (context)
 		if c := a.paletteView().Draw(f, a.window()); c.X >= 0 {
 			f.Cursor = &c
-			if comp := a.palette.comp; comp != nil { // under what it completes, which ends at the cursor
+			if comp, h := a.palette.comp, a.palette.hint; comp != nil { // under what it completes, which ends at the cursor
 				in, at := a.palette.input, c
 				at.X -= ui.Width(in.Text[comp.start:in.Pos])
 				v, box, rows := a.completeView(comp, at)
 				v.Draw(f, box, rows)
+			} else if h != nil && h.foot != "" && h.footStart <= a.palette.input.Pos {
+				in, at := a.palette.input, c
+				at.X -= ui.Width(in.Text[h.footStart:in.Pos])
+				a.drawFootBox(f, h.foot, at)
 			}
 		}
 	}
@@ -717,4 +727,11 @@ func (a *App) drawPaneNumbers(f *ui.Frame, rects map[int]uv.Rectangle) {
 func paneRegions(f *ui.Frame, id int, r uv.Rectangle) {
 	f.Region(r, ui.Target{Kind: ui.KindPane, Pane: id})
 	f.Region(uv.Rect(r.Min.X, r.Min.Y, r.Dx(), 1), ui.Target{Kind: ui.KindTitle, Pane: id})
+}
+
+// drawFootBox draws the box of a dim row alone, under at: nothing to pick yet, the index of key
+// names being made, or not made (F21.7).
+func (a *App) drawFootBox(f *ui.Frame, foot string, at uv.Position) {
+	box, rows := ui.CompleteBox(a.window(), at, ui.Width(foot)+4, 0, 1, ui.CompleteRows)
+	ui.Complete{Foot: []ui.Hint{{Key: foot}}}.Draw(f, box, rows)
 }

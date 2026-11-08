@@ -65,6 +65,7 @@ var hashCommands = []string{"hget", "hset", "hsetnx", "hdel", "hexists", "hmget"
 // With nothing typed it opens for C-n only. The names the server has to give come
 // later: the list is made again when they are in.
 func (a *App) redisComplete(t *queryTab, before string, manual bool) (*completion, []tea.Cmd) {
+	t.foot = ""
 	words, partial, open := redis.Typed(before)
 	if open || strings.HasPrefix(strings.TrimLeft(before, " \t"), "#") || partial == "" && !manual {
 		return nil, nil
@@ -138,7 +139,11 @@ func (a *App) redisComplete(t *queryTab, before string, manual bool) (*completio
 		})
 		return nil, cmds
 	}
-	return a.finishMatch(ranked(text, len(text), partial, start, groups...), indexed, partial, indexed.narrowedOf(partial), foot), cmds
+	comp := a.finishMatch(ranked(text, len(text), partial, start, groups...), indexed, partial, indexed.narrowedOf(partial), foot)
+	if comp == nil && foot != "" { // nothing to pick yet, and something to say: a box of its own (F21.7)
+		t.foot, t.footStart = foot, start
+	}
+	return comp, cmds
 }
 
 // commandNames are the commands of the server as candidates: those its docs

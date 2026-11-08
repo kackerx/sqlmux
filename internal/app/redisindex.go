@@ -153,7 +153,7 @@ func (ix *keyIndex) remember(partial string, items, src []candidate) {
 // the new index is made, and taken out of use when that is done.
 func (a *App) startIndex(c *Conn) tea.Cmd {
 	ix := c.indexed()
-	if c.building != nil || ix != nil && !ix.stale {
+	if c.building != nil || c.indexErr != "" || ix != nil && !ix.stale { // one that failed is made again by R, not by every key typed (F21.7)
 		return nil
 	}
 	if ix == nil && a.indexCache && c.Spec.Engine != "exec" {
@@ -170,7 +170,7 @@ func (a *App) rebuildIndex(c *Conn) tea.Cmd {
 	if c.Spec.Engine == "exec" || c.State != connReady {
 		return nil
 	}
-	c.building = &keyIndex{seen: map[string]bool{}}
+	c.building, c.indexErr = &keyIndex{seen: map[string]bool{}}, ""
 	return a.indexBatch(c, c.building)
 }
 
@@ -205,8 +205,8 @@ func (a *App) gotIndex(m indexMsg) tea.Cmd {
 		return nil
 	}
 	if m.err != nil {
-		c.building = nil
-		return nil
+		c.building, c.indexErr = nil, ui.Truncate(strings.Join(strings.Fields(m.err.Error()), " "), 60)
+		return a.recomplete(c) // the list says why
 	}
 	if ix.cursor == 0 && len(ix.names) == 0 {
 		ix.total = m.total
@@ -255,12 +255,20 @@ func (a *App) keyCandidates(t *queryTab, partial string) (found []candidate, foo
 	c := t.conn
 	if ix := c.indexed(); ix != nil {
 		switch {
+		case c.indexErr != "": // a stale index stays in use, and says why it is not made
+			foot = i18n.T("索引建立失败：%s", c.indexErr)
 		case ix.stale:
 			foot = i18n.T("索引更新中")
 		case ix.capped:
 			foot = i18n.T("已索引 %d / 共 %d 键", len(ix.names), ix.total)
 		}
 		return ix.narrowed(partial), foot, nil
+	}
+	switch { // none yet: what is typed is matched among the names of the prefix, when they come (F21.7)
+	case c.indexErr != "":
+		foot = i18n.T("索引建立失败：%s", c.indexErr)
+	case c.building != nil:
+		foot = i18n.T("索引建立中")
 	}
 	names, have := c.hints["keys\x00"+partial]
 	if !have {
@@ -269,7 +277,7 @@ func (a *App) keyCandidates(t *queryTab, partial string) (found []candidate, foo
 	for _, n := range names {
 		found = append(found, candidate{label: n, insert: redis.Quote(n), note: i18n.T("键"), space: true, kind: kindKey})
 	}
-	return found, "", cmds
+	return found, foot, cmds
 }
 
 // keyList is the keys of the Redis dbs the palette lists, made once for what the dbs
@@ -511,6 +519,7 @@ func (a *App) keyByID(id string) (*Conn, string, bool) {
 // index there is, or one being made, is made again in the background, the old one
 // used till then; none, none is made before the completion asks (§9.8, F20.8).
 func (a *App) refreshIndex(c *Conn) tea.Cmd {
+	c.indexErr = ""
 	if s := c.scan; s != nil && !s.more {
 		c.index, c.building = indexOfTree(s), nil
 		return a.recomplete(c)

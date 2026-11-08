@@ -465,6 +465,8 @@ var en = map[string]string{
 	"参数":               "argument",
 	"已索引 %d / 共 %d 键":  "%d of %d keys indexed",
 	"索引更新中":            "Updating the index",
+	"索引建立中":            "Building the index",
+	"索引建立失败：%s":        "The index could not be built: %s",
 	"键":                "key",
 	"字段":               "field",
 	"已导出 %s · %d 行，%s": "Exported %s · %d rows, %s",

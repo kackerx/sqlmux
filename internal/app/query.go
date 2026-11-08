@@ -57,9 +57,14 @@ type queryTab struct {
 	// is the one before till it comes; matchFor is what it was asked for; enter is a ↵
 	// that came meanwhile, which takes the selected one of the list that comes (F20.8)
 	matchSeq int
-	matching bool
-	matchFor matchCtx
-	enter    bool
+	// foot is a dim row in a box of its own, with no candidates in it: while the index of key
+	// names is made and the names of the prefix have not come, or it failed; footStart is where
+	// the word it is for starts (F21.7)
+	foot      string
+	footStart int
+	matching  bool
+	matchFor  matchCtx
+	enter     bool
 }
 
 // compWait is where a query last completed, C-n's or not.
