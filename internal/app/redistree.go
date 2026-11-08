@@ -252,7 +252,7 @@ func (a *App) gotCommands(m cmdsMsg) tea.Cmd {
 // of their own, one after the other, so that others of the connection get in between: on a
 // slow link the commands and the index of key names would wait for all of them (F21.7).
 func (a *App) loadKeys(c *Conn) tea.Cmd {
-	return a.keysStep(keysStep{conn: c, scan: redis.NewScanning("*", a.scanKeys, redis.ScanCount), first: true})
+	return a.nextKeysStep(keysStep{conn: c, scan: redis.NewScanning("*", a.scanKeys, redis.ScanCount), first: true})
 }
 
 // keysStep is one batch of what loadKeys reads, and where it has got to.
@@ -285,16 +285,23 @@ func (a *App) keysStep(m keysStep) tea.Cmd {
 // keysYield is how long the tree's next batch waits to see whether the index of key names is made.
 var keysYield = 200 * time.Millisecond
 
+// nextKeysStep asks for the tree's next batch, the first too: not while the first index of
+// the db is being made, with no names for the completion to go on with, whose batches go first. One
+// read from its file is something to go on with, and the tree takes its turn (F21.7).
+func (a *App) nextKeysStep(m keysStep) tea.Cmd {
+	if c := m.conn; c.building != nil && c.indexed() == nil {
+		return tea.Tick(keysYield, func(time.Time) tea.Msg { return m })
+	}
+	return a.keysStep(m)
+}
+
 // gotKeysStep asks for the next batch, or, with the last or an error, takes the scan in.
 func (a *App) gotKeysStep(m keysStep) tea.Cmd {
 	if a.sessionOf(m.conn) == nil {
 		return nil
 	}
 	if m.err == nil && !m.done {
-		if m.conn.building != nil { // the index being made goes first: the completion waits for its batches, the tree for nothing
-			return tea.Tick(keysYield, func(time.Time) tea.Msg { return m })
-		}
-		return a.keysStep(m)
+		return a.nextKeysStep(m)
 	}
 	s := m.scan
 	return a.gotKeys(keysMsg{conn: m.conn, dbs: m.dbs, scan: &keyScan{keys: s.Keys, total: s.Total, more: !s.Complete}, err: m.err})
