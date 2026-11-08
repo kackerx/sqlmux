@@ -51,6 +51,9 @@ type Config struct {
 	// (§8.7, F16.1), and how many names the completion indexes (§9.8, F20.1).
 	RedisDelimiter                              string
 	RedisScanKeys, RedisLoadAll, RedisIndexKeys int
+	// OuterNav is `[pane] outer_nav`, "off" or "auto": with auto, in tmux, a pane.focus.<side>
+	// with no pane on that side goes on to the outer tmux's (§6, F21.6).
+	OuterNav string
 	// RedisIndexCache is `[redis] index_cache`: the index of a db's key names
 	// is kept on disk and used at the next start (§9.8, F21.4).
 	RedisIndexCache bool
@@ -102,7 +105,7 @@ type Config struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), FocusBorder: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, RedisIndexCache: true, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), FocusBorder: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, RedisIndexCache: true, OuterNav: "off", PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -190,6 +193,9 @@ func Parse(data string) (*Config, error) {
 			IndexKeys  *int    `toml:"index_keys"`
 			IndexCache *bool   `toml:"index_cache"`
 		} `toml:"redis"`
+		Pane struct {
+			OuterNav *string `toml:"outer_nav"`
+		} `toml:"pane"`
 		Tree struct {
 			Width  *int  `toml:"width"`
 			Follow *bool `toml:"follow"`
@@ -307,6 +313,12 @@ func Parse(data string) (*Config, error) {
 			return nil, fmt.Errorf("[redis] scan_keys = %d: must be greater than 0", *n)
 		}
 		c.RedisScanKeys = *n
+	}
+	if n := raw.Pane.OuterNav; n != nil {
+		if *n != "off" && *n != "auto" {
+			return nil, fmt.Errorf(`[pane] outer_nav = %q: must be "off" or "auto"`, *n)
+		}
+		c.OuterNav = *n
 	}
 	if raw.Redis.IndexCache != nil {
 		c.RedisIndexCache = *raw.Redis.IndexCache

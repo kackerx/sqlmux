@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"maps"
 	"os"
+	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
@@ -1339,6 +1340,16 @@ func (a *App) focusSide(side string) {
 	}
 	if id, ok := neighbor(rects, win.Focus, side, a.recent); ok {
 		win.focus(id)
+	} else if a.outerNav && os.Getenv("TMUX") != "" { // none on that side: the outer tmux's (F21.6)
+		tmuxSelectPane(map[string]string{"left": "-L", "down": "-D", "up": "-U", "right": "-R"}[side])
+	}
+}
+
+// tmuxSelectPane is `tmux select-pane flag`, not waited for: a failure is of no use to say, the
+// focus stays in sqlmux. A variable for the tests.
+var tmuxSelectPane = func(flag string) {
+	if c := exec.Command("tmux", "select-pane", flag); c.Start() == nil {
+		go func() { _ = c.Wait() }()
 	}
 }
 

@@ -472,3 +472,17 @@ func TestDefaultConnection(t *testing.T) {
 		}
 	}
 }
+
+// [pane] outer_nav is off unless written; anything but off and auto is an error that says what
+// is allowed (F21.6).
+func TestOuterNav(t *testing.T) {
+	if c, err := Parse(""); err != nil || c.OuterNav != "off" {
+		t.Errorf("default: %q %v", c.OuterNav, err)
+	}
+	if c, err := Parse("[pane]\nouter_nav = \"auto\"\n"); err != nil || c.OuterNav != "auto" || len(c.Unknown) != 0 {
+		t.Errorf("auto: %+v %v", c, err)
+	}
+	if _, err := Parse("[pane]\nouter_nav = \"zellij\"\n"); err == nil || !strings.Contains(err.Error(), "outer_nav") {
+		t.Errorf("zellij: %v", err)
+	}
+}
