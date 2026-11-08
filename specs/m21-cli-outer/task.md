@@ -1,11 +1,11 @@
 # M21 命令行与外层多路复用器 · 任务清单
 
-- **状态**：**todo**（2026-11-07 决策者起草；用户 2026-11-07 定 v0.9.0 发出后直接进 M21。从这个里程碑起整套会话在用户 Windows 主机的 WSL 上跑，路径见 AGENTS.md）。
+- **状态**：**两个节点全过，等用户验收**（2026-11-08；验收版在 /root/proj/sqlmux-verify，WALKTHROUGH.md 在那里）。（2026-11-07 决策者起草；用户 2026-11-07 定 v0.9.0 发出后直接进 M21。从这个里程碑起整套会话在用户 Windows 主机的 WSL 上跑，路径见 AGENTS.md）。
 - **目标**：命令行能指定默认连接、直接跑一条语句；Redis 键名索引存盘、启动即用；聚焦和未聚焦的边框能用不同线型；在 tmux 里 `C-h/j/k/l` 能越过 sqlmux 的边界；测试残留库自动清掉。发 v0.10.0。
 - **范围**：§14「启动」（`default_connection`、`--sql`、`--schema`）和 config.toml 样例、§9.8「索引存盘」、§7.3 / §14 的 `border_focus_style`、§6 的 `pane.focus.*` 越界、§15「集成测试」的残留库清理。都已写进各章（2026-11-07，docs commit 见 git log）。
 - **依赖**：M20 完成（v0.9.0）。
 - **完成标准**：两个节点全过；完整回归绿（清单外 0）；Windows 版冒烟（`GOOS=windows` 编 exe，主机 python 跑 `e2e/windows/smoke.py`，tester 在 WSL 里跑）绿；用户体验验收后 worker 打 `m21` 和 `v0.10.0`，照 AGENTS.md 两步推送。
-- **审查节点**：1 = F21.1 + F21.2 + F21.3；2 = F21.4 + F21.5 + F21.6。 节点 1 过（9da01dd；e2e c311cad，2026-11-08，0 个问题）。tester 的观察（不改）：`--sql` 和 `--where` 同时给报的是「--where needs --table」，不是互斥句子，行为对。全量 e2e 串行 3 小时以上，6 路并行约 50 分钟，并行时 f0.1、f17.13、f20.4 偶尔红、串行绿。都是 worker 在 `main` 上做。F21.6 排最后，节点 2 做不下就丢（用户 2026-10-31）。
+- **审查节点**：1 = F21.1 + F21.2 + F21.3；2 = F21.4 + F21.5 + F21.6。 节点 1 过（9da01dd；e2e c311cad，2026-11-08，0 个问题）。tester 的观察（不改）：`--sql` 和 `--where` 同时给报的是「--where needs --table」，不是互斥句子，行为对。全量 e2e 串行 3 小时以上，6 路并行约 50 分钟，并行时 f0.1、f17.13、f20.4 偶尔红、串行绿。 节点 2 过（ef1f344；e2e 7766a7e，2026-11-08，0 个问题；完整回归 283 个脚本清单外 0；F21.4 的启动即用另有 f21.4b：重启后旧键马上可补、重建完换新、flushdb 后文件清空）。没测：F21.6 同一个 tmux server 挂两个 client、SQL Server。都是 worker 在 `main` 上做。F21.6 排最后，节点 2 做不下就丢（用户 2026-10-31）。
 - **不做（留候选）**：`--sql` 的非交互模式（结果打到 stdout，那是 psql `-c` 的活）；SQL catalog 存盘；WezTerm / Zellij 的越界切换（有人要再加）；连接改名后迁索引文件；每条连接上的 `default = true`。
 
 ---
@@ -74,7 +74,7 @@
 - [ ] e2e（Redis）：`--sql "dbsize"` 结果区有数；`--schema 1` 用 db1。
 - [ ] e2e：`--sql` 和 `--table` 同时给退出码非 0、stderr 一行 usage。
 
-## F21.4 Redis 键名索引存盘，启动即用 · 状态：todo
+## F21.4 Redis 键名索引存盘，启动即用 · 状态：passed（ef1f344；e2e 7766a7e）
 
 - **依赖**：M20 F20.8
 - **涉及**：`internal/app`（索引的建、换、增量那一处）、`internal/config`（`[redis] index_cache`、data 目录路径）
@@ -91,7 +91,7 @@
 - [ ] 集成测试（Redis 56379）：2 万键，建一次、退出、再启动，第一次补全在后台 SCAN 开始前就有候选（断言候选到达早于第一条 SCAN，或用 slowproxy 看顺序）。
 - [ ] e2e：150ms 延迟代理、6 万键的 db（F20.11 的脚本）：冷启动第二次运行时 `get p:emp` 候选在最后一个字符后 300ms 内出现（第一次运行建好索引、`:qa`）；送审附第一次和第二次「最后一个字符到候选」的时间。
 
-## F21.5 聚焦和未聚焦的边框用不同线型 `border_focus_style` · 状态：todo
+## F21.5 聚焦和未聚焦的边框用不同线型 `border_focus_style` · 状态：passed（ef1f344；e2e 7766a7e）
 
 - **涉及**：`internal/config`、`internal/ui`（画边框取线型的那一处）
 - 用户 2026-10-31：未聚焦的细一点、聚焦的粗一点；lazygit 只有一个全局 `border`。
@@ -104,7 +104,7 @@
 - [ ] golden：`rounded` + `bold` 时聚焦 pane 粗直角、其余圆角细线；没写时两种一样；浮层（命令面板）用聚焦的线型。
 - [ ] e2e：`C-l` 切焦点后 capture 的边框字符对应换掉。
 
-## F21.6 越过 sqlmux 的边界切到外层 tmux 的 pane · 状态：todo
+## F21.6 越过 sqlmux 的边界切到外层 tmux 的 pane · 状态：passed（ef1f344；e2e 7766a7e）
 
 - **涉及**：`internal/app`（`pane.focus.left/down/up/right` 那一处）、`internal/config`（`[pane] outer_nav`）、`docs/`（一段可复制的 tmux 配置，oss）
 - issue #4（qumn，2026-10-25）。用户 2026-10-31：自己没这个需求、需求量不确定；决策者定只做 tmux，排最后，放不下就丢。
