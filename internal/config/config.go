@@ -22,16 +22,19 @@ import (
 )
 
 type Config struct {
-	Theme      *ui.Theme // `theme = "<name>"` (§7.3), resolved by Load
-	Icons      *ui.Icons // `icons = "nerd" | "ascii"`, with the theme file's [icon] on top (§7.7)
-	BaseIcons  *ui.Icons // what `icons` chose, a theme's [icon] not on it: a theme switched to goes on this
-	ThemeName  string    // the theme in use: `theme`, or tokyonight-storm
-	Language   string    // `language = "en" | "zh"` (§14「界面语言」)
-	Border     uv.Border // `border = "single" | "rounded" | "double" | "bold" | "hidden"`: the boxes' lines (§7.1)
-	Clipboard  string    // `clipboard`: "" or "unnamedplus", the editors' unnamed register on the system clipboard (§11, F20.5)
-	Vim        bool      // `vim = false`: query and WHERE are plain editors, the grid and tree get arrow keys too (§6.9)
-	Timeoutlen int       // ms to wait on an ambiguous key sequence
-	TabWidth   int       // the query's indent, and the formatter's (§14)
+	Theme     *ui.Theme // `theme = "<name>"` (§7.3), resolved by Load
+	Icons     *ui.Icons // `icons = "nerd" | "ascii"`, with the theme file's [icon] on top (§7.7)
+	BaseIcons *ui.Icons // what `icons` chose, a theme's [icon] not on it: a theme switched to goes on this
+	ThemeName string    // the theme in use: `theme`, or tokyonight-storm
+	Language  string    // `language = "en" | "zh"` (§14「界面语言」)
+	Border    uv.Border // `border = "single" | "rounded" | "double" | "bold" | "hidden"`: the boxes' lines (§7.1)
+	// FocusBorder is `border_focus_style`, of the same names: the lines of the pane in focus and of
+	// the overlays; the border's when not written (§7.3, F21.5).
+	FocusBorder uv.Border
+	Clipboard   string // `clipboard`: "" or "unnamedplus", the editors' unnamed register on the system clipboard (§11, F20.5)
+	Vim         bool   // `vim = false`: query and WHERE are plain editors, the grid and tree get arrow keys too (§6.9)
+	Timeoutlen  int    // ms to wait on an ambiguous key sequence
+	TabWidth    int    // the query's indent, and the formatter's (§14)
 	// ResultHeight is the share of the window the result area first takes;
 	// MaxRows the rows a query's run keeps of each result (§11).
 	ResultHeight float64
@@ -99,7 +102,7 @@ type Config struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, RedisIndexCache: true, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), FocusBorder: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, RedisIndexCache: true, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -161,6 +164,7 @@ func Parse(data string) (*Config, error) {
 		Icons      *string  `toml:"icons"`
 		Language   *string  `toml:"language"`
 		Border     *string  `toml:"border"`
+		FocusStyle *string  `toml:"border_focus_style"`
 		Vim        *bool    `toml:"vim"`
 		Default    string   `toml:"default_connection"`
 		Clipboard  *string  `toml:"clipboard"`
@@ -229,7 +233,14 @@ func Parse(data string) (*Config, error) {
 		if !ok {
 			return nil, fmt.Errorf(`border = %q: must be "single", "rounded", "double", "bold" or "hidden"`, *raw.Border)
 		}
-		c.Border = b
+		c.Border, c.FocusBorder = b, b
+	}
+	if raw.FocusStyle != nil {
+		b, ok := ui.BorderOf(*raw.FocusStyle)
+		if !ok {
+			return nil, fmt.Errorf(`border_focus_style = %q: must be "single", "rounded", "double", "bold" or "hidden"`, *raw.FocusStyle)
+		}
+		c.FocusBorder = b
 	}
 	if raw.Vim != nil {
 		c.Vim = *raw.Vim

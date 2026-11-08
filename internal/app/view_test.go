@@ -344,6 +344,38 @@ func TestGoldenBorders(t *testing.T) {
 	}
 }
 
+// `border_focus_style` is the lines of the pane in focus and of the overlays, `border`
+// the others': rounded and bold make the focused pane square and thick and the
+// rest round, the palette thick too; with `border` left out, the other ones are the
+// default's; and a focus that moves moves the thick corners (F21.5).
+func TestGoldenFocusBorders(t *testing.T) {
+	for name, conf := range map[string]string{
+		"rounded_bold": "border = \"rounded\"\nborder_focus_style = \"bold\"",
+		"focus_only":   "border_focus_style = \"double\"",
+	} {
+		t.Run(name, func(t *testing.T) {
+			a := sizedWith(160, 45, userConfig(t, conf, ""))
+			loadOrders(t, a, 30)
+			a.win().focus(1)
+			plain := a.render().String()
+			feed(t, a, "<C-p>")
+			golden.RequireEqual(t, a.render().String())
+			if name != "rounded_bold" {
+				return
+			}
+			top := strings.Split(plain, "\n")[0]
+			if !strings.Contains(top, "╭") || !strings.Contains(top, "┏") {
+				t.Errorf("round and thick on one row: %q", top)
+			}
+			feed(t, a, "<Esc>")
+			a.win().focus(2)
+			if again := strings.Split(a.render().String(), "\n")[0]; again == top || !strings.Contains(again, "┏") {
+				t.Errorf("the focus moved, the corners did not: %q", again)
+			}
+		})
+	}
+}
+
 // The default layout's data and query are as wide as each other, give or
 // take a column, with the sidebar open or folded to its thin bar (F8.9).
 func TestDefaultLayoutEven(t *testing.T) {

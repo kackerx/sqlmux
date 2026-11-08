@@ -52,7 +52,7 @@ func TestEveryBoxUsesFrameBorder(t *testing.T) {
 		"form":     func(f *Frame) { ConnManager{Title: "t", Form: Form{Save: "s", Cancel: "c"}}.Draw(f, screen) },
 	} {
 		f := NewFrame(100, 30, TokyonightStorm)
-		f.Border = uv.RoundedBorder()
+		f.Border, f.FocusBorder = uv.RoundedBorder(), uv.RoundedBorder()
 		draw(f)
 		got := f.String()
 		if strings.ContainsAny(got, "┌┐└┘") || !strings.Contains(got, "╭") {

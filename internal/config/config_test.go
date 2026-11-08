@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/kackerx/sqlmux/internal/i18n"
@@ -58,6 +59,28 @@ func TestGridNewTableDefaults(t *testing.T) {
 
 // border names the boxes' lines; another name is an error that lists them
 // (F8.10).
+func TestBorderFocusStyle(t *testing.T) {
+	rounded, _ := ui.BorderOf("rounded")
+	bold, _ := ui.BorderOf("bold")
+	single, _ := ui.BorderOf("single")
+	for _, tc := range []struct {
+		toml          string
+		border, focus uv.Border
+	}{
+		{"", single, single},
+		{`border = "rounded"`, rounded, rounded}, // not written: the border's
+		{"border = \"rounded\"\nborder_focus_style = \"bold\"", rounded, bold},
+		{`border_focus_style = "bold"`, single, bold},
+	} {
+		if c, err := Parse(tc.toml); err != nil || !reflect.DeepEqual(c.Border, tc.border) || !reflect.DeepEqual(c.FocusBorder, tc.focus) {
+			t.Errorf("%q: %+v %+v %v", tc.toml, c.Border, c.FocusBorder, err)
+		}
+	}
+	if _, err := Parse(`border_focus_style = "wavy"`); err == nil || !strings.Contains(err.Error(), "border_focus_style") {
+		t.Errorf("a name that is none: %v", err)
+	}
+}
+
 func TestBorder(t *testing.T) {
 	single, _ := ui.BorderOf("single")
 	if c, err := Parse(""); err != nil || !reflect.DeepEqual(c.Border, single) {

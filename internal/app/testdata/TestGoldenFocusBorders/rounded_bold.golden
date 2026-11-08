@@ -1,0 +1,45 @@
+╭─ ⓪  doraemon ─────────── « ─╮ ┏━ ①  t_order ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━     ━┓ ╭─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─╮
+│  15 tables                 │ ┃ WHERE                                                C-r ▾ ┃ │   1                                                         │
+│──────────────────────────────│ ┃  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7             ┃ │                                                             │
+│ ▾  doraemon                 │ ┃    │  id │ status  │ amount │ paid │ meta                  ┃ │                                                             │
+│   ▸  agentable              │ ┃────┼──────┼─────────┼────────┼──────┼───────────────────────┃ │                                                             │
+│   ▾  public                 │ ┃  1 │    1 │ running │   1.99 │ t    │ {"n": 1, "tags": ["a"…┃ │                                                             │
+│     ▾  Tables (14)          │ ┃  2 │    2 │ done    │   2.99 │ t    │ {"n": 2, "tags": ["a"…┃ │                                                             │
+│       ▸  agent          124┏━ 命令面板 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                             │
+│       ▸  agent_version  530┃  所有   会话 $   窗口·Pane %   窗口 &   Tab #   表 @   命令 >   SQL ;                            ┃                             │
+│       ▸  goal            57┃                                                                                                 ┃                             │
+│       ▸  mt_task        812┃──────────────────────────────────────────────────────────────────────────────────────────────────┃                             │
+│       ▸  mt_task_log    96k┃  doraemon                               1 个窗口                                           会话 ┃                             │
+│       ▸  schema_migrations ┃  0: data                                doraemon                                           窗口 ┃                             │
+│       ▸  t_order       1.2m┃  ⓪ schema                               doraemon › 0: data                                 Pane ┃                             │
+│       ▸  t_order_item  3.4m┃  ① table · t_order                      doraemon › 0: data                                 Pane ┃                             │
+│       ▸  t_payment     410k┃  t_order                                doraemon › 0: data › pane-1                         Tab ┃                             │
+│       ▸  t_refund       12k┃  ② query · query_1                      doraemon › 0: data                                 Pane ┃                             │
+│       ▸  t_sku         8.1k┃  query_1                                doraemon › 0: data › pane-2                         Tab ┃                             │
+│       ▸  t_user         38k┃  agent                                  doraemon.public                                      表 ┃                             │
+│       ▸  t_user_address 52k┃  agent_version                          doraemon.public                                      表 ┃                             │
+│       ▸  t_user_profile 38k┃  goal                                   doraemon.public                                      表 ┃                             │
+│        Views (0)           ┃  mt_task                                doraemon.public                                      表 ┃                             │
+│ ▾  工作区                  ┃  mt_task_log                            doraemon.public                                      表 ┃                             │
+│   ▾  data                  ┃──────────────────────────────────────────────────────────────────────────────────────────────────┃                             │
+│       ①  t_order           ┃ ↑/↓ 移动 · Tab/S-Tab 范围 · esc 关闭                                                      ↵ 切换 ┃                             │
+│       ②  query_1           ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                             │
+│ ▾  Queries                  │ ┃ 22 │   22 │ done    │  22.99 │ t    │ {"n": 22, "tags": ["a…┃ │                                                             │
+│      query_1                │ ┃ 23 │   23 │ failed  │  23.99 │ t    │ {"n": 23, "tags": ["a…┃ │                                                             │
+│                              │ ┃ 24 │   24 │ pending │  24.99 │ t    │ {"n": 24, "tags": ["a…┃ │                                                             │
+│                              │ ┃ 25 │   25 │ running │  25.99 │ t    │ {"n": 25, "tags": ["a…┃ │                                                             │
+│                              │ ┃ 26 │   26 │ done    │  26.99 │ t    │ {"n": 26, "tags": ["a…┃ │                                                             │
+│                              │ ┃ 27 │   27 │ failed  │  27.99 │ t    │ {"n": 27, "tags": ["a…┃ │                                                             │
+│                              │ ┃ 28 │   28 │ pending │  28.99 │ t    │ {"n": 28, "tags": ["a…┃ │                                                             │
+│                              │ ┃ 29 │   29 │ running │  29.99 │ t    │ {"n": 29, "tags": ["a…┃ │                                                             │
+│                              │ ┃ 30 │   30 │ done    │  30.99 │ t    │ {"n": 30, "tags": ["a…┃ │                                                             │
+│                              │ ┃                                                             ┃ │                                                             │
+│                              │ ┃                                                             ┃ │                                                             │
+│                              │ ┃                                                             ┃ │                                                             │
+│                              │ ┃                                                             ┃ │                                                             │
+│                              │ ┃                                                             ┃ │                                                             │
+│                              │ ┃                                                             ┃ │                                                             │
+│──────────────────────────────│ ┃                                                             ┃ │                                                             │
+│ j/k move · ↵ open            │ ┃ 1: t_order* │ +             hjkl · ↵ edit · T 转置 · gt/gT ┃ │ 1: query_1* │ +                                      gt/gT │
+╰──────────────────────────────╯ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ ╰─────────────────────────────────────────────────────────────╯
+ doraemon ▾  0: data*                                                                                       ·    1,1   doraemon · pg@localhost:5432  COMMAND 

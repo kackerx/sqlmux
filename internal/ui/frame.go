@@ -61,7 +61,19 @@ type Frame struct {
 	Probes []uv.Rectangle // what Over was asked about
 	Theme  *Theme
 	Cursor *uv.Position // the terminal cursor, while an input has focus
-	Border uv.Border    // the characters every box is drawn with (§7.1, F8.10)
+	Border uv.Border    // the characters the boxes are drawn with (§7.1, F8.10)
+	// FocusBorder is those of the box in focus and of the overlays: Lines picks (F21.5)
+	FocusBorder uv.Border
+}
+
+// Lines is the characters a box's border is drawn with: a focused pane's and an
+// overlay's (focused) are `border_focus_style`'s, the others' `border`'s (§7.3). The one
+// place that picks.
+func (f *Frame) Lines(focused bool) uv.Border {
+	if focused {
+		return f.FocusBorder
+	}
+	return f.Border
 }
 
 func NewFrame(w, h int, th *Theme) *Frame {
@@ -71,7 +83,7 @@ func NewFrame(w, h int, th *Theme) *Frame {
 }
 
 func frameIn(buf uv.ScreenBuffer, th *Theme) *Frame {
-	return &Frame{Buf: buf, mouse: uv.Pos(-1, -1), Theme: th, Border: uv.NormalBorder()}
+	return &Frame{Buf: buf, mouse: uv.Pos(-1, -1), Theme: th, Border: uv.NormalBorder(), FocusBorder: uv.NormalBorder()}
 }
 
 // BorderOf is the box characters `border` names (§14): single, rounded,

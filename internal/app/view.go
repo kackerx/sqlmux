@@ -85,7 +85,7 @@ func (a *App) layout() map[int]uv.Rectangle {
 // one a frame two before it was drawn in: it fills all of it first.
 func (a *App) drawOn(f *ui.Frame) *ui.Frame {
 	th := a.theme
-	f.Border = a.border
+	f.Border, f.FocusBorder = a.border, a.focusBorder
 	f.Fill(f.Bounds(), uv.Style{Fg: th.Fg, Bg: th.Bg})
 	if a.w <= 0 || a.h <= 0 {
 		return f

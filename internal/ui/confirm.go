@@ -48,7 +48,7 @@ func (c Confirm) Draw(f *Frame, screen uv.Rectangle) {
 	box := uv.Rect(screen.Min.X+(screen.Dx()-w)/2, screen.Min.Y+(screen.Dy()-h)/2, w, h)
 	f.Region(box, Target{}) // a click inside is not outside
 	f.Fill(box, uv.Style{Bg: th.PaneBg})
-	border := f.Border.Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
+	border := f.Lines(true).Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
 	border.Draw(f.Buf, box)
 	for i, l := range lines {
 		fg := th.Fg

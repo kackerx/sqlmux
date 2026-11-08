@@ -74,7 +74,7 @@ func (w WhichKey) Draw(f *Frame, area uv.Rectangle) {
 		f.Region(r, Target{})
 	}
 	f.Fill(r, uv.Style{Bg: th.PaneBg})
-	border := f.Border.Style(uv.Style{Fg: th.Border, Bg: th.PaneBg})
+	border := f.Lines(true).Style(uv.Style{Fg: th.Border, Bg: th.PaneBg})
 	border.Draw(f.Buf, r)
 	f.Text(r.Min.X+2, r.Min.Y, r.Max.X-1, " "+w.Prefix+" ", uv.Style{Fg: th.Warn, Bg: th.PaneBg, Attrs: uv.AttrBold})
 	row := func(y int) (int, bool) { y += r.Min.Y + 1 - top; return y, y > r.Min.Y && y < r.Max.Y-1 }

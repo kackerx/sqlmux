@@ -65,7 +65,7 @@ func (d Dropdown) Draw(f *Frame, box uv.Rectangle, rows int) uv.Position {
 	bg := uv.Style{Fg: th.Fg, Bg: th.PaneBg}
 	dim := uv.Style{Fg: th.Dim, Bg: th.PaneBg}
 	f.Fill(box, bg)
-	border := f.Border.Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
+	border := f.Lines(true).Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
 	border.Draw(f.Buf, box)
 	if d.Title != "" {
 		f.Text(box.Min.X+2, box.Min.Y, box.Max.X-2, " "+d.Title+" ", uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
