@@ -43,7 +43,7 @@ func (Engine) Databases(context.Context, db.Conn) ([]string, error) { return nil
 // views, whose names start with a dot, are left out.
 func (Engine) Tables(ctx context.Context, c db.Conn, only []string) ([]db.Table, error) {
 	r, err := c.Query(ctx, `
-select database, name, ifNull(toInt64(total_rows), -1), engine
+select database, name, ifNull(toInt64(total_rows), -1), engine, ifNull(toInt64(total_bytes), 0)
 from system.tables
 where not is_temporary and not startsWith(name, '.') and `+db.Scope("database "+systemIn, "database", only, sqlkit.ClickHouse)+`
 order by database, name`)
@@ -63,7 +63,7 @@ order by database, name`)
 		case "MaterializedView":
 			kind = "m"
 		}
-		ts[i] = db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: kind}
+		ts[i] = db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: kind, Bytes: db.BytesOf(row[4])}
 	}
 	return ts, nil
 }

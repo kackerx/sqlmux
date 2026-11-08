@@ -56,6 +56,7 @@ order by 1, 2, 4`)
 	if err != nil {
 		return nil, err
 	}
+	sizes := segments(ctx, c)
 	mviews := map[[2]string]bool{}
 	for _, row := range r.Rows {
 		if row[3].S == "m" {
@@ -71,9 +72,26 @@ order by 1, 2, 4`)
 		if err != nil {
 			return nil, err
 		}
-		ts = append(ts, db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: row[3].S})
+		ts = append(ts, db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: row[3].S, Bytes: sizes[[2]string{row[0].S, row[1].S}]})
 	}
 	return ts, nil
+}
+
+// segments is the bytes each table takes, by owner and name: every schema's
+// from DBA_SEGMENTS when the user may read it, else the user's own from
+// USER_SEGMENTS; a table of another schema then has none (§8.11).
+func segments(ctx context.Context, c db.Conn) map[[2]string]int64 {
+	out := map[[2]string]int64{}
+	r, err := c.Query(ctx, `select owner, segment_name, sum(bytes) from dba_segments where segment_type like 'TABLE%' group by owner, segment_name`)
+	if err != nil {
+		if r, err = c.Query(ctx, `select user, segment_name, sum(bytes) from user_segments where segment_type like 'TABLE%' group by segment_name`); err != nil {
+			return out
+		}
+	}
+	for _, row := range r.Rows {
+		out[[2]string{row[0].S, row[1].S}] = db.BytesOf(row[2])
+	}
+	return out
 }
 
 // TableColumns reads a table's columns, its primary key, and its unique keys

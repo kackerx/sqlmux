@@ -704,6 +704,9 @@ func (a *App) save() tea.Cmd {
 		return nil
 	}
 	if t := dataOf(p); t != nil {
+		if t.props != "" { // the rows' changes, the properties shown
+			t = t.other
+		}
 		return a.saveTab(t, false)
 	}
 	return nil

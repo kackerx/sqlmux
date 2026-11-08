@@ -619,7 +619,7 @@ func (a *App) connsOf(name string, is func(*Conn) bool) (out []*Conn) {
 // changed is how many of tabs are tables with changes not saved.
 func changed(tabs []connTab) (n int) {
 	for _, t := range tabs {
-		if d := t.p.Tabs[t.i].Data; d != nil && d.changes() > 0 {
+		if d := t.p.Tabs[t.i].table(); d != nil && d.changes() > 0 {
 			n++
 		}
 	}

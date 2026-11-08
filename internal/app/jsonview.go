@@ -163,7 +163,11 @@ func (a *App) jsonSync(p *Pane) *jsonView {
 	}
 	if sig := jsonSig(p.tab()); sig != jv.sig { // a refresh that brings the same rows leaves the search and the selection as they are
 		jv.sig = sig
-		if text := jsonText(p.tab()); text != jv.text {
+		text := jsonText(p.tab())
+		if t := dataOf(p); t != nil && t.props == "ddl" { // a table's DDL, its lines its rows (props.go)
+			text = propsDDL(t)
+		}
+		if text != jv.text {
 			jv.text = text
 			jv.ed.Load(text)
 		}
@@ -190,6 +194,9 @@ func (a *App) viewJSON() tea.Cmd {
 	p := a.focused()
 	s := gridStateOf(p)
 	if s == nil {
+		return nil
+	}
+	if t := dataOf(p); t != nil && t.props == "ddl" { // the DDL is its text, no table under it
 		return nil
 	}
 	if s.jv != nil {
@@ -223,7 +230,7 @@ func (a *App) jsonKey(p *Pane, k keymap.Key) tea.Cmd {
 		return nil
 	}
 	a.jsonSize(p, jv)
-	return a.roKey(jv.ed, k, true, a.viewJSON, func(eff editor.Effect) tea.Cmd { return a.jsonDid(p, jv, eff) })
+	return a.roKey(jv.ed, k, true, a.jsonClose(p), func(eff editor.Effect) tea.Cmd { return a.jsonDid(p, jv, eff) })
 }
 
 // jsonDid acts on what the editor did: the clipboard, the toasts, :q.
@@ -235,10 +242,19 @@ func (a *App) jsonDid(p *Pane, jv *jsonView, eff editor.Effect) tea.Cmd {
 		return a.jsonDid(p, jv, jv.ed.PutClip(text, pt))
 	}, func(c string) tea.Cmd {
 		if c = strings.TrimSpace(c); c == "q" || c == "q!" {
-			return a.viewJSON()
+			return a.jsonClose(p)()
 		}
 		return a.showToast(i18n.T("不支持的命令：%s", c))
 	})
+}
+
+// jsonClose is what esc and :q do in pane p's view: the table back under a
+// JSON view; the table's rows back from its DDL (props.go).
+func (a *App) jsonClose(p *Pane) func() tea.Cmd {
+	if t := dataOf(p); t != nil && t.props == "ddl" {
+		return func() tea.Cmd { return a.showProps(p, false) }
+	}
+	return a.viewJSON
 }
 
 // jsonAt is the JSON view of pane id, and the line and display column of its
@@ -264,7 +280,12 @@ func (a *App) drawJSON(f *ui.Frame, p *Pane) {
 		return
 	}
 	a.jsonSize(p, jv)
-	if cur := a.textView(jv.ed, p.ID, true).Draw(f, a.jsonArea(p)); cur.X >= 0 && a.win().Focus == p.ID {
+	q := a.textView(jv.ed, p.ID, true)
+	if t := dataOf(p); t != nil && t.props == "ddl" { // SQL's colors, the console's (§7.3)
+		text := strings.Join(jv.ed.Lines(), "\n")
+		q.Colors = ui.SQLColors(a.theme, text, t.conn.eng.Dialect(), a.ddlNames(t.conn, t.table, text))
+	}
+	if cur := q.Draw(f, a.jsonArea(p)); cur.X >= 0 && a.win().Focus == p.ID {
 		f.Cursor = &cur
 	}
 }
@@ -274,7 +295,7 @@ func (a *App) drawJSON(f *ui.Frame, p *Pane) {
 // are bound to (F15.9).
 func (a *App) jsonContext(jv *jsonView) keymap.Context {
 	c := keymap.Context{Focus: []string{"jsonview", "grid"}, Mode: vimMode(jv.ed.Mode()), Plain: a.plain, ReadOnly: "jsonview",
-		Only: []string{"grid.page.next", "grid.page.prev", "grid.refresh"}}
+		Only: []string{"grid.page.next", "grid.page.prev", "grid.refresh", "table.properties"}}
 	if resultOf(a.focused()) != nil {
 		c.Focus, c.Only = []string{"jsonview", "result", "grid"}, append(c.Only, "result.page.next", "result.page.prev", "result.rerun")
 	}

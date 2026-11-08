@@ -24,7 +24,7 @@ case "$1" in
 *current_setting*) echo '[{"columns":["a","b"],"rows":[["shop","public"]]}]' ;;
 *"select current_database()"*) echo '[{"columns":["current_database"],"rows":[["shop"]]}]' ;;
 *"from pg_namespace n where"*) echo '[{"columns":["nspname","cs"],"rows":[["public","public"]]}]' ;;
-*"from pg_class c join pg_namespace"*) echo '[{"columns":["n","r","t","k"],"rows":[["public","orders",12,"r"]]}]' ;;
+*"from pg_class c join pg_namespace"*) echo '[{"columns":["n","r","t","k","b"],"rows":[["public","orders",12,"r",8192]]}]' ;;
 *"from pg_proc p"*|*"cl.relkind = 'S'"*) echo '[{"columns":[],"rows":[]}]' ;;
 *pg_database*) echo '[{"columns":["datname"],"rows":[["shop"]]}]' ;;
 *) echo '[{"columns":["x"],"rows":[["one"],["two"]]}]' ;;

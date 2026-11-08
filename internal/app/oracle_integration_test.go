@@ -12,6 +12,7 @@ import (
 	"github.com/kackerx/sqlmux/internal/db"
 	"github.com/kackerx/sqlmux/internal/db/oracle"
 	"github.com/kackerx/sqlmux/internal/i18n"
+	"github.com/kackerx/sqlmux/internal/keymap"
 	"github.com/kackerx/sqlmux/internal/ui"
 )
 
@@ -97,67 +98,67 @@ func TestOraclePickSystemSchemas(t *testing.T) {
 	}
 }
 
-// A table's properties, as DBeaver's tab has them: its columns, keys, foreign
-// keys, indexes and DDL a section at a time, the chips over the filter
-// switching them, the filter text over the rows, read only; the table's own
-// rows are a tab apart, and a layout keeps no properties tab (§7.8「属性」).
+// A table's properties, as DBeaver has them: the table's own tab shows them
+// or its rows, switched by gi and the first chip, the rows' changes kept; its
+// columns, keys, foreign keys, indexes a section at a time, the filter text
+// over them; its DDL a read-only text in SQL's colors, with no filter over it,
+// esc back to the rows. The tree has the table's size (§7.8「属性」).
 func TestOracleProperties(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	a := opened(t, config.Connection{Name: "ora", Engine: "oracle", DSN: oracle.IntegrationDSN(t), Temp: true})
 	ora := a.sess.Conns[0]
 	order := ora.Tables[slices.IndexFunc(ora.Tables, func(tb db.Table) bool { return tb.Schema == "SQLMUX" && tb.Name == "T_ORDER" })]
+	if order.Bytes <= 0 {
+		t.Errorf("T_ORDER's size: %d", order.Bytes)
+	}
+	settle(a, a.openTable(ora, order))
+	p := a.focused()
+	rows, tabs := dataOf(p), len(p.Tabs)
+	editCell(t, rows, 0, "NOTE", "kept")
 	settle(a, a.openProps(ora, order))
-	tab := dataOf(a.focused())
-	if tab == nil || tab.props != "columns" || len(tab.page.Rows) != 9 {
-		t.Fatalf("columns: %+v", tab)
+	tab := dataOf(p)
+	if len(p.Tabs) != tabs || tab == rows || tab.props != "columns" || tab.other != rows || p.tab().table() != rows || len(tab.page.Rows) != 9 {
+		t.Fatalf("the properties in the table's tab: %d tabs, %+v", len(p.Tabs), tab)
 	}
-	row := func(name string) []db.Val {
-		for _, r := range tab.page.Rows {
-			if r[1].S == name {
-				return r
-			}
-		}
-		t.Fatalf("no row %s in %v", name, tab.page.Rows)
-		return nil
-	}
-	if id := row("ID"); id[2].S != "NUMBER(10)" || id[3].S != "✓" || id[5].S != "PK" {
+	if id := tab.page.Rows[0]; id[1].S != "ID" || id[2].S != "NUMBER(10)" || id[3].S != "✓" || id[5].S != "PK" {
 		t.Errorf("ID: %v", id)
 	}
-	if st := row("STATUS"); !strings.Contains(st[4].S, "pending") {
-		t.Errorf("STATUS's default: %v", st)
-	}
-	if bar := a.queryBar(a.focused(), tab); len(bar.Info) != len(propsSections) || bar.Label != "FILTER" {
+	if bar := a.queryBar(p, tab); len(bar.Info) != len(propsSections)+1 || bar.Info[0].Action != "table.properties" || bar.Label != "FILTER" {
 		t.Errorf("the section row: %+v, label %q", bar.Info, bar.Label)
 	}
-	if s, ok := tab.cellAtCursor(); !ok || s.why == "" {
-		t.Errorf("a cell takes an edit: %+v", s)
+	if unsaved(p) != 1 {
+		t.Error("the rows' change is not counted with the properties shown")
 	}
 	settle(a, a.run("props.section foreign_keys", 0))
 	if len(tab.page.Rows) != 1 || tab.page.Rows[0][1].S != "USER_ID" || tab.page.Rows[0][2].S != "T_USER" {
 		t.Errorf("foreign keys: %v", tab.page.Rows)
 	}
 	settle(a, a.run("props.section ddl", 0))
-	if len(tab.page.Rows) < 3 || !strings.Contains(tab.page.Rows[0][0].S+tab.page.Rows[1][0].S, `CREATE TABLE "SQLMUX"."T_ORDER"`) {
-		t.Errorf("ddl: %v", tab.page.Rows[:min(3, len(tab.page.Rows))])
+	jv := a.jsonSync(p)
+	if jv == nil || !strings.HasPrefix(jv.text, `CREATE TABLE "SQLMUX"."T_ORDER"`) || !jv.ed.ReadOnly || tab.barRows() != ui.InfoRows {
+		t.Fatalf("ddl: view %v, bar %d", jv, tab.barRows())
 	}
+	f := a.render()
+	text := gridRect(a.layout()[p.ID], tab)
+	if fg := f.Buf.CellAt(text.Min.X+5, text.Min.Y).Style.Fg; fg != a.theme.Keyword { // CREATE, past the gutter
+		t.Errorf("CREATE is %v, not a keyword's color", fg)
+	}
+	settle(a, a.press(keymap.Esc))
+	if dataOf(p) != rows || rows.edits == nil || len(rows.edits) != 1 {
+		t.Errorf("esc: back to the rows, their change kept: %+v", dataOf(p))
+	}
+	settle(a, a.run("table.properties", 0)) // gi: the properties again, as they were left
+	if dataOf(p) != tab || tab.props != "ddl" {
+		t.Errorf("gi: %+v", dataOf(p))
+	}
+	settle(a, a.run("table.properties", 0))
 	settle(a, a.run("props.section columns", 0))
-	tab.where = ui.Input{Text: "amount"}
-	settle(a, a.runWhere(tab))
-	if len(tab.page.Rows) != 1 || tab.page.Rows[0][1].S != "AMOUNT" {
-		t.Errorf("filtered: %v", tab.page.Rows)
+	if dataOf(p) != rows {
+		t.Error("gi twice is the rows")
 	}
-	if st := a.tableState(tab); len(st.History) != 0 || a.state.Tables[ora.tableKey(order)] != nil {
-		t.Error("the filter went into the table's WHERE history")
-	}
-	settle(a, a.openTable(ora, order))
-	if d := dataOf(a.focused()); d == nil || d == tab || d.props != "" || len(d.page.Rows) == 0 {
-		t.Errorf("the table's rows are not a tab of their own: %+v", d)
-	}
-	for _, p := range a.win().Root.Leaves() {
-		for _, lt := range paneLayout(p).Tabs {
-			if lt.Kind == "table" && lt.Table == "T_ORDER" && lt.Where != "" {
-				t.Errorf("a properties tab in the layout: %+v", lt)
-			}
+	for _, lt := range paneLayout(p).Tabs {
+		if lt.Table == "T_ORDER" && lt.Kind != "table" {
+			t.Errorf("the layout: %+v", lt)
 		}
 	}
 }

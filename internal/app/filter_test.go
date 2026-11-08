@@ -306,7 +306,7 @@ func TestGridMenu(t *testing.T) {
 	if tab.row != 2 || tab.col != 1 {
 		t.Errorf("the cursor: %d, %d", tab.row, tab.col)
 	}
-	want := []string{"在值编辑器中打开", "按这个值过滤", "按这一列排序 ↑", "按这一列排序 ↓", "加入排序", "隐藏这一列", "复制这一格", "复制行为 JSON", "以 JSON 查看", "导出…"}
+	want := []string{"在值编辑器中打开", "按这个值过滤", "按这一列排序 ↑", "按这一列排序 ↓", "加入排序", "隐藏这一列", "复制这一格", "复制行为 JSON", "以 JSON 查看", "导出…", "属性"}
 	if got := menuLabels(a); strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Fatalf("the cell's menu: %v", got)
 	}

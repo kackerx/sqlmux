@@ -32,7 +32,7 @@ case "$sql" in
 *current_setting*) echo '[{"columns":["a","b"],"rows":[["shop","\"$user\", public"]]}]' ;;
 *"select current_database()"*) echo '[{"columns":["current_database"],"rows":[["shop"]]}]' ;;
 *"from pg_namespace n where"*) echo '[{"columns":["nspname","cs"],"rows":[["public","public"],["sales","public"]]}]' ;;
-*"from pg_class c join pg_namespace"*) echo '[{"columns":["n","r","t","k"],"rows":[["public","orders",12,"r"],["public","v_orders",-1,"v"]]}]' ;;
+*"from pg_class c join pg_namespace"*) echo '[{"columns":["n","r","t","k","b"],"rows":[["public","orders",12,"r",8192],["public","v_orders",-1,"v",0]]}]' ;;
 *pg_database*) echo '[{"columns":["datname"],"rows":[["shop"],["other"]]}]' ;;
 *seven*) off=0; case "$sql" in *"offset "*) off=${sql##*offset } ;; esac
   n=0; rows=; i=$off; while [ $i -lt 7 ] && [ $n -lt 3 ]; do i=$((i+1)); n=$((n+1)); rows="$rows${rows:+,}[$i]"; done

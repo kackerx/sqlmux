@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"slices"
+	"strconv"
 )
 
 // Table is one relation the schema tree lists (§8.4): a table, a view,
@@ -11,6 +12,26 @@ type Table struct {
 	Schema, Name string
 	Rows         float64 // the server's estimate; < 0 when it has none
 	Kind         string  // pg_class.relkind: r, p, f are tables; v, m views
+	// Bytes is what it takes on disk, its indexes with it where the server
+	// says them together; 0 when it does not say
+	Bytes int64
+}
+
+// bytesOf is a catalog's size text as Bytes: 0 for none.
+func bytesOf(s string) int64 {
+	n, err := strconv.ParseFloat(s, 64)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return int64(n)
+}
+
+// BytesOf is a size a catalog query read as text, 0 when it has none (NULL, -1).
+func BytesOf(v Val) int64 {
+	if v.Null {
+		return 0
+	}
+	return bytesOf(v.S)
 }
 
 // View reports whether t is listed under Views, not Tables (§7.8).

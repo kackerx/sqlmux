@@ -78,9 +78,11 @@ type dataTab struct {
 	// page 0's "": it pages by cursor, to the pages seen and one more.
 	src     db.Source
 	cursors []string
-	// props is the section a table's properties tab shows (props.go), "" for a
-	// tab of the table's rows
+	// props is the section shown when this is a table's properties (props.go),
+	// "" for its rows; other is the other of the two, the tab showing one at a
+	// time (Tab.Data), nil before the properties are first shown
 	props string
+	other *dataTab
 	seq   int       // the last request's; older answers are dropped (§8.3)
 	bar   *errorBar // the last fetch's or save's error, under the table (§7.8「错误栏」)
 
@@ -501,7 +503,10 @@ func gridRect(r uv.Rectangle, t *dataTab) uv.Rectangle {
 
 // barRows is how tall t's query bar is: a key's has its Info row (§8.7).
 func (t *dataTab) barRows() int {
-	if t.table.Kind == "k" || t.props != "" {
+	switch {
+	case t.props == "ddl": // the section row over the text
+		return ui.InfoRows
+	case t.table.Kind == "k" || t.props != "":
 		return ui.QueryBarRows + ui.InfoRows
 	}
 	return ui.QueryBarRows
@@ -839,7 +844,7 @@ func (a *App) gotAuto(m autoMsg) tea.Cmd {
 func (a *App) tabOpen(t *dataTab) bool {
 	for _, s := range a.sessions {
 		for _, p := range s.panes() {
-			if slices.ContainsFunc(p.Tabs, func(tb Tab) bool { return tb.Data == t }) {
+			if slices.ContainsFunc(p.Tabs, func(tb Tab) bool { return tb.table() == t }) {
 				return true
 			}
 		}

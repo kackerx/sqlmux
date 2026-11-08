@@ -23,8 +23,8 @@ func unsaved(panes ...*Pane) int {
 	n := 0
 	for _, p := range panes {
 		for _, tab := range p.Tabs {
-			if tab.Data != nil {
-				n += tab.Data.changes()
+			if t := tab.table(); t != nil {
+				n += t.changes()
 			}
 		}
 	}

@@ -368,7 +368,11 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	if t == nil {
 		return
 	}
-	if c := a.queryBar(p, t).Draw(f, bodyRect(r)); c.X >= 0 {
+	bar := bodyRect(r)
+	if t.props == "ddl" { // its section row alone: no filter, no buttons over a text
+		bar.Max.Y = min(bar.Max.Y, bar.Min.Y+ui.InfoRows)
+	}
+	if c := a.queryBar(p, t).Draw(f, bar); c.X >= 0 {
 		f.Cursor = &c
 	}
 	switch {

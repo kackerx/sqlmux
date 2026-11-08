@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"image/color"
+	"math"
 	"strconv"
 	"strings"
 
@@ -185,6 +186,23 @@ func Magnitude(n float64) string {
 		}
 	}
 	return strconv.FormatInt(v, 10)
+}
+
+// Size is n bytes as a size is read, by 1024s: 512 B, 12 KB, 3.4 MB, 1.2 GB,
+// a tenth below ten of a unit; "" for 0, a size not known.
+func Size(n int64) string {
+	if n <= 0 {
+		return ""
+	}
+	units := []string{"B", "KB", "MB", "GB", "TB", "PB"}
+	v, u := float64(n), 0
+	for v >= 1024 && u < len(units)-1 {
+		v, u = v/1024, u+1
+	}
+	if v = math.Round(v*10) / 10; u == 0 || v >= 10 { // to the nearest tenth, none from ten up
+		return strconv.FormatFloat(math.Round(v), 'f', -1, 64) + " " + units[u]
+	}
+	return strconv.FormatFloat(v, 'f', -1, 64) + " " + units[u]
 }
 
 // drawRule is a rule across row y from x to right, with title in it at the

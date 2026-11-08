@@ -413,9 +413,12 @@ func (a *App) treeNodes() (ns []node, matches int) {
 				}
 				for _, t := range shown {
 					tid := tableNode(c, t)
-					rows := ui.Magnitude(t.Rows)
-					if t.Kind == "v" || flat { // a plain view has no rows to count, a file keeps no estimate
-						rows = ""
+					rows := ui.Size(t.Bytes) // its size when the server says it, else its rows' estimate, else nothing
+					switch {
+					case rows != "":
+					case t.Kind == "v" || flat || t.Rows < 0: // a plain view has no rows to count, a file keeps no estimate
+					default:
+						rows = ui.Magnitude(t.Rows)
 					}
 					tn := node{id: tid, kind: nodeTable, conn: c, schema: sc, table: t, TreeNode: ui.TreeNode{
 						Depth: depth(3), Branch: true, Open: !filtering && a.sess.opened(tid, false), Icon: icon, IconFg: th.Func, Text: t.Name, Pos: pos[tid],

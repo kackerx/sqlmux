@@ -63,11 +63,21 @@ func landing() Tab { return Tab{Name: i18n.T("新 tab")} }
 // landing reports whether t shows the landing page: a new tab, or no tab.
 func (t *Tab) landing() bool { return t == nil || t.Data == nil && t.Query == nil && t.Result == nil }
 
+// table is a table tab's rows, whichever of them and its properties it shows
+// (props.go): what has its changes, its layout, its refreshes.
+func (t Tab) table() *dataTab {
+	if d := t.Data; d != nil && d.props != "" {
+		return d.other
+	}
+	return t.Data
+}
+
 // tableTab is the index of pane p's tab of table t of connection c, -1 for
 // none: a pane has a table once (F3.37).
 func (p *Pane) tableTab(c *Conn, t db.Table) int {
 	return slices.IndexFunc(p.Tabs, func(tb Tab) bool {
-		return tb.Data != nil && tb.Data.props == "" && tb.Data.conn == c && idOf(tb.Data.table) == idOf(t)
+		d := tb.table()
+		return d != nil && d.conn == c && idOf(d.table) == idOf(t)
 	})
 }
 
@@ -1261,7 +1271,7 @@ func (a *App) closeTabThen(p *Pane, i int, after func() tea.Cmd) tea.Cmd {
 		})
 	}
 	n, name := 0, ""
-	if t := p.Tabs[i].Data; t != nil {
+	if t := p.Tabs[i].table(); t != nil {
 		n, name = t.changes(), t.table.Name+" "
 	}
 	return a.unlessLost(n, name, nil, verbClose, func() tea.Cmd { a.closeTab(p, i); return after() })

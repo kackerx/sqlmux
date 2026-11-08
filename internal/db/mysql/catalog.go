@@ -36,7 +36,7 @@ func (Engine) Schemas(ctx context.Context, c db.Conn) (schemas []string, current
 // day by default, so counts lag behind; ANALYZE TABLE refreshes them
 func (Engine) Tables(ctx context.Context, c db.Conn, only []string) ([]db.Table, error) {
 	r, err := c.Query(ctx, `
-select table_schema, table_name, coalesce(table_rows, -1), table_type
+select table_schema, table_name, coalesce(table_rows, -1), table_type, coalesce(data_length + index_length, 0)
 from information_schema.tables
 where `+db.Scope("table_schema "+userSchema, "table_schema", only, sqlkit.MySQL)+`
 order by 1, 2`)
@@ -53,7 +53,7 @@ order by 1, 2`)
 		if row[3].S == "VIEW" {
 			kind = "v"
 		}
-		ts[i] = db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: kind}
+		ts[i] = db.Table{Schema: row[0].S, Name: row[1].S, Rows: rows, Kind: kind, Bytes: db.BytesOf(row[4])}
 	}
 	return ts, nil
 }

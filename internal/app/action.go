@@ -255,7 +255,10 @@ func init() {
 			}
 		})},
 		"tree.refresh": {Title: i18n.N("刷新表列表"), Run: func(a *App, _ Args) tea.Cmd { return a.refreshTree() }},
-		"table.properties": {Title: i18n.N("表的属性"), SQL: true, Run: func(a *App, _ Args) tea.Cmd {
+		"table.properties": {Title: i18n.N("表的属性 / 数据"), SQL: true, Run: func(a *App, _ Args) tea.Cmd {
+			if p := a.focused(); dataOf(p) != nil { // its properties, or its rows back
+				return a.showProps(p, dataOf(p).props == "")
+			}
 			c, t, ok := a.propsTarget()
 			if !ok {
 				return a.showToast(i18n.T("先选中一张表"))

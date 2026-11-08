@@ -74,6 +74,7 @@ leader = "<Space>"
 "gs" = "grid.order.cycle" # this column alone, the other way, the default (F12.3)
 "gS" = "grid.order.add" # joins the ORDER, or turns: space of its list
 "gj" = "grid.view.json" # the page as JSON, read only (F14.5)
+"gi" = "table.properties" # the table's properties, or its rows back
 "*" = "grid.filter.cell" # the cell as a condition of the WHERE
 "e" = "grid.value" # the cell in the value editor (F12.2)
 "O" = "grid.value" # the same

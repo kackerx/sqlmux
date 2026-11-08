@@ -11,15 +11,19 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/kackerx/sqlmux/internal/db"
+	"github.com/kackerx/sqlmux/internal/editor"
 	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/ui"
 )
 
-// A table's properties (§7.8「属性」), as DBeaver's Properties tab has them: a
-// table tab whose rows are not the table's but what the catalog says of it, a
-// section at a time, the sections chips over the filter as a key's Info row is
-// (§8.7). Being a table tab, it has the grid's moves, search, JSON view and
-// export; it is read only, and its filter is plain text over the section's rows.
+// A table's properties (§7.8「属性」), as DBeaver's Properties tab has them: the
+// table's own tab shows its rows or them, switched by gi or the first chip, the
+// one it does not show kept as it was. The properties are a table tab's state
+// of their own whose rows are what the catalog says of the table, a section at
+// a time, the sections chips over the filter as a key's Info row is (§8.7); it
+// has the grid's moves, search, JSON view and export, is read only, and its
+// filter is plain text over the section's rows. The DDL is a text, as the JSON
+// view is, in SQL's colors.
 
 // propsSections are the sections, in their order, by the names the actions take.
 var propsSections = []string{"columns", "keys", "foreign_keys", "indexes", "ddl"}
@@ -223,46 +227,84 @@ func (propsSource) Save(context.Context, db.Changes, bool) (int, byte, error) {
 
 func (propsSource) Preview(db.Changes) []string { return nil }
 
-// openProps is a table's properties in a tab of the pane tables open in, the
-// one there is if it is open already, on its columns at first.
+// openProps opens table t of c as the tree opens it, showing its properties.
 func (a *App) openProps(c *Conn, t db.Table) tea.Cmd {
 	if c == nil || !c.sql() {
 		return a.showToast(i18n.T("这个连接没有表的属性"))
 	}
 	p := a.openTarget()
-	a.showPane(p.ID)
-	if i := slices.IndexFunc(p.Tabs, func(tb Tab) bool {
-		return tb.Data != nil && tb.Data.props != "" && tb.Data.conn == c && idOf(tb.Data.table) == idOf(t)
-	}); i >= 0 {
-		selectTab(p, i)
+	return tea.Batch(a.openTableIn(p, c, t), a.showProps(p, true))
+}
+
+// showProps makes pane p's table tab show the table's properties, on, or its
+// rows again, as DBeaver's Properties and Data: the one tab, its Data the view
+// shown, the other kept as it was. The properties are made, on their columns,
+// the first time.
+func (a *App) showProps(p *Pane, on bool) tea.Cmd {
+	tab := p.tab()
+	if tab == nil {
 		return nil
 	}
-	d := newDataTab(c, t)
-	d.props = "columns"
-	d.src = newProps(c, t, d.props)
-	putTab(p, Tab{Name: i18n.T("%s 属性", c.tabName(t)), Data: d}, p.tab().landing())
-	return a.fetch(d, true)
+	d := tab.table()
+	if d == nil || d.table.Kind == "k" || !d.conn.sql() {
+		return a.showToast(i18n.T("这个连接没有表的属性"))
+	}
+	if shown := tab.Data.props != ""; on == shown {
+		return nil
+	}
+	if !on {
+		p.Tabs[p.Cur].Data = d
+		return nil
+	}
+	pv := d.other
+	fresh := pv == nil
+	if fresh {
+		pv = newDataTab(d.conn, d.table)
+		pv.props, pv.src, pv.other = "columns", newProps(d.conn, d.table, "columns"), d
+		d.other = pv
+	}
+	p.Tabs[p.Cur].Data = pv
+	if fresh {
+		return a.fetch(pv, true)
+	}
+	return nil
 }
 
 // propsSection is a chip of the section row: t shows section name, from its
-// first row, the filter kept.
+// first row, the filter kept; the DDL as a text, in a read-only editor with
+// SQL's colors, as the JSON view is (jsonview.go).
 func (a *App) propsSection(t *dataTab, name string) tea.Cmd {
 	if t == nil || t.props == "" || !slices.Contains(propsSections, name) || name == t.props {
 		return nil
 	}
 	t.props = name
 	t.src = newProps(t.conn, t.table, name)
-	t.row, t.col, t.top, t.left = 0, 0, 0, 0
+	t.row, t.col, t.top, t.left, t.jv = 0, 0, 0, 0, nil
+	if name == "ddl" {
+		ed := editor.New("")
+		ed.ReadOnly = true
+		t.jv = &jsonView{ed: ed}
+	}
 	r := t.request
-	r.pageNo, r.order, r.desc = 0, nil, false
+	r.pageNo, r.order, r.desc, r.applied, r.limit = 0, nil, false, "", max(r.limit, 1000)
 	t.setRequest(r)
+	t.where = ui.Input{}
 	return a.fetch(t, true)
 }
 
-// propsInfo is the row over a properties tab's filter: a chip for each section,
-// the one shown marked.
+// propsDDL is the DDL a table's properties read, its lines the rows.
+func propsDDL(t *dataTab) string {
+	lines := make([]string, len(t.page.Rows))
+	for i, r := range t.page.Rows {
+		lines[i] = r[0].S
+	}
+	return strings.Join(lines, "\n")
+}
+
+// propsInfo is the row over a table's properties: back to its rows, and a chip
+// for each section, the one shown marked.
 func (a *App) propsInfo(t *dataTab) []ui.Chip {
-	var chips []ui.Chip
+	chips := []ui.Chip{{Label: "◂ " + i18n.T("数据"), Action: "table.properties"}}
 	for _, s := range propsSections {
 		c := ui.Chip{Label: i18n.T(propsTitles[s]), Action: "props.section " + s}
 		if s == t.props {

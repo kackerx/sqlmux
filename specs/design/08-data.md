@@ -221,3 +221,8 @@ Redis 不塞进 `db.Engine`（那是 SQL 形状的接口：Quote、Arg、Tables�
 - **列与行标识**：`ALL_TAB_COLS` 的类型按 CREATE TABLE 的写法拼（`NUMBER(10,2)`、`VARCHAR2(100 CHAR)`、`RAW(4)`、`TIMESTAMP(3) WITH TIME ZONE`）；主键、全是 NOT NULL 列的唯一约束作行标识（§10.1）；虚拟列、`GENERATED ALWAYS` 的 identity 列是服务器生成的；LONG、BLOB、BFILE、对象类型不能在表格里改。保存是一个事务，同 PG（§10.3）；参数按列的类型转（`db.Typer`：`TO_NUMBER`、`TO_DATE` / `TO_TIMESTAMP[_TZ]` 用上面的格式、`HEXTORAW`、`TO_CLOB`），CLOB 的旧值比较用 `dbms_lob.compare`（`=` 不收 CLOB）。全是默认值的一行写成 `(主键) VALUES (DEFAULT)`：Oracle 没有 `DEFAULT VALUES`。
 - **其余**：分页 `OFFSET m ROWS FETCH NEXT n ROWS ONLY`（12c 起），自动 LIMIT 同（§9.4）；DDL、函数定义用 `DBMS_METADATA.GET_DDL`（去掉存储子句、带结尾的 `;`），索引用 `ALL_INDEXES` 自己拼，键的外键目标第二次查 `ALL_CONS_COLUMNS`（自连接 `ALL_CONSTRAINTS` 要几秒）；函数列函数、过程、包；序列 `ALL_SEQUENCES`。错误码写成 `ORA-00904`，消息去掉驱动加的「error occur at position」，位置给错误栏。`UseSchema` 是 `ALTER SESSION SET CURRENT_SCHEMA`。快速 SQL 在 `SET TRANSACTION READ ONLY` 里跑，写由服务端拒绝（ORA-01456）。只读连接：Oracle 没有只读会话，靠 sqlmux 的拦截（同 SQL Server，§13）。
 - **已知上限**：冷启动的库上 `DBMS_METADATA` 和字典视图很慢（实测 Oracle Free 第一次取一张带 CLOB 的表的 DDL 要 25 秒，之后 0.2 秒），DDL 预览是异步的、不卡界面。`NUMBER` 的极小值（1e-130 量级）驱动写成 0。没有 ROWID 当行标识：没有主键的表不能改。
+
+### 8.12 表的大小（用户 2026-11-08）
+
+树上表的右边写它占的空间（`db.Table.Bytes`，按 1024 进位：`512 B`、`12 KB`、`3.4 MB`，十以下留一位小数），引擎说不出时写行数的估计，也没有就空着（原来写 `?`，用户问为什么）。各引擎取法：PG `pg_total_relation_size`（含索引和 TOAST）、MySQL `data_length + index_length`、SQL Server 分区统计的 `used_page_count × 8KB`、ClickHouse `total_bytes`、Oracle `DBA_SEGMENTS`（读不了时退回 `USER_SEGMENTS`，只有自己 schema 的表有大小）；SQLite、Trino 没有便宜的取法，照旧写行数。都在读表列表的那一条查询里（Oracle 是另一条），不另开往返。视图没有大小。
+
