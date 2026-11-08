@@ -8,7 +8,8 @@ import (
 	"strings"
 )
 
-// logoFiles are DBeaver's icons of the engines (logos/NOTICE): what a terminal
+// logoFiles are DBeaver's icons of the engines (logos/NOTICE), the ones its
+// navigator tree draws, at 32×32 (its *_icon_big are wordmarks for a dialog): what a terminal
 // that shows images draws for them, as DBeaver does (§7.7). Redis has none of
 // its own there, only Pro's badge, and keeps its glyph.
 //
