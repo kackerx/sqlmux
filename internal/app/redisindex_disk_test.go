@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -70,7 +71,7 @@ func TestIndexFile(t *testing.T) {
 	if err := config.WriteRedisIndex(path, encodeIndex(ix)); err != nil {
 		t.Fatal(err)
 	}
-	if fi, err := os.Stat(path); err != nil || fi.Mode().Perm() != 0o600 {
+	if fi, err := os.Stat(path); err != nil || (fi.Mode().Perm() != 0o600 && runtime.GOOS != "windows") { // windows has no group/other bits
 		t.Errorf("the file: %v %v", fi, err)
 	}
 	for conn, dir := range map[string]string{"a/b": "a%2Fb", "prod:6379": "prod%3A6379", "..": "%2E%2E", ".": "%2E", "a.b": "a.b"} {
