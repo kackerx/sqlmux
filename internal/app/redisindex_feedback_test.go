@@ -50,18 +50,29 @@ func TestKeyIndexFeedback(t *testing.T) {
 	conn.index, conn.hints = nil, nil
 	a.rebuildIndex(conn)
 	a.gotIndex(indexMsg{conn: conn, ix: conn.building, err: errBoom})
-	if conn.building != nil || c.comp != nil || c.foot != "索引建立失败：boom" {
+	if conn.building != nil || c.comp != nil || !strings.HasPrefix(c.foot, "索引建立失败：boom（树上 ") || !strings.HasSuffix(c.foot, " 重建）") {
 		t.Fatalf("it failed: building %v, comp %v, row %q", conn.building, c.comp, c.foot)
 	}
 	t.Run("failed", func(t *testing.T) { golden.RequireEqual(t, pane()) })
 	a.queryComplete(c, false)
-	if conn.building != nil || c.foot != "索引建立失败：boom" {
+	if conn.building != nil || !strings.HasPrefix(c.foot, "索引建立失败：boom") {
 		t.Errorf("tried again by a key typed: building %v, row %q", conn.building, c.foot)
 	}
 	a.refreshIndex(conn) // R in the tree
 	a.queryComplete(c, false)
 	if conn.building == nil || conn.indexErr != "" || c.foot != "索引建立中" {
 		t.Errorf("tried again by R: building %v, error %q, row %q", conn.building, conn.indexErr, c.foot)
+	}
+
+	// the connection redialed: the next completion makes it again, as a key typed after R does
+	a.gotIndex(indexMsg{conn: conn, ix: conn.building, err: errBoom})
+	a.gotConnEvent(connEvent{conn: conn, meta: true})
+	if conn.indexErr != "" || conn.building != nil {
+		t.Fatalf("the redial: error %q, building %v", conn.indexErr, conn.building)
+	}
+	a.queryComplete(c, false)
+	if conn.building == nil || c.foot != "索引建立中" {
+		t.Errorf("after the redial: building %v, row %q", conn.building, c.foot)
 	}
 
 	// the cursor left INSERT: the box is not drawn

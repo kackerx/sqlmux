@@ -467,6 +467,7 @@ var en = map[string]string{
 	"索引更新中":            "Updating the index",
 	"索引建立中":            "Building the index",
 	"索引建立失败：%s":        "The index could not be built: %s",
+	"索引建立失败：%s（树上 %s 重建）": "The index could not be built: %s (%s in the tree builds it again)",
 	"键":                "key",
 	"字段":               "field",
 	"已导出 %s · %d 行，%s": "Exported %s · %d rows, %s",

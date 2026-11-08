@@ -270,7 +270,7 @@ func (a *App) keyCandidates(t *queryTab, partial string) (found []candidate, foo
 	if ix := c.indexed(); ix != nil {
 		switch {
 		case c.indexErr != "": // a stale index stays in use, and says why it is not made
-			foot = i18n.T("索引建立失败：%s", c.indexErr)
+			foot = a.indexFailed(c)
 		case ix.stale:
 			foot = i18n.T("索引更新中")
 		case ix.capped:
@@ -280,7 +280,7 @@ func (a *App) keyCandidates(t *queryTab, partial string) (found []candidate, foo
 	}
 	switch { // none yet: what is typed is matched among the names of the prefix, when they come (F21.7)
 	case c.indexErr != "":
-		foot = i18n.T("索引建立失败：%s", c.indexErr)
+		foot = a.indexFailed(c)
 	case c.building != nil:
 		foot = i18n.T("索引建立中")
 	}
@@ -842,4 +842,13 @@ func (a *App) gotIndexSave(m indexSave) tea.Cmd {
 	}
 	m.conn.indexDirty = false
 	return a.saveIndex(m.conn)
+}
+
+// indexFailed is the foot of a completion that has no index to go on with because it could not be made:
+// why, and the key of the tree that makes it again, as the keymap has it.
+func (a *App) indexFailed(c *Conn) string {
+	if k := a.keys.Hint("tree.refresh", "tree"); k != "" {
+		return i18n.T("索引建立失败：%s（树上 %s 重建）", c.indexErr, k)
+	}
+	return i18n.T("索引建立失败：%s", c.indexErr)
 }

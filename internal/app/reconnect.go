@@ -67,6 +67,9 @@ func (a *App) gotConnEvent(m connEvent) tea.Cmd {
 		err = &c.downMeta
 	}
 	*err = m.Err
+	if m.meta && m.Err == nil { // the index that could not be made may be, on the new connection (F21.7)
+		c.indexErr = ""
+	}
 	name := c.label()
 	switch {
 	case m.Err != nil:
