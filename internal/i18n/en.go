@@ -652,6 +652,7 @@ var en = map[string]string{
 	"%s 列由服务器生成":                                                    "%s column: the server makes its value",
 	"找不到表 %s.%s":                                                    "no table %s.%s",
 	"服务器没有说明原因":                                                     "the server gave no reason",
+	"系统":                                                            "system",
 	"Trino 没有索引":                                                    "Trino has no indexes",
 	"虚拟列由服务器生成":                                                     "a virtual column: the server makes its value",
 	"%s 的写入不在事务里，没有手动事务模式":                                          "%s writes outside of transactions: there is no manual transaction mode",

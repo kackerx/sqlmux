@@ -114,6 +114,9 @@ type catalogMsg struct {
 type catalogAll struct {
 	schemas, dbs []string
 	keep         string
+	// system is the server's own schemas, which the tree leaves out till they
+	// are picked (F17.13, db.Systemer)
+	system []string
 }
 
 // loadCatalog reads c's schemas and every schema's tables on its Meta; a
@@ -134,7 +137,11 @@ func (a *App) loadCatalog(c *Conn) tea.Cmd {
 		if pg && keep == "" {
 			keep = "public"
 		}
-		schemas := pickedSchemas(root.Schemas, pg, name, all, keep) // the picked ones are all that is read (F17.13)
+		var system []string // the server's own, to pick: one that is has its tables read
+		if s, ok := eng.(db.Systemer); ok {
+			system, _ = s.SystemSchemas(ctx, meta)
+		}
+		schemas := pickedSchemas(root.Schemas, pg, name, append(slices.Clone(all), system...), keep) // the picked ones are all that is read (F17.13)
 		tables, err := eng.Tables(ctx, meta, schemas)
 		if err != nil {
 			return catalogMsg{conn: c, err: err}
@@ -152,7 +159,7 @@ func (a *App) loadCatalog(c *Conn) tea.Cmd {
 		if schemas != nil {
 			loaded = schemas
 		}
-		return catalogMsg{conn: c, schemas: loaded, current: current, tables: tables, funcs: funcs, seqs: seqs, dbs: dbs, all: catalogAll{all, allDBs, keep}, err: err}
+		return catalogMsg{conn: c, schemas: loaded, current: current, tables: tables, funcs: funcs, seqs: seqs, dbs: dbs, all: catalogAll{all, allDBs, keep, system}, err: err}
 	}
 }
 

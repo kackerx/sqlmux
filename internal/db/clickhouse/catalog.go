@@ -30,6 +30,11 @@ func (Engine) Schemas(ctx context.Context, c db.Conn) (schemas []string, current
 	return schemas, current, nil
 }
 
+// SystemSchemas are the server's own databases.
+func (Engine) SystemSchemas(ctx context.Context, c db.Conn) ([]string, error) {
+	return db.Names(ctx, c, `select name from system.databases where not (`+systemDBs+`) order by name`)
+}
+
 // Databases is none: the databases are the schemas (§8.4).
 func (Engine) Databases(context.Context, db.Conn) ([]string, error) { return nil, nil }
 
@@ -40,7 +45,7 @@ func (Engine) Tables(ctx context.Context, c db.Conn, only []string) ([]db.Table,
 	r, err := c.Query(ctx, `
 select database, name, ifNull(toInt64(total_rows), -1), engine
 from system.tables
-where not is_temporary and not startsWith(name, '.') and database `+systemIn+db.SchemaIn("database", only, sqlkit.ClickHouse)+`
+where not is_temporary and not startsWith(name, '.') and `+db.Scope("database "+systemIn, "database", only, sqlkit.ClickHouse)+`
 order by database, name`)
 	if err != nil {
 		return nil, err
@@ -259,4 +264,5 @@ var (
 	_ db.Engine   = Engine{}
 	_ db.Typer    = Engine{}
 	_ db.Unatomic = Engine{}
+	_ db.Systemer = Engine{}
 )

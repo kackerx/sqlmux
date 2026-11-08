@@ -33,6 +33,11 @@ func (Engine) Schemas(ctx context.Context, c db.Conn) (schemas []string, current
 	return schemas, current, nil
 }
 
+// SystemSchemas is the catalog's information_schema, the one schema of its own.
+func (Engine) SystemSchemas(context.Context, db.Conn) ([]string, error) {
+	return []string{"information_schema"}, nil
+}
+
 // Databases lists the server's catalogs (§8.4): each one a child of the
 // connection in the tree, as PG's databases are.
 func (Engine) Databases(ctx context.Context, c db.Conn) ([]string, error) {
@@ -52,7 +57,7 @@ func (Engine) Databases(ctx context.Context, c db.Conn) ([]string, error) {
 func (Engine) Tables(ctx context.Context, c db.Conn, only []string) ([]db.Table, error) {
 	r, err := c.Query(ctx, `
 select table_schema, table_name, table_type from information_schema.tables
-where table_schema <> 'information_schema'`+db.SchemaIn("table_schema", only, sqlkit.Trino)+`
+where `+db.Scope("table_schema <> 'information_schema'", "table_schema", only, sqlkit.Trino)+`
 order by 1, 2`)
 	if err != nil {
 		return nil, err
@@ -180,4 +185,5 @@ var (
 	_ db.Engine   = Engine{}
 	_ db.Typer    = Engine{}
 	_ db.Unatomic = Engine{}
+	_ db.Systemer = Engine{}
 )

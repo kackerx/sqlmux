@@ -1,6 +1,9 @@
 package db
 
-import "slices"
+import (
+	"context"
+	"slices"
+)
 
 // Table is one relation the schema tree lists (§8.4): a table, a view,
 // a materialized view, a foreign table, or a partitioned table's parent.
@@ -99,3 +102,17 @@ type Function struct {
 
 // Sequence is one sequence of a schema (§8.4).
 type Sequence struct{ Schema, Name string }
+
+// Names is the first column of what sql reads on c, as text: a catalog's list
+// of names.
+func Names(ctx context.Context, c Conn, sql string) ([]string, error) {
+	r, err := c.Query(ctx, sql)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, len(r.Rows))
+	for i, row := range r.Rows {
+		out[i] = row[0].S
+	}
+	return out, nil
+}

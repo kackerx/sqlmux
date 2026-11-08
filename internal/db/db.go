@@ -186,6 +186,22 @@ type ServerError struct {
 	Position                int
 }
 
+// Scope is the condition on column col, a schema's name, of a catalog query: the
+// schemas picked, only, the server's own among them when picked (F17.13); with
+// none picked, user, the engine's condition that keeps its own schemas out.
+func Scope(user, col string, only []string, d sqlkit.Dialect) string {
+	if only == nil {
+		return user
+	}
+	return "1 = 1" + SchemaIn(col, only, d)
+}
+
+// Systemer is an Engine whose server has schemas of its own, which the tree
+// leaves out till they are picked (F17.13): their names.
+type Systemer interface {
+	SystemSchemas(ctx context.Context, c Conn) ([]string, error)
+}
+
 // SchemaIn is the condition that column col, a schema's name, is one of only, written
 // to follow a where's others: the catalog's queries ask for the schemas picked
 // (F17.13); "" for nil, all of them.
@@ -193,8 +209,8 @@ func SchemaIn(col string, only []string, d sqlkit.Dialect) string {
 	if only == nil {
 		return ""
 	}
-	if len(only) == 0 { // none picked: nothing
-		return " and false"
+	if len(only) == 0 { // none picked: nothing (1 = 0: Oracle has no false)
+		return " and 1 = 0"
 	}
 	lits := make([]string, len(only))
 	for i, n := range only {

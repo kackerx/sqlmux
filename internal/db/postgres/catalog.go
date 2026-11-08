@@ -56,7 +56,7 @@ func (Engine) Tables(ctx context.Context, c db.Conn, only []string) ([]db.Table,
 	r, err := c.Query(ctx, `
 select n.nspname, c.relname, c.reltuples, c.relkind
 from pg_class c join pg_namespace n on n.oid = c.relnamespace
-where c.relkind in ('r', 'p', 'v', 'm', 'f') and not c.relispartition and `+userSchema+db.SchemaIn("n.nspname", only, sqlkit.PG)+`
+where c.relkind in ('r', 'p', 'v', 'm', 'f') and not c.relispartition and `+db.Scope(userSchema, "n.nspname", only, sqlkit.PG)+`
 order by 1, 2`)
 	if err != nil {
 		return nil, err
@@ -332,7 +332,7 @@ func (Engine) Functions(ctx context.Context, c db.Conn, only []string) ([]db.Fun
 	r, err := c.Query(ctx, `
 select n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), p.oid::text
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-where p.prokind = 'f' and `+userSchema+db.SchemaIn("n.nspname", only, sqlkit.PG)+`
+where p.prokind = 'f' and `+db.Scope(userSchema, "n.nspname", only, sqlkit.PG)+`
   and not exists (select from pg_depend d where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')
 order by 1, 2, 3`)
 	if err != nil {
@@ -351,7 +351,7 @@ func (Engine) Sequences(ctx context.Context, c db.Conn, only []string) ([]db.Seq
 	r, err := c.Query(ctx, `
 select n.nspname, cl.relname
 from pg_class cl join pg_namespace n on n.oid = cl.relnamespace
-where cl.relkind = 'S' and `+userSchema+db.SchemaIn("n.nspname", only, sqlkit.PG)+`
+where cl.relkind = 'S' and `+db.Scope(userSchema, "n.nspname", only, sqlkit.PG)+`
 order by 1, 2`)
 	if err != nil {
 		return nil, err
@@ -373,4 +373,10 @@ func (Engine) FunctionDef(ctx context.Context, c db.Conn, f db.Function) (string
 		return "", errors.New(i18n.T("函数已不存在，按 R 刷新"))
 	}
 	return r.Rows[0][0].S + ";", nil
+}
+
+// SystemSchemas are PG's own schemas, pg_catalog and information_schema among
+// them; TOAST's and the sessions' temporary ones hold nothing to browse.
+func (Engine) SystemSchemas(ctx context.Context, c db.Conn) ([]string, error) {
+	return db.Names(ctx, c, `select n.nspname from pg_namespace n where not (`+userSchema+`) and n.nspname !~ '^pg_(toast|temp_)' order by 1`)
 }

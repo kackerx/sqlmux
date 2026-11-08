@@ -32,6 +32,11 @@ func (Engine) Schemas(ctx context.Context, c db.Conn) (schemas []string, current
 	return schemas, current, nil
 }
 
+// SystemSchemas are the users Oracle maintains: SYS, SYSTEM, DVSYS and the rest.
+func (Engine) SystemSchemas(ctx context.Context, c db.Conn) ([]string, error) {
+	return db.Names(ctx, c, `select username from all_users where oracle_maintained = 'Y' order by 1`)
+}
+
 // Databases is none: a connection is to one database, its PDB (§8.4).
 func (Engine) Databases(context.Context, db.Conn) ([]string, error) { return nil, nil }
 
@@ -41,7 +46,7 @@ func (Engine) Databases(context.Context, db.Conn) ([]string, error) { return nil
 // The materialized views are left out of the tables here, not in the query:
 // a NOT EXISTS over ALL_MVIEWS there takes the dictionary a second.
 func (Engine) Tables(ctx context.Context, c db.Conn, only []string) ([]db.Table, error) {
-	in := func(col string) string { return col + userSchemas + db.SchemaIn(col, only, sqlkit.Oracle) }
+	in := func(col string) string { return db.Scope(col+userSchemas, col, only, sqlkit.Oracle) }
 	r, err := c.Query(ctx, `
 select owner, table_name, nvl(num_rows, -1), 'r' from all_tables
 where `+in("owner")+` and dropped = 'NO' and iot_type is null and secondary = 'N' and nested = 'NO'
@@ -296,7 +301,7 @@ order by decode(k.constraint_type, 'P', 0, 1), k.constraint_name, cc.position`, 
 // object's type, which FunctionDef asks DBMS_METADATA by.
 func (Engine) Functions(ctx context.Context, c db.Conn, only []string) ([]db.Function, error) {
 	r, err := c.Query(ctx, `select owner, object_name, object_type from all_objects
-where object_type in ('FUNCTION', 'PROCEDURE', 'PACKAGE') and owner`+userSchemas+db.SchemaIn("owner", only, sqlkit.Oracle)+` order by 1, 2`)
+where object_type in ('FUNCTION', 'PROCEDURE', 'PACKAGE') and `+db.Scope("owner"+userSchemas, "owner", only, sqlkit.Oracle)+` order by 1, 2`)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +318,7 @@ func (Engine) FunctionDef(ctx context.Context, c db.Conn, f db.Function) (string
 
 // Sequences lists the schemas' sequences.
 func (Engine) Sequences(ctx context.Context, c db.Conn, only []string) ([]db.Sequence, error) {
-	r, err := c.Query(ctx, `select sequence_owner, sequence_name from all_sequences where sequence_owner`+userSchemas+db.SchemaIn("sequence_owner", only, sqlkit.Oracle)+` order by 1, 2`)
+	r, err := c.Query(ctx, `select sequence_owner, sequence_name from all_sequences where `+db.Scope("sequence_owner"+userSchemas, "sequence_owner", only, sqlkit.Oracle)+` order by 1, 2`)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +363,8 @@ func (e Engine) Quick(ctx context.Context, w *db.Worker, sql, schema string, max
 }
 
 var (
-	_ db.Engine  = Engine{}
-	_ db.Typer   = Engine{}
-	_ db.TxSaver = (*Conn)(nil)
+	_ db.Engine   = Engine{}
+	_ db.Typer    = Engine{}
+	_ db.TxSaver  = (*Conn)(nil)
+	_ db.Systemer = Engine{}
 )
