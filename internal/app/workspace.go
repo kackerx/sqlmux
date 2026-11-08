@@ -284,10 +284,15 @@ type Conn struct {
 	// place of the index when the keys of a write are not known, or the tree had R:
 	// the index is used till it is done (F20.1, F20.8)
 	index, building *keyIndex
+	// keysAfterCommands is that the tree's keys are read once the commands are in: the highlight and the
+	// completion want them, and the tree's batches before them would hold them up (F21.7)
+	keysAfterCommands bool
 	// indexDirty is that the index changed in memory and its file is to be written:
 	// by the timer started when it changed, or when the program ends (F21.4)
 	indexDirty bool
-	epoch      int // counts the FLUSHes: what was asked of the keys before one is not of the db now
+	// indexErr is why the index could not be made, a line, till one is made again (F21.7)
+	indexErr string
+	epoch    int // counts the FLUSHes: what was asked of the keys before one is not of the db now
 }
 
 // inDB is the connection to database name: c itself for the one it is dialed

@@ -45,7 +45,7 @@ func CompleteBox(screen uv.Rectangle, at uv.Position, w, n, foot, limit int) (bo
 // Draw paints the list in box, rows of it showing.
 func (c Complete) Draw(f *Frame, box uv.Rectangle, rows int) {
 	th := f.Theme
-	if box.Dx() < 4 || rows == 0 {
+	if box.Dx() < 4 || rows == 0 && len(c.Foot) == 0 { // a box of its foot alone is one (F21.7)
 		return
 	}
 	f.Region(box, Target{}) // a click inside is not outside

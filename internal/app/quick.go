@@ -350,6 +350,9 @@ func (a *App) completeSQL() tea.Cmd {
 	p := a.palette
 	prev := p.comp
 	p.comp = nil
+	if p.hint != nil {
+		p.hint.foot = ""
+	}
 	scope, sql := a.paletteScope()
 	pos := p.input.Pos - len(scopes[scope].prefix) // none while the cursor is in the ; itself
 	if scope != sqlScope || pos < 0 || p.conn == nil {
@@ -375,6 +378,9 @@ func (a *App) completeSQL() tea.Cmd {
 	}
 	if comp != nil && !(p.hint != nil && p.hint.matching) {
 		comp.start += len(scopes[scope].prefix)
+	}
+	if p.hint != nil && p.hint.foot != "" {
+		p.hint.footStart += len(scopes[scope].prefix)
 	}
 	p.comp = comp
 	return tea.Batch(cmds...)

@@ -284,6 +284,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotSessionDialed(msg)
 	case catalogMsg:
 		return a, a.gotCatalog(msg)
+	case keysStep:
+		return a, a.gotKeysStep(msg)
 	case keysMsg:
 		return a, a.gotKeys(msg)
 	case foundMsg:

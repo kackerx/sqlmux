@@ -140,7 +140,7 @@ func TestExecRedisConnection(t *testing.T) {
 			for _, c := range m {
 				deliver(c)
 			}
-		case keysMsg, cmdsMsg:
+		case keysMsg, keysStep, cmdsMsg:
 			_, next := a.Update(m)
 			deliver(next)
 		}

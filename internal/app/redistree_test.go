@@ -454,3 +454,25 @@ func TestGoldenRedisTreeFilterLit(t *testing.T) {
 	}
 	golden.RequireEqual(t, treeTexts(a)+"\n")
 }
+
+// The tree's keys come a batch at a time, each a request of its own: a batch that is not the last asks for
+// the next and the tree has nothing yet; the last, or one that failed, gives the tree what was read (F21.7).
+func TestKeysLoadInSteps(t *testing.T) {
+	a, _, _ := keyConsole(t)
+	c := a.sess.Conns[0]
+	c.scan = nil
+	sc := redis.NewScanning("*", 10, redis.ScanCount)
+	sc.Keys, sc.Total = []redis.KeyInfo{{Name: "a", Type: "string"}}, 5
+	if cmd := a.gotKeysStep(keysStep{conn: c, scan: sc}); cmd == nil || c.scan != nil {
+		t.Errorf("a batch that is not the last: next %v, tree %+v", cmd != nil, c.scan)
+	}
+	a.gotKeysStep(keysStep{conn: c, scan: sc, done: true})
+	if c.scan == nil || len(c.scan.keys) != 1 || c.scan.total != 5 {
+		t.Errorf("the last: %+v", c.scan)
+	}
+	c.scan = nil
+	a.gotKeysStep(keysStep{conn: c, scan: sc, err: errBoom})
+	if c.scan != nil || !strings.Contains(a.toast, "boom") {
+		t.Errorf("a failed batch: tree %+v, toast %q", c.scan, a.toast)
+	}
+}

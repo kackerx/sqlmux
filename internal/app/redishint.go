@@ -65,6 +65,7 @@ var hashCommands = []string{"hget", "hset", "hsetnx", "hdel", "hexists", "hmget"
 // With nothing typed it opens for C-n only. The names the server has to give come
 // later: the list is made again when they are in.
 func (a *App) redisComplete(t *queryTab, before string, manual bool) (*completion, []tea.Cmd) {
+	t.foot = ""
 	words, partial, open := redis.Typed(before)
 	if open || strings.HasPrefix(strings.TrimLeft(before, " \t"), "#") || partial == "" && !manual {
 		return nil, nil
@@ -138,7 +139,11 @@ func (a *App) redisComplete(t *queryTab, before string, manual bool) (*completio
 		})
 		return nil, cmds
 	}
-	return a.finishMatch(ranked(text, len(text), partial, start, groups...), indexed, partial, indexed.narrowedOf(partial), foot), cmds
+	comp := a.finishMatch(ranked(text, len(text), partial, start, groups...), indexed, partial, indexed.narrowedOf(partial), foot)
+	if comp == nil && foot != "" { // nothing to pick yet, and something to say: a box of its own (F21.7)
+		t.foot, t.footStart = foot, start
+	}
+	return comp, cmds
 }
 
 // commandNames are the commands of the server as candidates: those its docs
@@ -189,10 +194,8 @@ func (a *App) gotHintDue(m hintDue) tea.Cmd {
 	}
 	meta, limit := c.Meta, a.loadAll
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
-		defer cancel()
 		r := hintMsg{conn: c, kind: m.kind, arg: m.arg}
-		r.err = meta.RunSafe(ctx, func(ctx context.Context, conn db.Conn) (err error) {
+		r.err = onMeta(meta, redisBatchTimeout, func(ctx context.Context, conn db.Conn) (err error) {
 			if m.kind == "keys" {
 				r.names, err = redis.KeyHints(ctx, conn, m.arg, hintWant)
 			} else {

@@ -116,8 +116,11 @@ func TestKeyIndexFromDisk(t *testing.T) {
 	if conn.index == nil || !conn.index.stale || conn.building != nil {
 		t.Fatalf("a failed batch: %+v", conn.index)
 	}
-	if a.startIndex(conn) == nil || conn.building == nil {
-		t.Fatal("the index is not made again after a failure while the file's is used")
+	if a.startIndex(conn) != nil || conn.building != nil || conn.indexErr == "" {
+		t.Fatal("a key typed makes the index again after a failure: R does (F21.7)")
+	}
+	if a.refreshIndex(conn); conn.building == nil || conn.indexErr != "" {
+		t.Fatal("R does not make the index again after a failure while the file's is used")
 	}
 
 	save := a.gotIndex(indexMsg{conn: conn, ix: conn.building, names: []string{"new:1", "old:1"}, total: 2})

@@ -119,8 +119,12 @@ type catalogAll struct {
 // loadCatalog reads c's schemas and every schema's tables on its Meta; a
 // table's columns wait until it is opened (§8.4).
 func (a *App) loadCatalog(c *Conn) tea.Cmd {
-	if !c.sql() { // a key-value server's catalog is its keys (F16.2), and its commands
-		return tea.Batch(a.loadCommands(c), a.loadKeys(c))
+	if !c.sql() { // a key-value server's catalog is its keys (F16.2), and its commands: those first, the keys when they are in (F21.7)
+		if cmd := a.loadCommands(c); cmd != nil {
+			c.keysAfterCommands = true
+			return cmd
+		}
+		return a.loadKeys(c)
 	}
 	meta, eng, root, name, own := c.Meta, c.eng, c.root().Spec, c.DB, c.Spec.Database == ""
 	return func() tea.Msg {
