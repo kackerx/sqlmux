@@ -50,7 +50,7 @@
 
 ## M22 候选
 
-- **`just test-windows`**（决策者 2026-11-08，v0.10.0 第一次推 tag 时 `ci / windows` 红、Release 空跑；用户定这次只改测试不加机制）：`GOOS=windows go test -short -exec <wrapper> ./...`，wrapper 把测试 exe 拷到 Windows 盘经 WSL interop 跑，打 tag 前跑一次；做法在 m21 task.md F21.8 b。
+- **`just test-windows`**（决策者 2026-11-08，v0.10.0 第一次推 tag 时 `ci / windows` 红、Release 空跑；用户定这次只改测试不加机制）：`GOOS=windows go test -short -exec <wrapper> ./...`，wrapper 把测试 exe 拷到 Windows 盘经 WSL interop 跑，打 tag 前跑一次；做法在 m21 task.md F21.8 b。 worker 2026-11-08 试做时看到的：wrapper 要把整个包目录拷到 C 盘再跑（cwd 在 `\\wsl.localhost` 下时 sqlite DSN 和 `../../../testdata` 的相对路径会误报）；argv[0] 用 `exec -a` 传全路径，re-exec 自己的测试（config 的 state_test）才找得到 exe；`internal/app` 的 TestNoKeyTextInCode 在拷出去的目录里找不到 `../..` 的源码，没查完。
 
 ## M21 候选（用户 2026-10-31：M20 放不下的往后排，v0.10.0）
 
