@@ -5,12 +5,12 @@
 - **范围**：§14「启动」（`default_connection`、`--sql`、`--schema`）和 config.toml 样例、§9.8「索引存盘」、§7.3 / §14 的 `border_focus_style`、§6 的 `pane.focus.*` 越界、§15「集成测试」的残留库清理。都已写进各章（2026-11-07，docs commit 见 git log）。
 - **依赖**：M20 完成（v0.9.0）。
 - **完成标准**：两个节点全过；完整回归绿（清单外 0）；Windows 版冒烟（`GOOS=windows` 编 exe，主机 python 跑 `e2e/windows/smoke.py`，tester 在 WSL 里跑）绿；用户体验验收后 worker 打 `m21` 和 `v0.10.0`，照 AGENTS.md 两步推送。
-- **审查节点**：1 = F21.1 + F21.2 + F21.3；2 = F21.4 + F21.5 + F21.6。都是 worker 在 `main` 上做。F21.6 排最后，节点 2 做不下就丢（用户 2026-10-31）。
+- **审查节点**：1 = F21.1 + F21.2 + F21.3；2 = F21.4 + F21.5 + F21.6。 节点 1 过（9da01dd；e2e c311cad，2026-11-08，0 个问题）。tester 的观察（不改）：`--sql` 和 `--where` 同时给报的是「--where needs --table」，不是互斥句子，行为对。全量 e2e 串行 3 小时以上，6 路并行约 50 分钟，并行时 f0.1、f17.13、f20.4 偶尔红、串行绿。都是 worker 在 `main` 上做。F21.6 排最后，节点 2 做不下就丢（用户 2026-10-31）。
 - **不做（留候选）**：`--sql` 的非交互模式（结果打到 stdout，那是 psql `-c` 的活）；SQL catalog 存盘；WezTerm / Zellij 的越界切换（有人要再加）；连接改名后迁索引文件；每条连接上的 `default = true`。
 
 ---
 
-## F21.0 e2e 和 `just check` 在 WSL 上跑 · 状态：todo · 负责：tester（`e2e/`，e2e 分支）+ worker（`justfile` 一行）
+## F21.0 e2e 和 `just check` 在 WSL 上跑 · 状态：passed（eae2a01；e2e c311cad，tester 2026-11-08：a–c、f 做完，另修了清单外的十几处 GNU / tmux 3.8 / locale 差异，全量清单外 0） · 负责：tester（`e2e/`，e2e 分支）+ worker（`justfile` 一行）
 
 - worker 2026-11-07：节点 1 全量 e2e 36 / 280 红，大头是 Mac 和 WSL 的差异，不是回归。决策者定（2026-11-08），不等节点 1：
 - [ ] a.（tester）BSD 命令：`stat -f %Lp / %m / %Fm / %z`（19 处）、`md5`（WSL 只有 `md5sum`）。在 `e2e/lib.sh` 加可移植的小函数（`fmode` / `fmtime` / `fsize` / `md5`，按 `uname` 或按命令存在与否选 GNU / BSD），17 个脚本改过去。不在 PATH 里放 shim（脚本看不出依赖）。
@@ -23,7 +23,7 @@
 **验收**
 - [ ] 全量 e2e 在 WSL 上清单外 0（上面 e 列的除外）；`just check` 在 WSL 上不带任何 PATH 前置全绿，`gofmt -l` 为空。
 
-## F21.1 测试残留库的自动清理 · 状态：todo
+## F21.1 测试残留库的自动清理 · 状态：passed（9da01dd；e2e c311cad）
 
 - **涉及**：`justfile`（新入口 `db-clean`，`e2e` 全量开跑前调）、`internal/db/postgres/testdsn.go` / `mysql/testdsn.go`（只看命名，不改）
 - 决策者 2026-11-02：同一类问题第二次出现。M20 节点 6 全量里 f3.11 红 2 条，是 worker 的集成测试崩掉后留在 PG 上的 `sqlmux_worker_38735_…` 库名太长、撑宽了 `gs` 下拉框；之前 MySQL 上也有共享实例里的测试库干扰计数。
@@ -37,7 +37,7 @@
 - [ ] 集成测试或脚本自测：在 PG 和 MySQL 上各建 `sqlmux_e2e_999999`（死 pid）、`sqlmux_worker_<自己的 pid>_x`（活 pid）、`sqlmux_keep`（不匹配），跑一遍后只有第一个没了。
 - [ ] `just e2e`（全量）的开头日志里有 db-clean 的输出；`just e2e f0.1` 没有。
 
-## F21.2 默认连接 `default_connection` · 状态：todo
+## F21.2 默认连接 `default_connection` · 状态：passed（9da01dd；e2e c311cad）
 
 - **涉及**：`internal/config`（`default_connection`、未知名字的 toast）、`internal/app`（启动、`--table` / `--sql` 选连接的那一处）
 - 用户 2026-10-31 定要加。原问：`--table` / `--sql` 不给连接时用哪个。现在 F19.1 用的是 connections.toml 的第一个，没有 last.toml 时默认布局的启动连接也是它；第一个同时决定树的顺序，想换默认连接就得挪文件里的顺序。
@@ -51,7 +51,7 @@
 - [ ] 单测：没写用第一个；写了用它；写了不存在的用第一个且有 toast；`--table` 和默认布局走同一个函数（mutation：改那一处两边都变）。
 - [ ] e2e：三个连接、`default_connection` 指第二个，不带参数（无 last.toml）启动树的焦点在第二个连接上；`--table <第二个连接独有的表>` 开得出来；指个不存在的名字，toast 文字对、树照旧第一个。
 
-## F21.3 命令行 `--sql "<语句>"` 和 `--schema` · 状态：todo
+## F21.3 命令行 `--sql "<语句>"` 和 `--schema` · 状态：passed（9da01dd；e2e c311cad）
 
 - **依赖**：F21.2
 - **涉及**：`cmd/sqlmux`（参数）、`internal/app`（启动布局、`freeQuery()`、query 标题的 schema 下拉那一处）、`internal/config`（usage）
