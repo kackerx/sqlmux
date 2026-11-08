@@ -10,6 +10,19 @@
 
 ---
 
+## F21.0 e2e 和 `just check` 在 WSL 上跑 · 状态：todo · 负责：tester（`e2e/`，e2e 分支）+ worker（`justfile` 一行）
+
+- worker 2026-11-07：节点 1 全量 e2e 36 / 280 红，大头是 Mac 和 WSL 的差异，不是回归。决策者定（2026-11-08），不等节点 1：
+- [ ] a.（tester）BSD 命令：`stat -f %Lp / %m / %Fm / %z`（19 处）、`md5`（WSL 只有 `md5sum`）。在 `e2e/lib.sh` 加可移植的小函数（`fmode` / `fmtime` / `fsize` / `md5`，按 `uname` 或按命令存在与否选 GNU / BSD），17 个脚本改过去。不在 PATH 里放 shim（脚本看不出依赖）。
+- [ ] b.（tester）root 跑：`chmod 444 / 000`、只读目录挡不住 root，f8.16*、f8.19*、f8.21、f7.4* 的「写不进」「读不了」断言在 root 下 skip（lib.sh 一个 `e2e_skip_if_root`，打印原因），同单测 c23a469 按 Geteuid 跳过。这些路径 Mac 上已过、M21 不改，root 下不覆盖是已知上限，写进 §15。
+- [ ] c.（tester）网络：WSL mirrored 模式下连 127.0.0.1 的关闭端口是超时不是 refused，f1.1、f8.16（C-t 端口 1）、f12.5、f16.1、f18.13 里断言 `connection refused` 的改成只断言「出错、错误行里有地址」，不认死文案。
+- [ ] d.（worker，随节点 1）工具链：brew 的 go 是 1.27.3，gofmt 和 CI 的 1.26.3 不同、golangci-lint 要用同版 Go 编。`justfile` 顶部 `export GOTOOLCHAIN := "go" + \`sed -n 's/^go //p' go.mod\``，所有 `just` 入口都用 go.mod 那个版本（第一次自动下载），`lint` 的安装提示照样走它；不在 AGENTS.md 里写 PATH。
+- [ ] e. 清单外（不改）：SQL Server 容器没起（f18.7*）、ruby / brew audit 那条是 macOS 才有的；goreleaser worker 自己 `brew install`。
+- [ ] f. 性能脚本 f11.x：等 worker 在 79e6ca3 干净副本上的对照结果；对照也红就是机器差异，tester 把门槛按这台机器放宽一档（同 M17 f13.2 的做法），对照绿才算回归。
+
+**验收**
+- [ ] 全量 e2e 在 WSL 上清单外 0（上面 e 列的除外）；`just check` 在 WSL 上不带任何 PATH 前置全绿，`gofmt -l` 为空。
+
 ## F21.1 测试残留库的自动清理 · 状态：todo
 
 - **涉及**：`justfile`（新入口 `db-clean`，`e2e` 全量开跑前调）、`internal/db/postgres/testdsn.go` / `mysql/testdsn.go`（只看命名，不改）
