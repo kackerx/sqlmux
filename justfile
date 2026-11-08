@@ -1,5 +1,8 @@
 # The everyday commands (tech-design §15). `just` lists them.
 
+# every recipe builds with the Go of go.mod, as CI does: a newer one on the machine formats differently (F21.0)
+export GOTOOLCHAIN := "go" + `sed -n 's/^go //p' go.mod`
+
 # the version CI pins too (.github/workflows/ci.yml)
 lint_version := "2.14.0"
 
@@ -80,9 +83,9 @@ lint:
     @golangci-lint --version | grep -q "version {{lint_version}} " || { echo "golangci-lint {{lint_version}} wanted: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v{{lint_version}}" >&2; exit 1; }
     golangci-lint run ./...
 
-# gofmt every file
+# gofmt every file, with the gofmt of go.mod's Go (GOTOOLCHAIN)
 fmt:
-    gofmt -w .
+    $(go env GOROOT)/bin/gofmt -w .
 
 # go mod tidy
 tidy:
@@ -96,7 +99,7 @@ check:
     go test -run '^$' -bench . -benchtime 1x ./internal/app/
     just test-integration
     just lint
-    @test -z "$(gofmt -l .)" || { gofmt -l . >&2; echo "gofmt: just fmt" >&2; exit 1; }
+    @test -z "$($(go env GOROOT)/bin/gofmt -l .)" || { $(go env GOROOT)/bin/gofmt -l . >&2; echo "gofmt: just fmt" >&2; exit 1; }
     go mod tidy
     @git diff --quiet go.mod go.sum || { echo "go mod tidy changed go.mod or go.sum" >&2; exit 1; }
 
