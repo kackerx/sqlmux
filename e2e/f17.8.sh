@@ -71,7 +71,8 @@ for l in sys.stdin:
     if m: print("U+%04x" % ord(m.group(1))); break'; }
 ptitle() { e2e_plain | sed -n 1p | python3 -c "import re, sys; t = sys.stdin.read(); print(re.sub('^[①-⑳⓪] *', '', re.sub('[-] ?', '', t[34:97]).strip('┌─┐ ')).strip(' ─'))"; }
 
-e2e_start -C "$D/c" "$E2E_BIN rdx"; wait_for 8 flag_is alternate_on 1; sleep 3
+nd=$(lg | grep -ic "^dbsize"); e2e_start -C "$D/c" "$E2E_BIN rdx"; wait_for 8 flag_is alternate_on 1
+wait_for 20 eval '[[ $(lg | grep -ic "^dbsize") -gt $nd ]]'; sleep 1   # connecting takes about 4 s here (the same on 79e6ca3): the tree is up when the SCAN has started
 check "连接时先跑一次 PING（假命令日志第一条）；SELECT / CLIENT / AUTH 这类连接自己的话没有交给命令" eval '[[ $(lg | head -1 | tr a-z A-Z) == "PING" ]] && ! lg | grep -qiE "^(select|client|auth|hello) " || { lg | head -4; false; }'
 check "树：rdx → db0（只有这一个 db，真服务端的 db1 也有键，但 exec 连接只有 db 0）展开，里面有命名空间（str、hash、list…）" eval 'side | grep -qE "^ *▾ +db0" && ! side | grep -qE "^ *[▸▾] +db1( |$)" && side | grep -qE "^ *▸ +str( |$)" && side | grep -qE "^ *▸ +hash( |$)" || { side | head -16; false; }'
 check "到现在为止命令没有收到过 TYPE（树不对每个键发 TYPE，一批键 = 一批子进程）" eval '[[ $(ntype) == 0 ]] || { lg | grep -i "^type" | head -3; false; }'
@@ -100,7 +101,8 @@ quit_app
 _e2e_kill
 
 # ---- SELECT 别的 db：报错，也不交给命令
-e2e_start -C "$D/c" "$E2E_BIN rdx"; wait_for 8 flag_is alternate_on 1; sleep 3
+nd=$(lg | grep -ic "^dbsize"); e2e_start -C "$D/c" "$E2E_BIN rdx"; wait_for 8 flag_is alternate_on 1
+wait_for 20 eval '[[ $(lg | grep -ic "^dbsize") -gt $nd ]]'; sleep 1   # connecting takes about 4 s here (the same on 79e6ca3): the tree is up when the SCAN has started
 runq "SELECT 3"
 check "SELECT 3：报「exec 连接只有 db 0」，命令没有收到 SELECT" eval 'e2e_plain | tr -d " \n" | grep -qF "只有db0" || e2e_plain | tr -d " \n" | grep -qiF "db0only"' || { e2e_plain | tail -8 | cut -c60-200; lg | tail -2; false; }
 check "（日志里没有 select）" eval '! lg | grep -qi "^select "'
@@ -109,7 +111,7 @@ _e2e_kill
 
 # ---- COMMAND 被拒：toast「读不到命令列表」，所有命令都按写处理，只读连接上控制台一律不发
 touch "$LOG.deny"; n0=$(lg | wc -l)
-e2e_start -C "$D/c" "$E2E_BIN rdx"; wait_for 8 flag_is alternate_on 1; sleep 1.2
+e2e_start -C "$D/c" "$E2E_BIN rdx"; wait_for 8 flag_is alternate_on 1; wait_for 12 eval 'e2e_plain | tr -d " \n" | grep -qF "读不到命令列表"'
 check "COMMAND 被命令拒了：启动时 toast「读不到命令列表」" eval 'e2e_plain | tr -d " \n" | grep -qF "读不到命令列表"' || { e2e_plain | tail -3 | cut -c1-200; false; }
 sleep 3
 runq "GET str:plain"

@@ -171,8 +171,9 @@ _e2e_kill
 e2e_start -C "$D/f" "$E2E_BIN"; sleep 3
 bad_start() { e2e_plain | python3 -c '
 import sys
-t = sys.stdin.read().replace("\n", "")
-sys.exit(0 if "第 2 个连接：ssh = " in t and "不能以 - 开头" in t and "[e2e-exit 1]" in t else 1)'; }
+import re
+t = re.sub(r"\s", "", sys.stdin.read())   # a wide char at the wrap edge leaves a blank cell: compare without any whitespace
+sys.exit(0 if "第2个连接：ssh=" in t and "不能以-开头" in t and "[e2e-exit1]" in t else 1)'; }
 check "connections.toml 里手写了 ssh = \"-oProxyCommand=…\"：启动报「第 2 个连接：ssh = …：写成 user@host，不能以 - 开头」，退出码 1" bad_start || e2e_plain | head -4
 check "也没有真的去执行那个选项（没有 pwned 文件）" eval '[[ ! -e "$D/pwned" ]]'
 

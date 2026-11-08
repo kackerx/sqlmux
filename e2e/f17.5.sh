@@ -7,7 +7,7 @@
 cd "$E2E_ROOT" || exit 1
 
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); trap 'rm -rf "$D"' EXIT
-git clone -q --local "$E2E_ROOT" "$D/cl" || { echo "e2e: clone failed" >&2; exit 1; }
+git clone -q --local --no-hardlinks "$E2E_ROOT" "$D/cl" || { echo "e2e: clone failed" >&2; exit 1; }
 REV=$(git -C "$D/cl" rev-parse HEAD | cut -c1-7)
 TIME=$(TZ=UTC git -C "$D/cl" log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ)
 gb() { (cd "$D/cl" && go build "$@" ./cmd/sqlmux); }   # gb -o OUT [flags]

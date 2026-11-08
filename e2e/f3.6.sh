@@ -97,12 +97,16 @@ check ":foo：toast「不支持的命令：foo」" toast_is "不支持的命令�
 key x; key :; typ w; key Enter
 check ":w 立刻写盘" eval '[[ $(head -1 "$CF") == "electcount(*), '"'a'"' from t where id > 10; -- n" ]] || { echo "  file: $(head -1 "$CF")"; false; }'
 key u; key C-s; sleep 0.3
-chmod 500 "$(dirname "$CF")"; key x; key :; typ q; key Enter
-check "写不进文件时 :q 不关 tab，toast「保存失败：…」" eval 'e2e_text 1 160 44 | grep -q "保存失败：.*query_1.sql.*permission denied" && [[ $(e2e_text 98 160 1) == *"②"*"▶ run"* ]]'   # 长 toast 盖住了下边框，e2e_panes 认不出 pane，看标题行
-key :; typ qa; key Enter
-check "写不进文件时 :qa 也不退出" eval 'running && e2e_text 1 160 44 | grep -q "保存失败："'
-key Space; e2e_type x; sleep 0.3
-check "写不进文件时 SPC x 也不关 pane" eval '[[ $(e2e_text 98 160 1) == *"②"*"▶ run"* ]]'
+if (( EUID == 0 )); then
+  for d in ":q 不关 tab" ":qa 也不退出" "SPC x 也不关 pane"; do e2e_skip_if_root "写不进文件时 $d"; done
+else
+  chmod 500 "$(dirname "$CF")"; key x; key :; typ q; key Enter
+  check "写不进文件时 :q 不关 tab，toast「保存失败：…」" eval 'e2e_text 1 160 44 | grep -q "保存失败：.*query_1.sql.*permission denied" && [[ $(e2e_text 98 160 1) == *"②"*"▶ run"* ]]'   # 长 toast 盖住了下边框，e2e_panes 认不出 pane，看标题行
+  key :; typ qa; key Enter
+  check "写不进文件时 :qa 也不退出" eval 'running && e2e_text 1 160 44 | grep -q "保存失败："'
+  key Space; e2e_type x; sleep 0.3
+  check "写不进文件时 SPC x 也不关 pane" eval '[[ $(e2e_text 98 160 1) == *"②"*"▶ run"* ]]'
+fi
 chmod 700 "$(dirname "$CF")"; key u
 key :; typ q; key Enter
 check ":q 关掉 query_1：不确认，② 随最后一个 tab 关掉，文件还在" eval '[[ $(e2e_text 1 160 1) != *query* && $(e2e_find ┐ 1) == "32 160" && -f $CF ]] && ! screen_has 丢弃'

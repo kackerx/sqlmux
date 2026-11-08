@@ -8,7 +8,10 @@ e2e_build || exit 1
 . "$(dirname "$0")/palette.sh"
 . "$(dirname "$0")/cellops.sh"
 
-D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); trap 'e2e_stop; rm -rf "$D"' EXIT
+# a third database next to postgres and sqlmux (the author's machine had a leftover sqlmux_play; the name matches db-clean's, so a crash leaves nothing)
+PLAY=sqlmux_e2e_$$_p   # short: a 7-digit pid and the sidebar cuts the name
+psql "$SQLMUX_TEST_PG" -qAt -c "create database $PLAY" >/dev/null || { echo "e2e: cannot create $PLAY" >&2; exit 1; }
+D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); trap 'e2e_stop; rm -rf "$D"; psql "$SQLMUX_TEST_PG" -qAt -c "drop database if exists $PLAY with (force)" >/dev/null' EXIT
 CT() { echo "$E2E_TMP/config/sqlmux/connections.toml"; }
 side() { e2e_plain | noicon | sed 's/^│//; s/│.*//; s/^ *//; s/ *$//'; }       # the sidebar's rows, icons and the border cut
 row_of() { side | grep -nE "$1" | head -1 | cut -d: -f1; }                         # the screen row (1-based) of the first sidebar row that matches
@@ -28,12 +31,12 @@ dbn=$(psql "$SQLMUX_TEST_PG" -Atc "select count(*) from pg_database where not da
 check "（准备）树里：连接 doraemon（没有尾注）→ 默认库 sqlmux → schema agentable、public" eval 'side | grep -qE "^▾ doraemon *$" && side | grep -qE "^▾ sqlmux *$" && side | grep -qE "^▸ agentable" && side | grep -qE "^▾ public"' || { side | head -8; false; }
 y=$(row_of "^▾ doraemon")
 menu_pick 8 $y "选择库…"
-check "连接节点右键 → 选择库…：打开列表浮层，标题「库」，每行 [x] 库名，顶上是勾了的/总数（${dbn}/${dbn}）" eval 'list_title | grep -q "库" && list_rows | head -1 | grep -qE "${dbn}/${dbn}" && list_rows | grep -qE "^\[x\] postgres" && list_rows | grep -qE "^\[x\] sqlmux$" && list_rows | grep -qE "^\[x\] sqlmux_play"' || { list_title; list_rows; false; }
+check "连接节点右键 → 选择库…：打开列表浮层，标题「库」，每行 [x] 库名，顶上是勾了的/总数（${dbn}/${dbn}）" eval 'list_title | grep -q "库" && list_rows | head -1 | grep -qE "${dbn}/${dbn}" && list_rows | grep -qE "^\[x\] postgres" && list_rows | grep -qE "^\[x\] sqlmux$" && list_rows | grep -qE "^\[x\] $PLAY"' || { list_title; list_rows; false; }
 key A; sleep 0.3
-check "A 全不选：DSN 里的库 sqlmux 固定勾选、不会掉（1/${dbn}），别的都是 [ ]" eval 'list_rows | head -1 | grep -qE "1/${dbn}" && list_rows | grep -qE "^\[x\] sqlmux$" && list_rows | grep -qE "^\[ \] postgres" && list_rows | grep -qE "^\[ \] sqlmux_play"' || { list_rows; false; }
+check "A 全不选：DSN 里的库 sqlmux 固定勾选、不会掉（1/${dbn}），别的都是 [ ]" eval 'list_rows | head -1 | grep -qE "1/${dbn}" && list_rows | grep -qE "^\[x\] sqlmux$" && list_rows | grep -qE "^\[ \] postgres" && list_rows | grep -qE "^\[ \] $PLAY"' || { list_rows; false; }
 key Escape; sleep 1.5
 check "esc 关闭：有改动才写回 connections.toml：databases = [\"sqlmux\"]，别的字段原样" eval 'toml_has "databases = [\"sqlmux\"]" && toml_has "name = \"doraemon\"" && toml_has "engine = \"postgres\"" && [[ $(grep -c "^\[\[connection\]\]" "$(CT)") == 1 ]] || { cat "$(CT)"; false; }'
-check "树上：连接节点后面有尾注 1/${dbn}（dim），别的库（postgres、sqlmux_play）不列" eval 'side | grep -qE "^▾ doraemon +1/${dbn}$" && ! side | grep -qE "^[▸▾] (postgres|sqlmux_play)"' || { side | head -8; false; }
+check "树上：连接节点后面有尾注 1/${dbn}（dim），别的库（postgres、$PLAY）不列" eval 'side | grep -qE "^▾ doraemon +1/${dbn}$" && ! side | grep -qE "^[▸▾] (postgres|$PLAY)"' || { side | head -8; false; }
 
 # ---- PG：数据库节点上的「选择 schema…」
 y=$(row_of "^▾ sqlmux")
@@ -62,7 +65,7 @@ _e2e_kill
 
 # ---- 重启后还是这样（配置在文件里）
 e2e_start -C "$D/c" "$E2E_BIN"; wait_for 8 flag_is alternate_on 1; sleep 3
-check "重启：树还是窄的：连接节点尾注 1/${dbn}、库节点尾注 1/2、agentable 不列、别的库不列" eval 'side | grep -qE "^▾ doraemon +1/${dbn}$" && side | grep -qE "^▾ sqlmux +1/2$" && ! side | grep -qE "^[▸▾] (agentable|postgres|sqlmux_play)"' || { side | head -8; false; }
+check "重启：树还是窄的：连接节点尾注 1/${dbn}、库节点尾注 1/2、agentable 不列、别的库不列" eval 'side | grep -qE "^▾ doraemon +1/${dbn}$" && side | grep -qE "^▾ sqlmux +1/2$" && ! side | grep -qE "^[▸▾] (agentable|postgres|$PLAY)"' || { side | head -8; false; }
 
 # ---- 取消勾选回到全部：尾注消失、文件里那两行没了
 y=$(row_of "^▾ sqlmux")
@@ -72,7 +75,7 @@ check "schema 浮层里 a 全选再 esc：库节点没有尾注，agentable 回�
 y=$(row_of "^▾ doraemon")
 menu_pick 8 $y "选择库…"
 key a; sleep 0.3; key Escape; sleep 2
-check "库浮层里 a 全选再 esc：连接节点没有尾注，别的库回来了，connections.toml 里没有 databases 了" eval '! toml_has "databases" && ! side | grep -qE "^▾ doraemon +[0-9]+/[0-9]+$" && side | grep -qE "^▸ postgres" && side | grep -qE "^▸ sqlmux_play"' || { cat "$(CT)"; side | head -12; false; }
+check "库浮层里 a 全选再 esc：连接节点没有尾注，别的库回来了，connections.toml 里没有 databases 了" eval '! toml_has "databases" && ! side | grep -qE "^▾ doraemon +[0-9]+/[0-9]+$" && side | grep -qE "^▸ postgres" && side | grep -qE "^▸ $PLAY"' || { cat "$(CT)"; side | head -12; false; }
 check "文件里连接的其他字段一直没动（name、engine、dsn 原样、只有一个 [[connection]]）" eval 'toml_has "name = \"doraemon\"" && toml_has "engine = \"postgres\"" && toml_has "$SQLMUX_TEST_PG" && [[ $(grep -c "^\[\[connection\]\]" "$(CT)") == 1 ]] || { cat "$(CT)"; false; }'
 
 # ---- 命令面板里的同名命令：作用于光标所在节点

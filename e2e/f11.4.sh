@@ -33,11 +33,15 @@ mkdir -p "$D/own"; printf '[[connection]]\nname = "doraemon"\nengine = "postgres
 hold() {
   local pid; pid=$(pgrep -P "$(t list-panes -t t -F '#{pane_pid}')" | head -1)
   python3 - "$E2E_SOCK" "$pid" "$1" "$2" "$3" <<'PY'
-import re, subprocess, sys, time
+import os, re, subprocess, sys, time
 sock, pid, n, rate, key = sys.argv[1], sys.argv[2], int(sys.argv[3]), float(sys.argv[4]), sys.argv[5]
 def cpu():
-    t = subprocess.run(["ps", "-o", "cputime=", "-p", pid], capture_output=True, text=True).stdout.strip()
-    m, s = t.split(":"); return int(m) * 60 + float(s)
+    try:  # Linux: utime + stime in clock ticks (ps cputime there is whole seconds, too coarse for 3 s)
+        f = open(f"/proc/{pid}/stat").read().rsplit(")", 1)[1].split()
+        return (int(f[11]) + int(f[12])) / os.sysconf("SC_CLK_TCK")
+    except OSError:
+        t = subprocess.run(["ps", "-o", "cputime=", "-p", pid], capture_output=True, text=True).stdout.strip()
+        return sum(float(p) * 60 ** i for i, p in enumerate(reversed(t.split(":"))))
 def tmux(*a): return subprocess.run(["tmux", "-L", sock, *a], capture_output=True, text=True).stdout
 if key.startswith("wheel:"):
     _, x, y = key.split(":"); send = lambda: tmux("send-keys", "-t", "t", "-l", f"\x1b[<65;{x};{y}M")

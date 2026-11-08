@@ -13,7 +13,7 @@ run() { edit; typ "$1"; key Enter; wait_for 8 settled; sleep 0.2; }
 pop() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5 }'; }
 items() { local g y; g=($(pop)); [[ -n ${g[0]} ]] || return 0
   for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 2)) $((g[0] + g[2] - 2)) $y | noicon | tr -s ' ' | sed 's/^ //; s/ $//'; done; }
-toasted() { grep -qF -- "$1" "$D/rec"; }                                    # toast 只显示 3 秒：看录下来的输出
+toasted() { e2e_recorded "$1"; }                                    # toast 只显示 3 秒：看录下来的输出
 fresh_rec() { : >|"$D/rec"; }
 wcur() { echo $(( $(e2e_flag cursor_x) )); }
 

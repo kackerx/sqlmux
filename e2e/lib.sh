@@ -15,6 +15,11 @@ E2E_PASS=0 E2E_FAIL=0
 # The user's PG* settings and ~/.pgpass stay out of every run.
 unset $(env | sed -n 's/^\(PG[A-Z_]*\)=.*/\1/p'); export PGPASSFILE=/nonexistent/pgpass
 
+# F21.0: GNU sort / comm collate by the locale (zh_CN skips punctuation: key.rename sorts away from key.delete), BSD ones by bytes;
+# the scripts' sort / comm / awk want code-point order and UTF-8 ctype, so the tools get C.UTF-8 whatever the user's LC_ALL is
+# (sqlmux's own language comes from config.toml, F0 lib.sh prepend_cfg, not from here).
+if locale -a 2>/dev/null | grep -qix 'c\.utf-\?8'; then export LC_ALL=C.UTF-8 LANG=C.UTF-8; fi   # macOS has no C.UTF-8 and its tools already sort bytes
+
 t() { tmux -L "$E2E_SOCK" "$@"; }
 
 # e2e_build: go build into E2E_BIN — skipped when E2E_NOBUILD is set, so a full run builds once and every
@@ -107,6 +112,7 @@ p = sys.argv[1]; s = open(p).read()
 s = re.sub(r"^\[grid\][ \t]*$", "[grid]\npreview_save = false", s, count=1, flags=re.M) if re.search(r"^\[grid\][ \t]*$", s, re.M) else s + "\n[grid]\npreview_save = false\n"
 open(p, "w").write(s)
 PY
+  path=${path//@FAKES@/$E2E_TMP/bin}   # -P "@FAKES@:$D/bin:$PATH": this run's fake security / secret-tool / pbcopy first
   t -f /dev/null set -s extended-keys "$keys" \; new-session -d -s t -x "$w" -y "$h" \
     -e XDG_CONFIG_HOME="$E2E_TMP/config" -e XDG_STATE_HOME="${state:-$E2E_TMP/state}" \
     -e XDG_DATA_HOME="${data:-$E2E_TMP/data}" -e E2E_PATH="${path:-$E2E_TMP/bin:$PATH}" -e COLORTERM=truecolor -e HISTFILE=/dev/null -e E2E_DIR="$E2E_TMP" \

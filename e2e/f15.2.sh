@@ -15,7 +15,7 @@ cat >"$D/bin/ssh" <<'SH'
 printf '%s\n' "$*" >>"$SSHLOG"
 case "$*" in
   *me@bad*) echo "me@bad: Permission denied (publickey)." >&2; echo "second line of ssh's stderr" >&2; exit 255 ;;
-  *me@polite*) trap 'kill $P 2>/dev/null; exit 0' TERM; echo $$ >>"$SSHPIDS"; nc localhost "${2##*:}" <&0 & P=$!; wait $P; exit 0 ;;   # ssh that leaves with exit status 0 when it is terminated, as ssh -W does
+  *me@polite*) trap 'kill $P 2>/dev/null; exit 0' TERM; echo $$ >>"$SSHPIDS"; exec 3<&0; nc localhost "${2##*:}" <&3 & P=$!; wait $P; exit 0 ;;   # ssh that leaves with exit status 0 when it is terminated, as ssh -W does
   *me@gone*) echo "ssh: Could not resolve hostname gone" >&2; exit 255 ;;
 esac
 echo $$ >>"$SSHPIDS"

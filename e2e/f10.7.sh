@@ -18,7 +18,7 @@ hl() { local st; st=" $(e2e_style 36 "$(row_y "$1")") "; [[ $st == *" bg=$VISUAL
 hl_c() { e2e_style 36 "$(row_y "$1")" | tr " " "\n" | grep "^bg=" | cut -d= -f2; }   # 第 N 行序号格的底色
 hl_rows() { local n out=""; for n in $(seq 1 8); do hl "$n" && out+="$n,"; done; echo "$out"; }   # 高亮着的行："1,3,"
 hl_is() { [[ $(hl_rows) == "$1" ]] || { echo "  highlighted: '$(hl_rows)', want '$1'"; false; }; }
-mark_of() { e2e_text 35 38 "$(row_y "$1")" | tr -d ' │'; }                                   # 序号格的字：行号，标记删除的是 −
+mark_of() { e2e_text 35 38 "$(row_y "$1")" | sed 's/[ │]//g'; }                                   # 序号格的字：行号，标记删除的是 −
 marks() { local n out=""; for n in $(seq 1 8); do out+="$(mark_of "$n"),"; done; echo "$out"; }
 sel_is() { local want=$1; if [[ $want == 0 ]]; then [[ $(qb) != *已选* ]] || { echo "  query bar: '$(qb)'"; false; }; else qb_has "已选 $want "; fi; }   # 统计里「已选 N」（zh；en 是 N selected）
 ids() { psql "$E2E_DB" -At -c "select string_agg(id::text, ',' order by id) from t_sel"; }

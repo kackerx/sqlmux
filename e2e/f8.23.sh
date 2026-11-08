@@ -16,7 +16,7 @@ mkdir -p "$D/c" "$D/ro"
 psql_n() { psql "$E2E_DB" -At -c "$1"; }
 files() { ls "$E2E_TMP/data/sqlmux/queries" 2>/dev/null | sed 's/\.sql$//' | tr '\n' ' '; }
 toast_text() { e2e_text 1 "$(e2e_flag pane_width)" $(( $(H) - 1 )) | sed 's/[ │└┘─┌┐]//g'; }
-toasted() { grep -qF -- "$1" "$D/rec"; }
+toasted() { e2e_recorded "$1"; }
 fresh_rec() { : >|"$D/rec"; }
 rclick() { _sgr 2 "$1" "$2" M; _sgr 2 "$1" "$2" m; sleep 0.6; }                  # 右键单击
 srow() { local y; for y in $(seq 3 43); do [[ $(e2e_text 1 32 "$y") == *" $1 "* ]] && { echo "$y"; return; }; done; }     # 侧栏里 NAME 最靠上的那一行（表在「工作区」的 tab 节点之上）
