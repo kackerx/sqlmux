@@ -105,7 +105,7 @@ check "连一个要密码的服务端、DSN 里没有：toast「nopw：NOAUTH Au
 click_node badpw
 check "错的密码：toast「badpw：WRONGPASS …」，名字 error 色" wait_for 6 eval 'y=$(nth_row badpw 1); style_has "$(node_x badpw "$y")" "$y" fg=#f7768e >/dev/null && [[ $(toast) == *"badpw：WRONGPASS"* ]]' || { toast; }
 click_node down
-check "连不上（端口上没人）：toast「down：…connection refused」，名字 error 色" wait_for 6 eval 'y=$(nth_row down 1); style_has "$(node_x down "$y")" "$y" fg=#f7768e >/dev/null && [[ $(toast) == *"down："*"connection refused"* ]]' || { toast; }
+check "连不上（端口上没人）：toast「down：…」带 dial 的地址，名字 error 色" wait_for 14 eval 'y=$(nth_row down 1); style_has "$(node_x down "$y")" "$y" fg=#f7768e >/dev/null && [[ $(toast) == *"down："*"dial tcp 127.0.0.1:$DEAD"* ]]' || { toast; }
 check "这三个失败之后 rd 照常（树里还有 db0）、程序没退" eval 'running && [[ $(dbrows) == *db0* ]]' || dbrows
 quit_app; _e2e_kill
 

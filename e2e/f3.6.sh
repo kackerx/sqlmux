@@ -85,7 +85,7 @@ check "整段粘贴是一个撤销步：u 一次恢复原样" eval '[[ $(line 1)
 # ---- 文件（§11「文件」、§13）
 sleep 1.5
 check "改动 1s 后自动保存到 XDG_DATA_HOME/sqlmux/queries/query_1.sql，内容与缓冲区一致" eval '[[ -f $CF && $(cat "$CF") == "$(printf "selectcount(*), '"'a'"' from t where id > 10; -- n\nselect 2 as b\nselect 3")" ]] || { echo "  file: $(cat "$CF" 2>&1)"; false; }'
-check "文件 0600，目录 0700" eval '[[ $(stat -f %Lp "$CF") == 600 && $(stat -f %Lp "$(dirname "$CF")") == 700 && $(stat -f %Lp "$DD/sqlmux/queries") == 700 ]]'
+check "文件 0600，目录 0700" eval '[[ $(fmode "$CF") == 600 && $(fmode "$(dirname "$CF")") == 700 && $(fmode "$DD/sqlmux/queries") == 700 ]]'
 key G; key dd; key C-s; sleep 0.3
 check "G dd 后 C-s 立刻写盘（不等 1s）" eval '[[ $(cat "$CF") == "$(printf "selectcount(*), '"'a'"' from t where id > 10; -- n\nselect 2 as b")" ]] || { echo "  file: $(cat "$CF")"; false; }'
 start -D "$DD"

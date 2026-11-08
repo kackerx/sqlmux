@@ -47,10 +47,10 @@ quit_app; fwd_stop
 e2e_start -C "$D/c" -S "$D/st2" -D "$D/data2" "$E2E_BIN --layout lay"; wait_for 6 flag_is alternate_on 1; sleep 3
 check "--layout 的连接连不上：进界面，没有退出（不是 [e2e-exit]）" eval 'running && ! screen_has "[e2e-exit"'
 check "树里 play 节点标失败（error 色）" eval 'y=$(tree_y play); [[ -n $y ]] && c=$(e2e_find play $y | cut -d" " -f1) && style_has "$c" "$y" fg=$ERR'
-check "toast 或错误页里有驱动的错误原文（connection refused）" eval 'screen_has "connection refused"'
+check "toast 或错误页里有驱动的错误原文（failed to connect to … 带地址）" eval 'screen_has "failed to connect"'
 check "表 tab 还在（标签 1: t_order，没有被关掉），查询条照旧画着" eval '[[ $(tabbar 1) == *t_order* ]] && qb_has "ORDER"'
 g=($(geom 1)); cx=$((g[0] + g[2] / 2))
-check "内容区居中画错误页：第一行是连接名 play，下面是错误原文（connection refused）" eval 'y=$(e2e_plain | awk "/^│.*│ +play +│/ && NR > 8 { print NR; exit }"); [[ -n $y ]] && c=$(e2e_find play $y | tr " " "\n" | awk -v l=${g[0]} "\$1 > l + 20 { print; exit }") && (( c > cx - 10 && c < cx + 10 )) && e2e_plain | sed -n "$((y + 1)),$((y + 3))p" | grep -q "connection refused" || { echo "  y=$y c=$c cx=$cx"; false; }'
+check "内容区居中画错误页：第一行是连接名 play，下面是错误原文（failed to connect）" eval 'y=$(e2e_plain | awk "/^│.*│ +play +│/ && NR > 8 { print NR; exit }"); [[ -n $y ]] && c=$(e2e_find play $y | tr " " "\n" | awk -v l=${g[0]} "\$1 > l + 20 { print; exit }") && (( c > cx - 10 && c < cx + 10 )) && e2e_plain | sed -n "$((y + 1)),$((y + 3))p" | grep -q "failed to connect" || { echo "  y=$y c=$c cx=$cx"; false; }'
 check "错误页是 error 色（play 那一行）" eval 'y=$(e2e_plain | awk "/^│.*│ +play +│/ && NR > 8 { print NR; exit }"); c=$(e2e_find play $y | tr " " "\n" | awk -v l=${g[0]} "\$1 > l + 20 { print; exit }"); style_has "$c" "$y" fg=$ERR'
 e2e_keys C-p; sleep 0.3; e2e_type ">表的 DDL"; sleep 0.6; key Enter; sleep 0.8
 check "错误页上从命令面板开「表的 DDL」：不崩，toast「连接还没连上」或照常报错，界面还在" eval 'running && ! screen_has "panic" && ! screen_has "[e2e-exit"'
@@ -58,13 +58,13 @@ key Escape; sleep 0.3
 # ---- 连接恢复（转发起来）：R 重试，取到数据，错误页没了
 fwd_start
 key R; sleep 2.5; wait_for 8 settled
-check "转发起来之后 R：重试，取到数据（表头有 user_id，错误页没了）" eval 'e2e_plain | grep -q "user_id" && ! screen_has "connection refused"'
+check "转发起来之后 R：重试，取到数据（表头有 user_id，错误页没了）" eval 'e2e_plain | grep -q "user_id" && ! screen_has "failed to connect"'
 check "树里 play 节点不再是失败色" eval 'y=$(tree_y play); c=$(e2e_find play $y | cut -d" " -f1); [[ $(e2e_style "$c" "$y") != *fg=$ERR* ]]'
 quit_app; fwd_stop
 
 # ---- sqlmux <连接名>：连不上也进界面（默认布局），toast，query tab 在
 e2e_start -C "$D/c" -S "$D/st3" -D "$D/data3" "$E2E_BIN play"; wait_for 6 flag_is alternate_on 1; sleep 0.8
-check "sqlmux play 连不上：进界面，toast 里是驱动的错误" eval 'running && screen_has "connection refused"'
+check "sqlmux play 连不上：进界面，toast 里是驱动的错误" eval 'running && screen_has "failed to connect"'
 sleep 3
 check "默认布局的 query tab 照旧在（② 里有 query_1），树里 play 是失败色" eval '[[ $(tabbar 2) == *query_1* ]] && y=$(tree_y play) && c=$(e2e_find play $y | cut -d" " -f1) && style_has "$c" "$y" fg=$ERR'
 
@@ -93,8 +93,8 @@ e2e_keys C-p; sleep 0.3; e2e_type ">new conn"; sleep 0.2; for i in $(seq 20); do
 key Down; sleep 0.3
 check "表单底部有 [ 保存 ] [ 测试 ] [ 取消 ] 三个按钮" eval 'e2e_plain | grep -qF "[ 保存 ] [ 测试 ] [ 取消 ]"'
 e2e_type tt; key Tab; key Tab; key Tab; e2e_type 127.0.0.1; key Tab; for i in 1 2 3 4 5 6; do e2e_keys BSpace; done; e2e_type 1; key Tab; e2e_type "$PGU"; key Tab; e2e_type "$PW"; key Tab; e2e_type sqlmux; sleep 0.3
-e2e_keys C-t; sleep 4
-check "C-t（端口 1）：底栏上方一行是驱动的错误（connection refused），表单还开着" eval 'e2e_plain | grep -q "failed to connect" && e2e_plain | grep -q "┌─ 连接"'
+e2e_keys C-t; wait_for 14 eval 'e2e_plain | grep -q "failed to connect"'
+check "C-t（端口 1）：底栏上方一行是驱动的错误（failed to connect，带 127.0.0.1:1），表单还开着" eval 'e2e_plain | grep -q "failed to connect" && e2e_plain | grep -q "127.0.0.1:1" && e2e_plain | grep -q "┌─ 连接"'
 for i in 1 2 3; do e2e_keys BTab; sleep 0.15; done; for i in 1 2 3 4 5 6; do e2e_keys BSpace; done; e2e_type "$PGP"; sleep 0.2; e2e_keys C-t; sleep 3.5
 check "改成真端口再 C-t：结果行是「已连接 · PostgreSQL <版本> · <耗时>ms」" eval 'e2e_plain | grep -qE "已连接 · PostgreSQL [0-9.]+ .*· [0-9]+ms"' || e2e_plain | grep -E '已连接|failed' | head -3
 check "测试不保存：树里没有 tt 节点，connections.toml 里也没有（取消表单后）" eval 'key Escape; sleep 0.4; key Escape; sleep 0.4; ! grep -q "name = \"tt\"" "$E2E_TMP/config/sqlmux/connections.toml" && [[ -z $(tree_y " tt") ]]'

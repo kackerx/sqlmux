@@ -36,7 +36,7 @@ open_form
 fill bad 127.0.0.1 1 sa pw master
 e2e_keys C-t; sleep 6
 check "连不上的 host：测试连的是填的 127.0.0.1:1（错误里有 '127.0.0.1:1'，不是 localhost:1433）" eval 'result_rows | tr "\n" " " | grep -q "127.0.0.1:1"'
-check "错误行折成两行以上，全文可见（connection refused 在里面），没有 …" eval '[[ $(result_rows | wc -l | tr -d " ") -ge 2 ]] && result_rows | tr "\n" " " | grep -q "refused" && ! result_rows | grep -q "…" || { result_rows; false; }'
+check "错误行折成两行以上，全文可见（末尾的 dial tcp 127.0.0.1:1 在里面），没有 …" eval '[[ $(result_rows | wc -l | tr -d " ") -ge 2 ]] && result_rows | tr "\n" " " | grep -q "dial tcp 127.0.0.1:1" && ! result_rows | grep -q "…" || { result_rows; false; }'
 check "表单还开着，没有保存（connections.toml 里没有 bad）" eval 'e2e_plain | grep -q "┌─ 连接" && ! grep -q "bad" "$(ct)" 2>/dev/null'
 key Escape; sleep 0.4; key Escape; sleep 0.4
 

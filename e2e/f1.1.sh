@@ -45,7 +45,7 @@ e2e_stop
 conns 600 "$(conn t "$DSN" 'password_env = "SQLMUX_E2E_UNSET"')"; uifail 'SQLMUX_E2E_UNSET'
 check "password_env 指向的变量没设置：toast 里写明变量名，进界面" eval 'running'
 e2e_stop
-conns 600 "$(conn t "postgres://$PGU@$PGH:1/sqlmux?sslmode=disable")"; uifail 'connection refused'
+conns 600 "$(conn t "postgres://$PGU@$PGH:1/sqlmux?sslmode=disable")"; uifail 'failed to connect'
 check "端口连不上：进界面，toast 打印连接错误" eval 'running'
 e2e_stop
 # 连接超时：没写时补成 10s；DSN 里写了就按 DSN（§8.1）。10.255.255.1 不回包
@@ -87,9 +87,9 @@ check "DSN 写了 application_name：照用" eval '[[ $(conns_of e2e-f11-$$) == 
 # ---- 明文 password：F7.5 起能直接用，程序不提醒、不改权限（原来 0644 / 0640 时 toast 警告）
 conns 644 "$(conn t "$DSN" "password = \"$PW\"")"; ui "$E2E_BIN"; sleep 1
 check "0644 的 connections.toml 带明文密码：连得上、没有「明文密码」的警告 toast" eval 'running && ! screen_has "明文密码" && ! screen_has "chmod"'
-check "文件权限不变（还是 0644，程序没有 chmod）" eval '[[ $(stat -f %Lp "$E2E_TMP/config/sqlmux/connections.toml") == 644 ]]'
+check "文件权限不变（还是 0644，程序没有 chmod）" eval '[[ $(fmode "$E2E_TMP/config/sqlmux/connections.toml") == 644 ]]'
 conns 640 "$(conn t "$DSN" "password = \"$PW\"")"; ui "$E2E_BIN"; sleep 1
-check "0640（同组可读）：同样没有警告，权限不变" eval 'running && ! screen_has "明文密码" && [[ $(stat -f %Lp "$E2E_TMP/config/sqlmux/connections.toml") == 640 ]]'
+check "0640（同组可读）：同样没有警告，权限不变" eval 'running && ! screen_has "明文密码" && [[ $(fmode "$E2E_TMP/config/sqlmux/connections.toml") == 640 ]]'
 conns 600 "$(conn t "$DSN" "password = \"$PW\"")"; ui "$E2E_BIN"; sleep 1
 check "0600：没有警告" eval 'running && ! screen_has "明文密码"'
 

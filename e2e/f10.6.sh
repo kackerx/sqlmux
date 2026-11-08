@@ -71,7 +71,7 @@ check "group 里输入 st：补全列表里是 stage（前缀匹配，没有 pro
 key Tab; sleep 0.3
 check "Tab 接受：group 是 stage" eval '[[ $(fval group) == stage ]]'
 key Tab; key Tab; e2e_type "$PG_HOST"; key Tab; clr; e2e_type "$PG_PORT"; key Tab; e2e_type "$PG_USER"; key Tab; e2e_type "$PG_PW"; key Tab; e2e_type "$PG_DB"; key Enter; sleep 1.2
-check "保存：connections.toml 里 neo 那一块有 group = \"stage\"，原来的块一个字节不动" eval 'f=$(CT); grep -A6 "name = \"neo\"" "$f" | grep -q "^group = \"stage\"" && [[ $(grep -c "^group" "$f") == 4 ]] && head -c $(stat -f %z "$D/c/connections.toml") "$f" | cmp -s - "$D/c/connections.toml"'
+check "保存：connections.toml 里 neo 那一块有 group = \"stage\"，原来的块一个字节不动" eval 'f=$(CT); grep -A6 "name = \"neo\"" "$f" | grep -q "^group = \"stage\"" && [[ $(grep -c "^group" "$f") == 4 ]] && head -c $(fsize "$D/c/connections.toml") "$f" | cmp -s - "$D/c/connections.toml"'
 check "树里 neo 排在 stage 段 s1 后面，仍在最后那条线之前" roots_is "plain,── prod,p1,p2,── stage,s1,neo,──"
 
 # ---- 没填 group：不写 group 这一行，排在没分组的那段

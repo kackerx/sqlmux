@@ -61,8 +61,8 @@ key Escape; key Escape; sleep 0.3
 write_one
 cp "$D/one.toml" "$D/real.toml"; chmod 444 "$D/real.toml"; rm -f "$(ct)"; ln -s "$D/real.toml" "$(ct)"
 cmdp conn.new; fill rosym "$PG_HOST" "$PG_PORT" "$PG_USER" "pw-sym" "$PG_DB"; key Enter; sleep 1
-check "connections.toml 是指向只读文件的符号链接：保存被拒绝（浮层不关、有错误），文件没变，链接还是链接" eval 'mgr_open && cmp -s "$D/real.toml" "$D/one.toml" && [[ -L "$(ct)" ]]'
-check "…而且没有碰钥匙串（没有 sqlmux-rosym）" eval '[[ ! -e "$E2E_TMP/keychain/sqlmux-rosym" ]]'
+e2e_skip_if_root "connections.toml 是指向只读文件的符号链接：保存被拒绝（浮层不关、有错误），文件没变，链接还是链接" || check "connections.toml 是指向只读文件的符号链接：保存被拒绝（浮层不关、有错误），文件没变，链接还是链接" eval 'mgr_open && cmp -s "$D/real.toml" "$D/one.toml" && [[ -L "$(ct)" ]]'
+e2e_skip_if_root "…而且没有碰钥匙串（没有 sqlmux-rosym）" || check "…而且没有碰钥匙串（没有 sqlmux-rosym）" eval '[[ ! -e "$E2E_TMP/keychain/sqlmux-rosym" ]]'
 key Escape; key Escape; sleep 0.3
 chmod 644 "$D/real.toml"
 
@@ -70,8 +70,8 @@ chmod 644 "$D/real.toml"
 E2E_NOLANG= E2E_NOCONN=1 start; sleep 1.5
 chmod 555 "$E2E_TMP/config/sqlmux"
 fill rodir "$PG_HOST" "$PG_PORT" "$PG_USER" "pw-dir" "$PG_DB"; key Enter; sleep 1
-check "还没有 connections.toml、配置目录是只读：保存被拒绝（浮层不关），没有建出文件" eval 'mgr_open && [[ ! -e "$(ct)" ]]'
-check "…而且没有碰钥匙串（没有 sqlmux-rodir）" eval '[[ ! -e "$E2E_TMP/keychain/sqlmux-rodir" ]]'
+e2e_skip_if_root "还没有 connections.toml、配置目录是只读：保存被拒绝（浮层不关），没有建出文件" || check "还没有 connections.toml、配置目录是只读：保存被拒绝（浮层不关），没有建出文件" eval 'mgr_open && [[ ! -e "$(ct)" ]]'
+e2e_skip_if_root "…而且没有碰钥匙串（没有 sqlmux-rodir）" || check "…而且没有碰钥匙串（没有 sqlmux-rodir）" eval '[[ ! -e "$E2E_TMP/keychain/sqlmux-rodir" ]]'
 chmod 755 "$E2E_TMP/config/sqlmux"
 key Escape; sleep 0.3
 e2e_done

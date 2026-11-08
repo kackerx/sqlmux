@@ -24,7 +24,7 @@ tstart() { e2e_start -C "$D/c" -S "$D/st" "$E2E_BIN $1"; wait_for 6 flag_is alte
 # ---- 先正常开一次再退出，留下 last.toml（后面几次都不许改它）
 tstart "play"; quit_app; e2e_stop
 check "（准备）正常退出写了 last.toml" eval '[[ -f "$(lastf)" ]]'
-cp "$(lastf)" "$D/last.orig"; M0=$(stat -f %m "$(lastf)"); sleep 1.2
+cp "$(lastf)" "$D/last.orig"; M0=$(fmtime "$(lastf)"); sleep 1.2
 
 # ---- 参数在连接名后面
 tstart "play --table t_order --where 'id < 11'"
@@ -35,7 +35,7 @@ key /; sleep 0.3; key C-r; sleep 0.6
 check "WHERE 里按 C-r：历史下拉里有命令行给的「id < 11」（和手输执行一样记进 WHERE 历史）" eval 'items | grep -qE "^id < 11( |$)" || { items; false; }'
 key Escape; key Escape; sleep 0.3
 quit_app; e2e_stop
-check "退出没有写 last.toml：内容和 mtime 都和之前一样" eval 'cmp -s "$(lastf)" "$D/last.orig" && [[ $(stat -f %m "$(lastf)") == $M0 ]]'
+check "退出没有写 last.toml：内容和 mtime 都和之前一样" eval 'cmp -s "$(lastf)" "$D/last.orig" && [[ $(fmtime "$(lastf)") == $M0 ]]'
 
 # ---- 只取一次：--where 带着开表，不先不带条件取一遍（经记下客户端 SQL 的代理看线路）
 read -r PU PW PH PP <<<"$(python3 -c 'import sys, urllib.parse as u; p = u.urlsplit(sys.argv[1]); print(p.username, p.password, p.hostname, p.port)' "$SQLMUX_TEST_PG")"

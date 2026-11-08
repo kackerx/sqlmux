@@ -69,7 +69,7 @@ e2e_keys Space; sleep 0.3
 check "空格翻开关：read_only 变成 [ ]" eval '[[ $(fval read_only) == "[ ]" ]]'
 key C-s; sleep 1
 check "C-s 保存：浮层还开着，connections.toml 里只有 read_only 这一行变了（删掉或改成 false），注释、空行、别的块一个字节不动" eval 'n=$(only_changed); [[ $n == 1 || $n == 2 ]] && ! grep -q "^read_only = true" "$(ct)" && grep -q "^# my conns" "$(ct)" && grep -q "^# seed one" "$(ct)" && grep -q "^# ---- legacy ----" "$(ct)" && grep -q "^# name = \"old\"" "$(ct)" || { diff "$D/orig.toml" "$(ct)"; false; }'
-check "权限没变（仍是 0600）" eval '[[ $(stat -f %Lp "$(ct)") == 600 ]]'
+check "权限没变（仍是 0600）" eval '[[ $(fmode "$(ct)") == 600 ]]'
 # 已连上的连接改了：toast 下次连接时生效
 key Escape; key Escape; sleep 0.3
 cmdp conn.manage; key Tab; key Tab; key Tab; key Tab; key Tab; e2e_keys Space; key C-s; sleep 1
@@ -117,7 +117,7 @@ write_conns
 SOLO= start -C "$D/c" -S "$ST"; sleep 0.5
 cmdp conn.new; fill kc "$PG_HOST" "$PG_PORT" "$PG_USER" "$PG_PW" "$PG_DB"; key Enter; sleep 1.2
 check "新建 kc（带密码）：connections.toml 前面的内容一个字节不动（原文是新文件的前缀），后面追加了 kc 这一块" eval 'cmp -s "$D/orig.toml" <(head -c "$(wc -c <"$D/orig.toml")" "$(ct)") && tail -n +"$(( $(wc -l <"$D/orig.toml") + 1 ))" "$(ct)" | grep -q "^name = \"kc\""'
-check "密码进了钥匙串（假 security 的记录 sqlmux-kc），文件里没有明文密码，写的是 password_cmd" eval '[[ $(cat "$E2E_TMP/keychain/sqlmux-kc") == "$PG_PW" ]] && ! tail -n 6 "$(ct)" | grep -qE "^password = |:sqlmux@" && tail -n 8 "$(ct)" | grep -q "^password_cmd = .*sqlmux-kc"'
+check "密码进了钥匙串（假 security 的记录 sqlmux-kc），文件里没有明文密码，写的是 password_cmd" eval '[[ $(cat "$E2E_TMP/keychain/sqlmux-kc") == "$PG_PW" ]] && ! tail -n 6 "$(ct)" | grep -qE "^password = |:sqlmux@" && tail -n 8 "$(ct)" | grep -qE "^password_cmd = .*(sqlmux-kc|sqlmux '"'"'kc'"'"')"'
 key Escape; sleep 0.4
 check "树里多了 kc" eval '[[ -n $(nrow kc) ]]'
 
@@ -125,7 +125,7 @@ check "树里多了 kc" eval '[[ -n $(nrow kc) ]]'
 cmdp conn.manage; key j; key j; key Tab; sleep 0.3
 check "（准备）选中 kc（第 3 项），光标在 name 上" eval '[[ $(fval name) == kc ]] || { echo "  sel [$(lsel)] name [$(fval name)] list: $(lrows | head -4 | tr "\n" ,)"; false; }'
 clr; e2e_type kc2; key C-s; sleep 1.5
-check "改名 kc2：文件里 name = \"kc2\"，没有 name = \"kc\"，password_cmd 改写成 sqlmux-kc2" eval 'grep -q "^name = \"kc2\"" "$(ct)" && ! grep -q "^name = \"kc\"$" "$(ct)" && grep -q "password_cmd = .*sqlmux-kc2" "$(ct)" && ! grep -q "sqlmux-kc.[ ]*-w" "$(ct)" || { tail -12 "$(ct)"; false; }'
+check "改名 kc2：文件里 name = \"kc2\"，没有 name = \"kc\"，password_cmd 改写成 sqlmux-kc2" eval 'grep -q "^name = \"kc2\"" "$(ct)" && ! grep -q "^name = \"kc\"$" "$(ct)" && grep -qE "password_cmd = .*(sqlmux-kc2|sqlmux '"'"'kc2'"'"')" "$(ct)" && ! grep -qE "sqlmux-kc.[ ]*-w|sqlmux '"'"'kc'"'"'" "$(ct)" || { tail -12 "$(ct)"; false; }'
 check "钥匙串里的项搬到了新名字（sqlmux-kc2 有，sqlmux-kc 没有了，密码没丢）" eval '[[ $(cat "$E2E_TMP/keychain/sqlmux-kc2") == "$PG_PW" && ! -e "$E2E_TMP/keychain/sqlmux-kc" ]]'
 check "doraemon 和 seed 的块（以及注释）仍是原文：文件开头 14 行没变" eval 'cmp -s <(head -n "$(wc -l <"$D/orig.toml")" "$D/orig.toml") <(head -n "$(wc -l <"$D/orig.toml")" "$(ct)")'
 
@@ -139,8 +139,8 @@ key Escape; key Escape; sleep 0.3
 # ---- 文件只读：先拒绝，钥匙串不碰
 chmod 444 "$(ct)"; cp "$(ct)" "$D/before-ro.toml"
 cmdp conn.new; fill ro1 "$PG_HOST" "$PG_PORT" "$PG_USER" "pw-ro" "$PG_DB"; key Enter; sleep 1
-check "connections.toml 只读时保存：被拒绝（浮层不关、有错误），文件没变" eval 'mgr_open && cmp -s "$D/before-ro.toml" "$(ct)"'
-check "…而且是在存钥匙串之前拒绝的：没有 sqlmux-ro1（task.md F8.16 审查时定的顺序：先预检文件，再存钥匙串，再写文件）" eval '[[ ! -e "$E2E_TMP/keychain/sqlmux-ro1" ]]'
+e2e_skip_if_root "connections.toml 只读时保存：被拒绝（浮层不关、有错误），文件没变" || check "connections.toml 只读时保存：被拒绝（浮层不关、有错误），文件没变" eval 'mgr_open && cmp -s "$D/before-ro.toml" "$(ct)"'
+e2e_skip_if_root "…而且是在存钥匙串之前拒绝的：没有 sqlmux-ro1（task.md F8.16 审查时定的顺序：先预检文件，再存钥匙串，再写文件）" || check "…而且是在存钥匙串之前拒绝的：没有 sqlmux-ro1（task.md F8.16 审查时定的顺序：先预检文件，再存钥匙串，再写文件）" eval '[[ ! -e "$E2E_TMP/keychain/sqlmux-ro1" ]]'
 chmod 644 "$(ct)"; key Escape; key Escape; sleep 0.3
 
 # ---- 改名连带 state.json 里按连接名记的东西（recent、tables 的键）

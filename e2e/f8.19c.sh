@@ -25,7 +25,7 @@ pal ">conn.manage"; key Enter; sleep 0.7
 key Tab; for i in 1 2 3 4 5 6 7; do key Tab; done; key End; e2e_type b; sleep 0.3
 check "（准备）连接管理里高级的 dsn 末尾改成 …${APP}b" eval 'e2e_plain | grep -q "application_name=${APP}b"'
 key Enter; sleep 1
-check "保存：toast「下次连接时生效」，连接没有马上重连（旧名字的两条还在）" eval 'grep -qF "下次连接时生效" "$D/rec" && [[ $(conns "$APP") == 2 ]]'
+check "保存：toast「下次连接时生效」，连接没有马上重连（旧名字的两条还在）" eval 'e2e_recorded "下次连接时生效" && [[ $(conns "$APP") == 2 ]]'
 key Escape; key Escape; sleep 0.3
 check "（准备）连接管理已关闭，焦点回到表格" eval '! e2e_plain | grep -q "┌─ 连接" && [[ $(focused) == 1 ]]'
 kill_all "$APP"

@@ -52,9 +52,9 @@ check "单击侧栏第一行右端的 ＋：打开表单" form_open
 fill first "$PG_HOST" "$PG_PORT" "$PG_USER" "$PG_PW" "$PG_DB"
 check "密码字段输入画成 *（不是明文）：这一行有 ${#PG_PW} 个 *，没有密码本身" eval 'r=$(frows | sed -n 7p); [[ $r == *"$(printf "*%.0s" $(seq 1 ${#PG_PW}))"* && $r != *"$PG_PW"* ]] || { echo "  [$r]"; false; }'
 key Enter; sleep 2.5
-check "↵ 保存：表单关掉，connections.toml 新建、权限 0600、只有这一条" eval '! form_open && f=$(CT) && [[ -f $f && $(stat -f %Lp "$f") == 600 && $(grep -c "^\[\[connection\]\]" "$f") == 1 ]] && grep -q "name = \"first\"" "$f"'
+check "↵ 保存：表单关掉，connections.toml 新建、权限 0600、只有这一条" eval '! form_open && f=$(CT) && [[ -f $f && $(fmode "$f") == 600 && $(grep -c "^\[\[connection\]\]" "$f") == 1 ]] && grep -q "name = \"first\"" "$f"'
 check "dsn 是拼出来的（密码不进 dsn）：postgres://$PG_USER@$PG_HOST:$PG_PORT/$PG_DB…" eval 'grep -q "dsn = \"postgres://$PG_USER@$PG_HOST:$PG_PORT/$PG_DB" "$(CT)" && ! grep -q "$PG_USER:" "$(CT)"'
-check "文件里没有明文密码，有 password_cmd（security find-generic-password … -s sqlmux-first -w）" eval '! grep -qE "^password *=" "$(CT)" && grep -q "password_cmd = .*sqlmux-first" "$(CT)"'
+check "文件里没有明文密码，有 password_cmd（security find-generic-password … -s sqlmux-first -w）" eval '! grep -qE "^password *=" "$(CT)" && grep -qE "password_cmd = .*(sqlmux-first|sqlmux '"'"'first'"'"')" "$(CT)"'
 check "假钥匙串里存着密码（没有碰真的钥匙串）" eval '[[ $(cat "$E2E_TMP/keychain/sqlmux-first") == "$PG_PW" ]]'
 check "保存第一个连接后连上并展开：树里有 Tables" eval 'wait_for 8 eval "e2e_plain | head -14 | grep -q \"Tables\""; e2e_plain | head -14 | grep -q "Tables"'
 open_table t_user
@@ -119,7 +119,7 @@ for i in 1 2 3 4 5 6 7 8; do key Tab; done; key Space; key Tab; key Tab; key Spa
 key Tab; e2e_type "$DSN2"; key Tab; e2e_type "echo \"$PW\""; key BTab; key BTab; key BTab; sleep 0.2
 key Enter; sleep 0.4
 check "↵ 保存：表单关掉；原来的内容一字不差留在前面（注释、末尾没换行的最后一行补了换行）" eval '! form_open && n=$(wc -c < "$D/orig.toml") && cmp -s <(head -c $n "$(CT)") "$D/orig.toml" && [[ $(tail -c +$((n + 1)) "$(CT)" | head -c 1 | xxd -p) == 0a ]]'
-check "追加的一段：name = extra、engine、dsn（填的）、password_cmd（填的，带引号），权限 0600" eval 'a=$(tail -c +$(( $(wc -c < "$D/orig.toml") + 1 )) "$(CT)"); [[ $a == *"[[connection]]"* && $a == *"name = \"extra\""* && $a == *"engine = \"postgres\""* && $a == *"dsn = \"$DSN2\""* && $a == *password_cmd*"echo "*"$PW"* && $(stat -f %Lp "$(CT)") == 600 ]] || { echo "$a"; false; }'
+check "追加的一段：name = extra、engine、dsn（填的）、password_cmd（填的，带引号），权限 0600" eval 'a=$(tail -c +$(( $(wc -c < "$D/orig.toml") + 1 )) "$(CT)"); [[ $a == *"[[connection]]"* && $a == *"name = \"extra\""* && $a == *"engine = \"postgres\""* && $a == *"dsn = \"$DSN2\""* && $a == *password_cmd*"echo "*"$PW"* && $(fmode "$(CT)") == 600 ]] || { echo "$a"; false; }'
 check "树里多出 extra：未连接（▸），保存没去连（libpq 的连接数还是 0）" eval 'y=$(nrow extra); [[ -n $y && $(e2e_text 1 32 "$y") == *"▸"* && $(psql "$SQLMUX_TEST_PG" -At -c "select count(*) from pg_stat_activity where application_name = '"'$APP2'"' and pid <> pg_backend_pid()") == 2 ]]'
 cp -p "$(CT)" "$D/saved.toml"
 e2e_stop
@@ -142,7 +142,7 @@ pal ">conn.new"; key Enter; e2e_type fresh2; key Tab; key Tab; key Tab; e2e_type
 g=($(box)); e2e_click "$(ro_x)" "$(field_y 8)"; sleep 0.3
 check "单击 read_only 的值：切成 [x]，焦点到它上面" eval '[[ $(frows | sed -n 9p) == "read_only [x]" ]] && on_field 8'
 x=$(e2e_find "保存" $(( g[1] + g[3] - 2 )) | cut -d' ' -f1); e2e_click "$x" $(( g[1] + g[3] - 2 )); sleep 0.5
-check "单击底栏的「保存」：connections.toml 不存在就新建，权限 0600，里面只有这一条；密码没填：不写 password_cmd，钥匙串里没有 sqlmux-fresh2" eval '! form_open && f=$(CT) && [[ -f $f && $(stat -f %Lp "$f") == 600 && $(grep -c "^\[\[connection\]\]" "$f") == 1 ]] && grep -q "name = \"fresh2\"" "$f" && grep -q "read_only = true" "$f" && ! grep -q password_cmd "$f" && [[ ! -e "$E2E_TMP/keychain/sqlmux-fresh2" ]]'
+check "单击底栏的「保存」：connections.toml 不存在就新建，权限 0600，里面只有这一条；密码没填：不写 password_cmd，钥匙串里没有 sqlmux-fresh2" eval '! form_open && f=$(CT) && [[ -f $f && $(fmode "$f") == 600 && $(grep -c "^\[\[connection\]\]" "$f") == 1 ]] && grep -q "name = \"fresh2\"" "$f" && grep -q "read_only = true" "$f" && ! grep -q password_cmd "$f" && [[ ! -e "$E2E_TMP/keychain/sqlmux-fresh2" ]]'
 e2e_stop
 
 # ---- 表单开着时 C-p：面板盖在上面并接管按键；表单里 C-s 保存表单，不保存背后表格的修改（自建库）
@@ -173,7 +173,7 @@ key Escape
 mkdir -p "$D/nokey"; (umask 077; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s"\n' "$SQLMUX_TEST_PG" >"$D/nokey/connections.toml")
 start -P /bin -C "$D/nokey"; pal ">conn.new"; key Enter
 fill plain "$PG_HOST" "$PG_PORT" "$PG_USER" "$PG_PW" "$PG_DB"; key Enter; sleep 1.5
-check "没有 security / secret-tool（PATH 里只有 /bin）：保存成功，密码写成明文 password，权限 0600，不写 password_cmd，有 toast" eval '! form_open && f=$(CT) && [[ $(stat -f %Lp "$f") == 600 ]] && grep -q "password = \"$PG_PW\"" "$f" && ! grep -q "password_cmd.*plain" "$f" && [[ -n $(toast_row | tr -d " ") ]]'
+check "没有 security / secret-tool（PATH 里只有 /bin）：保存成功，密码写成明文 password，权限 0600，不写 password_cmd，有 toast" eval '! form_open && f=$(CT) && [[ $(fmode "$f") == 600 ]] && grep -q "password = \"$PG_PW\"" "$f" && ! grep -q "password_cmd.*plain" "$f" && [[ -n $(toast_row | tr -d " ") ]]'
 echo "  toast: $(toast_row | sed 's/^ *//')"
 e2e_stop
 mkdir -p "$D/lock"; (umask 077; printf '[[connection]]\nname = "doraemon"\nengine = "postgres"\ndsn = "%s"\n' "$SQLMUX_TEST_PG" >"$D/lock/connections.toml")

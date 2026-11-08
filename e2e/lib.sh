@@ -168,7 +168,10 @@ e2e_keys() { t send-keys -t t "$@"; }          # tmux key names: C-c Escape Ente
 e2e_type() { t send-keys -t t -l -- "$1"; }    # literal text (-- so "-0x1.8" isn't read as a flag)
 e2e_cap()  { t capture-pane -p -t t "$@"; }    # add -e for SGR colors
 e2e_flag() { t display -p -t t "#{$1}"; }      # e.g. alternate_on cursor_flag mouse_all_flag
-e2e_record() { t pipe-pane -t t -o "cat >> '$1'"; }   # FILE — append everything the program writes to the pane
+# e2e_recorded TEXT [SECS]: TEXT is in what e2e_record wrote, waiting up to SECS (default 6). tmux 3.8's pipe-pane runs a few
+# seconds behind the screen (measured 2.7 s on WSL), so a one-shot grep right after the action misses what is already drawn.
+e2e_recorded() { wait_for "${2:-6}" grep -qF -- "$1" "$E2E_REC"; }
+e2e_record() { E2E_REC=$1; t pipe-pane -t t -o "cat >> '$1'"; }   # FILE — append everything the program writes to the pane
 e2e_resize() { t resize-window -t t -x "$1" -y "$2"; }
 clip() { cat "$E2E_TMP/clipboard" 2>/dev/null; }   # what sqlmux put on the (fake) system clipboard
 
@@ -202,6 +205,18 @@ wait_for() {
 }
 
 # check DESC CMD... — run CMD as an assertion; on failure dump the screen.
+# Portable file helpers (F21.0): scripts were written on macOS (BSD stat / md5), the suite also runs on Linux (GNU).
+# fmode F: octal mode (600); fmtime F: mtime with fractions; fsize F: bytes; md5 [-q] [FILE]: hash only, stdin when no FILE.
+if stat --version >/dev/null 2>&1; then
+  fmode() { stat -c %a "$1"; }; fmtime() { stat -c %.9Y "$1"; }; fsize() { stat -c %s "$1"; }
+else
+  fmode() { fmode "$1"; }; fmtime() { stat -f %Fm "$1"; }; fsize() { fsize "$1"; }
+fi
+md5() { [[ $1 == -q ]] && shift; if command -v md5sum >/dev/null; then md5sum "$@" | cut -d' ' -f1; else command md5 -q "$@"; fi; }
+# e2e_skip_if_root DESC: true (and prints SKIP) when running as root, where chmod does not stop anything, so "can't write /
+# can't read" assertions can't hold (the unit tests skip on Geteuid too). Use: e2e_skip_if_root "desc" || check "desc" ...
+e2e_skip_if_root() { (( EUID == 0 )) || return 1; echo "SKIP $1 (root: chmod does not stop it)"; }
+
 check() {
   local _desc=$1; shift
   if "$@"; then E2E_PASS=$((E2E_PASS + 1)); echo "PASS $_desc"
