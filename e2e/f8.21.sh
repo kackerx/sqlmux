@@ -80,6 +80,6 @@ printf 'secret' >"$E2E_TMP/data/sqlmux/queries/query_9.sql"; chmod 000 "$E2E_TMP
 nt=$(tabbar $(focused))
 if tree_to query_9; then key Enter; sleep 1; ok=1; else ok=; fi
 check "（准备）外面新放进 queries/ 的 query_9.sql 在树里（目录 mtime 变了，列表跟着变）" eval '[[ -n $ok ]]'
-check "读不了的 query_9.sql（权限 000）：树里 ↵ 打开，toast 说读取失败，不多开 tab" eval '[[ $(tabbar $(focused)) != *query_9* ]] && { screen_has "读取失败" || screen_has "denied" || screen_has "permission"; } || { echo "  tab=[$(tabbar $(focused))]"; false; }'
+e2e_skip_if_root "读不了的 query_9.sql（权限 000）：树里 ↵ 打开，toast 说读取失败，不多开 tab" || check "读不了的 query_9.sql（权限 000）：树里 ↵ 打开，toast 说读取失败，不多开 tab" eval '[[ $(tabbar $(focused)) != *query_9* ]] && { screen_has "读取失败" || screen_has "denied" || screen_has "permission"; } || { echo "  tab=[$(tabbar $(focused))]"; false; }'
 chmod 644 "$E2E_TMP/data/sqlmux/queries/query_9.sql"
 e2e_done

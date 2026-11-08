@@ -89,7 +89,7 @@ func (m ConnManager) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 	}
 	bg := uv.Style{Fg: th.Fg, Bg: th.PaneBg}
 	f.Fill(box, bg)
-	border := f.Border.Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
+	border := f.Lines(true).Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
 	border.Draw(f.Buf, box)
 	f.Text(box.Min.X+2, box.Min.Y, box.Max.X-1, " "+m.Title+" ", uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg, Attrs: uv.AttrBold})
 	in := uv.Rect(box.Min.X+1, box.Min.Y+1, box.Dx()-2, box.Dy()-2)

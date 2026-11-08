@@ -15,6 +15,11 @@ E2E_PASS=0 E2E_FAIL=0
 # The user's PG* settings and ~/.pgpass stay out of every run.
 unset $(env | sed -n 's/^\(PG[A-Z_]*\)=.*/\1/p'); export PGPASSFILE=/nonexistent/pgpass
 
+# F21.0: GNU sort / comm collate by the locale (zh_CN skips punctuation: key.rename sorts away from key.delete), BSD ones by bytes;
+# the scripts' sort / comm / awk want code-point order and UTF-8 ctype, so the tools get C.UTF-8 whatever the user's LC_ALL is
+# (sqlmux's own language comes from config.toml, F0 lib.sh prepend_cfg, not from here).
+if locale -a 2>/dev/null | grep -qix 'c\.utf-\?8'; then export LC_ALL=C.UTF-8 LANG=C.UTF-8; fi   # macOS has no C.UTF-8 and its tools already sort bytes
+
 t() { tmux -L "$E2E_SOCK" "$@"; }
 
 # e2e_build: go build into E2E_BIN — skipped when E2E_NOBUILD is set, so a full run builds once and every
@@ -107,6 +112,7 @@ p = sys.argv[1]; s = open(p).read()
 s = re.sub(r"^\[grid\][ \t]*$", "[grid]\npreview_save = false", s, count=1, flags=re.M) if re.search(r"^\[grid\][ \t]*$", s, re.M) else s + "\n[grid]\npreview_save = false\n"
 open(p, "w").write(s)
 PY
+  path=${path//@FAKES@/$E2E_TMP/bin}   # -P "@FAKES@:$D/bin:$PATH": this run's fake security / secret-tool / pbcopy first
   t -f /dev/null set -s extended-keys "$keys" \; new-session -d -s t -x "$w" -y "$h" \
     -e XDG_CONFIG_HOME="$E2E_TMP/config" -e XDG_STATE_HOME="${state:-$E2E_TMP/state}" \
     -e XDG_DATA_HOME="${data:-$E2E_TMP/data}" -e E2E_PATH="${path:-$E2E_TMP/bin:$PATH}" -e COLORTERM=truecolor -e HISTFILE=/dev/null -e E2E_DIR="$E2E_TMP" \
@@ -168,7 +174,10 @@ e2e_keys() { t send-keys -t t "$@"; }          # tmux key names: C-c Escape Ente
 e2e_type() { t send-keys -t t -l -- "$1"; }    # literal text (-- so "-0x1.8" isn't read as a flag)
 e2e_cap()  { t capture-pane -p -t t "$@"; }    # add -e for SGR colors
 e2e_flag() { t display -p -t t "#{$1}"; }      # e.g. alternate_on cursor_flag mouse_all_flag
-e2e_record() { t pipe-pane -t t -o "cat >> '$1'"; }   # FILE — append everything the program writes to the pane
+# e2e_recorded TEXT [SECS]: TEXT is in what e2e_record wrote, waiting up to SECS (default 6). tmux 3.8's pipe-pane runs a few
+# seconds behind the screen (measured 2.7 s on WSL), so a one-shot grep right after the action misses what is already drawn.
+e2e_recorded() { wait_for "${2:-6}" grep -qF -- "$1" "$E2E_REC"; }
+e2e_record() { E2E_REC=$1; t pipe-pane -t t -o "cat >> '$1'"; }   # FILE — append everything the program writes to the pane
 e2e_resize() { t resize-window -t t -x "$1" -y "$2"; }
 clip() { cat "$E2E_TMP/clipboard" 2>/dev/null; }   # what sqlmux put on the (fake) system clipboard
 
@@ -202,6 +211,18 @@ wait_for() {
 }
 
 # check DESC CMD... — run CMD as an assertion; on failure dump the screen.
+# Portable file helpers (F21.0): scripts were written on macOS (BSD stat / md5), the suite also runs on Linux (GNU).
+# fmode F: octal mode (600); fmtime F: mtime with fractions; fsize F: bytes; md5 [-q] [FILE]: hash only, stdin when no FILE.
+if stat --version >/dev/null 2>&1; then
+  fmode() { stat -c %a "$1"; }; fmtime() { stat -c %.9Y "$1"; }; fsize() { stat -c %s "$1"; }
+else
+  fmode() { stat -f %Lp "$1"; }; fmtime() { stat -f %Fm "$1"; }; fsize() { stat -f %z "$1"; }
+fi
+md5() { [[ $1 == -q ]] && shift; if command -v md5sum >/dev/null; then md5sum "$@" | cut -d' ' -f1; else command md5 -q "$@"; fi; }
+# e2e_skip_if_root DESC: true (and prints SKIP) when running as root, where chmod does not stop anything, so "can't write /
+# can't read" assertions can't hold (the unit tests skip on Geteuid too). Use: e2e_skip_if_root "desc" || check "desc" ...
+e2e_skip_if_root() { (( EUID == 0 )) || return 1; echo "SKIP $1 (root: chmod does not stop it)"; }
+
 check() {
   local _desc=$1; shift
   if "$@"; then E2E_PASS=$((E2E_PASS + 1)); echo "PASS $_desc"

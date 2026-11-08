@@ -98,7 +98,7 @@ chmod 444 "$D/ro.db"
 lstart "$E2E_BIN $D/ro.db"
 open_table t_user; wait_for 8 settled
 key l; edit RO2; key Enter; sleep 0.3; save
-check "文件权限只读（chmod 444）：同样报 readonly，库里没变" eval 'e2e_plain | grep -qi "readonly" && [[ $(sqlite3 "$D/ro.db" "select name from t_user where id = 1") == zed ]]'
+e2e_skip_if_root "文件权限只读（chmod 444）：同样报 readonly" || check "文件权限只读（chmod 444）：同样报 readonly，库里没变" eval 'e2e_plain | grep -qi "readonly" && [[ $(sqlite3 "$D/ro.db" "select name from t_user where id = 1") == zed ]]'
 _e2e_kill
 
 e2e_start "$E2E_BIN $D/nope.db"; wait_for 5 flag_is alternate_on 1; sleep 1; key C-h; key Enter; sleep 2

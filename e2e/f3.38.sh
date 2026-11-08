@@ -49,7 +49,7 @@ key u; key u
 
 # ---- 剪贴板为空时 "+p 什么都不做：出错语句的红 ▶ 还在，不触发自动保存
 setsql "select nosuch"; key Enter; wait_for 8 eval '[[ $(bar) != *busy* ]]'; sleep 1.5
-mtime() { stat -f %Fm "$E2E_TMP/data/sqlmux/queries/query_1.sql"; }   # F5.11 起不按连接分目录；文件不在时没有输出（check 里要求非空）
+mtime() { fmtime "$E2E_TMP/data/sqlmux/queries/query_1.sql"; }   # F5.11 起不按连接分目录；文件不在时没有输出（check 里要求非空）
 rm -f "$E2E_TMP/clipboard"; m0=$(mtime); e2e_type '"+p'; sleep 1.5
 check "剪贴板为空时 \"+p：文字不变，红 ▶ 还在，query 文件没有重写" eval '[[ -n $m0 && $(line 1) == "select nosuch" && $(mtime) == "$m0" ]] && style_has 99 2 fg=#f7768e'
 

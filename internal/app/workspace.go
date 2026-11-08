@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"maps"
 	"os"
+	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
@@ -283,7 +284,15 @@ type Conn struct {
 	// place of the index when the keys of a write are not known, or the tree had R:
 	// the index is used till it is done (F20.1, F20.8)
 	index, building *keyIndex
-	epoch           int // counts the FLUSHes: what was asked of the keys before one is not of the db now
+	// keysAfterCommands is that the tree's keys are read once the commands are in: the highlight and the
+	// completion want them, and the tree's batches before them would hold them up (F21.7)
+	keysAfterCommands bool
+	// indexDirty is that the index changed in memory and its file is to be written:
+	// by the timer started when it changed, or when the program ends (F21.4)
+	indexDirty bool
+	// indexErr is why the index could not be made, a line, till one is made again (F21.7)
+	indexErr string
+	epoch    int // counts the FLUSHes: what was asked of the keys before one is not of the db now
 }
 
 // inDB is the connection to database name: c itself for the one it is dialed
@@ -303,6 +312,29 @@ func (c *Conn) inDB(name string) *Conn {
 		c.dbs[name].parent = c
 	}
 	return c.dbs[name]
+}
+
+// schemaTarget is the connection and the schema that v names, written as the
+// query title's dropdown does (F21.3): a Redis db's number; a schema of c;
+// for PG and SQL Server `database.schema`, a database of the server, whose
+// schemas are not known till its catalog is in, so schema is not looked up
+// there. ok is false for none.
+func (c *Conn) schemaTarget(v string) (target *Conn, schema string, ok bool) {
+	if c.redis() { // shortcut: any db number, one past the server's databases fails the dial; check CONFIG GET databases if that bites
+		if n, err := strconv.Atoi(strings.TrimPrefix(v, "db")); err == nil && n >= 0 {
+			return c.root().inDB(strconv.Itoa(n)), "", true
+		}
+		return nil, "", false
+	}
+	if slices.Contains(c.Schemas, v) {
+		return c, v, true
+	}
+	if db, sc, found := strings.Cut(v, "."); found && c.Spec.Kind() != "mysql" && (db == c.root().DB || slices.Contains(c.root().databaseNames(), db)) {
+		if t := c.root().inDB(db); t != c || slices.Contains(c.Schemas, sc) {
+			return t, sc, true
+		}
+	}
+	return nil, "", false
 }
 
 // root is the connection of connections.toml that c is, or is a database of.
@@ -1115,6 +1147,7 @@ func freeQueryName(taken func(string) bool) string {
 
 // Close closes every session's connections, as the program ends.
 func (a *App) Close() {
+	a.flushIndexes()
 	for _, s := range a.sessions {
 		s.Close()
 	}
@@ -1312,6 +1345,16 @@ func (a *App) focusSide(side string) {
 	}
 	if id, ok := neighbor(rects, win.Focus, side, a.recent); ok {
 		win.focus(id)
+	} else if a.outerNav && os.Getenv("TMUX") != "" { // none on that side: the outer tmux's (F21.6)
+		tmuxSelectPane(map[string]string{"left": "-L", "down": "-D", "up": "-U", "right": "-R"}[side])
+	}
+}
+
+// tmuxSelectPane is `tmux select-pane flag`, not waited for: a failure is of no use to say, the
+// focus stays in sqlmux. A variable for the tests.
+var tmuxSelectPane = func(flag string) {
+	if c := exec.Command("tmux", "select-pane", flag); c.Start() == nil {
+		go func() { _ = c.Wait() }()
 	}
 }
 

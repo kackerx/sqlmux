@@ -25,7 +25,8 @@ type queryDir struct {
 // when the directory changed: a query file coming and going changes it,
 // what is written in one does not. The tree asks on every frame.
 // ponytail: a change in the same tick of the file system's clock as the
-// read before it is not seen; drop the read in rename and delete if that shows.
+// read before it is not seen (deleteQuery drops the read itself: on WSL a test
+// deleted a file within the tick of the listing before it).
 func (a *App) queryFiles() []string {
 	dir := filepath.Dir(config.QueryPath("x"))
 	if fi, err := os.Stat(dir); a.files.read && err == nil && fi.ModTime().Equal(a.files.at) {
@@ -108,6 +109,7 @@ func (a *App) deleteQuery() tea.Cmd {
 			if err := config.DeleteQuery(name); err != nil {
 				return a.showToast(err.Error())
 			}
+			a.files.read = false
 			a.dropQueryTabs(name)
 			delete(a.state.Queries, name)
 			a.clampTree()

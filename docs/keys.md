@@ -1,6 +1,6 @@
 # Keys
 
-Every default key of sqlmux v0.9.0, generated from `sqlmux keys --format toml` by `docs/keys.py`; do not edit by hand.
+Every default key of sqlmux v0.10.0, generated from `sqlmux keys --format toml` by `docs/keys.py`; do not edit by hand.
 The leader is `<Space>`. Keys use vim notation (`<C-p>` is Ctrl+P, `<CR>` Enter, `<lt>` the `<` key, `<Leader>c` the leader then `c`).
 An action with no key runs from the command palette (`<C-p>`, then `>`), or bind it yourself in `keymaps.toml`:
 see [Configuration](config.md#keymapstoml).

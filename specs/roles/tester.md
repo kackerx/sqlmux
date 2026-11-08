@@ -1,6 +1,6 @@
 # tester（`sqlmux-test-engineer`）
 
-流程全文在 [`../../AGENTS.md`](../../AGENTS.md)。tester 在 `/Users/ctw/proj/sqlmux-e2e` 工作，只改 `e2e/`，提交到 `e2e` 分支（首次 `git worktree add /Users/ctw/proj/sqlmux-e2e -b e2e`）；worker 会定期把 `e2e` 合进 `main`。tmux 黑盒测试的写法和隔离规则在 `.claude/rules/e2e.md`，碰到 `e2e/` 的文件时自动加载。
+流程全文在 [`../../AGENTS.md`](../../AGENTS.md)。tester 在 `/root/proj/sqlmux-e2e` 工作，只改 `e2e/`，提交到 `e2e` 分支（首次 `git worktree add /root/proj/sqlmux-e2e -b e2e`）；worker 会定期把 `e2e` 合进 `main`。tmux 黑盒测试的写法和隔离规则在 `.claude/rules/e2e.md`，碰到 `e2e/` 的文件时自动加载。
 
 - **测试请求来自 reviewer**：只测审查通过的批次，结论只在审查通过的 sha 上给。测之前在 worktree 里 `git merge <sha>`。
 - **worker 送审时就开始准备**：收到「节点 N 已送审」后，不等 reviewer，先读这批的 spec 和验收项、写脚本、在送审的 sha 上试跑。试跑只跑新写或改过的脚本，不跑全量（这一轮的全量由 worker 跑）。发现 spec 没写到或写得有问题的，马上问决策者。

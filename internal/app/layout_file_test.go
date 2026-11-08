@@ -795,19 +795,22 @@ func TestOpenAtStart(t *testing.T) {
 	}
 	data := func(a *App) *Pane { return a.win().Root.Leaves()[0] }
 	for _, tc := range []struct {
-		name, table, where string
-		want               string // the data pane's tab, "" for none
-		schema             string
-		toast              string
+		name, table, where, in string // in is --schema
+		want                   string // the data pane's tab, "" for none
+		schema                 string
+		toast                  string
 	}{
-		{"default schema", "t_order", "id < 11", "t_order", "public", ""},
-		{"schema.table", "agentable.planner", "", "planner", "agentable", ""},
-		{"not in the default schema", "planner", "", "", "", "doraemon：没有表 planner"},
-		{"exact name", "T_ORDER", "", "", "", "doraemon：没有表 T_ORDER"},
+		{"default schema", "t_order", "id < 11", "", "t_order", "public", ""},
+		{"schema.table", "agentable.planner", "", "", "planner", "agentable", ""},
+		{"not in the default schema", "planner", "", "", "", "", "doraemon：没有表 planner"},
+		{"exact name", "T_ORDER", "", "", "", "", "doraemon：没有表 T_ORDER"},
+		{"--schema", "planner", "", "agentable", "planner", "agentable", ""},
+		{"--schema that has no such table", "t_order", "", "agentable", "", "", "doraemon：没有表 t_order"},
+		{"--schema that is not there", "t_order", "", "nope", "t_order", "public", "doraemon：没有 schema nope"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a := sized(160, 45, "nerd")
-			if err := a.OpenAtStart(tc.table, tc.where); err != nil {
+			if err := a.OpenAtStart(tc.table, tc.where, tc.in); err != nil {
 				t.Fatal(err)
 			}
 			if len(data(a).Tabs) != 0 {
@@ -841,7 +844,7 @@ func TestOpenAtStart(t *testing.T) {
 
 	t.Run("the catalog fails", func(t *testing.T) {
 		a := sized(160, 45, "nerd")
-		_ = a.OpenAtStart("t_order", "")
+		_ = a.OpenAtStart("t_order", "", "")
 		a.Update(catalogMsg{conn: a.sess.start, err: errors.New("boom")})
 		a.Update(catalog(a))
 		if len(data(a).Tabs) != 0 {
@@ -854,10 +857,10 @@ func TestOpenAtStart(t *testing.T) {
 		c.State, c.Main, c.Meta = connReady, db.NewWorker(noDB{}), db.NewWorker(noDB{})
 		a := sized(160, 45, "nerd")
 		a.sess = newSession("cache", []*Conn{c}, c, config.QueryName(1))
-		if err := a.OpenAtStart("hash:user", "x = 1"); err == nil {
+		if err := a.OpenAtStart("hash:user", "x = 1", ""); err == nil {
 			t.Error("--where on a Redis connection is no usage")
 		}
-		if err := a.OpenAtStart("hash:user", ""); err != nil {
+		if err := a.OpenAtStart("hash:user", "", ""); err != nil {
 			t.Fatal(err)
 		}
 		_ = a.resolvePending(c)
@@ -869,8 +872,150 @@ func TestOpenAtStart(t *testing.T) {
 
 	t.Run("no connection", func(t *testing.T) {
 		a := emptyApp(t)
-		if err := a.OpenAtStart("t", ""); err == nil {
+		if err := a.OpenAtStart("t", "", ""); err == nil {
 			t.Error("a table of no connection")
+		}
+	})
+}
+
+// --schema is a schema of the connection, a database's of the server for PG
+// and SQL Server, a Redis db's number; one that is not there is none, and
+// SQL Server's database a dot away is not looked up before its catalog is in
+// (F21.3).
+func TestSchemaTarget(t *testing.T) {
+	pg := readyConn("pg")
+	pg.Schemas, pg.DB, pg.Databases = []string{"public", "other.s"}, "main", []string{"main", "db2"}
+	rd := newConn(config.Connection{Name: "cache", Engine: "redis", DSN: "redis://localhost"})
+	rd.DB = "0"
+	lost := readyConn("lost") // the listing of databases failed: the dialed one is still there
+	lost.DB, lost.Schemas = "main", []string{"public"}
+	my := newConn(config.Connection{Name: "my", Engine: "mysql"})
+	my.Schemas, my.DB = []string{"shop", "play"}, "shop"
+	for _, tc := range []struct {
+		c      *Conn
+		v      string
+		target *Conn
+		schema string
+		ok     bool
+	}{
+		{pg, "public", pg, "public", true},
+		{pg, "other.s", pg, "other.s", true}, // a schema with a dot in it is a schema first
+		{pg, "main.public", pg, "public", true},
+		{pg, "main.nope", nil, "", false},
+		{lost, "main.public", lost, "public", true},
+		{pg, "db2.nope", pg.inDB("db2"), "nope", true}, // looked up when db2's catalog is in
+		{pg, "nope", nil, "", false},
+		{pg, "nodb.public", nil, "", false},
+		{rd, "0", rd, "", true},
+		{rd, "1", rd.inDB("1"), "", true},
+		{rd, "db1", rd.inDB("1"), "", true},
+		{rd, "x", nil, "", false},
+		{rd, "-1", nil, "", false},
+		{my, "play", my, "play", true},
+		{my, "nope", nil, "", false},
+		{my, "shop.play", nil, "", false}, // MySQL's databases are its schemas: no dot
+	} {
+		if target, schema, ok := tc.c.schemaTarget(tc.v); target != tc.target || schema != tc.schema || ok != tc.ok {
+			t.Errorf("%s --schema %q: %p %q %v, want %p %q %v", tc.c.Spec.Name, tc.v, target, schema, ok, tc.target, tc.schema, tc.ok)
+		}
+	}
+}
+
+// --sql is the window of one query pane, the statement in a new numbered
+// query that is run as ↵ runs it once the catalog is in, in the --schema, or
+// in the connection's with a word when there is none; all its statements; and
+// it is not run again by a later catalog (F21.3).
+func TestOpenSQLAtStart(t *testing.T) {
+	catalog := func(a *App) tea.Msg {
+		c := a.sess.start
+		return catalogMsg{conn: c, schemas: c.Schemas, current: "public", tables: c.Tables}
+	}
+	for _, tc := range []struct {
+		name, sql, schema string
+		want              string // the schema it runs in
+		toast             string
+		stmts             int
+	}{
+		{"default schema", "select 1", "", "public", "", 1},
+		{"--schema", "select * from planner", "agentable", "agentable", "", 1},
+		{"--schema that is not there", "select 1", "nope", "public", "doraemon：没有 schema nope", 1},
+		{"statements", "select 1;\nselect 2;", "", "public", "", 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := sized(160, 45, "nerd")
+			if err := a.OpenSQLAtStart(tc.sql, tc.schema); err != nil {
+				t.Fatal(err)
+			}
+			w := a.win()
+			ps := w.Root.Leaves()
+			q := queryOf(ps[0])
+			if len(a.sess.Windows) != 1 || len(ps) != 1 || w.Root.Pane != ps[0] || q == nil || len(ps[0].Tabs) != 1 || w.Focus != ps[0].ID || w.Result != nil {
+				t.Fatalf("windows %d, panes %d, query %v", len(a.sess.Windows), len(ps), q)
+			}
+			if q.name == config.QueryName(1) || a.queryOpen(config.QueryName(1), nil) || strings.Join(q.ed.Lines(), "\n") != tc.sql || q.ver != 0 {
+				t.Errorf("query %s, text %q, changes %d", q.name, q.ed.Lines(), q.ver)
+			}
+			if q.running != nil {
+				t.Fatal("run before the catalog")
+			}
+			a.Update(catalog(a))
+			if q.running == nil || len(q.running.stmts) != tc.stmts || q.schema != tc.want || q.running.schema != tc.want || a.toast != tc.toast || a.want != nil {
+				t.Errorf("running %v, schema %q, toast %q", q.running, q.schema, a.toast)
+			}
+			if w.Result == nil {
+				t.Error("no result area")
+			}
+		})
+	}
+
+	t.Run("no connection", func(t *testing.T) {
+		if err := emptyApp(t).OpenSQLAtStart("select 1", ""); err == nil {
+			t.Error("a statement of no connection")
+		}
+	})
+
+	t.Run("a read only connection keeps a write back", func(t *testing.T) {
+		a := sized(160, 45, "nerd")
+		a.sess.start.readOnly = true
+		_ = a.OpenSQLAtStart("delete from t_order where id = 1", "")
+		a.Update(catalogMsg{conn: a.sess.start, schemas: a.sess.start.Schemas, current: "public", tables: a.sess.start.Tables})
+		if q := queryOf(a.win().Root.Leaves()[0]); q.running != nil || a.win().Result == nil {
+			t.Errorf("running %v", q.running)
+		}
+	})
+
+	t.Run("redis waits for its commands", func(t *testing.T) {
+		c := newConn(config.Connection{Name: "cache", Engine: "redis", DSN: "redis://localhost"})
+		c.State, c.Main, c.Meta = connReady, db.NewWorker(noDB{}), db.NewWorker(noDB{})
+		a := sized(160, 45, "nerd")
+		a.sess = newSession("cache", []*Conn{c}, c, config.QueryName(1))
+		a.sessions = []*Session{a.sess}
+		_ = a.OpenSQLAtStart("dbsize", "")
+		q := queryOf(a.sess.Windows[0].Root.Leaves()[0])
+		_ = a.resolvePending(c) // the keys came first: what writes is not known
+		if q.running != nil || a.want == nil {
+			t.Fatalf("run before the commands: %v, %v", q.running, a.want)
+		}
+		a.Update(cmdsMsg{conn: c})
+		if q.running == nil || a.want != nil {
+			t.Errorf("after the commands: %v, %v", q.running, a.want)
+		}
+	})
+
+	t.Run("another database of the server", func(t *testing.T) {
+		a := sized(160, 45, "nerd")
+		c := a.sess.start
+		c.Databases = []string{"doraemon", "db2"}
+		_ = a.OpenSQLAtStart("select 1", "db2.s")
+		a.Update(catalogMsg{conn: c, schemas: c.Schemas, current: "public", tables: c.Tables, dbs: c.Databases})
+		q, other := queryOf(a.win().Root.Leaves()[0]), c.inDB("db2")
+		if q.running != nil || a.want == nil || a.want.conn != other || other.State != connConnecting {
+			t.Fatalf("running %v, waiting %v, state %v", q.running, a.want, other.State)
+		}
+		other.State, other.Main, other.Meta = connReady, db.NewWorker(noDB{}), db.NewWorker(noDB{})
+		a.Update(catalogMsg{conn: other, schemas: []string{"s", "t"}, current: "s"})
+		if q.running == nil || q.conn != other || q.schema != "s" || a.toast != "" {
+			t.Errorf("running %v, conn %v, schema %q, toast %q", q.running, q.conn.Spec.Name, q.schema, a.toast)
 		}
 	})
 }

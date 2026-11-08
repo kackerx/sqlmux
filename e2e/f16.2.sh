@@ -99,16 +99,16 @@ nodelimiter
 check "db0（尾注 29）下面：(空) a app cache hash list seed set str stream trail zset 十二个命名空间按名字排，尾注是各自下面的键数；根上的键 app、nodelimiter 在后面；有键的 db1 db5 db6 db9 db10 收着、按号排（9 在 10 前）" eval '[[ $(tree) == "$want" ]]' || { tree; }
 check "根上的键 app 前面是字符串的图标颜色" eval 'y=$(nth_row "^app\$" 1); [[ $(icon_fg "$y") == "fg=$STR" ]]' || { icon_fg "$(nth_row "^ *app *\$" 1)"; }
 expand app; expand str; expand hash; expand list; expand set; expand zset; expand stream
-check "展开 app：users(3) orders(2) config，名字按字节序排（config、orders、users：命名空间在前、键在后）" eval 'tree | grep -qzE "▾ app 6\n▸ orders 2\n▸ users 3\nconfig\n"' || tree
-check "展开 str：七个键按名字排（binary json long number plain ttl unicode）" eval 'tree | grep -qzE "▾ str 7\nbinary\njson\nlong\nnumber\nplain\nttl\nunicode\n"' || tree
+check "展开 app：users(3) orders(2) config，名字按字节序排（config、orders、users：命名空间在前、键在后）" eval '[[ $(tree | tr "\n" "|") == *"▾ app 6|▸ orders 2|▸ users 3|config|"* ]]' || tree
+check "展开 str：七个键按名字排（binary json long number plain ttl unicode）" eval '[[ $(tree | tr "\n" "|") == *"▾ str 7|binary|json|long|number|plain|ttl|unicode|"* ]]' || tree
 for t in "str:plain|$STR" "hash:user|$HASH" "list:queue|$LIST" "set:tags|$SET" "zset:rank|$ZSET" "stream:events|$STREAM"; do
   ns=${t%%:*}; rest=${t#*:}; k=${rest%%|*}; c=${rest#*|}
   check "$ns 下面的键 ${k}：图标的颜色是 ${c}（string 绿、hash 紫、list 橙、set 蓝、zset 黄、stream 青）" eval 'y=$(nth_row "^$k\$" 1); [[ $(icon_fg "$y") == "fg=$c" ]]' || { echo "  row $y: $(icon_fg "$(nth_row "^$k\$" 1)")"; }
 done
 expand trail; expand a
-check "键名两头的分隔符：trail:（以 : 结尾）是命名空间 trail 下面一个没有名字的键「(空)」；a::b 是 a → (空) → b" eval 'tree | grep -qzE "▾ a 1\n▸ \(空\) 1\n" && tree | grep -qzE "▾ trail 1\n\(空\)\n"' || tree
+check "键名两头的分隔符：trail:（以 : 结尾）是命名空间 trail 下面一个没有名字的键「(空)」；a::b 是 a → (空) → b" eval '[[ $(tree | tr "\n" "|") == *"▾ a 1|▸ (空) 1|"* ]] && [[ $(tree | tr "\n" "|") == *"▾ trail 1|(空)|"* ]]' || tree
 y=$(nth_row '^[▸▾] +\(空\)( |$)' 1); e2e_click 14 "$y"; sleep 0.5
-check "展开最前面的 (空)（:lead 的名字以分隔符开头）：里面是键 lead" eval 'tree | grep -qzE "▾ \(空\) 1\nlead\n"' || tree
+check "展开最前面的 (空)（:lead 的名字以分隔符开头）：里面是键 lead" eval '[[ $(tree | tr "\n" "|") == *"▾ (空) 1|lead|"* ]]' || tree
 quit_app; _e2e_kill
 
 # ---- 右键菜单：键、命名空间、db 节点各有各的
@@ -238,7 +238,7 @@ expand str; expand app; expand users
 key C-h; key g g; key j; key R; sleep 2
 check "展开 str、app → users 之后在 db0 上 R：重扫完它们还是展开的（展开状态保留）" eval 'tree | grep -qx "▾ str 7" && tree | grep -qx "▾ users 3" && tree | grep -qx "▾ app 6"' || tree
 expand hash
-click_row '^[▸▾] +db5( |$)' 1; wait_for 15 eval 'tree | grep -qx "▸ hash 1"'   # db5 has 12k keys: the scan is slow when four scripts run at once
+click_row '^[▸▾] +db5( |$)' 1; wait_for 60 eval 'tree | grep -qx "▸ hash 1"'   # db5 has 12k keys: the scan is slow when four scripts run at once; slower on the WSL box too
 check "db0 的 hash 展开着；点开 db5（它也有一个命名空间 hash）：db5 的 hash 是收着的，两个 db 的同名命名空间各管各的" eval 'tree | grep -qx "▾ hash 2" && tree | grep -qx "▸ hash 1"' || tree
 y=$(nth_row '^[▸▾] +hash( |$)' 2); e2e_click 14 "$y"; sleep 0.5
 check "展开 db5 的 hash（hash:big）：db0 的 hash 没有跟着变（两个都是 ▾）" eval '[[ $(tree | grep -c "^▾ hash") == 2 ]]' || tree

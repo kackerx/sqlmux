@@ -204,7 +204,7 @@ func (p TimePick) Draw(f *Frame, box uv.Rectangle) {
 	}
 	f.Region(box, Target{}) // a click inside is not outside
 	f.Fill(box, uv.Style{Bg: th.PaneBg})
-	border := f.Border.Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
+	border := f.Lines(true).Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
 	border.Draw(f.Buf, box)
 	segs := TimeSegs(p.Kind, p.Text)
 	st := uv.Style{Fg: th.Fg, Bg: th.PaneBg}

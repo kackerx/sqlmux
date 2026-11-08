@@ -154,6 +154,14 @@ func LoadConnections(name string) (conns []Connection, start int, err error) {
 	return conns, start, nil
 }
 
+// DefaultStart is the connection of conns that a start naming none opens on:
+// def, else the first when def is empty or none of them (§14, F21.2). The
+// one place that picks it: --table, --sql and the default layout all open
+// through it.
+func DefaultStart(conns []Connection, def string) int {
+	return max(slices.IndexFunc(conns, func(c Connection) bool { return c.Name == def }), 0)
+}
+
 // parseConnections is the connections text, the file at path, holds, each
 // checked.
 func parseConnections(path, text string) ([]Connection, error) {

@@ -145,9 +145,35 @@ func TestKeysTOMLReference(t *testing.T) {
 // Startup errors name the file to fix (§14).
 func TestOpenWithoutConnections(t *testing.T) {
 	writeConfig(t, "config.toml", "")
-	_, err := open("")
+	_, err := open("", "")
 	if err == nil || !strings.Contains(err.Error(), filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "sqlmux", "connections.toml")) {
 		t.Fatalf("no connections.toml: %v", err)
+	}
+}
+
+// A start that names no connection opens on default_connection, the first
+// when it is not written; one named still wins; one that is not in
+// connections.toml is the first, said once. --table, --sql and the default
+// layout all open through open() (F21.2, §14「启动」).
+func TestDefaultConnection(t *testing.T) {
+	writeConfig(t, "config.toml", "")
+	writeConfig(t, "connections.toml", "[[connection]]\nname = \"a\"\nengine = \"sqlite\"\ndsn = \"a.db\"\n[[connection]]\nname = \"b\"\nengine = \"sqlite\"\ndsn = \"b.db\"\n[[connection]]\nname = \"c\"\nengine = \"sqlite\"\ndsn = \"c.db\"\n")
+	for _, c := range []struct{ name, def, want string }{
+		{"", "", "a"}, {"", "b", "b"}, {"", "nope", "a"}, {"c", "b", "c"},
+	} {
+		if sess, err := open(c.name, c.def); err != nil || sess.Name != c.want {
+			t.Errorf("open(%q, %q): %v, %v, want %s", c.name, c.def, sess, err, c.want)
+		}
+	}
+	if sess, _, err := startSession("", "", "b", nil); err != nil || sess.Name != "b" {
+		t.Errorf("the default layout: %v, %v", sess, err)
+	}
+	for def, want := range map[string]bool{"": false, "b": false, "nope": true} {
+		cfg := config.Default()
+		cfg.DefaultConnection = def
+		if got := strings.Contains(startNotes(cfg), "default_connection: no connection nope"); got != want {
+			t.Errorf("default_connection %q: note %v, want %v: %q", def, got, want, startNotes(cfg))
+		}
 	}
 }
 
@@ -214,6 +240,9 @@ func TestRunArguments(t *testing.T) {
 	if err := run([]string{"a", "b"}); err == nil || !strings.Contains(err.Error(), "usage") {
 		t.Errorf("two connections: %v", err)
 	}
+	if !strings.Contains(usage, "--sql") || !strings.Contains(usage, "--schema") {
+		t.Errorf("the usage line does not list --sql and --schema: %s", usage)
+	}
 }
 
 // The options are read before and after the connection, and what they say
@@ -234,6 +263,16 @@ func TestParseArgs(t *testing.T) {
 		{[]string{"--where", "a"}, cli{}, "--where needs --table"},
 		{[]string{"play", "--where", "a"}, cli{}, "--where needs --table"},
 		{[]string{"--table", "t", "--layout", "x"}, cli{}, "--table or --layout"},
+		{[]string{"seed", "--sql", "select 1"}, cli{name: "seed", sql: "select 1"}, ""},
+		{[]string{"--sql", "select 1", "seed", "--schema", "s"}, cli{name: "seed", sql: "select 1", schema: "s"}, ""},
+		{[]string{"--sql=select 1", "--schema=db.s"}, cli{sql: "select 1", schema: "db.s"}, ""},
+		{[]string{"--table", "t", "--schema", "s", "play"}, cli{name: "play", table: "t", schema: "s"}, ""},
+		{[]string{"--sql", "select 1", "--table", "t"}, cli{}, "--sql or --table"},
+		{[]string{"--sql", "select 1", "--where", "a"}, cli{}, "--where needs --table"},
+		{[]string{"seed", "--sql", "select 1", "--layout", "x"}, cli{}, "--layout"},
+		{[]string{"--sql", "select 1", "--layout", "x"}, cli{}, "--sql or --layout"},
+		{[]string{"--schema", "s"}, cli{}, "--schema needs --table or --sql"},
+		{[]string{"seed", "--sql", ""}, cli{}, "--sql needs a statement"},
 		{[]string{"a", "b"}, cli{}, "usage"},
 		{[]string{"a", "--table", "t", "b"}, cli{}, "usage"},
 		{[]string{"a", "--nope"}, cli{}, "nope"},
@@ -262,18 +301,18 @@ func TestStartSessionWithoutConnections(t *testing.T) {
 			writeConfig(t, "connections.toml", file)
 		}
 		path := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "sqlmux", "connections.toml")
-		sess, restored, err := startSession("", "", nil)
+		sess, restored, err := startSession("", "", "", nil)
 		if err != nil || sess == nil || restored != nil || len(sess.Conns) != 0 {
 			t.Fatalf("%q: %v %v %v", file, sess, restored, err)
 		}
 		l := &config.Layout{Version: 1, Sessions: []config.LayoutSession{{Name: "s", Connection: "c"}}}
-		if sess, _, err := startSession("", "", l); err != nil || sess == nil || len(sess.Conns) != 0 {
+		if sess, _, err := startSession("", "", "", l); err != nil || sess == nil || len(sess.Conns) != 0 {
 			t.Errorf("%q with a last.toml: %v %v", file, sess, err)
 		}
-		if _, _, err := startSession("play", "", nil); err == nil || !strings.Contains(err.Error(), path) {
+		if _, _, err := startSession("play", "", "", nil); err == nil || !strings.Contains(err.Error(), path) {
 			t.Errorf("%q, a connection asked for: %v", file, err)
 		}
-		if _, _, err := startSession("", "mine", l); err == nil {
+		if _, _, err := startSession("", "mine", "", l); err == nil {
 			t.Errorf("%q, a --layout: no error", file)
 		}
 	}

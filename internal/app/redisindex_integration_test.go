@@ -45,8 +45,15 @@ func TestKeyIndexOfARedisDB(t *testing.T) {
 	}
 	build := func() (batches int) {
 		for cmd := a.startIndex(c); cmd != nil; {
+			msg := cmd()
+			m, ok := msg.(indexMsg)
+			if !ok { // the last batch's answer is the write of the file
+				if _, batch := msg.(tea.BatchMsg); msg != nil && !batch {
+					t.Fatalf("a batch answered %T", msg)
+				}
+				break
+			}
 			batches++
-			m := cmd().(indexMsg)
 			cmd = a.gotIndex(m)
 		}
 		return batches
@@ -68,6 +75,65 @@ func TestKeyIndexOfARedisDB(t *testing.T) {
 	}
 }
 
+// buildIndex runs the batches of the index cmd asks for, one answer after the other, to
+// the last, whose answer is the write of its file.
+func buildIndex(t *testing.T, a *App, cmd tea.Cmd) {
+	t.Helper()
+	for cmd != nil {
+		msg := cmd()
+		m, ok := msg.(indexMsg)
+		if _, batch := msg.(tea.BatchMsg); !ok && msg != nil && !batch {
+			t.Fatalf("a batch answered %T", msg)
+		} else if !ok {
+			return
+		}
+		cmd = a.gotIndex(m)
+	}
+}
+
+// A db's index is in its file once it is built; the next start has its names for the
+// first completion before the first SCAN is sent, and the index made after takes their
+// place (F21.4).
+func TestKeyIndexOfARedisDBFromTheFile(t *testing.T) {
+	dsn := redis.OwnDB(t)
+	opt, err := goredis.ParseURL(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cl := goredis.NewClient(opt)
+	defer cl.Close()
+	ctx := context.Background()
+	pipe := cl.Pipeline()
+	for i := range 20000 {
+		pipe.Set(ctx, fmt.Sprintf("ns%d:item:%d", i%50, i), 1, 0)
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	a, c := redisApp(t, dsn, 1)
+	buildIndex(t, a, a.startIndex(c))
+	if c.index == nil || len(c.index.names) < 20000 {
+		t.Fatalf("built: %+v", c.index)
+	}
+	a.saveIndex(c)() // the write of the last batch's answer
+	built := len(c.index.names)
+
+	// the next start: a new App, the same data directory
+	a2, c2 := redisApp(t, dsn, 1)
+	first := a2.startIndex(c2) // the first SCAN, not sent yet
+	if first == nil || c2.index == nil || !c2.index.stale || len(c2.index.names) != built {
+		t.Fatalf("started: %+v", c2.index)
+	}
+	if got, foot, _ := a2.keyCandidates(&queryTab{conn: c2}, "ns7:item:7"); len(got) == 0 || foot != "索引更新中" {
+		t.Errorf("before the first SCAN: %d candidates, foot %q", len(got), foot)
+	}
+	buildIndex(t, a2, first)
+	if c2.index.stale || len(c2.index.names) != built || c2.building != nil {
+		t.Errorf("the index made takes its place: %d names, stale %v", len(c2.index.names), c2.index.stale)
+	}
+}
+
 // On a real server a write is followed in the index by what EXISTS says of its keys:
 // SET, DEL, RENAME, SET … NX that is not set, EXPIRE 0, FLUSHDB; and EVAL, whose
 // keys are not known, makes the index again with the old one used meanwhile
@@ -84,11 +150,7 @@ func TestKeyIndexFollowsWrites(t *testing.T) {
 		cl.Set(context.Background(), k, "x", 0)
 	}
 	a, c := redisApp(t, dsn, 1) // a budget of one key: the tree does not read it all, the index is built
-	build := func(cmd tea.Cmd) {
-		for cmd != nil {
-			cmd = a.gotIndex(cmd().(indexMsg))
-		}
-	}
+	build := func(cmd tea.Cmd) { buildIndex(t, a, cmd) }
 	if c.scan == nil || !c.scan.more {
 		t.Fatalf("the tree reads it all: %+v", c.scan)
 	}
@@ -142,7 +204,7 @@ func TestKeyIndexFollowsWrites(t *testing.T) {
 		t.Errorf("made again: %q", names())
 	}
 	command(t, c, "FLUSHDB")
-	if cmd := a.wrote(c, "FLUSHDB"); cmd != nil || len(c.index.names) != 0 {
+	if cmd := a.wrote(c, "FLUSHDB"); cmd == nil || len(c.index.names) != 0 { // its file is written empty
 		t.Errorf("FLUSHDB: %v", c.index.names)
 	}
 }
@@ -161,9 +223,7 @@ func TestKeyIndexFollowsKeyTab(t *testing.T) {
 	cl.HSet(context.Background(), "kt:solo", "a", "1")
 	cl.Set(context.Background(), "kt:plain", "x", 0)
 	a, c := redisApp(t, dsn, 1) // the tree does not read it all: the index is built
-	for cmd := a.startIndex(c); cmd != nil; {
-		cmd = a.gotIndex(cmd().(indexMsg))
-	}
+	buildIndex(t, a, a.startIndex(c))
 	names := func() string {
 		var out []string
 		for _, n := range c.index.names {

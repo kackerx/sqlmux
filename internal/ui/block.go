@@ -84,7 +84,7 @@ func (b Block) Draw(f *Frame, r uv.Rectangle) uv.Rectangle {
 		bc = th.Production
 	}
 	bs := uv.Style{Fg: bc, Bg: th.PaneBg}
-	border := f.Border.Style(bs)
+	border := f.Lines(b.Focused).Style(bs)
 	border.Draw(f.Buf, r)
 	x0, y0, x1 := r.Min.X, r.Min.Y, r.Max.X-1
 

@@ -91,7 +91,9 @@ sleep 3.5                                                                       
 key R
 check "光标在失败的 bad 上按 R：重试，又是 toast「bad：…」" wait_for 5 eval 'screen_has "bad："'
 sleep 3.5; click_node multi
-check "multi 连不上、驱动的错误有两行：toast 只占一行，换行变成「；」" wait_for 5 eval 'y=$(( $(H) - 1 )); l=$(e2e_text 1 "$(e2e_flag pane_width)" "$y"); [[ $l == *"multi："*"；"* && $(e2e_text 1 "$(e2e_flag pane_width)" $((y - 1))) != *"localhost"* ]] || { echo "  $l"; false; }'
+# the two-line error needs localhost to resolve to two addresses (::1 and 127.0.0.1); /etc/hosts on WSL maps ::1 to ip6-localhost only
+[[ $(python3 -c 'import socket; print(len({a[4][0] for a in socket.getaddrinfo("localhost", 1, type=socket.SOCK_STREAM)}))') -ge 2 ]] || echo "SKIP multi 连不上、驱动的错误有两行（localhost 只解析出一个地址）"
+[[ $(python3 -c 'import socket; print(len({a[4][0] for a in socket.getaddrinfo("localhost", 1, type=socket.SOCK_STREAM)}))') -lt 2 ]] || check "multi 连不上、驱动的错误有两行：toast 只占一行，换行变成「；」" wait_for 14 eval 'y=$(( $(H) - 1 )); l=$(e2e_text 1 "$(e2e_flag pane_width)" "$y"); [[ $l == *"multi："*"；"* && $(e2e_text 1 "$(e2e_flag pane_width)" $((y - 1))) != *"localhost"* ]] || { echo "  $l"; false; }'
 
 # ---- sqlmux <名字>：启动时只连这一个并展开它
 e2e_start -C "$D/c" "$E2E_BIN seed"; wait_for 8 flag_is alternate_on 1; sleep 2.5

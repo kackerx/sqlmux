@@ -35,7 +35,7 @@ type Frame struct {
 `ui.Block` 画单线边框：
 
 - 上边框左侧嵌入 `⟨n⟩ 图标 对象名`（ascii 图标下为 `⟨n⟩ 图标 类型 · 对象名`，§7.7），右侧嵌入操作提示（如 `SPC b`、`▶ run ↵`）。
-- 获得焦点时，边框和标题用 `focus` 色；未聚焦时，边框用 `border` 色，标题用 `dim` 色。
+- 获得焦点时，边框和标题用 `focus` 色；未聚焦时，边框用 `border` 色，标题用 `dim` 色。线型也按焦点分：聚焦的 pane 和浮层用 config.toml 的 `border_focus_style`，其余用 `border`，没写跟 `border`（M21 F21.5，用户 2026-10-31：未聚焦细、聚焦粗；`rounded` + `bold` 时聚焦的是直角，切焦点四个角跟着变，是预期）。
 - tab 栏是内容区的最后一行，不画在边框上，与设计稿一致。
 
 ### 7.3 主题

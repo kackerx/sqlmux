@@ -19,7 +19,7 @@ sleep 0.6
 pid=$(pgrep -P "$(t display -p -t t '#{pane_pid}')" | head -1)
 check "（准备）找到 sqlmux 的进程" eval '[[ -n $pid ]]'
 kill -9 "$pid"; sleep 0.5
-check "kill -9 之后：state.json 还是完整的 JSON，权限 0600" eval 'python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$SJ" && [[ $(stat -f %Lp "$SJ") == 600 ]]'
+check "kill -9 之后：state.json 还是完整的 JSON，权限 0600" eval 'python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$SJ" && [[ $(fmode "$SJ") == 600 ]]'
 check "里面有 §14 列的四类：recent（最近使用）、tables（WHERE 历史与收藏）、sql（快速 SQL 历史）、queries（query 的连接）" eval 'python3 - "$SJ" <<PY
 import json, sys
 d = json.load(open(sys.argv[1]))

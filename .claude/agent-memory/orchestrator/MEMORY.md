@@ -1,0 +1,1 @@
+- [WSL environment](project_wsl_env.md) — 2026-11-07 起 agent 在 Windows WSL 上跑：Docker 要开 WSL integration，Windows 版用主机 python 跑 smoke.py

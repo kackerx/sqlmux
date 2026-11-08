@@ -50,5 +50,5 @@ check "esc：并入选中集，变成 selected 底（行 1、5、6、7），chip
 # ---- UNSET 里 d：先结束模式再执行（按去掉之后的选中集算）
 key g g; key j; key j; key j; key j; key V; key j; sleep 0.3      # 行 5、6 在范围里
 key d; sleep 0.5
-check "UNSET 里按 d：先把范围（行 5、6）从选中集去掉，再对剩下的（行 1、7）标记删除，不是删行 5、6" eval '[[ $(e2e_text 35 38 "$(row_y 1)" | tr -d " │") == − ]] && [[ $(e2e_text 35 38 "$(row_y 7)" | tr -d " │") == − ]] && [[ $(e2e_text 35 38 "$(row_y 5)" | tr -d " │") != − ]] && [[ $(e2e_text 35 38 "$(row_y 6)" | tr -d " │") != − ]]' || { for n in 1 5 6 7; do echo "  row $n: $(e2e_text 35 38 "$(row_y $n)")"; done; }
+check "UNSET 里按 d：先把范围（行 5、6）从选中集去掉，再对剩下的（行 1、7）标记删除，不是删行 5、6" eval '[[ $(e2e_text 35 38 "$(row_y 1)" | sed "s/[ │]//g") == − ]] && [[ $(e2e_text 35 38 "$(row_y 7)" | sed "s/[ │]//g") == − ]] && [[ $(e2e_text 35 38 "$(row_y 5)" | sed "s/[ │]//g") != − ]] && [[ $(e2e_text 35 38 "$(row_y 6)" | sed "s/[ │]//g") != − ]]' || { for n in 1 5 6 7; do echo "  row $n: $(e2e_text 35 38 "$(row_y $n)")"; done; }
 e2e_done

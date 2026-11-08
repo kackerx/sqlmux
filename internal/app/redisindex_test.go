@@ -377,13 +377,15 @@ func TestKeyIndexWrites(t *testing.T) {
 	other.State, other.Spec.Engine = connReady, "redis"
 	other.index = &keyIndex{done: true, names: []string{"o"}}
 	other.index.makeCands()
-	if cmd := a.wrote(conn, "FLUSHDB"); cmd != nil || len(conn.index.names) != 0 || !conn.index.done || len(other.index.names) != 1 {
+	if cmd := a.wrote(conn, "FLUSHDB"); cmd == nil || // its file is written empty
+		len(conn.index.names) != 0 || !conn.index.done || len(other.index.names) != 1 {
 		t.Errorf("FLUSHDB: %v, other %v", conn.index.names, other.index.names)
 	}
 	asked := conn.epoch // a write asked of before the FLUSH is answered after it: the key is not there
 	conn.index.names = []string{"again"}
 	conn.building = &keyIndex{}
-	if cmd := a.wrote(conn, "FLUSHALL"); cmd != nil || len(conn.index.names) != 0 || len(other.index.names) != 0 || conn.building != nil {
+	if cmd := a.wrote(conn, "FLUSHALL"); cmd == nil ||
+		len(conn.index.names) != 0 || len(other.index.names) != 0 || conn.building != nil {
 		t.Errorf("FLUSHALL: %v, other %v", conn.index.names, other.index.names)
 	}
 	if a.gotDelta(indexDelta{conn: conn, epoch: asked, keys: []string{"ghost"}, found: []bool{true}}); len(conn.index.names) != 0 {

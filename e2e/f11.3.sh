@@ -35,7 +35,7 @@ for pl in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
   check "子包 ${pl}：name、version、os / cpu 只限这一个平台、没有 scripts" eval '[[ $(js $P/package.json "[p.name, p.version, p.os.join(), p.cpu.join(), p.scripts === undefined].join(\" \")") == "@kackerx/sqlmux-${pl} ${v} ${pl%%-*} ${pl#*-} true" ]]'
   check "子包 ${pl}：bin/sqlmux 可执行、是这个平台的二进制" eval 'f=$(file $P/bin/sqlmux); [[ -x $P/bin/sqlmux ]] && case ${pl} in darwin-arm64) [[ $f == *"Mach-O"*arm64* ]];; darwin-x64) [[ $f == *"Mach-O"*x86_64* ]];; linux-arm64) [[ $f == *"ELF"*aarch64* ]];; linux-x64) [[ $f == *"ELF"*x86-64* ]];; esac'
 done
-packfiles() { (cd "$1" && npm pack --dry-run --json 2>/dev/null) | node -e 'const p = JSON.parse(require("fs").readFileSync(0, "utf8")); console.log(p[0].files.map((f) => f.path).sort().join(" "))'; }
+packfiles() { (cd "$1" && npm pack --dry-run --json 2>/dev/null) | node -e 'const j = JSON.parse(require("fs").readFileSync(0, "utf8")); const p = Array.isArray(j) ? j : Object.values(j); console.log(p[0].files.map((f) => f.path).sort().join(" "))'; }
 check "npm pack：壳包只有 LICENSE、package.json 和 bin/sqlmux.js（F17.5）" eval '[[ $(packfiles $S) == "LICENSE bin/sqlmux.js package.json" ]] || { packfiles $S; false; }'
 check "npm pack：子包只有 LICENSE、package.json 和 bin/sqlmux（F17.5）" eval '[[ $(packfiles $D/out/sqlmux-$os-$cpu) == "LICENSE bin/sqlmux package.json" ]]'
 for pl in win32-arm64 win32-x64; do

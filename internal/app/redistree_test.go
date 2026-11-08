@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/x/exp/golden"
 
@@ -453,4 +454,53 @@ func TestGoldenRedisTreeFilterLit(t *testing.T) {
 		t.Errorf("what is not the hit: %+v", st)
 	}
 	golden.RequireEqual(t, treeTexts(a)+"\n")
+}
+
+// The tree's keys come a batch at a time, each a request of its own: a batch that is not the last asks for
+// the next and the tree has nothing yet; the last, or one that failed, gives the tree what was read (F21.7).
+func TestKeysLoadInSteps(t *testing.T) {
+	a, _, _ := keyConsole(t)
+	c := a.sess.Conns[0]
+	c.scan = nil
+	sc := redis.NewScanning("*", 10, redis.ScanCount)
+	sc.Keys, sc.Total = []redis.KeyInfo{{Name: "a", Type: "string"}}, 5
+	if cmd := a.gotKeysStep(keysStep{conn: c, scan: sc}); cmd == nil || c.scan != nil {
+		t.Errorf("a batch that is not the last: next %v, tree %+v", cmd != nil, c.scan)
+	}
+	a.gotKeysStep(keysStep{conn: c, scan: sc, done: true})
+	if c.scan == nil || len(c.scan.keys) != 1 || c.scan.total != 5 {
+		t.Errorf("the last: %+v", c.scan)
+	}
+	c.scan = nil
+	a.gotKeysStep(keysStep{conn: c, scan: sc, err: errBoom})
+	if c.scan != nil || !strings.Contains(a.toast, "boom") {
+		t.Errorf("a failed batch: tree %+v, toast %q", c.scan, a.toast)
+	}
+}
+
+// The tree's batches wait for the first index of the db that is made, which the completion has no
+// names without; one read from its file is names enough, and the tree goes on (F21.7).
+func TestKeysYieldToTheFirstIndex(t *testing.T) {
+	defer func(d time.Duration) { keysYield = d }(keysYield)
+	keysYield = time.Millisecond
+	a, _, _ := keyConsole(t)
+	c := a.sess.Conns[0]
+	step := func() (yielded bool) { // the yield gives the step back as it was: first still set
+		defer func() { _ = recover() }() // a step that goes on asks a server this db has none of
+		m, ok := a.nextKeysStep(keysStep{conn: c, scan: redis.NewScanning("*", 10, redis.ScanCount), first: true})().(keysStep)
+		return ok && m.first
+	}
+	c.index, c.building = nil, &keyIndex{}
+	if !step() {
+		t.Error("the tree goes on while the first index is made")
+	}
+	c.index = &keyIndex{names: []string{"old"}, done: true, stale: true}
+	c.index.makeCands()
+	if step() {
+		t.Error("the tree waits while an index read from its file is made again")
+	}
+	c.index, c.building = &keyIndex{done: true}, nil
+	if step() {
+		t.Error("the tree waits with no index being made")
+	}
 }

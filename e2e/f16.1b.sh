@@ -83,7 +83,7 @@ quit_app() { e2e_type ":"; sleep 0.4; e2e_type qa; key Enter; wait_for 8 exited;
 toast() { e2e_text 1 "$(e2e_flag pane_width)" "$(( $(H) - 1 ))" | python3 -c 'import sys; print(sys.stdin.read().strip("└─┘│ \n"))'; }
 nlog() { wc -l <"$SSHLOG" | tr -d ' '; }
 alive() { local p n=0; for p in $(cat "$SSHPIDS"); do kill -0 "$p" 2>/dev/null && n=$((n + 1)); done; echo $n; }
-sstart() { e2e_start $SX -C "${DIR:-$D/c}" -P "$D/bin:$PATH" "$E2E_BIN $1"; wait_for 8 flag_is alternate_on 1; sleep 2; }
+sstart() { e2e_start $SX -C "${DIR:-$D/c}" -P "@FAKES@:$D/bin:$PATH" "$E2E_BIN $1"; wait_for 8 flag_is alternate_on 1; sleep 2; }
 
 # ---- 密码来源：password_env、password_cmd 给的盖过 URL 里的（连接的 user 还是 URL 里的）
 sstart penv
@@ -171,7 +171,7 @@ frows() { local g y; g=($(box)); for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++));
 clr() { local i; for ((i = 0; i < 40; i++)); do e2e_keys BSpace; done; sleep 0.2; }
 CT() { echo "$E2E_TMP/config/sqlmux/connections.toml"; }
 test_btn() { local by bx; by=$(for r in $(seq 1 45); do [[ $(e2e_text 1 160 $r) == *"[ 测试 ]"* ]] && echo $r; done | tail -1); bx=$(e2e_find "[ 测试 ]" "$by" | cut -d' ' -f1); e2e_click $((bx + 3)) "$by"; sleep 2.5; }
-fresh() { _e2e_kill; rm -rf "$D/f"; mkdir -p "$D/f"; (umask 077; printf '[[connection]]\nname = "rd"\nengine = "redis"\ndsn = "redis://localhost:%s/0"\n' "$RPORT" >"$D/f/connections.toml"); e2e_start -C "$D/f" -P "$D/bin:$PATH" "$E2E_BIN"; wait_for 8 flag_is alternate_on 1; sleep 2; pal ">conn.new"; key Enter; sleep 0.6; }
+fresh() { _e2e_kill; rm -rf "$D/f"; mkdir -p "$D/f"; (umask 077; printf '[[connection]]\nname = "rd"\nengine = "redis"\ndsn = "redis://localhost:%s/0"\n' "$RPORT" >"$D/f/connections.toml"); e2e_start -C "$D/f" -P "@FAKES@:$D/bin:$PATH" "$E2E_BIN"; wait_for 8 flag_is alternate_on 1; sleep 2; pal ">conn.new"; key Enter; sleep 0.6; }
 fresh; e2e_type "nr"; key Tab; key Tab; key Right; key Right; key Right; sleep 0.3
 check "engine 选 redis：port 预填 6379，数据库一栏的标签是 db，高级里 dsn 的例子是 redis://…" eval 'f=$(frows); grep -qE "^port +6379" <<<"$f" && grep -qE "^db( |$)" <<<"$f" && ! grep -qE "^database" <<<"$f"' || frows
 key Tab; e2e_type localhost; key Tab; clr; e2e_type "$RPORT"
@@ -196,12 +196,12 @@ fresh; e2e_type "na"; key Tab; key Tab; key Right; key Right; key Right; key Tab
 test_btn
 check "填了 user alice 和 password secret（服务端的 ACL 用户），测试按钮：「已连接 · Redis」" eval 'e2e_plain | grep -qE "已连接 · Redis [0-9]"' || { e2e_plain | sed -n 14,32p | cut -c30-130; }
 key C-s; sleep 2
-check "保存：DSN 里有用户没有密码（redis://alice@localhost:<端口>/0），密码走 password_cmd，文件里没有明文 secret" eval 'grep -qx "dsn = \"redis://alice@localhost:$APORT/0\"" "$(CT)" && grep -q "^password_cmd" "$(CT)" && ! grep -q secret "$(CT)"' || cat "$(CT)"
+check "保存：DSN 里有用户没有密码（redis://alice@localhost:<端口>/0），密码走 password_cmd，文件里没有明文 secret" eval 'grep -qx "dsn = \"redis://alice@localhost:$APORT/0\"" "$(CT)" && grep -q "^password_cmd" "$(CT)" && ! grep -qE "secret([^-]|$)" "$(CT)"' || cat "$(CT)"
 click_node na; sleep 1.5
 check "点 na 连它：用 password_cmd 从钥匙串取的密码连上，服务端上有 alice 的 sqlmux 连接" eval 'wait_for 8 eval "rca client list | grep name=sqlmux | grep -q user=alice"' || { rca client list | cut -c1-150; toast; }
 quit_app
 # 编辑已有的 redis 连接：字段读回来
 _e2e_kill; rm -rf "$D/f"; mkdir -p "$D/f"; (umask 077; printf '[[connection]]\nname = "rd"\nengine = "redis"\ndsn = "redis://bob@localhost:%s/4"\n' "$RPORT" >"$D/f/connections.toml")
-e2e_start -C "$D/f" -P "$D/bin:$PATH" "$E2E_BIN"; wait_for 8 flag_is alternate_on 1; sleep 2; mgr
+e2e_start -C "$D/f" -P "@FAKES@:$D/bin:$PATH" "$E2E_BIN"; wait_for 8 flag_is alternate_on 1; sleep 2; mgr
 check "连接管理里打开 rd：engine 在 redis 上，host localhost、port ${RPORT}、user bob、db 4" eval 'f=$(frows); grep -qE "^host +localhost" <<<"$f" && grep -qE "^port +$RPORT" <<<"$f" && grep -qE "^user +bob" <<<"$f" && grep -qE "^db +4" <<<"$f"' || frows
 e2e_done

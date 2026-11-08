@@ -22,16 +22,19 @@ import (
 )
 
 type Config struct {
-	Theme      *ui.Theme // `theme = "<name>"` (§7.3), resolved by Load
-	Icons      *ui.Icons // `icons = "nerd" | "ascii"`, with the theme file's [icon] on top (§7.7)
-	BaseIcons  *ui.Icons // what `icons` chose, a theme's [icon] not on it: a theme switched to goes on this
-	ThemeName  string    // the theme in use: `theme`, or tokyonight-storm
-	Language   string    // `language = "en" | "zh"` (§14「界面语言」)
-	Border     uv.Border // `border = "single" | "rounded" | "double" | "bold" | "hidden"`: the boxes' lines (§7.1)
-	Clipboard  string    // `clipboard`: "" or "unnamedplus", the editors' unnamed register on the system clipboard (§11, F20.5)
-	Vim        bool      // `vim = false`: query and WHERE are plain editors, the grid and tree get arrow keys too (§6.9)
-	Timeoutlen int       // ms to wait on an ambiguous key sequence
-	TabWidth   int       // the query's indent, and the formatter's (§14)
+	Theme     *ui.Theme // `theme = "<name>"` (§7.3), resolved by Load
+	Icons     *ui.Icons // `icons = "nerd" | "ascii"`, with the theme file's [icon] on top (§7.7)
+	BaseIcons *ui.Icons // what `icons` chose, a theme's [icon] not on it: a theme switched to goes on this
+	ThemeName string    // the theme in use: `theme`, or tokyonight-storm
+	Language  string    // `language = "en" | "zh"` (§14「界面语言」)
+	Border    uv.Border // `border = "single" | "rounded" | "double" | "bold" | "hidden"`: the boxes' lines (§7.1)
+	// FocusBorder is `border_focus_style`, of the same names: the lines of the pane in focus and of
+	// the overlays; the border's when not written (§7.3, F21.5).
+	FocusBorder uv.Border
+	Clipboard   string // `clipboard`: "" or "unnamedplus", the editors' unnamed register on the system clipboard (§11, F20.5)
+	Vim         bool   // `vim = false`: query and WHERE are plain editors, the grid and tree get arrow keys too (§6.9)
+	Timeoutlen  int    // ms to wait on an ambiguous key sequence
+	TabWidth    int    // the query's indent, and the formatter's (§14)
 	// ResultHeight is the share of the window the result area first takes;
 	// MaxRows the rows a query's run keeps of each result (§11).
 	ResultHeight float64
@@ -48,6 +51,12 @@ type Config struct {
 	// (§8.7, F16.1), and how many names the completion indexes (§9.8, F20.1).
 	RedisDelimiter                              string
 	RedisScanKeys, RedisLoadAll, RedisIndexKeys int
+	// OuterNav is `[pane] outer_nav`, "off" or "auto": with auto, in tmux, a pane.focus.<side>
+	// with no pane on that side goes on to the outer tmux's (§6, F21.6).
+	OuterNav string
+	// RedisIndexCache is `[redis] index_cache`: the index of a db's key names
+	// is kept on disk and used at the next start (§9.8, F21.4).
+	RedisIndexCache bool
 	// HistoryMax is how many statements history.jsonl keeps, the oldest cut
 	// at the start (`[query] history_max`, §11).
 	HistoryMax int
@@ -76,6 +85,10 @@ type Config struct {
 	PreviewSave bool
 	theme       string // the name Parse read; Load finds the theme, as it touches the disk
 
+	// DefaultConnection is the connection a start that names none opens on:
+	// --table, --sql and the default layout (§14, F21.2); empty is the first.
+	DefaultConnection string
+
 	// Leader and Bindings are keymaps.toml's raw [keys] and [map.*]
 	// entries; the keymap package gives them meaning.
 	Leader   string
@@ -92,7 +105,7 @@ type Config struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), FocusBorder: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, RedisIndexCache: true, OuterNav: "off", PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -154,7 +167,9 @@ func Parse(data string) (*Config, error) {
 		Icons      *string  `toml:"icons"`
 		Language   *string  `toml:"language"`
 		Border     *string  `toml:"border"`
+		FocusStyle *string  `toml:"border_focus_style"`
 		Vim        *bool    `toml:"vim"`
+		Default    string   `toml:"default_connection"`
 		Clipboard  *string  `toml:"clipboard"`
 		Timeoutlen *int     `toml:"timeoutlen"`
 		TabWidth   *int     `toml:"tab_width"`
@@ -172,11 +187,15 @@ func Parse(data string) (*Config, error) {
 			Tips *bool `toml:"tips"`
 		} `toml:"ui"`
 		Redis struct {
-			Delimiter *string `toml:"delimiter"`
-			ScanKeys  *int    `toml:"scan_keys"`
-			LoadAll   *int    `toml:"load_all"`
-			IndexKeys *int    `toml:"index_keys"`
+			Delimiter  *string `toml:"delimiter"`
+			ScanKeys   *int    `toml:"scan_keys"`
+			LoadAll    *int    `toml:"load_all"`
+			IndexKeys  *int    `toml:"index_keys"`
+			IndexCache *bool   `toml:"index_cache"`
 		} `toml:"redis"`
+		Pane struct {
+			OuterNav *string `toml:"outer_nav"`
+		} `toml:"pane"`
 		Tree struct {
 			Width  *int  `toml:"width"`
 			Follow *bool `toml:"follow"`
@@ -220,7 +239,14 @@ func Parse(data string) (*Config, error) {
 		if !ok {
 			return nil, fmt.Errorf(`border = %q: must be "single", "rounded", "double", "bold" or "hidden"`, *raw.Border)
 		}
-		c.Border = b
+		c.Border, c.FocusBorder = b, b
+	}
+	if raw.FocusStyle != nil && *raw.FocusStyle != "" { // "" is not written: the border's (§14)
+		b, ok := ui.BorderOf(*raw.FocusStyle)
+		if !ok {
+			return nil, fmt.Errorf(`border_focus_style = %q: must be "single", "rounded", "double", "bold" or "hidden"`, *raw.FocusStyle)
+		}
+		c.FocusBorder = b
 	}
 	if raw.Vim != nil {
 		c.Vim = *raw.Vim
@@ -260,6 +286,7 @@ func Parse(data string) (*Config, error) {
 		c.KeywordCase = *k
 	}
 	c.FormatPrg = raw.FormatPrg
+	c.DefaultConnection = raw.Default
 	if raw.AutoPairs != nil {
 		c.AutoPairs = *raw.AutoPairs
 	}
@@ -286,6 +313,15 @@ func Parse(data string) (*Config, error) {
 			return nil, fmt.Errorf("[redis] scan_keys = %d: must be greater than 0", *n)
 		}
 		c.RedisScanKeys = *n
+	}
+	if n := raw.Pane.OuterNav; n != nil {
+		if *n != "off" && *n != "auto" {
+			return nil, fmt.Errorf(`[pane] outer_nav = %q: must be "off" or "auto"`, *n)
+		}
+		c.OuterNav = *n
+	}
+	if raw.Redis.IndexCache != nil {
+		c.RedisIndexCache = *raw.Redis.IndexCache
 	}
 	if n := raw.Redis.IndexKeys; n != nil {
 		if *n <= 0 {

@@ -113,7 +113,7 @@ e2e_click 60 $(item_y "status = "); sleep 0.5; wait_for 8 settled
 check "点击一行就应用这一项" eval '[[ $(where_in) == "status = '"'done'"'" && -z $(pop) ]] && qb_has "LIMIT 500"'
 
 # ---- state.json（§14）：0600、按「连接名/schema.表」、面板的最近使用；重启后收藏和最近使用都在
-check "state.json 在 \$XDG_STATE_HOME/sqlmux/，权限 0600，目录里只有 state.json 和它的锁文件 state.json.lock（F13.3，没有临时文件）" eval '[[ $(stat -f %Lp "$SJ") == 600 && -z $(ls "$ST/sqlmux" | grep -vx -e state.json -e state.json.lock) ]]'
+check "state.json 在 \$XDG_STATE_HOME/sqlmux/，权限 0600，目录里只有 state.json 和它的锁文件 state.json.lock（F13.3，没有临时文件）" eval '[[ $(fmode "$SJ") == 600 && -z $(ls "$ST/sqlmux" | grep -vx -e state.json -e state.json.lock) ]]'
 check "按 doraemon/public.t_order 存；最近使用记着表 doraemon/public.t_order（F5.10 起带连接名）" eval 'python3 -c "import json,sys; s=json.load(open(sys.argv[1])); assert \"doraemon/public.t_order\" in s[\"tables\"]; assert {\"kind\": \"table\", \"id\": \"doraemon/public.t_order\"} in s[\"recent\"], s[\"recent\"]" "$SJ"'
 start -S "$ST"
 pal ""
@@ -142,6 +142,6 @@ start -S "$ST"
 check "写坏的 state.json：启动有 toast 报错，程序照常运行" eval 'running && e2e_text 60 160 $(( $(H) - 1 )) | grep -q "state.json"'
 check "原文件改名为 state.json.broken（内容不动）" eval '[[ -f $ST/sqlmux/state.json.broken && $(cat "$ST/sqlmux/state.json.broken") == "{" ]]'
 open_table t_order; run "id = 1"
-check "之后照常记录：新的 state.json 只有这一条历史，权限 0600" eval 'r=$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1]))[\"tables\"][\"doraemon/public.t_order\"][\"history\"]))" "$SJ"); [[ $r == 1 && $(stat -f %Lp "$SJ") == 600 ]]'
+check "之后照常记录：新的 state.json 只有这一条历史，权限 0600" eval 'r=$(python3 -c "import json,sys; print(len(json.load(open(sys.argv[1]))[\"tables\"][\"doraemon/public.t_order\"][\"history\"]))" "$SJ"); [[ $r == 1 && $(fmode "$SJ") == 600 ]]'
 
 e2e_done

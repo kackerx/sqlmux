@@ -231,6 +231,15 @@ func (a *App) gotCommands(m cmdsMsg) tea.Cmd {
 	}
 	c.cmds, c.docs, c.cmdsReady = m.cmds, m.docs, true
 	cmd := a.recomplete(c) // what was typed before the docs came is completed by them (F20.11)
+	if c.keysAfterCommands {
+		c.keysAfterCommands = false
+		cmd = tea.Batch(cmd, a.loadKeys(c))
+	}
+	// --sql waited for them (F21.3)
+	if w := a.want; w != nil && w.conn == c && w.query != nil {
+		a.want = nil
+		cmd = tea.Batch(cmd, a.openWanted(w))
+	}
 	if m.err != nil {
 		return tea.Batch(cmd, a.showToast(i18n.T("%s：读不到命令列表（%s），命令都按写命令处理", c.label(), m.err)))
 	}
@@ -239,25 +248,63 @@ func (a *App) gotCommands(m cmdsMsg) tea.Cmd {
 
 // loadKeys reads c's db on its Meta: with the connection of the DSN, which dbs
 // the server has; then its keys, up to the scan budget (§8.7). It is
-// loadCatalog of a Redis connection.
+// loadCatalog of a Redis connection. A SCAN and the TYPEs of its keys are a request
+// of their own, one after the other, so that others of the connection get in between: on a
+// slow link the commands and the index of key names would wait for all of them (F21.7).
 func (a *App) loadKeys(c *Conn) tea.Cmd {
-	meta, budget, root := c.Meta, a.scanKeys, c.Spec.Database == ""
+	return a.nextKeysStep(keysStep{conn: c, scan: redis.NewScanning("*", a.scanKeys, redis.ScanCount), first: true})
+}
+
+// keysStep is one batch of what loadKeys reads, and where it has got to.
+type keysStep struct {
+	conn  *Conn
+	scan  *redis.Scanning
+	first bool
+	dbs   []string // the server's dbs with keys, none from a db's own connection
+	done  bool
+	err   error
+}
+
+func (a *App) keysStep(m keysStep) tea.Cmd {
+	meta, root := m.conn.Meta, m.conn.Spec.Database == ""
 	return func() tea.Msg {
-		ctx := context.Background()
-		m := keysMsg{conn: c}
-		var s redis.Scanned
-		err := meta.RunSafe(ctx, func(ctx context.Context, conn db.Conn) (err error) {
-			if root {
+		err := meta.RunSafe(context.Background(), func(ctx context.Context, conn db.Conn) (err error) {
+			if m.first && root {
 				if m.dbs, err = redis.Databases(ctx, conn); err != nil {
 					return err
 				}
 			}
-			s, err = redis.Scan(ctx, conn, "*", budget, redis.ScanCount)
+			m.done, err = m.scan.Step(ctx, conn)
 			return err
 		})
-		m.scan, m.err = &keyScan{keys: s.Keys, total: s.Total, more: !s.Complete}, err
+		m.first, m.err = false, err
 		return m
 	}
+}
+
+// keysYield is how long the tree's next batch waits to see whether the index of key names is made.
+var keysYield = 200 * time.Millisecond
+
+// nextKeysStep asks for the tree's next batch, the first too: not while the first index of
+// the db is being made, with no names for the completion to go on with, whose batches go first. One
+// read from its file is something to go on with, and the tree takes its turn (F21.7).
+func (a *App) nextKeysStep(m keysStep) tea.Cmd {
+	if c := m.conn; c.building != nil && c.indexed() == nil {
+		return tea.Tick(keysYield, func(time.Time) tea.Msg { return m })
+	}
+	return a.keysStep(m)
+}
+
+// gotKeysStep asks for the next batch, or, with the last or an error, takes the scan in.
+func (a *App) gotKeysStep(m keysStep) tea.Cmd {
+	if a.sessionOf(m.conn) == nil {
+		return nil
+	}
+	if m.err == nil && !m.done {
+		return a.nextKeysStep(m)
+	}
+	s := m.scan
+	return a.gotKeys(keysMsg{conn: m.conn, dbs: m.dbs, scan: &keyScan{keys: s.Keys, total: s.Total, more: !s.Complete}, err: m.err})
 }
 
 // gotKeys takes a scan in: the dbs the server has, with the one the connection

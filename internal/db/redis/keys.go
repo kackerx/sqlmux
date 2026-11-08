@@ -36,38 +36,65 @@ const (
 	FilterCount = 10000
 )
 
+// scanner is a scan a SCAN at a time, from the cursor it is at: the keys of a batch not given
+// before, cut at the budget.
+type scanner struct {
+	match         string
+	budget, count int // budget 0 is none
+	cursor        uint64
+	n             int
+	// ponytail: SCAN may give a key twice while the table grows; the keys seen are
+	// kept to drop it, which costs memory as the db is big and has no test, a real
+	// server giving it rarely
+	seen map[string]bool
+}
+
+func newScanner(match string, budget, count int) *scanner {
+	return &scanner{match: match, budget: budget, count: count, seen: map[string]bool{}}
+}
+
+// next is one SCAN: its keys, whether it was the last of the scan, and if it was whether
+// the cursor came round (complete) and not the budget.
+func (s *scanner) next(ctx context.Context, cl *goredis.Client) (batch []string, last, complete bool, err error) {
+	batch, next, err := cl.Scan(ctx, s.cursor, s.match, int64(s.count)).Result()
+	if err != nil {
+		return nil, false, false, err
+	}
+	batch = slices.DeleteFunc(batch, func(k string) bool { dup := s.seen[k]; s.seen[k] = true; return dup })
+	if room := s.budget - s.n; s.budget > 0 && len(batch) > room {
+		batch = batch[:room]
+		next = 1 // the budget ends it
+	}
+	s.n += len(batch)
+	switch {
+	case next == 0:
+		return batch, true, true, nil
+	case s.budget > 0 && s.n >= s.budget:
+		return batch, true, false, nil
+	}
+	s.cursor = next
+	return batch, false, false, nil
+}
+
 // scanKeys gives take each batch of the keys of the db cl is on that match the
 // glob match, SCAN by SCAN and never KEYS, until the cursor comes round
 // (complete) or budget keys are given, 0 for no budget. A key SCAN gives twice is
 // once. take stopping it is that error.
 func scanKeys(ctx context.Context, cl *goredis.Client, match string, budget, count int, take func(keys []string) error) (complete bool, err error) {
-	// ponytail: SCAN may give a key twice while the table grows; the keys seen are
-	// kept to drop it, which costs memory as the db is big and has no test, a real
-	// server giving it rarely
-	seen, n := map[string]bool{}, 0
-	for cursor := uint64(0); ; {
-		batch, next, err := cl.Scan(ctx, cursor, match, int64(count)).Result()
+	s := newScanner(match, budget, count)
+	for {
+		batch, last, complete, err := s.next(ctx, cl)
 		if err != nil {
 			return false, err
 		}
-		batch = slices.DeleteFunc(batch, func(k string) bool { dup := seen[k]; seen[k] = true; return dup })
-		if room := budget - n; budget > 0 && len(batch) > room {
-			batch = batch[:room]
-			next = 1 // the budget ends it
-		}
-		n += len(batch)
 		if len(batch) > 0 {
 			if err := take(batch); err != nil {
 				return false, err
 			}
 		}
-		if next == 0 {
-			return true, nil
+		if last {
+			return complete, nil
 		}
-		if budget > 0 && n >= budget {
-			return false, nil
-		}
-		cursor = next
 	}
 }
 
@@ -80,22 +107,63 @@ func Scan(ctx context.Context, c db.Conn, match string, budget, count int) (s Sc
 		if s.Total, err = cl.DBSize(ctx).Result(); err != nil {
 			return err
 		}
-		s.Complete, err = scanKeys(ctx, cl, match, budget, count, func(batch []string) error {
-			if Of(c).untyped { // KeyInfo.Type "": the generic key icon
-				for _, k := range batch {
-					s.Keys = append(s.Keys, KeyInfo{Name: k})
-				}
-				return nil
-			}
-			types, err := typesOf(ctx, cl, batch)
-			for i, k := range batch[:len(types)] {
-				s.Keys = append(s.Keys, KeyInfo{k, types[i]})
-			}
-			return err
-		})
+		s.Complete, err = scanKeys(ctx, cl, match, budget, count, func(batch []string) error { return s.add(ctx, c, cl, batch) })
 		return err
 	})
 	return s, err
+}
+
+// add puts the keys of a batch in s, with their types unless c is a command (§8.8).
+func (s *Scanned) add(ctx context.Context, c db.Conn, cl *goredis.Client, batch []string) error {
+	if Of(c).untyped { // KeyInfo.Type "": the generic key icon
+		for _, k := range batch {
+			s.Keys = append(s.Keys, KeyInfo{Name: k})
+		}
+		return nil
+	}
+	types, err := typesOf(ctx, cl, batch)
+	for i, k := range batch[:len(types)] {
+		s.Keys = append(s.Keys, KeyInfo{k, types[i]})
+	}
+	return err
+}
+
+// Scanning is a Scan a batch at a time, each Step a request of its own, so that others
+// get in between on a slow link: the tree's keys are read so (§8.7, F21.7). Keys, Total and
+// Complete are what it has read so far.
+type Scanning struct {
+	Scanned
+	s       *scanner
+	started bool // the first Step has asked DBSIZE
+}
+
+// NewScanning is a scan of the keys that match the glob match to the budget, COUNT count a SCAN.
+func NewScanning(match string, budget, count int) *Scanning {
+	return &Scanning{s: newScanner(match, budget, count)}
+}
+
+// Step reads the next batch of the db c is on, with its types; done is true after the last.
+func (sc *Scanning) Step(ctx context.Context, c db.Conn) (done bool, err error) {
+	err = Use(ctx, c, func(cl *goredis.Client) (err error) {
+		if !sc.started {
+			if sc.Total, err = cl.DBSize(ctx).Result(); err != nil {
+				return err
+			}
+			sc.started = true
+		}
+		batch, last, complete, err := sc.s.next(ctx, cl)
+		if err != nil {
+			return err
+		}
+		if len(batch) > 0 {
+			if err := sc.add(ctx, c, cl, batch); err != nil {
+				return err
+			}
+		}
+		done, sc.Complete = last, complete
+		return nil
+	})
+	return done, err
 }
 
 // typesOf is the type of each of keys, one pipeline.

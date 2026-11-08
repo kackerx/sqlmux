@@ -33,7 +33,7 @@ toast_text() { toast_row | sed 's/[ │└┘─┌┐]//g'; }
 trow() { local y; for y in $(seq 3 43); do [[ $(e2e_text 1 32 "$y") == *" $1 "* ]] && { echo "$y"; return; }; done; }
 node_red() { local y c; y=$(trow "$1"); [[ -n $y ]] || return 1; c=$(e2e_find "$1" "$y" | cut -d' ' -f1); [[ " $(e2e_style "$c" "$y") " == *" fg=$ERROR "* ]]; }
 txstate() { bar | grep -oE '事务中|事务出错'; }
-toasted() { grep -qF -- "$1" "$D/rec"; }
+toasted() { e2e_recorded "$1"; }
 fresh_rec() { : >|"$D/rec"; }
 row2() { e2e_plain | grep -E "│ +2 │ +2 │"; }
 rows() { e2e_plain | grep -cE "│ +[0-9]+ │ +[0-9]+ │ user_"; }

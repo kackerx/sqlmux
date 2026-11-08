@@ -36,6 +36,7 @@ func OwnDB(t *testing.T) string {
 	}
 	t.Cleanup(func() { admin.Close() })
 	name := fmt.Sprintf("sqlmux_worker_%d_%s", os.Getpid(), strings.ToLower(strings.ReplaceAll(t.Name(), "/", "_")))
+	name = name[:min(len(name), 64)] // MySQL's limit; a six-digit pid (WSL) made a long test name pass it
 	drop := func() { _, _ = admin.Query(ctx, "drop database if exists "+name) }
 	drop()
 	if _, err := admin.Query(ctx, "create database "+name); err != nil {

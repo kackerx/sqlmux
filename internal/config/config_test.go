@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/kackerx/sqlmux/internal/i18n"
@@ -58,6 +59,29 @@ func TestGridNewTableDefaults(t *testing.T) {
 
 // border names the boxes' lines; another name is an error that lists them
 // (F8.10).
+func TestBorderFocusStyle(t *testing.T) {
+	rounded, _ := ui.BorderOf("rounded")
+	bold, _ := ui.BorderOf("bold")
+	single, _ := ui.BorderOf("single")
+	for _, tc := range []struct {
+		toml          string
+		border, focus uv.Border
+	}{
+		{"", single, single},
+		{`border = "rounded"`, rounded, rounded}, // not written: the border's
+		{"border = \"rounded\"\nborder_focus_style = \"bold\"", rounded, bold},
+		{`border_focus_style = "bold"`, single, bold},
+		{"border = \"rounded\"\nborder_focus_style = \"\"", rounded, rounded}, // the sample of the design writes it empty
+	} {
+		if c, err := Parse(tc.toml); err != nil || !reflect.DeepEqual(c.Border, tc.border) || !reflect.DeepEqual(c.FocusBorder, tc.focus) {
+			t.Errorf("%q: %+v %+v %v", tc.toml, c.Border, c.FocusBorder, err)
+		}
+	}
+	if _, err := Parse(`border_focus_style = "wavy"`); err == nil || !strings.Contains(err.Error(), "border_focus_style") {
+		t.Errorf("a name that is none: %v", err)
+	}
+}
+
 func TestBorder(t *testing.T) {
 	single, _ := ui.BorderOf("single")
 	if c, err := Parse(""); err != nil || !reflect.DeepEqual(c.Border, single) {
@@ -403,12 +427,15 @@ func TestParseTips(t *testing.T) {
 // [redis] has the delimiter, the scan budget and the length a key is read whole
 // up to, with the defaults of the design (§14, F16.1).
 func TestParseRedis(t *testing.T) {
-	if c, err := Parse(""); err != nil || c.RedisDelimiter != ":" || c.RedisScanKeys != 10000 || c.RedisLoadAll != 5000 || c.RedisIndexKeys != 100000 {
+	if c, err := Parse(""); err != nil || c.RedisDelimiter != ":" || c.RedisScanKeys != 10000 || c.RedisLoadAll != 5000 || c.RedisIndexKeys != 100000 || !c.RedisIndexCache {
 		t.Fatalf("default: %+v %v", c, err)
 	}
 	c, err := Parse("[redis]\ndelimiter = \"/\"\nscan_keys = 500\nload_all = 20\nindex_keys = 7\n")
 	if err != nil || c.RedisDelimiter != "/" || c.RedisScanKeys != 500 || c.RedisLoadAll != 20 || c.RedisIndexKeys != 7 || len(c.Unknown) != 0 {
 		t.Fatalf("set: %+v %v", c, err)
+	}
+	if c, err := Parse("[redis]\nindex_cache = false\n"); err != nil || c.RedisIndexCache || len(c.Unknown) != 0 {
+		t.Errorf("index_cache = false: %+v %v", c, err)
 	}
 	for _, bad := range []string{"delimiter = \"\"", "scan_keys = 0", "load_all = -1", "index_keys = 0"} {
 		if _, err := Parse("[redis]\n" + bad + "\n"); err == nil {
@@ -426,5 +453,37 @@ func TestPreviewSave(t *testing.T) {
 		if c, err := Parse(toml); err != nil || c.PreviewSave != want {
 			t.Errorf("%q: %v %v", toml, c != nil && c.PreviewSave, err)
 		}
+	}
+}
+
+// default_connection is a name, empty when not written; DefaultStart finds it,
+// and takes the first for an empty or an unknown one (F21.2).
+func TestDefaultConnection(t *testing.T) {
+	if c, err := Parse(""); err != nil || c.DefaultConnection != "" {
+		t.Errorf("not written: %q, %v", c.DefaultConnection, err)
+	}
+	c, err := Parse("default_connection = \"b\"\n")
+	if err != nil || c.DefaultConnection != "b" || len(c.Unknown) != 0 {
+		t.Errorf("written: %q %v %v", c.DefaultConnection, c.Unknown, err)
+	}
+	conns := []Connection{{Name: "a"}, {Name: "b"}}
+	for def, want := range map[string]int{"": 0, "a": 0, "b": 1, "nope": 0} {
+		if got := DefaultStart(conns, def); got != want {
+			t.Errorf("DefaultStart(%q) = %d, want %d", def, got, want)
+		}
+	}
+}
+
+// [pane] outer_nav is off unless written; anything but off and auto is an error that says what
+// is allowed (F21.6).
+func TestOuterNav(t *testing.T) {
+	if c, err := Parse(""); err != nil || c.OuterNav != "off" {
+		t.Errorf("default: %q %v", c.OuterNav, err)
+	}
+	if c, err := Parse("[pane]\nouter_nav = \"auto\"\n"); err != nil || c.OuterNav != "auto" || len(c.Unknown) != 0 {
+		t.Errorf("auto: %+v %v", c, err)
+	}
+	if _, err := Parse("[pane]\nouter_nav = \"zellij\"\n"); err == nil || !strings.Contains(err.Error(), "outer_nav") {
+		t.Errorf("zellij: %v", err)
 	}
 }

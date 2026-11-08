@@ -32,7 +32,7 @@ check "三条语句三行，没有别的" eval '[[ $(hn) == 3 ]]' || cat "$H"
 check "第 1 行：conn doraemon、schema public、sql、tag SELECT 1、没有 error" eval '[[ $(hfield 0 conn) == doraemon && $(hfield 0 schema) == public && $(hfield 0 sql) == "select 1 as one" && $(hfield 0 tag) == "SELECT 1" && $(hfield 0 error) == - ]]'
 check "第 2 行（失败）：error 是消息第一行，没有 tag" eval '[[ $(hfield 1 sql) == "select * from nope_t" && $(hfield 1 error) == *nope_t* && $(hfield 1 error) != *$'"'"'\n'"'"'* && $(hfield 1 tag) == - ]]' || hjson
 check "第 3 行：tag UPDATE 1，took_ms 是数字，at 是时间" eval '[[ $(hfield 2 tag) == "UPDATE 1" && $(hfield 2 took_ms) =~ ^[0-9]+$ && $(hfield 2 at) =~ ^20[0-9-]+T ]]'
-check "文件权限 0600" eval '[[ $(stat -f %Lp "$H") == 600 ]]'
+check "文件权限 0600" eval '[[ $(fmode "$H") == 600 ]]'
 setsql "select pg_sleep(30)"; key Enter; sleep 1; key C-c; sleep 1.5
 check "取消的那条也记：第 4 行 error 是 canceled" eval '[[ $(hn) == 4 && $(hfield 3 sql) == "select pg_sleep(30)" && $(hfield 3 error) == canceled ]]' || hjson
 key C-h; open_table t_h; wait_for 8 settled; key r; wait_for 8 settled; sleep 0.5

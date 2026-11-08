@@ -12,7 +12,7 @@ sqlmux reads four kinds of files from `$XDG_CONFIG_HOME/sqlmux`, which is `~/.co
 
 On Windows, without `XDG_*` variables, the configuration is in `%APPDATA%\sqlmux` and the state and data below are in `%LOCALAPPDATA%\sqlmux`.
 
-sqlmux writes its own state under `$XDG_STATE_HOME/sqlmux` (`~/.local/state/sqlmux`: recent items, WHERE history and favorites, `last.toml`, the layout you quit from) and `$XDG_DATA_HOME/sqlmux` (`~/.local/share/sqlmux`: `queries/*.sql` and `history.jsonl`).
+sqlmux writes its own state under `$XDG_STATE_HOME/sqlmux` (`~/.local/state/sqlmux`: recent items, WHERE history and favorites, `last.toml`, the layout you quit from) and `$XDG_DATA_HOME/sqlmux` (`~/.local/share/sqlmux`: `queries/*.sql`, `history.jsonl` and `redis-index/`).
 
 A key sqlmux does not know (a typo such as `readonly`) is reported in a toast at startup; a bad value stops the start with the file, the key and the values it takes.
 
@@ -24,6 +24,8 @@ Every option with its default. Only write the ones you change.
 theme             = "tokyonight-storm" # built in: tokyonight-storm, ristretto; or a file in themes/
 icons             = "nerd"             # nerd | ascii (no Nerd Font needed)
 border            = "single"           # single | rounded | double | bold | hidden
+border_focus_style = ""                # the focused pane's and overlays' lines, same values; "" follows border
+default_connection = ""                # the connection --table, --sql and a start without last.toml use; "" = the first in connections.toml
 language          = "en"               # en | zh
 vim               = true               # false: query and WHERE are plain editors; the grid and tree also take PgUp / PgDn / Delete
 timeoutlen        = 1000               # ms to wait for the next key of a sequence
@@ -58,7 +60,41 @@ delimiter = ":"                        # splits key names into namespaces in the
 scan_keys = 10000                      # keys a database scan reads before it stops (use / to filter)
 load_all  = 5000                       # hashes, sets and sorted sets up to this length are read whole
 index_keys = 100000                    # key names kept per database for fuzzy key completion and the palette
+index_cache = true                     # save that index to disk, so completion is ready at once next time
+
+[pane]
+outer_nav = "off"                      # "auto": inside tmux, C-h / C-j / C-k / C-l at sqlmux's edge go to the next tmux pane
 ```
+
+`border_focus_style` lets the focused pane stand out by its lines, not only its color: `border = "single"` with `border_focus_style = "bold"` draws the focused pane and the overlays in bold lines and the rest in thin ones. Unicode has no bold rounded corners, so with `border = "rounded"` and `border_focus_style = "bold"` the focused pane has square corners, and the corners change as the focus moves.
+
+`default_connection` names the connection sqlmux uses when you don't give one: `--table`, `--sql`, and the default layout when there is no `last.toml` to restore. Without it, that is the first connection in `connections.toml`. A name that is not there is reported in a toast at startup, and the first connection is used.
+
+`index_cache` keeps the key index of each Redis database in `$XDG_DATA_HOME/sqlmux/redis-index/<connection>/db<n>` (mode 0600, since key names can say a lot about your data). On the next start, the first key completion uses the saved index straight away while a fresh scan runs in the background; the list says "Updating the index" until the fresh one replaces it. With `index_cache = false` nothing is read or written, and files already there are left alone. See [Redis](redis.md#console).
+
+### Moving between tmux and sqlmux panes
+
+With `[pane] outer_nav = "auto"` and sqlmux running inside tmux, `pane.focus.left` / `down` / `up` / `right` (`C-h` / `C-j` / `C-k` / `C-l`) move between sqlmux's own panes as usual, and when there is no pane on that side (the focus is on the sidebar and you press `C-h`, say), the same key runs `tmux select-pane` and you land in the tmux pane next to sqlmux. Outside tmux, or with `outer_nav = "off"` (the default), nothing changes.
+
+Getting back in is tmux's job: tmux has to pass `C-h` / `C-j` / `C-k` / `C-l` to the pane when sqlmux runs in it, as [vim-tmux-navigator](https://github.com/christoomey/vim-tmux-navigator) does for vim. Add `sqlmux` to its pattern. If you load vim-tmux-navigator with TPM, one line in `~/.tmux.conf`:
+
+```tmux
+set -g @vim_navigator_pattern '(\S+/)?g?\.?(view|l?n?vim?x?|fzf|sqlmux)(diff)?(-wrapped)?'
+```
+
+Without the plugin, these lines in `~/.tmux.conf` are its bindings with `sqlmux` added:
+
+```tmux
+vim_pattern='(\S+/)?g?\.?(view|l?n?vim?x?|fzf|sqlmux)(diff)?(-wrapped)?'
+is_vim="ps -o state= -o comm= -t '#{pane_tty}' \
+    | grep -iqE '^[^TXZ ]+ +${vim_pattern}$'"
+bind-key -n 'C-h' if-shell "$is_vim" 'send-keys C-h'  'select-pane -L'
+bind-key -n 'C-j' if-shell "$is_vim" 'send-keys C-j'  'select-pane -D'
+bind-key -n 'C-k' if-shell "$is_vim" 'send-keys C-k'  'select-pane -U'
+bind-key -n 'C-l' if-shell "$is_vim" 'send-keys C-l'  'select-pane -R'
+```
+
+Then `tmux source-file ~/.tmux.conf`. Only tmux is supported for now, not WezTerm or Zellij.
 
 ### Clipboard
 
@@ -104,6 +140,8 @@ Where the password comes from, first one set wins:
 
 The connection form (`+` at the top of the sidebar, or *New connection…* in the palette) saves the password in the OS keychain (macOS Keychain, or `secret-tool` on Linux desktops) and writes the `password_cmd` that reads it back. It appends to this file and keeps your comments; *Manage connections…* edits and deletes entries the same way.
 
+In WSL, on a server, or anywhere else without a keychain, keep the password in a file only you can read (`chmod 600 ~/.config/sqlmux/local.pw`) and write `password_cmd = "cat ~/.config/sqlmux/local.pw"`. One trailing newline is dropped.
+
 `${VAR}` inside `dsn` or `password` is replaced from the environment, so `dsn = "${DATABASE_URL}"` works.
 
 `databases` and `schemas` narrow a big server to what you use: databases not listed are not connected to, schemas not listed are not loaded (their tables don't show in the tree, the palette or completion). The database in the DSN is always included. *Pick databases…* / *Pick schemas…* in the tree's right-click menu (or the palette) edit them for you and keep the rest of the file.
@@ -141,14 +179,20 @@ sqlmux ./app.db             # open a SQLite file
 sqlmux postgres://me@localhost/app   # or mysql://…, redis://…: a temporary connection, not saved anywhere
 sqlmux --layout work        # open layouts/work.toml (or a path)
 sqlmux local --table orders # open the table orders of local ([schema.]table; on Redis, a key)
-sqlmux --table orders --where "user_id = 42"   # the first connection, with this WHERE already run
+sqlmux --table orders --where "user_id = 42"   # the default connection, with this WHERE already run
+sqlmux local --sql "select status, count(*) from orders group by 1"   # run one statement, the result below it
+sqlmux local --schema sales --table orders   # --schema picks the schema for --table and --sql
 sqlmux keys                 # list every action and its keys
 sqlmux keys --format toml   # a complete keymaps.toml to start from
 sqlmux keys --check         # report conflicts in your keymaps.toml (exit 1 if any)
 sqlmux --version
 ```
 
-`--table` and `--where` go before or after the connection. Without a connection, `--table` uses the first one in `connections.toml`. The table opens in the default layout, its WHERE goes into the table's history like one you typed, and quitting does not overwrite the layout `sqlmux` restores. `--where` needs `--table` and does not work on Redis; `--table` cannot go with `--layout`.
+`--table`, `--where`, `--sql` and `--schema` go before or after the connection. Without a connection they use `default_connection`, or the first one in `connections.toml`. The table opens in the default layout, its WHERE goes into the table's history like one you typed, and quitting does not overwrite the layout `sqlmux` restores. `--where` needs `--table` and does not work on Redis; `--table` cannot go with `--layout`.
+
+`--sql` opens a window with only the tree, a query holding the statement and the result below it, and runs the statement as `↵` in a query would (several statements run one after another). It is a query like any other: page, export, edit and run again. Read-only connections refuse writes and dangerous statements ask first, as in a query. The query is not saved as a file unless you change it (the statement is in `history.jsonl`), and quitting does not overwrite the layout `sqlmux` restores. On Redis, `--sql` takes a command: `sqlmux cache --sql "dbsize"`. `--sql` cannot go with `--table`, `--where` or `--layout`.
+
+`--schema` is written as in the query title's dropdown: `[database.]schema` on PostgreSQL and SQL Server, the database on MySQL, the db number on Redis. Without it, the connection's own schema is used; a schema that does not exist is reported in a toast and the connection's own is used. With `--table`, a table name without a schema is looked up in it.
 
 `DATABASE_URL` is used only when `connections.toml` has no connections and no argument is given. Press `C-c` twice to quit.
 

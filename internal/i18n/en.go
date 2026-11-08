@@ -60,6 +60,8 @@ var en = map[string]string{
 	"表已不存在，按 R 刷新":                           "The table no longer exists: R reloads",
 	"函数已不存在，按 R 刷新":                          "The function no longer exists: R reloads",
 	"%s：没有表 %s":                              "%s: no table %s",
+	"%s：没有 schema %s":                        "%s: no schema %s",
+	"%s：没有 db %s":                            "%s: no db %s",
 	"%s 里没有表 %s":                             "%s has no table %s",
 	"加列…":                                    "Add column…",
 	"加索引…":                                   "Add index…",
@@ -462,6 +464,10 @@ var en = map[string]string{
 	"这条命令不是只读的，不重跑":    "This command is not read only, it is not sent again",
 	"参数":               "argument",
 	"已索引 %d / 共 %d 键":  "%d of %d keys indexed",
+	"索引更新中":            "Updating the index",
+	"索引建立中":            "Building the index",
+	"索引建立失败：%s":        "The index could not be built: %s",
+	"索引建立失败：%s（树上 %s 重建）": "The index could not be built: %s (%s in the tree builds it again)",
 	"键":                "key",
 	"字段":               "field",
 	"已导出 %s · %d 行，%s": "Exported %s · %d rows, %s",
@@ -501,6 +507,7 @@ var en = map[string]string{
 	"打开布局会回滚。":                       "opening a layout would roll it back.",
 	"没有名为 %s 的连接，session %s 用 %s 开始": "No connection named %s: session %s starts on %s",
 	"没有名为 %s 的连接，跳过 %s":              "No connection named %s: %s is skipped",
+	"default_connection：没有名为 %s 的连接": "default_connection: no connection %s",
 
 	// Configuration: what is wrong in connections.toml, config.toml, themes
 	"%s = %q：颜色要写成 #rrggbb":                                    "%s = %q: write a color as #rrggbb",

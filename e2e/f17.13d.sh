@@ -33,7 +33,7 @@ list_rows() { local g y; g=($(box)); [[ -n ${g[0]} ]] || return 0
   for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 1)) $((g[0] + g[2] - 2)) "$y" | sed 's/^ *//; s/ *$//'; done; }
 menu_pick() { rclick "$1" "$2"; sleep 0.6; menu_click "$3"; sleep 0.9; }
 quit_app() { e2e_type ":"; sleep 0.4; e2e_type qa; key Enter; wait_for 8 exited; sleep 0.5; }
-sum() { md5 -q "$1" 2>/dev/null || md5sum "$1" | cut -d' ' -f1; }
+sum() { md5 "$1"; }
 
 e2e_start -C "$D/c" "$E2E_BIN doraemon"; wait_for 8 flag_is alternate_on 1; sleep 3
 y=$(row_of "^▾ sqlmux")

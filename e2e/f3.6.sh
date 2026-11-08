@@ -85,7 +85,7 @@ check "整段粘贴是一个撤销步：u 一次恢复原样" eval '[[ $(line 1)
 # ---- 文件（§11「文件」、§13）
 sleep 1.5
 check "改动 1s 后自动保存到 XDG_DATA_HOME/sqlmux/queries/query_1.sql，内容与缓冲区一致" eval '[[ -f $CF && $(cat "$CF") == "$(printf "selectcount(*), '"'a'"' from t where id > 10; -- n\nselect 2 as b\nselect 3")" ]] || { echo "  file: $(cat "$CF" 2>&1)"; false; }'
-check "文件 0600，目录 0700" eval '[[ $(stat -f %Lp "$CF") == 600 && $(stat -f %Lp "$(dirname "$CF")") == 700 && $(stat -f %Lp "$DD/sqlmux/queries") == 700 ]]'
+check "文件 0600，目录 0700" eval '[[ $(fmode "$CF") == 600 && $(fmode "$(dirname "$CF")") == 700 && $(fmode "$DD/sqlmux/queries") == 700 ]]'
 key G; key dd; key C-s; sleep 0.3
 check "G dd 后 C-s 立刻写盘（不等 1s）" eval '[[ $(cat "$CF") == "$(printf "selectcount(*), '"'a'"' from t where id > 10; -- n\nselect 2 as b")" ]] || { echo "  file: $(cat "$CF")"; false; }'
 start -D "$DD"
@@ -97,12 +97,16 @@ check ":foo：toast「不支持的命令：foo」" toast_is "不支持的命令�
 key x; key :; typ w; key Enter
 check ":w 立刻写盘" eval '[[ $(head -1 "$CF") == "electcount(*), '"'a'"' from t where id > 10; -- n" ]] || { echo "  file: $(head -1 "$CF")"; false; }'
 key u; key C-s; sleep 0.3
-chmod 500 "$(dirname "$CF")"; key x; key :; typ q; key Enter
-check "写不进文件时 :q 不关 tab，toast「保存失败：…」" eval 'e2e_text 1 160 44 | grep -q "保存失败：.*query_1.sql.*permission denied" && [[ $(e2e_text 98 160 1) == *"②"*"▶ run"* ]]'   # 长 toast 盖住了下边框，e2e_panes 认不出 pane，看标题行
-key :; typ qa; key Enter
-check "写不进文件时 :qa 也不退出" eval 'running && e2e_text 1 160 44 | grep -q "保存失败："'
-key Space; e2e_type x; sleep 0.3
-check "写不进文件时 SPC x 也不关 pane" eval '[[ $(e2e_text 98 160 1) == *"②"*"▶ run"* ]]'
+if (( EUID == 0 )); then
+  for d in ":q 不关 tab" ":qa 也不退出" "SPC x 也不关 pane"; do e2e_skip_if_root "写不进文件时 $d"; done
+else
+  chmod 500 "$(dirname "$CF")"; key x; key :; typ q; key Enter
+  check "写不进文件时 :q 不关 tab，toast「保存失败：…」" eval 'e2e_text 1 160 44 | grep -q "保存失败：.*query_1.sql.*permission denied" && [[ $(e2e_text 98 160 1) == *"②"*"▶ run"* ]]'   # 长 toast 盖住了下边框，e2e_panes 认不出 pane，看标题行
+  key :; typ qa; key Enter
+  check "写不进文件时 :qa 也不退出" eval 'running && e2e_text 1 160 44 | grep -q "保存失败："'
+  key Space; e2e_type x; sleep 0.3
+  check "写不进文件时 SPC x 也不关 pane" eval '[[ $(e2e_text 98 160 1) == *"②"*"▶ run"* ]]'
+fi
 chmod 700 "$(dirname "$CF")"; key u
 key :; typ q; key Enter
 check ":q 关掉 query_1：不确认，② 随最后一个 tab 关掉，文件还在" eval '[[ $(e2e_text 1 160 1) != *query* && $(e2e_find ┐ 1) == "32 160" && -f $CF ]] && ! screen_has 丢弃'

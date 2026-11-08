@@ -58,12 +58,14 @@ type App struct {
 	// the changes of the tree's filter that wait to be asked of the servers (F16.2)
 	redisDelim                   string
 	scanKeys, loadAll, indexKeys int
+	indexCache                   bool // `[redis] index_cache` (F21.4)
+	outerNav                     bool // `[pane] outer_nav = "auto"` (F21.6)
 	filterSeq                    int
 	resultHeight                 float64   // the share the result area first takes
 	treeWidth                    int       // config [tree] width: the sidebar's default width (§7.8)
 	treeFollow                   bool      // config [tree] follow: opening the sidebar, or a table opened from a foreign key, puts the tree's cursor on the tab's node (F20.4)
 	fullWidth                    int       // the grid's columns up to this wide are not squeezed (§7.6)
-	border                       uv.Border // the boxes' lines (§7.1)
+	border, focusBorder          uv.Border // the boxes' lines, and those of the one in focus and the overlays (§7.1, F21.5)
 	newDesc                      bool      // a table opened anew sorts descending, and shows transposed (§14)
 	newTurned                    bool
 	keywordCase                  string // gq's (§9.5)
@@ -148,7 +150,7 @@ var whichKeyDelay = 400 * time.Millisecond
 func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, warning string) *App {
 	editor.UnnamedPlus = cfg.Clipboard == "unnamedplus"
 	a := &App{
-		theme: cfg.Theme, icons: cfg.Icons, baseIcons: cfg.BaseIcons, plain: !cfg.Vim, themeName: cfg.ThemeName, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, redisDelim: cfg.RedisDelimiter, scanKeys: cfg.RedisScanKeys, indexKeys: cfg.RedisIndexKeys, loadAll: cfg.RedisLoadAll, resultHeight: cfg.ResultHeight, fullWidth: cfg.GridFullWidth, treeWidth: cfg.TreeWidth, treeFollow: cfg.TreeFollow, border: cfg.Border, newDesc: cfg.GridDesc, newTurned: cfg.GridTranspose,
+		theme: cfg.Theme, icons: cfg.Icons, baseIcons: cfg.BaseIcons, plain: !cfg.Vim, themeName: cfg.ThemeName, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, redisDelim: cfg.RedisDelimiter, scanKeys: cfg.RedisScanKeys, indexKeys: cfg.RedisIndexKeys, indexCache: cfg.RedisIndexCache, outerNav: cfg.OuterNav == "auto", loadAll: cfg.RedisLoadAll, resultHeight: cfg.ResultHeight, fullWidth: cfg.GridFullWidth, treeWidth: cfg.TreeWidth, treeFollow: cfg.TreeFollow, border: cfg.Border, focusBorder: cfg.FocusBorder, newDesc: cfg.GridDesc, newTurned: cfg.GridTranspose,
 		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg, autoPairs: cfg.AutoPairs, valueHints: cfg.Hints, tipsOn: cfg.Tips, tip: tipState{cur: -1, pick: rand.IntN}, confirmDangerous: cfg.ConfirmDangerous, previewSave: cfg.PreviewSave,
 		keys: keys, res: keymap.NewResolver(keys), sess: sess, sessions: []*Session{sess},
 		mouse: uv.Pos(-1, -1), warning: JoinNotes(warning, sess.warning), state: st,
@@ -282,6 +284,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotSessionDialed(msg)
 	case catalogMsg:
 		return a, a.gotCatalog(msg)
+	case keysStep:
+		return a, a.gotKeysStep(msg)
 	case keysMsg:
 		return a, a.gotKeys(msg)
 	case foundMsg:
@@ -302,6 +306,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotIndex(msg)
 	case indexDelta:
 		return a, a.gotDelta(msg)
+	case indexSave:
+		return a, a.gotIndexSave(msg)
 	case keyListMsg:
 		a.gotKeyListed(msg)
 	case matchMsg:

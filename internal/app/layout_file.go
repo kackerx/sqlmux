@@ -13,6 +13,7 @@ import (
 
 	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db"
+	"github.com/kackerx/sqlmux/internal/editor"
 	"github.com/kackerx/sqlmux/internal/i18n"
 )
 
@@ -363,18 +364,23 @@ func (a *App) connectsNow() []tea.Cmd {
 	return cmds
 }
 
-// startTable is the table (or the key) the command line asks to open, once
-// its connection's catalog is in (F19.1).
+// startTable is what the command line asks to open once its connection's
+// catalog is in: the table (or the key) of --table (F19.1), or the query
+// of --sql, with the --schema (F21.3). conn is the connection the catalog
+// is waited for of: --schema may send it on to another database of the
+// server.
 type startTable struct {
 	conn        *Conn
 	name, where string
+	schema      string    // --schema, as the query title's dropdown writes it; "" for the connection's
+	query       *queryTab // --sql's: name is its statement
 }
 
 // OpenAtStart has the program open table name of the start's connection
 // as it begins, with the condition where on it: a Redis connection's is a key's
-// name, with no condition. Before the program runs only; the error is what is
-// wrong with the asking.
-func (a *App) OpenAtStart(name, where string) error {
+// name, with no condition; in schema, the connection's when "". Before the
+// program runs only; the error is what is wrong with the asking.
+func (a *App) OpenAtStart(name, where, schema string) error {
 	c := a.sess.start
 	switch {
 	case c == nil:
@@ -382,19 +388,75 @@ func (a *App) OpenAtStart(name, where string) error {
 	case !c.sql() && where != "":
 		return errors.New("--where is for the tables of SQL connections, not for the keys of " + c.Spec.Name)
 	}
-	a.want = &startTable{c, name, where}
+	a.want = &startTable{conn: c, name: name, where: where, schema: schema}
 	return nil
 }
 
-// openWanted opens what the command line asked for in the first pane, the
-// data pane of the default layout, as the tree's ↵ does: the table of the
-// name in the connection's schema, or of schema.name; the key of a Redis
-// connection is not looked up. No such table is said, the layout stays.
+// OpenSQLAtStart has the program begin with one query, the statement sql in
+// a new numbered one (the number after query_1, which the default layout
+// has open and is the user's), and run it as ↵ does once the connection's
+// catalog is in: the window is the sidebar and that query's pane, with the
+// result area under it when it runs (F21.3). Before the program runs only.
+func (a *App) OpenSQLAtStart(sql, schema string) error {
+	c, s := a.sess.start, a.sess
+	if c == nil {
+		return errors.New("--sql needs a connection, and there is none in connections.toml")
+	}
+	name := a.freeQuery()
+	delete(a.state.Queries, name) // a query that was never written may have kept where it ran
+	t, err := openQuery(c, name)
+	if err != nil {
+		return err
+	}
+	t.ed = editor.New(sql) // not written to the file: it is when it is changed
+	s.Windows, s.Active = nil, 0
+	s.Windows = append(s.Windows, s.window(leaf(&Pane{ID: 1, Prev: -1, Tabs: []Tab{{Name: name, Query: t}}}), 1))
+	a.want = &startTable{conn: c, name: sql, schema: schema, query: t}
+	return nil
+}
+
+// openWanted does what the command line asked for, once w.conn's catalog is
+// in. --schema is looked up first: not there, said, and the connection's
+// default stays; in another database of the server, w goes on to that
+// connection's catalog. Then the table opens in the first pane, the data pane
+// of the default layout, as the tree's ↵ does: the table of the name in the
+// schema, or of schema.name; the key of a Redis connection is not looked up.
+// No such table is said, the layout stays. Or the query runs.
 func (a *App) openWanted(w *startTable) tea.Cmd {
-	c, t := w.conn, db.Table{Name: w.name, Kind: "k"}
+	c := w.conn
+	if w.schema != "" {
+		target, schema, ok := c.schemaTarget(w.schema)
+		switch {
+		case !ok:
+			said := i18n.T("%s：没有 schema %s", c.label(), w.schema)
+			if c.redis() {
+				said = i18n.T("%s：没有 db %s", c.label(), w.schema)
+			}
+			w.schema = ""
+			return tea.Batch(a.showToast(said), a.openWanted(w))
+		case target != c:
+			w.conn, w.schema = target, schema
+			a.want = w
+			return a.connect(target)
+		}
+		w.schema = schema
+	}
+	if t := w.query; t != nil {
+		if !slices.Contains(a.queries(), t) { // closed meanwhile
+			return nil
+		}
+		if !c.sql() && !c.cmdsReady { // what writes is not known yet: gotCommands brings it back
+			a.want = w
+			return nil
+		}
+		t.conn, t.schema = c, cmp.Or(w.schema, c.Schema)
+		return a.runSQL(t, c, t.schema, t.name, w.name, 0, t.ver)
+	}
+	t := db.Table{Name: w.name, Kind: "k"}
 	if c.sql() {
+		schema := cmp.Or(w.schema, c.Schema)
 		i := slices.IndexFunc(c.Tables, func(t db.Table) bool {
-			return t.Schema == c.Schema && t.Name == w.name || t.Schema+"."+t.Name == w.name
+			return t.Schema == schema && t.Name == w.name || t.Schema+"."+t.Name == w.name
 		})
 		if i < 0 {
 			return a.showToast(i18n.T("%s：没有表 %s", c.label(), w.name))

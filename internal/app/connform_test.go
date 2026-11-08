@@ -608,6 +608,9 @@ func TestConnFormClosedFoldIgnored(t *testing.T) {
 // password goes into the keychain: the form says why, the keychain is not
 // asked, the file is as it was (F8.16).
 func TestConnFormUnwritableFile(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root writes a read-only file")
+	}
 	a := managed(t)
 	path := filepath.Join(config.Dir(), "connections.toml")
 	if err := os.Chmod(path, 0o444); err != nil {

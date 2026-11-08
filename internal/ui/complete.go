@@ -45,12 +45,12 @@ func CompleteBox(screen uv.Rectangle, at uv.Position, w, n, foot, limit int) (bo
 // Draw paints the list in box, rows of it showing.
 func (c Complete) Draw(f *Frame, box uv.Rectangle, rows int) {
 	th := f.Theme
-	if box.Dx() < 4 || rows == 0 {
+	if box.Dx() < 4 || rows == 0 && len(c.Foot) == 0 { // a box of its foot alone is one (F21.7)
 		return
 	}
 	f.Region(box, Target{}) // a click inside is not outside
 	f.Fill(box, uv.Style{Bg: th.PaneBg})
-	border := f.Border.Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
+	border := f.Lines(true).Style(uv.Style{Fg: th.BorderFocus, Bg: th.PaneBg})
 	border.Draw(f.Buf, box)
 	x0, x1 := box.Min.X+1, box.Max.X-1
 	for i := c.Top; i < min(c.Top+rows, len(c.Items)); i++ {
@@ -103,7 +103,7 @@ func (h CellHint) Draw(f *Frame, box uv.Rectangle) {
 	}
 	f.Region(box, Target{}) // a click inside is not outside
 	f.Fill(box, uv.Style{Bg: th.PaneBg})
-	border := f.Border.Style(uv.Style{Fg: th.Error, Bg: th.PaneBg})
+	border := f.Lines(true).Style(uv.Style{Fg: th.Error, Bg: th.PaneBg})
 	border.Draw(f.Buf, box)
 	f.Text(box.Min.X+2, box.Min.Y+1, box.Max.X-1, h.Text, uv.Style{Fg: th.Error, Bg: th.PaneBg})
 }

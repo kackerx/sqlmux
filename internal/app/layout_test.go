@@ -2,6 +2,7 @@ package app
 
 import (
 	"math"
+	"strings"
 	"testing"
 
 	uv "github.com/charmbracelet/ultraviolet"
@@ -140,5 +141,49 @@ func TestHandles(t *testing.T) {
 	moved.Rects(uv.Rect(0, 0, 41, 20), rects)
 	if rects[2].Max.Y != 15 {
 		t.Errorf("after the drag the top half ends at %d", rects[2].Max.Y)
+	}
+}
+
+// With `[pane] outer_nav = "auto"` in tmux, a pane.focus.<side> that has no pane on that side
+// hands the focus to the outer tmux with `select-pane`; one that has a pane moves in sqlmux
+// as it did; with off, or outside tmux, nothing is run (F21.6).
+func TestOuterNav(t *testing.T) {
+	var ran []string
+	defer func(f func(string)) { tmuxSelectPane = f }(tmuxSelectPane)
+	tmuxSelectPane = func(flag string) { ran = append(ran, flag) }
+	for _, tc := range []struct {
+		name         string
+		auto         bool
+		tmux         string
+		focus        int // the pane focused: 0 the sidebar, 1 data, 2 query (the default layout)
+		zoomed       bool
+		side         string
+		want         string // the flag run, "" for none
+		wantFocusAft int
+	}{
+		{"sidebar, left", true, "/tmp/tmux-0/default,1,0", 0, false, "left", "-L", 0},
+		{"data, up", true, "x", 1, false, "up", "-U", 1},
+		{"data, down", true, "x", 1, false, "down", "-D", 1},
+		{"query, right", true, "x", 2, false, "right", "-R", 2},
+		{"data, left: the sidebar is there", true, "x", 1, false, "left", "", 0},
+		{"data, right: the query is there", true, "x", 1, false, "right", "", 2},
+		{"zoomed, right", true, "x", 1, true, "right", "-R", 1},
+		{"off", false, "x", 0, false, "left", "", 0},
+		{"not in tmux", true, "", 0, false, "left", "", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("TMUX", tc.tmux)
+			a := sized(160, 45, "nerd")
+			a.outerNav = tc.auto
+			a.win().focus(tc.focus)
+			if tc.zoomed {
+				feed(t, a, "<Space>z")
+			}
+			ran = nil
+			a.run("pane.focus."+tc.side, 0)
+			if got := strings.Join(ran, " "); got != tc.want || a.win().Focus != tc.wantFocusAft {
+				t.Errorf("ran %q, want %q; focus %d, want %d", got, tc.want, a.win().Focus, tc.wantFocusAft)
+			}
+		})
 	}
 }

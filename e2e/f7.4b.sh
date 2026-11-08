@@ -40,7 +40,7 @@ toast_text() { toast_row | sed 's/^[^┘]*└*[─ ]*//; s/ *┘.*//; s/^ *//'; 
 # ---- 非 ASCII 密码：password_cmd 末尾接 xxd -r -p，真 security 对这种密码输出十六进制；假工具照这个规则
 newconn a; start -C "$D/a"; pal ">conn.new"; key Enter
 fill uni "$PG_HOST" "$PG_PORT" "$PG_USER" "pässwörd" "$PG_DB"; key Enter; sleep 1.5
-check "非 ASCII 密码（pässwörd）：保存成功，password_cmd 末尾接 xxd -r -p，connections.toml 里没有明文" eval '! form_open && grep -q "password_cmd = .*xxd -r -p" "$(CT)" && ! grep -q "pässwörd" "$(CT)"'
+check "非 ASCII 密码（pässwörd）：保存成功，macOS 上 password_cmd 末尾接 xxd -r -p，connections.toml 里没有明文" eval '! form_open && { [[ $(uname) != Darwin ]] || grep -q "password_cmd = .*xxd -r -p" "$(CT)"; } && ! grep -q "pässwörd" "$(CT)"'
 check "真 security 会输出十六进制：假工具的记录里是原密码；password_cmd 在假 PATH 下执行，还原出 pässwörd" eval 'cmd=$(sed -n "s/^password_cmd = \"\(.*\)\"$/\1/p" "$(CT)" | tail -1); cmd=${cmd//\\\"/\"}; [[ $(cat "$E2E_TMP/keychain/sqlmux-uni") == "pässwörd" && $(PATH="$E2E_TMP/bin:$PATH" E2E_DIR="$E2E_TMP" sh -c "$cmd") == "pässwörd" ]] || { echo "  cmd: $cmd"; false; }'
 
 # ---- 密码按字素画 *：中文、emoji、e + 组合音标各一个
@@ -89,7 +89,7 @@ key Escape; sleep 0.3
 # ---- 没有钥匙串工具时明文回退：F7.5 起不 chmod 已有的文件（权限不变），新建的文件仍是 0600
 newconn n644; chmod 644 "$D/n644/connections.toml"
 start -P /bin -C "$D/n644"; pal ">conn.new"; key Enter; fill plain2 "$PG_HOST" "$PG_PORT" "$PG_USER" "$PG_PW" "$PG_DB"; key Enter; sleep 1.5
-check "没有钥匙串工具：写明文，原来 0644 的文件权限不变（程序不 chmod）" eval '! form_open && [[ $(stat -f %Lp "$(CT)") == 644 ]] && grep -q "password = \"$PG_PW\"" "$(CT)"'
+check "没有钥匙串工具：写明文，原来 0644 的文件权限不变（程序不 chmod）" eval '! form_open && [[ $(fmode "$(CT)") == 644 ]] && grep -q "password = \"$PG_PW\"" "$(CT)"'
 e2e_stop
 
 # ---- 零连接：没有文件、空文件、只有注释、connection = []：都进界面、空树一行提示、表单自动打开；esc 之后能用
