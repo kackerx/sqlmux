@@ -48,6 +48,10 @@
 - **内置第二个主题 `ristretto`**（用户 2026-10-30：把现在用的 ristretto 做成内置，别人 `theme = "ristretto"` 就能用）：取用户 `~/.config/sqlmux/themes/ristretto.toml` 当时的内容（46 行，含一个 `[icon]` 表；暖灰底，Monokai Pro 一族的颜色），注释改成面向所有人的英文；`bg` 用原来的 `#312b2b`（有了 `gap` token 后间隙跟 `pane_bg`，tab 栏留深色），`border` 用试过的 `#7a7272`。查找顺序照 §7.3：用户目录里的同名文件优先于内置，所以用户自己的文件照旧生效、可以删掉改用内置；`theme.switch` 的下拉里列出它。README / docs 的主题一节由 oss 补一张截图。
 - **pane 之间的间隙不另上色，边框颜色分开配**（截图：间隙是一条更深的竖条；参考 lazygit 整片一个底色）。原因：间隙画的是 `bg`，用户的 ristretto 里 `bg = #312b2b`、`pane_bg = #393333`。改成间隙用 `pane_bg`（`bg` 只留给 tab 栏和 `bg` 色字）。边框：未聚焦是 `border`，聚焦现在和 NORMAL、执行按钮共用 `focus`，加一个 `border_focus`（缺省 = `focus`）让聚焦边框单独配，同 lazygit 的 `activeBorderColor` / `inactiveBorderColor`。「未聚焦的再粗一点」：终端的线没有粗细，只能换粗线字形（`border = "bold"`，聚焦和未聚焦一起变）或调亮颜色；用户 ristretto 的 `border = #5b5555` 对 `#393333` 对比太低。2026-10-30 用户让先在自己的主题里试：决策者把 ristretto 的 `bg` 改成 `#393333`（= `pane_bg`，间隙不再有深色竖条，代价是 tab 栏也跟着变成同一个底色）、`border` 改成 `#7a7272`，备份 `ristretto.toml.bak-2026-10-30`；用户看过说好多了，并定（2026-10-30）：加主题 token `gap`，没写时跟 `pane_bg`（同 `zoom` 跟 `warn` 的写法），间隙用它，tab 栏照旧用 `bg`。新用户的默认样子决策者用空配置 + 内置 tokyonight-storm 截了一张（scratchpad `fresh/fresh.png`）：同样的问题，间隙是比 `pane_bg` 深一档的藏青竖条（`bg #1f2335` 对 `pane_bg #24283b`），未聚焦边框 `#3b4261` 也偏暗；M20 一并把内置主题的 `border` 调到 `#565f89`（= `dim`）左右，worker 截图对比后定值。
 
+## M22 候选
+
+- **`just test-windows`**（决策者 2026-11-08，v0.10.0 第一次推 tag 时 `ci / windows` 红、Release 空跑；用户定这次只改测试不加机制）：`GOOS=windows go test -short -exec <wrapper> ./...`，wrapper 把测试 exe 拷到 Windows 盘经 WSL interop 跑，打 tag 前跑一次；做法在 m21 task.md F21.8 b。
+
 ## M21 候选（用户 2026-10-31：M20 放不下的往后排，v0.10.0）
 
 2026-11-07 全部排进 `m21-cli-outer/task.md`，下面是原始记录。

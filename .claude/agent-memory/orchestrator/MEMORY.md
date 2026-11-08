@@ -1,1 +1,2 @@
 - [WSL environment](project_wsl_env.md) — 2026-11-07 起 agent 在 Windows WSL 上跑：Docker 要开 WSL integration，Windows 版用主机 python 跑 smoke.py
+- [Small fixes skip the pipeline](feedback_small_fixes.md) — _test 文件的平台小修：worker 直接改、重跑 CI，不走审查 / 测试，不顺手立机制
