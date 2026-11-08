@@ -14,11 +14,11 @@
 │       ▸  t_order       1.2m│  doraemon               │          name far                                                    │                             │
 │       ▸  t_order_item  3.4m│  新建                   │         group                                                        │                             │
 │       ▸  t_payment     410k│                          │        engine  postgres ▾                                            │                             │
-│       ▸  t_refund       12k│                          │          host                                                        │                             │
-│       ▸  t_sku         8.1k│                          │          port 5432                                                   │                             │
-│       ▸  t_user         38k│                          │          user                                                        │                             │
+│       ▸  t_refund       12k│                          │          host 127.0.0.1                                              │                             │
+│       ▸  t_sku         8.1k│                          │          port 1                                                      │                             │
+│       ▸  t_user         38k│                          │          user u                                                      │                             │
 │       ▸  t_user_address 52k│                          │      password                                                        │                             │
-│       ▸  t_user_profile 38k│                          │      database                                                        │                             │
+│       ▸  t_user_profile 38k│                          │      database d                                                      │                             │
 │        Views (0)           │                          │     read_only [ ]                                                    │                             │
 │ ▾  工作区                  │                          │    production [ ]                                                    │                             │
 │   ▾  data                  │                          │          高级 ▾                                                      │                             │

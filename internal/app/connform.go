@@ -158,7 +158,7 @@ func (a *App) selectConn(i int) {
 	text(fieldName, c.Name)
 	text(fieldGroup, c.Group)
 	f.fields[fieldEngine].On = slices.Index(f.fields[fieldEngine].Choices, c.Engine)
-	host, port, user, database := splitDSN(c.Engine, c.DSN)
+	host, port, user, database, _ := splitDSN(c.Engine, c.DSN)
 	text(fieldHost, host)
 	text(fieldPort, port)
 	text(fieldUser, user)
@@ -175,31 +175,122 @@ func (a *App) selectConn(i int) {
 	text(fieldSSH, c.SSH)
 }
 
-// mysqlDSN is the go-sql-driver's `user:password@tcp(host:port)/database?…`.
-var mysqlDSN = regexp.MustCompile(`^(?:([^:@/]*)(?::[^@]*)?@)?tcp\(([^)]*)\)/([^?]*)`)
+// mysqlDSN is the go-sql-driver's `user:password@tcp(host:port)/database?…`:
+// the user, the password, the address and the database.
+var mysqlDSN = regexp.MustCompile(`^(?:([^:@/]*)(?::([^@]*))?@)?tcp\(([^)]*)\)/([^?]*)`)
 
 // splitDSN is the host, port, user and database a dsn says, as far as it
 // says them in a form it knows: a URL, which is what the form writes for
-// both engines, or the go-sql-driver's; "" for what it cannot read.
-func splitDSN(engine, dsn string) (host, port, user, database string) {
+// every engine but SQLite, or the go-sql-driver's; ok is false for what it
+// cannot read, SQL Server's keyword form say.
+func splitDSN(engine, dsn string) (host, port, user, database string, ok bool) {
 	if engine == "sqlite" { // the file is all there is
-		return "", "", "", dsn
+		return "", "", "", dsn, true
 	}
 	if engine == "mysql" && !strings.Contains(dsn, "://") {
 		if m := mysqlDSN.FindStringSubmatch(dsn); m != nil {
-			host, port, err := net.SplitHostPort(m[2])
+			host, port, err := net.SplitHostPort(m[3])
 			if err != nil { // no port written
-				host, port = m[2], ""
+				host, port = m[3], ""
 			}
-			return host, port, m[1], m[3]
+			return host, port, m[1], m[4], true
 		}
 		return
 	}
 	u, err := url.Parse(dsn)
-	if err != nil {
+	if err != nil || u.Scheme == "" || u.Host == "" {
 		return
 	}
-	return u.Hostname(), u.Port(), u.User.Username(), strings.TrimPrefix(u.Path, "/")
+	database = strings.TrimPrefix(u.Path, "/")
+	if engine == "mssql" { // the driver's URL has its database as a parameter (F18.6)
+		database = u.Query().Get("database")
+	}
+	return u.Hostname(), u.Port(), u.User.Username(), database, true
+}
+
+// rewriteDSN is dsn with its host, port, user and database the ones given and
+// all else of it as it was: its scheme, its parameters, a password written in
+// it; ok is false for a dsn splitDSN cannot read, which only its own field
+// changes.
+func rewriteDSN(engine, dsn, host, port, user, database string) (string, bool) {
+	if _, _, _, _, ok := splitDSN(engine, dsn); !ok {
+		return dsn, false
+	}
+	if engine == "sqlite" {
+		return database, true
+	}
+	addr := host
+	if port != "" {
+		addr = net.JoinHostPort(strings.Trim(host, "[]"), port)
+	}
+	if engine == "mysql" && !strings.Contains(dsn, "://") {
+		m := mysqlDSN.FindStringSubmatchIndex(dsn)
+		who := user
+		if m[4] >= 0 { // its password stays
+			who += ":" + dsn[m[4]:m[5]]
+		}
+		if who != "" {
+			who += "@"
+		}
+		return who + "tcp(" + addr + ")/" + database + dsn[m[1]:], true
+	}
+	u, _ := url.Parse(dsn)
+	u.Host = addr
+	switch pw, has := u.User.Password(); {
+	case has:
+		u.User = url.UserPassword(user, pw)
+	case user != "":
+		u.User = url.User(user)
+	default:
+		u.User = nil
+	}
+	if engine == "mssql" {
+		q := u.Query()
+		if database == "" {
+			q.Del("database")
+		} else {
+			q.Set("database", database)
+		}
+		u.RawQuery = q.Encode()
+	} else {
+		u.Path = "/" + database
+	}
+	return u.String(), true
+}
+
+// syncDSN keeps a dsn that is typed and the fields split from it the same:
+// a change of host, port, user or database is written into the dsn, the rest
+// of it as it was; a change of the dsn is read back into them (F8.16).
+func (f *connForm) syncDSN(i int) {
+	if !f.dsnGiven() {
+		return
+	}
+	engine := f.fields[fieldEngine].Choices[f.fields[fieldEngine].On]
+	in := func(i int) *ui.Input { return &f.fields[i].Input }
+	set := func(i int, s string) { *in(i) = ui.Input{Text: s, Pos: len(s)} }
+	switch i {
+	case fieldHost, fieldPort, fieldUser, fieldDatabase:
+		if dsn, ok := rewriteDSN(engine, in(fieldDSN).Text, in(fieldHost).Text, in(fieldPort).Text, in(fieldUser).Text, in(fieldDatabase).Text); ok {
+			set(fieldDSN, dsn)
+		}
+	case fieldDSN:
+		if host, port, user, database, ok := splitDSN(engine, in(fieldDSN).Text); ok {
+			set(fieldHost, host)
+			set(fieldPort, port)
+			set(fieldUser, user)
+			set(fieldDatabase, database)
+		}
+	}
+}
+
+// dsnFixed is whether a dsn is typed that splitDSN cannot read: then the
+// fields split from it take no part, the dsn alone says where to connect.
+func (f *connForm) dsnFixed() bool {
+	if !f.dsnGiven() {
+		return false
+	}
+	_, _, _, _, ok := splitDSN(f.fields[fieldEngine].Choices[f.fields[fieldEngine].On], strings.TrimSpace(f.fields[fieldDSN].Input.Text))
+	return !ok
 }
 
 // advanced is whether the fold is open; dsnGiven whether a dsn is typed in
@@ -217,11 +308,11 @@ func (f *connForm) skipped(i int) bool {
 	case fieldSSH: // a file has no network to go through (F15.2)
 		return !f.advanced() || f.sqlite()
 	case fieldHost, fieldPort, fieldUser:
-		return f.dsnGiven() || f.sqlite()
+		return f.dsnFixed() || f.sqlite()
 	case fieldPassword:
 		return f.sqlite()
 	case fieldDatabase:
-		return f.dsnGiven()
+		return f.dsnFixed()
 	}
 	return false
 }
@@ -280,8 +371,11 @@ func (a *App) formKey(k keymap.Key) {
 	fd := &f.fields[f.sel]
 	switch fd.Kind {
 	case ui.FormInput:
-		if editInput(&fd.Input, k) && f.sel == fieldGroup {
-			f.groupSel, f.groupOff = -1, false
+		if editInput(&fd.Input, k) {
+			if f.sel == fieldGroup {
+				f.groupSel, f.groupOff = -1, false
+			}
+			f.syncDSN(f.sel)
 		}
 	case ui.FormSelect:
 		switch k {
