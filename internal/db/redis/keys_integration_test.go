@@ -35,6 +35,35 @@ func names(ks []KeyInfo) (out []string) {
 	return out
 }
 
+// A scan a batch at a time, each Step a request, reads what Scan reads: the same keys with
+// the same types, to the budget, the size of the db from the first, more than one Step for
+// a db of 12000 keys (F21.7).
+func TestScanning(t *testing.T) {
+	ctx := context.Background()
+	c := connectTo(t, IntegrationDSN(t))
+	all, err := Scan(ctx, c, "*", 100000, ScanCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, budget := range []int{100000, 1500} {
+		sc, steps := NewScanning("*", budget, ScanCount), 0
+		for done := false; !done; steps++ {
+			if done, err = sc.Step(ctx, c); err != nil {
+				t.Fatal(err)
+			}
+		}
+		want, err := Scan(ctx, c, "*", budget, ScanCount)
+		if err != nil || steps < 2 || sc.Total != all.Total || sc.Complete != want.Complete || !slices.Equal(names(sc.Keys), names(want.Keys)) {
+			t.Errorf("budget %d: %d steps, %d keys of %d, complete %v (%v), total %d, %v", budget, steps, len(sc.Keys), len(want.Keys), sc.Complete, want.Complete, sc.Total, err)
+		}
+		for _, k := range sc.Keys {
+			if k.Name == "hash:user" && k.Type != "hash" {
+				t.Errorf("type of hash:user: %q", k.Type)
+			}
+		}
+	}
+}
+
 // A scan reads every key of a db once with its type, stops at its budget, takes a
 // pattern, and sees the size of the db whatever it read (F16.2, seed db0).
 func TestScan(t *testing.T) {

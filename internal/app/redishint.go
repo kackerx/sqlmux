@@ -194,10 +194,8 @@ func (a *App) gotHintDue(m hintDue) tea.Cmd {
 	}
 	meta, limit := c.Meta, a.loadAll
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
-		defer cancel()
 		r := hintMsg{conn: c, kind: m.kind, arg: m.arg}
-		r.err = meta.RunSafe(ctx, func(ctx context.Context, conn db.Conn) (err error) {
+		r.err = onMeta(meta, redisBatchTimeout, func(ctx context.Context, conn db.Conn) (err error) {
 			if m.kind == "keys" {
 				r.names, err = redis.KeyHints(ctx, conn, m.arg, hintWant)
 			} else {

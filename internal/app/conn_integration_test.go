@@ -39,7 +39,7 @@ func settle(a *App, cmd tea.Cmd) {
 		for _, c := range m {
 			settle(a, c)
 		}
-	case connected, catalogMsg, keysMsg, cmdsMsg, foundMsg, filterDue, keyDone, keyExists, indexDelta, namespaceFound, sessionDialed, runDone, pageDone, txDone, pageMsg, countMsg, saveMsg, dropped:
+	case connected, catalogMsg, keysMsg, keysStep, cmdsMsg, foundMsg, filterDue, keyDone, keyExists, indexDelta, namespaceFound, sessionDialed, runDone, pageDone, txDone, pageMsg, countMsg, saveMsg, dropped:
 		_, next := a.Update(m)
 		settle(a, next)
 	}

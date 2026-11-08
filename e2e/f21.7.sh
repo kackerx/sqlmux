@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # F21.7 索引第一次建立期间补全框要有反馈（specs/m21-cli-outer/task.md F21.7；tech-design §9.8「索引存盘」末尾）
-# 6 万键、500ms 往返的代理（COMMAND DOCS 要二十几秒、索引要建好几秒；1 秒往返时索引批次排在 DOCS 后面超过 3 秒的 countTimeout 会失败）：没有文件时敲 GET p: 之后 300ms 内就有框，里面只有一行「索引建立中」；索引建完那行消失、候选是模糊结果；
-# :qa 重启后有文件，是「索引更新中」不是「索引建立中」。每个脚本自起 redis-server。
+# 6 万键、500ms 往返的代理：没有文件时连上就敲 GET p:，COMMAND DOCS 在树的第一批之前发、几秒内到，之后 300ms 内就有框，里面只有一行
+# 「索引建立中」，10 秒内有候选，索引建完那行消失、候选是模糊结果、文件写出来；:qa 重启后有文件，是「索引更新中」不是「索引建立中」。
+# 1000ms 往返的代理：索引在 30 秒内建完、文件写出来（原来一批 3 秒的超时从排队时算起，建不完）。每个脚本自起 redis-server。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 . "$(dirname "$0")/redis.sh"
@@ -19,7 +20,7 @@ redis_slow 500 || exit 1
 mkdir -p "$D/c" "$D/data"
 (umask 077; printf '[[connection]]\nname = "rd"\nengine = "redis"\ndsn = "redis://localhost:%s/0"\n' "$SPORT" >"$D/c/connections.toml")
 FILE="$D/data/sqlmux/redis-index/rd/db0"
-sstart() { e2e_start -C "$D/c" -D "$D/data" "$E2E_BIN rd"; wait_for 8 flag_is alternate_on 1; sleep 45; }   # COMMAND DOCS is a big reply, a chunk of it each half second
+sstart() { e2e_start -C "$D/c" -D "$D/data" "$E2E_BIN rd"; wait_for 8 flag_is alternate_on 1; sleep "${1:-12}"; }   # COMMAND DOCS is in by then (500 ms: 3 s after the dial)
 to_console() { key C-l; key Escape; key g g; key d G; key i; }
 quit_app() { key Escape; e2e_type ':qa'; e2e_keys Enter; wait_for 8 screen_has '[e2e-exit 0]'; }
 has() { e2e_plain | grep -qF -- "$1"; }
@@ -37,17 +38,30 @@ PY
 }
 
 check "（准备）还没有索引文件" eval '[[ ! -e "$FILE" ]]'
-sstart; to_console
+sstart 12; to_console
+t0=$(date +%s.%N)
 ms=$(timed "GET p:" "索引建立中")
 echo "# 最后一个字符到「索引建立中」：${ms}ms（含 tmux 轮询的 20–40ms）"
-check "没有文件、索引还在建：敲 GET p: 后 300ms 内有框，里面是「索引建立中」" eval '(( ms >= 0 && ms <= 300 ))'
+check "没有文件、索引还在建：连上就敲 GET p: 后 300ms 内有框，里面是「索引建立中」" eval '(( ms >= 0 && ms <= 300 ))'
 check "框里只有那一行（没有候选：前缀的结果要半秒往返才到）" eval '! has "p:employees" && ! has "p:team"'
-check "索引建完：「索引建立中」消失（最多等 90 秒）、文件写出来" eval 'wait_for 90 eval "! e2e_plain | grep -qF 索引建立中" && wait_for 20 test -s "$FILE"'
-check "候选是模糊结果（p: 开头的键）" eval 'wait_for 20 eval "e2e_plain | grep -qE \"p:(employees|team)\""' || e2e_plain | tail -12
+check "10 秒内有候选（前缀的结果先填进框里，「索引建立中」那一行还在）" eval 'wait_for 10 eval "e2e_plain | grep -qE \"p:(employees|team)\""' || e2e_plain | tail -12
+echo "# 敲完到有候选：$(python3 -c "import time; print(int((time.time() - $t0) * 1000))")ms（含 timed 里等框的）"
+check "索引建完：「索引建立中」消失（30 秒内）、文件写出来" eval 'wait_for 30 eval "! e2e_plain | grep -qF 索引建立中" && wait_for 10 test -s "$FILE"'
+check "候选是模糊结果（p: 开头的键）" eval 'e2e_plain | grep -qE "p:(employees|team)"' || e2e_plain | tail -12
 quit_app
 
 # ---- 重启：有文件了，是「索引更新中」，不是「索引建立中」
-sstart; to_console
+sstart 12; to_console
 ms=$(timed "GET p:" "索引更新中")
 check "有文件：敲 GET p: 后是「索引更新中」（不是建立中），候选马上有" eval '(( ms >= 0 && ms <= 300 )) && ! has "索引建立中" && has "p:"'
+quit_app
+
+# ---- 1000ms 往返：索引 30 秒内建完、文件写出来（一批的 3 秒超时原来从排队时算起，建不完）
+rm -f "$FILE"; redis_slow 1000 || exit 1
+(umask 077; printf '[[connection]]\nname = "rd"\nengine = "redis"\ndsn = "redis://localhost:%s/0"\n' "$SPORT" >"$D/c/connections.toml")
+sstart 25; to_console
+e2e_type "GET p:"; t1=$(date +%s)
+check "1000ms 往返：敲 GET p: 之后 30 秒内索引建完、文件写出来（60447 行）" eval 'wait_for 30 test -s "$FILE" && [[ $(wc -l <"$FILE") == 60447 ]] || { ls -l "$FILE"; false; }'
+echo "# 1000ms：敲完到文件写出来 $(( $(date +%s) - t1 ))s"
+check "1000ms 往返：没有「索引建立失败」" eval '! has "索引建立失败"'
 e2e_done

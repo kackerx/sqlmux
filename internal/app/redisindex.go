@@ -174,15 +174,29 @@ func (a *App) rebuildIndex(c *Conn) tea.Cmd {
 	return a.indexBatch(c, c.building)
 }
 
+// redisBatchTimeout bounds a request that reads a batch of a Redis db's key names: a SCAN with
+// COUNT 10000 is a reply of a quarter of a megabyte, some round trips of a far server, one of a
+// second took 4 s of it with DBSIZE before it (F21.7).
+const redisBatchTimeout = 20 * time.Second
+
+// onMeta runs f on meta as one request, its context bounded by d from when it runs, not from
+// when it was asked for: on a slow link the requests before it may take longer than d, and a
+// timeout that ran out in the line closes the connection under them (F21.7).
+func onMeta(meta *db.Worker, d time.Duration, f func(context.Context, db.Conn) error) error {
+	return meta.RunSafe(context.Background(), func(ctx context.Context, conn db.Conn) error {
+		ctx, cancel := context.WithTimeout(ctx, d)
+		defer cancel()
+		return f(ctx, conn)
+	})
+}
+
 // indexBatch asks for the next batch of ix's names.
 func (a *App) indexBatch(c *Conn, ix *keyIndex) tea.Cmd {
 	meta, cursor, first := c.Meta, ix.cursor, !ix.started
 	ix.started = true
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
-		defer cancel()
 		m := indexMsg{conn: c, ix: ix}
-		m.err = meta.RunSafe(ctx, func(ctx context.Context, conn db.Conn) (err error) {
+		m.err = onMeta(meta, redisBatchTimeout, func(ctx context.Context, conn db.Conn) (err error) {
 			if first {
 				if m.total, err = redis.DBSize(ctx, conn); err != nil {
 					return err
@@ -625,10 +639,8 @@ type indexDelta struct {
 func (a *App) askExists(c *Conn, keys []string) tea.Cmd {
 	meta, epoch := c.Meta, c.epoch
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), countTimeout)
-		defer cancel()
 		m := indexDelta{conn: c, epoch: epoch, keys: keys}
-		m.err = meta.RunSafe(ctx, func(ctx context.Context, conn db.Conn) (err error) {
+		m.err = onMeta(meta, countTimeout, func(ctx context.Context, conn db.Conn) (err error) {
 			m.found, err = redis.Exists(ctx, conn, keys)
 			return err
 		})
