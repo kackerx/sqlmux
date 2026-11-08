@@ -1,0 +1,8 @@
+The PNG files in this directory are the database icons of DBeaver
+(https://github.com/dbeaver/dbeaver, plugins/org.jkiss.dbeaver.ext.*/icons/*_icon_big.png),
+copyright DBeaver Corp and others, used under the Apache License 2.0, a copy of
+which is in LICENSE-DBeaver.txt. They are unmodified, renamed by engine.
+
+The logos themselves are trademarks of their owners (PostgreSQL, MySQL, SQLite,
+Microsoft SQL Server, ClickHouse, Trino, Oracle); sqlmux shows them only to
+name the engine of a connection.

@@ -193,6 +193,9 @@ func (f *Frame) Dim() {
 	for y := range f.Buf.Height() {
 		for x := range f.Buf.Width() {
 			c := f.Buf.CellAt(x, y)
+			if c != nil && IsPlaceholder(c.Content) { // its color is an image's id, which a mix would lose
+				continue
+			}
 			c.Style.Fg = mix(cmp.Or(c.Style.Fg, th.Fg), th.Bg, 0.6)
 			if !f.Transparent || !th.background(c.Style.Bg) {
 				c.Style.Bg = mix(cmp.Or(c.Style.Bg, th.Bg), th.Bg, 0.6)

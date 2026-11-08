@@ -22,9 +22,13 @@ import (
 )
 
 type Config struct {
-	Theme      *ui.Theme // `theme = "<name>"` (§7.3), resolved by Load
-	Icons      *ui.Icons // `icons = "nerd" | "ascii"`, with the theme file's [icon] on top (§7.7)
-	BaseIcons  *ui.Icons // what `icons` chose, a theme's [icon] not on it: a theme switched to goes on this
+	Theme     *ui.Theme // `theme = "<name>"` (§7.3), resolved by Load
+	Icons     *ui.Icons // `icons = "nerd" | "ascii"`, with the theme file's [icon] on top (§7.7)
+	BaseIcons *ui.Icons // what `icons` chose, a theme's [icon] not on it: a theme switched to goes on this
+	// Logos is whether the engines' icons are their logos as images (§7.7):
+	// "auto" when `icons` is not set, the terminal's to tell; "on" for `icons
+	// = "images"`; "off" for nerd or ascii said.
+	Logos      string
 	ThemeName  string    // the theme in use: `theme`, or tokyonight-storm
 	Language   string    // `language = "en" | "zh"` (§14「界面语言」)
 	Border     uv.Border // `border = "single" | "rounded" | "double" | "bold" | "hidden"`: the boxes' lines (§7.1)
@@ -95,7 +99,7 @@ type Config struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Logos: "auto", Language: "en", Border: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -207,11 +211,16 @@ func Parse(data string) (*Config, error) {
 		return nil, errors.New("[keys] / [map] belong in keymaps.toml (sqlmux keys --format toml writes a complete reference)")
 	}
 	if raw.Icons != nil {
-		if *raw.Icons != "nerd" && *raw.Icons != "ascii" {
-			return nil, fmt.Errorf(`icons = %q: must be "nerd" or "ascii"`, *raw.Icons)
+		switch *raw.Icons {
+		case "images": // Nerd Font glyphs, and the engines' logos as images whatever the terminal says
+			c.Logos = "on"
+		case "nerd", "ascii":
+			c.Logos = "off"
+			c.Icons = ui.IconSet(*raw.Icons)
+			c.BaseIcons = c.Icons
+		default:
+			return nil, fmt.Errorf(`icons = %q: must be "nerd", "ascii" or "images"`, *raw.Icons)
 		}
-		c.Icons = ui.IconSet(*raw.Icons)
-		c.BaseIcons = c.Icons
 	}
 	if raw.Language != nil {
 		if *raw.Language != "zh" && *raw.Language != "en" {

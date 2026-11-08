@@ -57,7 +57,7 @@
 ```toml
 # config.toml
 theme        = "tokyonight-storm"
-icons        = "nerd"            # nerd | ascii
+icons        = "nerd"            # nerd | ascii | images；不写时由终端定：kitty / Ghostty（不在 tmux 里）里引擎图标是 DBeaver 的彩色图（§7.7）
 vim          = true              # false 时 query / WHERE 是普通编辑器，表格、树多一层方向键（§6.9，M6）
 clipboard    = ""                # M20 F20.5："unnamedplus" 时编辑器里不带寄存器的 y / d / p 同时走系统剪贴板，同 nvim（§11「寄存器」）
 language     = "en"              # en | zh，界面文案的语言（M6；默认 en，M7 F7.6）

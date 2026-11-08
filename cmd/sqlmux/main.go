@@ -19,6 +19,7 @@ import (
 	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/keymap"
+	"github.com/kackerx/sqlmux/internal/ui"
 )
 
 // version, commit and date are what the build says (ldflags -X, F11.1);
@@ -166,6 +167,13 @@ func run(args []string) error {
 	st, err := config.LoadState()
 	if err != nil { // the broken file is kept aside; start empty (§14)
 		warning = app.JoinNotes(warning, err.Error())
+	}
+	if cfg.Logos == "on" || cfg.Logos == "auto" && ui.KittyGraphics(os.Getenv) { // the engines' logos as images (§7.7)
+		var setup, cleanup string
+		cfg.Icons, setup, cleanup = ui.Logos(cfg.Icons)
+		cfg.BaseIcons, _, _ = ui.Logos(cfg.BaseIcons)
+		fmt.Print(setup)
+		defer fmt.Print(cleanup)
 	}
 	keys, problems := keymap.New(cfg.Leader, cfg.Vim, cfg.Timeoutlen, cfg.Bindings)
 	a := app.New(cfg, keys, sess, st, warning)
