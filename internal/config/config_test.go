@@ -403,12 +403,15 @@ func TestParseTips(t *testing.T) {
 // [redis] has the delimiter, the scan budget and the length a key is read whole
 // up to, with the defaults of the design (§14, F16.1).
 func TestParseRedis(t *testing.T) {
-	if c, err := Parse(""); err != nil || c.RedisDelimiter != ":" || c.RedisScanKeys != 10000 || c.RedisLoadAll != 5000 || c.RedisIndexKeys != 100000 {
+	if c, err := Parse(""); err != nil || c.RedisDelimiter != ":" || c.RedisScanKeys != 10000 || c.RedisLoadAll != 5000 || c.RedisIndexKeys != 100000 || !c.RedisIndexCache {
 		t.Fatalf("default: %+v %v", c, err)
 	}
 	c, err := Parse("[redis]\ndelimiter = \"/\"\nscan_keys = 500\nload_all = 20\nindex_keys = 7\n")
 	if err != nil || c.RedisDelimiter != "/" || c.RedisScanKeys != 500 || c.RedisLoadAll != 20 || c.RedisIndexKeys != 7 || len(c.Unknown) != 0 {
 		t.Fatalf("set: %+v %v", c, err)
+	}
+	if c, err := Parse("[redis]\nindex_cache = false\n"); err != nil || c.RedisIndexCache || len(c.Unknown) != 0 {
+		t.Errorf("index_cache = false: %+v %v", c, err)
 	}
 	for _, bad := range []string{"delimiter = \"\"", "scan_keys = 0", "load_all = -1", "index_keys = 0"} {
 		if _, err := Parse("[redis]\n" + bad + "\n"); err == nil {

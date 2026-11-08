@@ -464,6 +464,7 @@ var en = map[string]string{
 	"这条命令不是只读的，不重跑":    "This command is not read only, it is not sent again",
 	"参数":               "argument",
 	"已索引 %d / 共 %d 键":  "%d of %d keys indexed",
+	"索引更新中":            "Updating the index",
 	"键":                "key",
 	"字段":               "field",
 	"已导出 %s · %d 行，%s": "Exported %s · %d rows, %s",

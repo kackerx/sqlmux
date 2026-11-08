@@ -48,6 +48,9 @@ type Config struct {
 	// (§8.7, F16.1), and how many names the completion indexes (§9.8, F20.1).
 	RedisDelimiter                              string
 	RedisScanKeys, RedisLoadAll, RedisIndexKeys int
+	// RedisIndexCache is `[redis] index_cache`: the index of a db's key names
+	// is kept on disk and used at the next start (§9.8, F21.4).
+	RedisIndexCache bool
 	// HistoryMax is how many statements history.jsonl keeps, the oldest cut
 	// at the start (`[query] history_max`, §11).
 	HistoryMax int
@@ -96,7 +99,7 @@ type Config struct {
 }
 
 func Default() *Config {
-	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
+	return &Config{Theme: ui.TokyonightStorm, Icons: ui.NerdIcons, BaseIcons: ui.NerdIcons, ThemeName: "tokyonight-storm", Language: "en", Border: uv.NormalBorder(), Vim: true, Timeoutlen: 1000, TabWidth: 2, ResultHeight: 0.4, MaxRows: 500, HistoryMax: 1000, Hints: true, Tips: true, RedisDelimiter: ":", RedisScanKeys: 10000, RedisLoadAll: 5000, RedisIndexKeys: 100000, RedisIndexCache: true, PreviewSave: true, KeywordCase: "lower", AutoPairs: true, ConfirmDangerous: true, GridFullWidth: 22, TreeWidth: 32}
 }
 
 // Dir is $XDG_CONFIG_HOME/sqlmux, falling back to ~/.config/sqlmux on every
@@ -177,10 +180,11 @@ func Parse(data string) (*Config, error) {
 			Tips *bool `toml:"tips"`
 		} `toml:"ui"`
 		Redis struct {
-			Delimiter *string `toml:"delimiter"`
-			ScanKeys  *int    `toml:"scan_keys"`
-			LoadAll   *int    `toml:"load_all"`
-			IndexKeys *int    `toml:"index_keys"`
+			Delimiter  *string `toml:"delimiter"`
+			ScanKeys   *int    `toml:"scan_keys"`
+			LoadAll    *int    `toml:"load_all"`
+			IndexKeys  *int    `toml:"index_keys"`
+			IndexCache *bool   `toml:"index_cache"`
 		} `toml:"redis"`
 		Tree struct {
 			Width  *int  `toml:"width"`
@@ -292,6 +296,9 @@ func Parse(data string) (*Config, error) {
 			return nil, fmt.Errorf("[redis] scan_keys = %d: must be greater than 0", *n)
 		}
 		c.RedisScanKeys = *n
+	}
+	if raw.Redis.IndexCache != nil {
+		c.RedisIndexCache = *raw.Redis.IndexCache
 	}
 	if n := raw.Redis.IndexKeys; n != nil {
 		if *n <= 0 {

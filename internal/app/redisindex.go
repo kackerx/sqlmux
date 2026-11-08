@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db"
 	"github.com/kackerx/sqlmux/internal/db/redis"
 	"github.com/kackerx/sqlmux/internal/editor"
@@ -31,6 +33,7 @@ type keyIndex struct {
 	done    bool // names is all of the db, or all that index_keys keeps room for
 	capped  bool // the db has more
 	gen     int  // how many times a write changed it: what a list made of it goes by (F20.8)
+	stale   bool // read from its file: a new one is being made to take its place (F21.4)
 	// deltas are what the writes since this one was begun made of the names, in order:
 	// a SCAN that was past a key's place does not tell, so they go on over it when it is done
 	deltas []keyDelta
@@ -145,9 +148,16 @@ func (ix *keyIndex) remember(partial string, items, src []candidate) {
 
 // startIndex starts the index of c's db, once, unless there is one or will not
 // be: the completion goes on with what it has till it is built.
+//
+// The file of the index (F21.4) is read first, once: its names are matched at once while
+// the new index is made, and taken out of use when that is done.
 func (a *App) startIndex(c *Conn) tea.Cmd {
-	if c.building != nil || c.indexed() != nil {
+	ix := c.indexed()
+	if c.building != nil || ix != nil && !ix.stale {
 		return nil
+	}
+	if ix == nil && a.indexCache && c.Spec.Engine != "exec" {
+		c.index = a.loadIndex(c)
 	}
 	return a.rebuildIndex(c)
 }
@@ -218,7 +228,8 @@ func (a *App) gotIndex(m indexMsg) tea.Cmd {
 	}
 	ix.deltas = nil
 	c.index, c.building = ix, nil
-	return a.recomplete(c)
+	c.indexDirty = false // what is written now is whole
+	return tea.Batch(a.recomplete(c), a.saveIndex(c))
 }
 
 // recomplete makes the lists of the consoles of c again, where one is being
@@ -243,7 +254,10 @@ func (a *App) recomplete(c *Conn) tea.Cmd {
 func (a *App) keyCandidates(t *queryTab, partial string) (found []candidate, foot string, cmds []tea.Cmd) {
 	c := t.conn
 	if ix := c.indexed(); ix != nil {
-		if ix.capped {
+		switch {
+		case ix.stale:
+			foot = i18n.T("索引更新中")
+		case ix.capped:
 			foot = i18n.T("已索引 %d / 共 %d 键", len(ix.names), ix.total)
 		}
 		return ix.narrowed(partial), foot, nil
@@ -530,15 +544,15 @@ func (a *App) wrote(c *Conn, stmt string) tea.Cmd {
 	c.hints = nil
 	switch name {
 	case "flushdb":
-		a.clearIndex(c)
-		return nil
+		return a.clearIndex(c)
 	case "flushall":
+		var cmds []tea.Cmd
 		for _, dc := range a.sess.conns() {
 			if dc.root() == c.root() && !dc.sql() {
-				a.clearIndex(dc)
+				cmds = append(cmds, a.clearIndex(dc))
 			}
 		}
-		return nil
+		return tea.Batch(cmds...)
 	case "swapdb": // no key in it, and every one of the db is another
 		return a.rebuildIndex(c)
 	}
@@ -561,13 +575,16 @@ func (a *App) keysChanged(c *Conn, keys ...string) tea.Cmd {
 
 // clearIndex empties c's index, a FLUSH having emptied the db; what was being made
 // is let go.
-func (a *App) clearIndex(c *Conn) {
+func (a *App) clearIndex(c *Conn) tea.Cmd {
 	c.hints, c.building = nil, nil
 	c.epoch++ // what was asked of the keys before is of the db as it was
-	if c.index != nil || c.scan != nil {
-		c.index = &keyIndex{done: true}
-		c.index.makeCands()
+	if c.index == nil && c.scan == nil {
+		return nil
 	}
+	c.index = &keyIndex{done: true}
+	c.index.makeCands()
+	c.indexDirty = false
+	return a.saveIndex(c) // the file is of the db that was: written at once, a flush is rare
 }
 
 // writeKeys are the words of a command that the server's docs say are keys; known
@@ -632,10 +649,12 @@ func (a *App) gotDelta(m indexDelta) tea.Cmd {
 	if c.building != nil {
 		c.building.deltas = append(c.building.deltas, d)
 	}
+	var save tea.Cmd
 	if c.index != nil {
 		c.index.update(d.add, d.del)
+		save = a.indexChanged(c)
 	}
-	return a.recomplete(c)
+	return tea.Batch(a.recomplete(c), save)
 }
 
 // update puts the names add in the index and takes del out. The slices are new, the
@@ -677,4 +696,116 @@ func (ix *keyIndex) update(add, del []string) {
 	}
 	ix.names, ix.cands, ix.gen = names, cands, ix.gen+1
 	ix.last.pattern, ix.last.cands = "", nil
+}
+
+// The file of an index (§9.8, F21.4): a first line with the version, the DBSIZE and 1 if
+// the index stops short of the db, then a name a line as redis-cli reads a word
+// (redis.Quote), so that a name with a line break in it is one line.
+const indexFileMagic = "sqlmux-redis-index"
+
+// indexFile is the path of c's db's file.
+func indexFile(c *Conn) string {
+	return config.RedisIndexPath(c.Spec.Name, cmp.Or(c.Spec.Database, c.DB))
+}
+
+// encodeIndex is the text of the file of ix.
+func encodeIndex(ix *keyIndex) []byte {
+	var b strings.Builder
+	capped := 0
+	if ix.capped {
+		capped = 1
+	}
+	fmt.Fprintf(&b, "%s 1 %d %d\n", indexFileMagic, ix.total, capped)
+	for _, n := range ix.names {
+		b.WriteString(redis.Quote(n))
+		b.WriteByte('\n')
+	}
+	return []byte(b.String())
+}
+
+// decodeIndex is the index of the text of a file; nil for a text that is none of ours or
+// does not read: it is then as if there was no file, and the new index is written over
+// it. More names than index_keys keeps room for are no use either.
+func decodeIndex(data []byte, limit int) *keyIndex {
+	head, rest, _ := strings.Cut(string(data), "\n")
+	var ver string
+	var total int64
+	var capped int
+	if n, err := fmt.Sscanf(head, indexFileMagic+" %s %d %d", &ver, &total, &capped); n != 3 || err != nil || ver != "1" {
+		return nil
+	}
+	ix := &keyIndex{total: total, capped: capped == 1, done: true, stale: true}
+	for line := range strings.SplitSeq(strings.TrimSuffix(rest, "\n"), "\n") {
+		if line == "" && rest == "" { // a db with no keys
+			break
+		}
+		words, err := redis.SplitLine(line)
+		if len(words) != 1 || err != nil || len(ix.names) >= limit {
+			return nil
+		}
+		ix.names = append(ix.names, words[0])
+	}
+	ix.makeCands()
+	return ix
+}
+
+// loadIndex is the index of c's db as its file has it; nil for none.
+func (a *App) loadIndex(c *Conn) *keyIndex {
+	if data := config.ReadRedisIndex(indexFile(c)); data != nil {
+		return decodeIndex(data, a.indexKeys)
+	}
+	return nil
+}
+
+// saveIndex writes c's index to its file, in the background, as it is now: the lists
+// of an index are replaced and not changed, so what the goroutine goes through does not
+// move. A failed write is no loss, the file is a cache.
+func (a *App) saveIndex(c *Conn) tea.Cmd {
+	ix := c.index
+	if !a.indexCache || ix == nil || ix.stale || c.Spec.Engine == "exec" {
+		return nil
+	}
+	path, snap := indexFile(c), &keyIndex{names: ix.names, total: ix.total, capped: ix.capped}
+	return func() tea.Msg {
+		_ = config.WriteRedisIndex(path, encodeIndex(snap))
+		return nil
+	}
+}
+
+// indexSaveDelay is how long a change of the index waits for others before the file is
+// written: a write command is not a write of the disk.
+var indexSaveDelay = 5 * time.Second
+
+// indexSave is that time being up for c.
+type indexSave struct{ conn *Conn }
+
+// indexChanged is that c's index changed in memory: its file is written in a few
+// seconds, once for the changes of them, and when the program ends.
+func (a *App) indexChanged(c *Conn) tea.Cmd {
+	if !a.indexCache || c.indexDirty || c.index == nil || c.index.stale {
+		return nil
+	}
+	c.indexDirty = true
+	return tea.Tick(indexSaveDelay, func(time.Time) tea.Msg { return indexSave{c} })
+}
+
+// flushIndexes writes the files of the indexes that changed since they were written,
+// not in the background: the program is ending.
+func (a *App) flushIndexes() {
+	for _, s := range a.sessions {
+		for _, c := range s.conns() {
+			if cmd := a.saveIndex(c); c.indexDirty && cmd != nil {
+				c.indexDirty = false
+				cmd()
+			}
+		}
+	}
+}
+
+func (a *App) gotIndexSave(m indexSave) tea.Cmd {
+	if !m.conn.indexDirty {
+		return nil
+	}
+	m.conn.indexDirty = false
+	return a.saveIndex(m.conn)
 }
