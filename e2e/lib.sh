@@ -216,7 +216,7 @@ wait_for() {
 if stat --version >/dev/null 2>&1; then
   fmode() { stat -c %a "$1"; }; fmtime() { stat -c %.9Y "$1"; }; fsize() { stat -c %s "$1"; }
 else
-  fmode() { fmode "$1"; }; fmtime() { stat -f %Fm "$1"; }; fsize() { fsize "$1"; }
+  fmode() { stat -f %Lp "$1"; }; fmtime() { stat -f %Fm "$1"; }; fsize() { stat -f %z "$1"; }
 fi
 md5() { [[ $1 == -q ]] && shift; if command -v md5sum >/dev/null; then md5sum "$@" | cut -d' ' -f1; else command md5 -q "$@"; fi; }
 # e2e_skip_if_root DESC: true (and prints SKIP) when running as root, where chmod does not stop anything, so "can't write /
