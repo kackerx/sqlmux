@@ -65,6 +65,7 @@ type Icons struct {
 	Index, Func, Sequence    Icon // and a table's indexes, a schema's functions and sequences (F14.3)
 	Lock                     Icon // a read-only connection's (§13)
 	Result, Pin, Export, Log Icon // the result area's (§11)
+	Properties               Icon // a table's properties button (§7.8「属性」)
 	Close                    Icon
 	Star, History            Icon // a WHERE's favorites and history (§9.7)
 	Zoom                     Icon // after the number of the pane zoomed (F9.6), and its button
@@ -122,6 +123,7 @@ var NerdIcons = &Icons{
 	Result:      Icon{Text: "\uf022"},                       // nf-fa-list_alt
 	Pin:         Icon{Text: "\uf435"},                       // nf-oct-pin
 	Export:      Icon{Text: "\uf019"},                       // nf-fa-download
+	Properties:  Icon{Text: "\uf05a"},                       // nf-fa-info_circle
 	Close:       Icon{Text: "\uf00d"},                       // nf-fa-times
 	Log:         Icon{Text: "\uf0f6"},                       // nf-fa-file_text_o
 	Star:        Icon{Text: "\uf005"},                       // nf-fa-star
@@ -191,6 +193,7 @@ var ASCIIIcons = &Icons{
 	Result:      Icon{Text: "="},
 	Pin:         Icon{Text: "*"},
 	Export:      Icon{Text: ">"},
+	Properties:  Icon{Text: "i"},
 	Close:       Icon{Text: "x"},
 	Log:         Icon{Text: "L"},
 	Star:        Icon{Text: "*"},
@@ -310,7 +313,7 @@ func (ic *Icons) byName() map[string]*Icon {
 		"save": &ic.Save, "refresh": &ic.Refresh, "transpose": &ic.Transpose,
 		"row_add": &ic.RowAdd, "row_delete": &ic.RowDelete, "auto_refresh": &ic.AutoRefresh, "stop": &ic.Stop,
 		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column, "lock": &ic.Lock,
-		"result": &ic.Result, "pin": &ic.Pin, "export": &ic.Export, "close": &ic.Close,
+		"result": &ic.Result, "pin": &ic.Pin, "export": &ic.Export, "properties": &ic.Properties, "close": &ic.Close,
 		"pane": &ic.Pane, "log": &ic.Log, "star": &ic.Star, "history": &ic.History, "zoom": &ic.Zoom, "unzoom": &ic.Unzoom, "split_right": &ic.SplitRight, "split_below": &ic.SplitBelow,
 		"tag": &ic.Tag, "host": &ic.Host, "port": &ic.Port, "user": &ic.User, "database": &ic.Database,
 		"advanced": &ic.Advanced, "link": &ic.Link, "group": &ic.Group,

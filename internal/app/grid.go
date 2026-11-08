@@ -786,11 +786,19 @@ func (a *App) toolButtons(t *dataTab) []ui.ButtonGroup {
 	if t.out > 0 {
 		stop.Fg, stop.Plain, stop.Action = th.Error, false, "grid.stop"
 	}
+	last := []ui.Button{{Icon: ic.Transpose, Action: "grid.transpose", Fg: th.Info}, {Icon: ic.Export, Action: "grid.export", Fg: th.Info}}
+	if t.conn.sql() && t.table.Kind != "k" { // its properties, or its rows back from them: lit while they show (§7.8「属性」)
+		props := ui.Button{Icon: ic.Properties, Action: "table.properties", Fg: th.Info}
+		if t.props != "" {
+			props.Fg = th.Focus
+		}
+		last = append(last, props)
+	}
 	return []ui.ButtonGroup{
 		{Buttons: []ui.Button{{Icon: ic.RowAdd, Action: "grid.row.add", Fg: th.Focus}, {Icon: ic.RowDelete, Action: "grid.row.delete", Fg: th.Error}}, Stay: stayRows},
 		{Buttons: []ui.Button{save, {Icon: ic.Refresh, Action: "grid.refresh", Fg: th.Info}}, Stay: staySave},
 		{Buttons: []ui.Button{auto, stop}, Stay: stayAuto},
-		{Buttons: []ui.Button{{Icon: ic.Transpose, Action: "grid.transpose", Fg: th.Info}, {Icon: ic.Export, Action: "grid.export", Fg: th.Info}}, Stay: stayTranspose},
+		{Buttons: last, Stay: stayTranspose},
 	}
 }
 

@@ -31,11 +31,17 @@ const (
 	exportCSVAll
 	exportJSONPage
 	exportJSONAll
+	exportXLSXPage
+	exportXLSXAll
 )
 
 func exportItems() []string {
-	return []string{i18n.T("CSV · 当前页"), i18n.T("CSV · 全部"), i18n.T("JSON · 当前页"), i18n.T("JSON · 全部")}
+	return []string{i18n.T("CSV · 当前页"), i18n.T("CSV · 全部"), i18n.T("JSON · 当前页"), i18n.T("JSON · 全部"), i18n.T("Excel · 当前页"), i18n.T("Excel · 全部")}
 }
+
+// exportExt is the file's extension, by the format of item at: a page's and
+// all's go in pairs.
+func exportExt(at int) string { return []string{".csv", ".json", ".xlsx"}[at/2] }
 
 // exportSrc is a table or a result as an export has it: the columns written,
 // the rows of its page, and how to read them all.
@@ -191,11 +197,7 @@ func (a *App) export(src exportSrc, at int) tea.Cmd {
 	if a.exporting[src.owner] {
 		return a.showToast(i18n.T("正在导出"))
 	}
-	all, asJSON := at == exportCSVAll || at == exportJSONAll, at >= exportJSONPage
-	ext := ".csv"
-	if asJSON {
-		ext = ".json"
-	}
+	all, ext := at%2 == 1, exportExt(at)
 	base := src.base
 	if all && src.all != nil {
 		base = src.all.base
@@ -220,7 +222,10 @@ func (a *App) export(src exportSrc, at int) tea.Cmd {
 		src.conn.busy++
 	}
 	return func() tea.Msg {
-		out := &exportOut{f: f, w: bufio.NewWriter(f), json: asJSON, want: src.cols}
+		out := &exportOut{f: f, w: bufio.NewWriter(f), json: ext == ".json", want: src.cols, sheet: base}
+		if ext == ".xlsx" {
+			out.xlsx = &xlsxOut{}
+		}
 		var err error
 		cut := false
 		if stream {
@@ -262,7 +267,10 @@ func (a *App) gotExport(m exportDone) tea.Cmd {
 	case m.err != nil:
 		return a.showToast(m.err.Error())
 	}
-	if m.cut {
+	switch {
+	case m.cut && strings.HasSuffix(m.path, ".xlsx") && m.rows >= xlsxRows-1: // Excel's last row, not the source's budget
+		return a.showToast(i18n.T("已导出 %s · %d 行，Excel 一张表放不下更多", m.path, m.rows))
+	case m.cut:
 		return a.showToast(i18n.T("已导出 %s · %d 行，%s", m.path, m.rows, db.ErrTruncated))
 	}
 	return a.showToast(i18n.T("已导出 %s · %d 行", m.path, m.rows))
@@ -318,6 +326,8 @@ type exportOut struct {
 	w       *bufio.Writer
 	csv     *csv.Writer
 	json    bool
+	xlsx    *xlsxOut // an Excel workbook's, when it is one (xlsx.go)
+	sheet   string   // the sheet's name, the table's or the result's
 	want    []exportCol
 	at      []int        // where each wanted column is in a row
 	class   []ui.ColType // what each is, for JSON
@@ -359,6 +369,9 @@ func (o *exportOut) head(cols []db.Col) error {
 		_, err := o.w.WriteString("[")
 		return err
 	}
+	if o.xlsx != nil {
+		return o.xlsx.start(o.w, o.sheet, o.names)
+	}
 	o.csv = csv.NewWriter(o.w)
 	return o.csv.Write(o.names)
 }
@@ -388,6 +401,17 @@ func (o *exportOut) row(vals []db.Val) error {
 		o.n++
 		return err
 	}
+	if o.xlsx != nil {
+		row := make([]db.Val, len(o.at))
+		for i, at := range o.at {
+			row[i] = vals[at]
+		}
+		if err := o.xlsx.row(row, o.class, 0); err != nil {
+			return err
+		}
+		o.n++
+		return nil
+	}
 	rec := make([]string, len(o.at))
 	for i, at := range o.at {
 		rec[i] = vals[at].S // "" for a NULL
@@ -404,6 +428,10 @@ func (o *exportOut) finish() error {
 			end = "]\n"
 		}
 		if _, err := o.w.WriteString(end); err != nil {
+			return err
+		}
+	} else if o.xlsx != nil {
+		if err := o.xlsx.finish(); err != nil {
 			return err
 		}
 	} else if o.csv != nil {

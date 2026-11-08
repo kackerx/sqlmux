@@ -4,6 +4,8 @@ package app
 
 import (
 	"context"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -160,5 +162,27 @@ func TestOracleProperties(t *testing.T) {
 		if lt.Table == "T_ORDER" && lt.Kind != "table" {
 			t.Errorf("the layout: %+v", lt)
 		}
+	}
+}
+
+// All of an Oracle table to Excel: every row, NUMBER(10,2) as numbers, a CLOB
+// as text, the file one Excel and `file` take for a workbook.
+func TestOracleExportExcel(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := inDir(t)
+	a := opened(t, config.Connection{Name: "ora", Engine: "oracle", DSN: oracle.IntegrationDSN(t), Temp: true})
+	ora := a.sess.Conns[0]
+	settle(a, a.openTable(ora, ora.Tables[slices.IndexFunc(ora.Tables, func(tb db.Table) bool { return tb.Schema == "SQLMUX" && tb.Name == "T_ORDER" })]))
+	exportAt(t, a, exportXLSXAll)
+	path := filepath.Join(dir, "T_ORDER.xlsx")
+	sheet, rows, _ := readXLSX(t, path)
+	if sheet != "T_ORDER" || len(rows) != 5201 {
+		t.Fatalf("sheet %q, %d rows, toast %q", sheet, len(rows), a.toast)
+	}
+	if amount := rows[1][3]; amount.V != "0.25" || amount.T != "" {
+		t.Errorf("AMOUNT: %+v", amount)
+	}
+	if out, err := exec.Command("file", "-b", path).Output(); err == nil && !strings.Contains(string(out), "Excel") {
+		t.Errorf("file says %s", out)
 	}
 }
