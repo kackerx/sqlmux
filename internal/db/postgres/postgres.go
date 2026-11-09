@@ -4,6 +4,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -62,6 +63,14 @@ func Connect(ctx context.Context, dsn, password string, readOnly bool) (*Conn, d
 		cfg.LookupFunc = func(_ context.Context, host string) ([]string, error) { return []string{host}, nil }
 	}
 	pg, err := pgconn.ConnectConfig(ctx, cfg)
+	if err != nil && readOnly && unsupportedStartup(err) {
+		// A pooler (PgBouncer, Odyssey, …) takes only the startup parameters
+		// it tracks. Dial again without it: a SET instead would stay on a
+		// server connection the pool hands to others, so read only here is
+		// sqlmux's own guard alone (§13).
+		delete(cfg.RuntimeParams, "default_transaction_read_only")
+		pg, err = pgconn.ConnectConfig(ctx, cfg)
+	}
 	if err != nil {
 		return nil, db.Info{}, err
 	}
@@ -72,6 +81,13 @@ func Connect(ctx context.Context, dsn, password string, readOnly bool) (*Conn, d
 		return nil, db.Info{}, err
 	}
 	return c, db.Info{Addr: fmt.Sprintf("%s@%s:%d", cfg.User, cfg.Host, cfg.Port), Database: r.Rows[0][1].S, Path: r.Rows[0][0].S}, nil
+}
+
+// unsupportedStartup is whether err is a server, or a pooler before it,
+// refusing a startup parameter it does not know.
+func unsupportedStartup(err error) bool {
+	var pe *pgconn.PgError
+	return errors.As(err, &pe) && pe.Code == "08P01" && strings.Contains(pe.Message, "unsupported startup parameter")
 }
 
 // WithDatabase is dsn naming database name instead of the one it names: a
