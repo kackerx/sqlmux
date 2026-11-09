@@ -14,6 +14,8 @@ func TestParseDSN(t *testing.T) {
 	for dsn, want := range map[string]config{
 		"trino://me@h/hive/web":                                   {endpoint: "http://h:8080", user: "me", catalog: "hive", schema: "web", session: map[string]string{}},
 		"trino://me:pw@h:8443/hive?ssl=true":                      {endpoint: "https://h:8443", user: "me", password: "pw", catalog: "hive", session: map[string]string{}},
+		"trino://me@h:443/raw":                                    {endpoint: "https://h:443", user: "me", catalog: "raw", session: map[string]string{}},
+		"trino://me@h:443/raw?ssl=false":                          {endpoint: "http://h:443", user: "me", catalog: "raw", session: map[string]string{}},
 		"https://h?catalog=c&schema=s&session_properties=a:1;b:x": {endpoint: "https://h:443", user: "sqlmux", catalog: "c", schema: "s", session: map[string]string{"a": "1", "b": "x"}},
 	} {
 		got, err := parseDSN(dsn)
