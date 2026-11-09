@@ -155,6 +155,7 @@ H = "0"
 | NORMAL | `SPC q` | 按编号跳转 pane | C-a q |
 | NORMAL | `SPC b` | 打开 / 聚焦 / 收起侧栏（M19 F19.5）；光标默认留在上次的位置，`[tree] follow = true` 时落在当前 tab 对应的节点（F3.29 原来的行为，M20 F20.4 起变成可选） | C-a b |
 | NORMAL | `SPC >` · `SPC <` | 侧栏加宽 · 收窄 4 列（`tree.wider` / `tree.narrower`，带 count 乘倍数；用户 2026-11-09）；侧栏收起时先展开；树里单按 `>` · `<`，`=` 是 `tree.fit`（宽到放下最长的名字，已经是那么宽就回到默认宽度） | 新增 |
+| NORMAL | `SPC t` · `SPC o` · `SPC e` | 新建空 tab（`tab.new`，同 tab 栏的 `+`）· 打开表（`tab.table`，同空 tab 上的 `t`：命令面板的表范围）· 新建 query（`query.new`，同空 tab 上的 `c`；当前 tab 是空 tab 时就用它）；用户 2026-11-09：在 query 里要开新 tab / 表只能先用鼠标点 `+` | 新增 |
 | NORMAL | `SPC r` | 显示 / 隐藏结果区（`result.toggle`，F3.28） | 新增 |
 | NORMAL | `gt` · `gT` | 下一个 · 上一个 tab | 同 |
 | 表格 / 树 / 引导页 | `:` | 打开命令面板的「所有」范围（M5 F5.8 起，同 `C-p`；原来进命令范围，想要原来的就把 `:` 绑到 `palette.command`）；`:q`、`:qa`、`:w` 照常可用（§12）。M3 起绑在 `[keys.grid]`、`[keys.tree]`、`[keys.landing]`，不在 normal：query 里的 `:` 要交给编辑器自己的命令行（§11） | 同 |

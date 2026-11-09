@@ -76,3 +76,24 @@ func TestSidebarWidthKeys(t *testing.T) {
 		t.Fatalf("the double click left a drag: %d", width())
 	}
 }
+
+// From a query in NORMAL, the leader opens an empty tab (SPC t), a new query
+// (SPC e) and the palette's tables (SPC o), as the + and an empty tab's t and c.
+func TestLeaderNewTabs(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	qp := a.win().pane(2)
+	a.focusPane(qp.ID)
+	n, first := len(qp.Tabs), queryOf(qp)
+	feed(t, a, "<Esc><Space>t")
+	if len(qp.Tabs) != n+1 || !qp.tab().landing() {
+		t.Fatalf("SPC t: %d tabs, landing %v", len(qp.Tabs), qp.tab().landing())
+	}
+	feed(t, a, "<Space>e")
+	if q := queryOf(a.focused()); q == nil || q == first { // the empty tab takes it
+		t.Fatalf("SPC e: no new query (%d tabs)", len(a.focused().Tabs))
+	}
+	feed(t, a, "<Esc><Space>o")
+	if a.palette == nil || !strings.HasPrefix(a.palette.input.Text, "@") {
+		t.Fatalf("SPC o: palette %+v", a.palette)
+	}
+}

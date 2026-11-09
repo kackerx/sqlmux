@@ -41,6 +41,9 @@ leader = "<Space>"
 "gT" = "tab.prev"
 "<Leader>wn" = "tab.move.next" # the tab goes to the next pane clockwise, the focus after it (F12.5)
 "<Leader>wp" = "tab.move.prev"
+"<Leader>t" = "tab.new" # an empty tab, as the tab bar's +; from any pane, a query in NORMAL too
+"<Leader>o" = "tab.table" # open a table: the palette's tables, as t on an empty tab
+"<Leader>e" = "query.new" # a new query, as c on an empty tab
 
 [keys.grid]
 "h" = "grid.left"
