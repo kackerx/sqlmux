@@ -219,6 +219,7 @@ func (a *App) drawOn(f *ui.Frame) *ui.Frame {
 		f.Cursor = nil // what is under has not the keys: its own, if it has one, is set below
 		a.drawMenu(f)
 	}
+	a.drawTableDrag(f)
 	if c := a.confirm; c != nil {
 		cf := ui.Confirm{Text: c.text, Danger: c.danger, YesKey: a.keys.Hint("confirm.yes", "confirm"), Yes: c.yes}
 		if c.then != nil { // a notice has no "no" (§6.7)
