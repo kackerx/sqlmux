@@ -31,6 +31,8 @@ leader = "<Space>"
 "<Leader>x" = "pane.close"
 "<Leader>q" = "pane.number"
 "<Leader>b" = "tree.toggle"
+"<Leader>>" = "tree.wider" # the sidebar's edge, from any pane; in the tree > < = alone (§7.8)
+"<Leader><" = "tree.narrower"
 "<Leader>r" = "result.toggle"
 "?" = "keyhelp.open" # every pane in NORMAL: a query's VISUAL ? stays vim's (§6.5)
 "<Leader>?" = "keyhelp.open" # anywhere
@@ -128,6 +130,9 @@ leader = "<Space>"
 "/" = "tree.filter"
 "<Esc>" = "tree.refilter" # with a filter kept: back to its input, as / (F20.9)
 "R" = "tree.refresh"
+">" = "tree.wider" # the sidebar's edge 4 columns (a count: that many times); = fits the longest name, or goes back (§7.8)
+"<" = "tree.narrower"
+"=" = "tree.fit"
 "dd" = "tree.delete"
 "s" = "jump.start"
 ":" = "palette.open"

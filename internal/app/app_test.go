@@ -747,7 +747,7 @@ func TestWhichKeyShowsAfterDelay(t *testing.T) {
 		}
 	}
 	// §6.8's SPC keys, in default.toml order
-	if got := strings.Join(keys, " "); got != `s ) ( L c n p l % " z x q b r ? w` {
+	if got := strings.Join(keys, " "); got != `s ) ( L c n p l % " z x q b > < r ? w` {
 		t.Errorf("SPC items: %s", got)
 	}
 	if row := strings.Split(a.render().String(), "\n")[a.h-2]; !strings.HasPrefix(row, "└") {

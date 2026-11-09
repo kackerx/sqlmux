@@ -666,7 +666,11 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		if p := a.win().pane(t.Pane); p != nil {
 			selectTab(p, t.I)
 		}
-	case ui.KindTreeEdge:
+	case ui.KindTreeEdge: // dragged: its width; a double click: wide to its longest name, or back (§7.8)
+		if double {
+			a.fitTree()
+			return nil
+		}
 		a.dragTree = true
 	case ui.KindColEdge:
 		a.startColDrag(t.Pane, t.I, p.X)

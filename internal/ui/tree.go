@@ -32,6 +32,26 @@ type TreeNode struct {
 	Sep bool
 }
 
+// Width is the columns a sidebar takes for n to show whole, its borders and
+// margins with it: the indent, the ▸, the prefix, the icon, the text, the aside
+// and the note, as Draw lays them out.
+func (n TreeNode) Width() int {
+	w := 4 + 2*n.Depth + 2 + Width(n.Text)
+	if n.Prefix != "" {
+		w += Width(n.Prefix) + 1
+	}
+	if n.Icon.Text != "" {
+		w += Width(n.Icon.Text) + 1
+	}
+	if n.Aside != "" {
+		w += 2 + Width(n.Aside)
+	}
+	if n.Note != "" {
+		w += 1 + Width(n.Note)
+	}
+	return w
+}
+
 // Tree is the ⟨0⟩ sidebar inside its border (§7.8): the filter row, the
 // nodes, and the hint row.
 type Tree struct {

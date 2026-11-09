@@ -31,6 +31,40 @@ func (a *App) sidebarWidth() int {
 // is kept, so a window that widens again gets it back.
 func treeWidth(want, w int) int { return min(max(want, 16), w/2) }
 
+// treeStep is how many columns tree.wider and tree.narrower move the sidebar's edge.
+const treeStep = 4
+
+// resizeTree moves the sidebar's edge d columns, as a drag of it would: open
+// first when it is folded.
+func (a *App) resizeTree(d int) {
+	w := a.win()
+	if !w.TreeOpen {
+		w.TreeOpen = true
+		return
+	}
+	w.TreeW = treeWidth(a.sidebarRect().Dx()+d, a.w)
+}
+
+// fitTree makes the sidebar as wide as its widest row (half the window at
+// most), every name in it whole; when it is that wide already, it goes back
+// to the configured width: a toggle, the key's and a double click's on the edge.
+func (a *App) fitTree() {
+	w := a.win()
+	ns, _ := a.treeNodes()
+	fit := 0
+	for _, n := range ns {
+		if !n.Sep {
+			fit = max(fit, n.Width())
+		}
+	}
+	fit = treeWidth(fit, a.w)
+	if w.TreeOpen && w.TreeW != 0 && a.sidebarRect().Dx() == fit {
+		w.TreeW = 0
+		return
+	}
+	w.TreeOpen, w.TreeW = true, fit
+}
+
 // hints joins several actions' keys, e.g. "hjkl" or "gt/gT"; "" if any is unbound.
 func (a *App) hints(scope, sep string, actions ...string) string {
 	ks := make([]string, len(actions))

@@ -240,6 +240,9 @@ func init() {
 		"tree.toggle": {Title: i18n.N("打开 / 聚焦 / 收起侧栏"), Run: do(func(a *App, _ Args) { a.toggleTree() }),
 			On: func(a *App) bool { return a.win().TreeOpen }},
 		"tree.fold":     {Title: i18n.N("收起侧栏"), Local: true, Run: do(func(a *App, _ Args) { a.foldTree() })}, // the « on its title
+		"tree.wider":    {Title: i18n.N("加宽侧栏"), Run: do(func(a *App, args Args) { a.resizeTree(treeStep * max(args.Count, 1)) })},
+		"tree.narrower": {Title: i18n.N("收窄侧栏"), Run: do(func(a *App, args Args) { a.resizeTree(-treeStep * max(args.Count, 1)) })},
+		"tree.fit":      {Title: i18n.N("侧栏宽到放下最长的名字 / 回到默认宽度"), Run: do(func(a *App, _ Args) { a.fitTree() })},
 		"tree.down":     {Title: i18n.N("下移"), Run: do(func(a *App, args Args) { a.treeMove(max(args.Count, 1)) })},
 		"tree.up":       {Title: i18n.N("上移"), Run: do(func(a *App, args Args) { a.treeMove(-max(args.Count, 1)) })},
 		"tree.top":      {Title: i18n.N("第一项"), Run: do(func(a *App, _ Args) { a.treeGo(0) })},
