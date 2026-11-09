@@ -56,7 +56,7 @@ order by 1, 2, 4`)
 	if err != nil {
 		return nil, err
 	}
-	sizes := segments(ctx, c)
+	sizes := segments(ctx, c, only)
 	mviews := map[[2]string]bool{}
 	for _, row := range r.Rows {
 		if row[3].S == "m" {
@@ -77,12 +77,21 @@ order by 1, 2, 4`)
 	return ts, nil
 }
 
-// segments is the bytes each table takes, by owner and name: every schema's
-// from DBA_SEGMENTS when the user may read it, else the user's own from
-// USER_SEGMENTS; a table of another schema then has none (§8.11).
-func segments(ctx context.Context, c db.Conn) map[[2]string]int64 {
+// segmentsWait is how long the tree waits on DBA_SEGMENTS: on a database of
+// tens of thousands of schemas it takes minutes, and a size is no reason to
+// keep the tables from showing.
+var segmentsWait = 5 * time.Second
+
+// segments is the bytes each table takes, by owner and name: the schemas of
+// only's (all for nil) from DBA_SEGMENTS when the user may read it within
+// segmentsWait, else the user's own from USER_SEGMENTS; a table of another
+// schema then has none (§8.11).
+func segments(ctx context.Context, c db.Conn, only []string) map[[2]string]int64 {
 	out := map[[2]string]int64{}
-	r, err := c.Query(ctx, `select owner, segment_name, sum(bytes) from dba_segments where segment_type like 'TABLE%' group by owner, segment_name`)
+	dctx, cancel := context.WithTimeout(ctx, segmentsWait)
+	r, err := c.Query(dctx, `select owner, segment_name, sum(bytes) from dba_segments where segment_type like 'TABLE%'`+
+		db.SchemaIn("owner", only, sqlkit.Oracle)+` group by owner, segment_name`)
+	cancel()
 	if err != nil {
 		if r, err = c.Query(ctx, `select user, segment_name, sum(bytes) from user_segments where segment_type like 'TABLE%' group by segment_name`); err != nil {
 			return out

@@ -119,6 +119,11 @@ type catalogAll struct {
 	system []string
 }
 
+// manySchemas is how many schemas a server may have for the tree to read them
+// all when none is picked; past it only the current one is read, the rest to
+// pick (F17.13): an Oracle with a user a branch has 30k, minutes of catalog.
+const manySchemas = 500
+
 // loadCatalog reads c's schemas and every schema's tables on its Meta; a
 // table's columns wait until it is opened (§8.4).
 func (a *App) loadCatalog(c *Conn) tea.Cmd {
@@ -142,6 +147,9 @@ func (a *App) loadCatalog(c *Conn) tea.Cmd {
 			system, _ = s.SystemSchemas(ctx, meta)
 		}
 		schemas := pickedSchemas(root.Schemas, pg, name, append(slices.Clone(all), system...), keep) // the picked ones are all that is read (F17.13)
+		if schemas == nil && len(all) > manySchemas && keep != "" { // none picked of tens of thousands: the current one, the rest to pick
+			schemas = []string{keep}
+		}
 		tables, err := eng.Tables(ctx, meta, schemas)
 		if err != nil {
 			return catalogMsg{conn: c, err: err}
