@@ -31,7 +31,9 @@ func find(t *testing.T, a *App, want ui.Target) uv.Rectangle {
 func click(a *App, p uv.Position) tea.Cmd {
 	a.View()
 	_, cmd := a.Update(tea.MouseClickMsg{X: p.X, Y: p.Y, Button: tea.MouseLeft})
-	a.Update(tea.MouseReleaseMsg{X: p.X, Y: p.Y, Button: tea.MouseLeft})
+	if _, up := a.Update(tea.MouseReleaseMsg{X: p.X, Y: p.Y, Button: tea.MouseLeft}); cmd == nil { // a table's row opens on the release
+		cmd = up
+	}
 	return cmd
 }
 

@@ -147,7 +147,7 @@ func (a *App) loadCatalog(c *Conn) tea.Cmd {
 			system, _ = s.SystemSchemas(ctx, meta)
 		}
 		schemas := pickedSchemas(root.Schemas, pg, name, append(slices.Clone(all), system...), keep) // the picked ones are all that is read (F17.13)
-		if schemas == nil && len(all) > manySchemas && keep != "" { // none picked of tens of thousands: the current one, the rest to pick
+		if schemas == nil && len(all) > manySchemas && keep != "" {                                  // none picked of tens of thousands: the current one, the rest to pick
 			schemas = []string{keep}
 		}
 		tables, err := eng.Tables(ctx, meta, schemas)

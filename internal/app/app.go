@@ -123,6 +123,7 @@ type App struct {
 	shiftClick  bool         // the left click being handled had Shift down (a column head's: add to the sorting)
 	dragText    int          // the pane whose query text is being selected by dragging; 0 for none
 	dragWhere   int          // the same for a WHERE's text (vim = false)
+	dragTable   *tableDrag   // a tree's table pressed on, maybe dragged to a query (§7.8)
 	lastClick   ui.Target    // with lastClickAt, to spot a double click
 	lastClickAt time.Time
 }
@@ -271,7 +272,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // not redraw them; the tick that is due brings the right ones.
 func (a *App) stillOver(msg tea.Msg) bool {
 	m, ok := msg.(tea.MouseMotionMsg)
-	if !ok || a.drag != nil || a.dragTree || a.dragCol != nil || a.dragText != 0 || a.dragWhere != 0 {
+	if !ok || a.drag != nil || a.dragTree || a.dragCol != nil || a.dragText != 0 || a.dragWhere != 0 || a.dragTable != nil {
 		return false
 	}
 	if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow {
@@ -430,6 +431,9 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.dragWhere != 0 {
 			a.whereDrag(a.dragWhere, a.mouse)
 		}
+		if a.dragTable != nil {
+			a.moveTableDrag(a.mouse)
+		}
 		if t, _ := ui.HitAt(a.hits, a.mouse); t.Kind == ui.KindRow { // hover selects (K-03, §9.7)
 			switch c := a.completing(); {
 			case c != nil:
@@ -440,6 +444,10 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.MouseReleaseMsg:
 		a.drag, a.dragTree, a.dragCol, a.dragText, a.dragWhere = nil, false, nil, 0, 0
+		if a.dragTable != nil {
+			m := msg.Mouse()
+			return a, a.endTableDrag(uv.Pos(m.X, m.Y))
+		}
 	case tea.MouseClickMsg:
 		a.jump = nil // a click goes where it is, the jump over (F10.8)
 		switch m := msg.Mouse(); m.Button {
@@ -593,6 +601,10 @@ func (a *App) click(p uv.Position) tea.Cmd {
 	case ui.KindNode: // a node's row: its ↵ (§7.8)
 		a.focusPane(t.Pane)
 		a.treeGo(t.I)
+		if n, ok := a.treeNode(); ok && n.kind == nodeTable && n.conn.sql() { // opened on the release: it may be dragged to a query
+			a.startTableDrag(n, p)
+			return nil
+		}
 		return a.run("tree.open", 0)
 	case ui.KindFold: // its ▸ / ▾: open or close, whatever ↵ would do
 		a.focusPane(t.Pane)
