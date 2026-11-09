@@ -765,8 +765,6 @@ func testConn(spec config.Connection, password string) (string, error) {
 		version = "select sqlite_version()"
 	case "mssql": // no version(): the server's number is here (F18.6)
 		version = "select convert(nvarchar(max), serverproperty('ProductVersion'))"
-	case "trino": // the coordinator's version
-		version = "select node_version from system.runtime.nodes where coordinator"
 	case "oracle": // v$version wants a grant; this one is everyone's (18c+; older falls back below)
 		version = "select version_full from product_component_version where product like 'Oracle%'"
 	case "redis": // PING, then what the server says it is
