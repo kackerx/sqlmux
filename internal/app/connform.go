@@ -767,7 +767,7 @@ func testConn(spec config.Connection, password string) (string, error) {
 		version = "select convert(nvarchar(max), serverproperty('ProductVersion'))"
 	case "trino": // the coordinator's version
 		version = "select node_version from system.runtime.nodes where coordinator"
-	case "oracle": // v$version wants a grant; this one is everyone's
+	case "oracle": // v$version wants a grant; this one is everyone's (18c+; older falls back below)
 		version = "select version_full from product_component_version where product like 'Oracle%'"
 	case "redis": // PING, then what the server says it is
 		if _, err := conn.Query(ctx, "PING"); err != nil {
@@ -776,8 +776,15 @@ func testConn(spec config.Connection, password string) (string, error) {
 		version, args = "INFO", []db.Val{{S: "server"}}
 	}
 	r, err := conn.Query(ctx, version, args...)
+	if err != nil && spec.Engine == "oracle" && strings.Contains(err.Error(), "ORA-00904") {
+		// version_full is 18c's; 11g and 12c have only version
+		r, err = conn.Query(ctx, "select version from product_component_version where product like 'Oracle%'")
+	}
 	if err != nil {
 		return "", err
+	}
+	if len(r.Rows) == 0 || len(r.Rows[0]) == 0 {
+		return i18n.T("已连接 · %s · %s", spec.Engine, time.Since(start).Round(time.Millisecond)), nil
 	}
 	return i18n.T("已连接 · %s · %s", versionText(spec.Engine, r.Rows[0][0].S), time.Since(start).Round(time.Millisecond)), nil
 }
