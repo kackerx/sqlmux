@@ -6,6 +6,7 @@ package trino
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
@@ -50,14 +51,16 @@ type config struct {
 
 // parseDSN reads trino://user[:pass]@host:port/catalog/schema?ssl=true, or the
 // form the Go client takes, http[s]://user@host:port?catalog=c&schema=s;
-// session_properties=a:1;b:2 either way. The port is 8080, 443 with TLS.
+// session_properties=a:1;b:2 either way. The port is 8080, 443 with TLS;
+// port 443 is TLS unless ssl=false says not, as nothing else answers there.
 func parseDSN(dsn string) (config, error) {
 	u, err := url.Parse(dsn)
 	if err != nil {
 		return config{}, err
 	}
 	q := u.Query()
-	ssl := u.Scheme == "https" || q.Get("ssl") == "true" || q.Get("SSL") == "true"
+	sslSet := cmp.Or(q.Get("ssl"), q.Get("SSL"))
+	ssl := u.Scheme == "https" || sslSet == "true" || sslSet == "" && u.Scheme == "trino" && u.Port() == "443"
 	switch u.Scheme {
 	case "trino", "http", "https":
 	default:
