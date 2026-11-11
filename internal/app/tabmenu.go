@@ -81,7 +81,7 @@ func (a *App) closeTabs(p *Pane, pick func(i int) bool) tea.Cmd {
 		}
 	}
 	if kept > 0 {
-		cmds = append(cmds, a.showToast(i18n.T("%d 个 tab 有未保存的修改，没关", kept)))
+		cmds = append(cmds, a.showToast(i18n.T("%d 个 tab 没关：有未保存的修改、未提交的事务或正在执行", kept)))
 	}
 	return tea.Batch(cmds...)
 }
@@ -90,7 +90,7 @@ func (a *App) closeTabs(p *Pane, pick func(i int) bool) tea.Cmd {
 // tabs of the focused pane but the current one, or those before it or after it.
 func (a *App) closeOthers(d int) tea.Cmd {
 	p := a.focused()
-	if p == a.win().Tree {
+	if p == a.win().Tree || p == a.win().Result { // the result area has no batch close (§11)
 		return nil
 	}
 	cur := p.Cur

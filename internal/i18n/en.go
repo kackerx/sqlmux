@@ -13,9 +13,9 @@ var en = map[string]string{
 	"关闭右侧":          "Close tabs to the right",
 	"关闭右侧的 tab":     "Close tabs to the right",
 	"关闭左侧的 tab":     "Close tabs to the left",
-	"%d 个 tab 有未保存的修改，没关": "%d tab(s) have unsaved changes, not closed",
-	"移到下一个 pane":          "Move to the next pane",
-	"固定":                  "Pin",
+	"%d 个 tab 没关：有未保存的修改、未提交的事务或正在执行": "%d tab(s) not closed: unsaved changes, an open transaction or a running statement",
+	"移到下一个 pane": "Move to the next pane",
+	"固定":         "Pin",
 	// Commands: the titles the palette lists and the key export names
 	"WHERE 条件":    "WHERE condition",
 	"session 列表":  "Session list",

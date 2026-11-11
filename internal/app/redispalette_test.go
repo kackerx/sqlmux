@@ -352,6 +352,10 @@ func TestPaletteKeyScope(t *testing.T) {
 	if items, ms := a.paletteMatches(); len(ms) == 0 || items[ms[0].Index].id != "tab.close" {
 		t.Errorf("q: %v", ms)
 	}
+	feed(t, a, "a")
+	if items, ms := a.paletteMatches(); len(ms) == 0 || items[ms[0].Index].id != "quit" {
+		t.Errorf("qa: %v", ms)
+	}
 }
 
 // The keys' scope starts the index of the db the palette is on when there is none,

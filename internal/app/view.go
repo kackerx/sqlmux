@@ -341,7 +341,11 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	if in.Empty() {
 		return
 	}
-	tabs := ui.Tabs{Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID, NoNew: p == a.win().Result, Close: a.icons.Close, Pin: a.icons.Pin, Scroll: &p.tabScroll}
+	pin := a.icons.Pin
+	if a.icons.Labeled { // ascii's pin is the * of the current tab, which it would stand beside after the name (F22.6)
+		pin.Text = "^"
+	}
+	tabs := ui.Tabs{Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID, NoNew: p == a.win().Result, Close: a.icons.Close, Pin: pin, Scroll: &p.tabScroll}
 	if p == a.win().Result { // the log stays (§11)
 		tabs.Keep = 1
 	}

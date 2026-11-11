@@ -90,9 +90,9 @@ func TestCloseTabs(t *testing.T) {
 		action, want string
 		kept         string
 	}{
-		{"tab.close.others", "t2^ t3* t4", "1 个 tab"},
+		{"tab.close.others", "t2^ t3* t4", "1 个 tab 没关："},
 		{"tab.close.left", "t2^ t3* t4 t5", ""},
-		{"tab.close.right", "t2^ t1 t3* t4", "1 个 tab"},
+		{"tab.close.right", "t2^ t1 t3* t4", "1 个 tab 没关："},
 	} {
 		a, p := tabsApp(t, 5)
 		pinAt(a, p, 1)
@@ -119,6 +119,24 @@ func TestCloseTabs(t *testing.T) {
 	a.run("tab.close", 0)
 	if got := order(p); strings.Contains(got, "t2") {
 		t.Errorf("tab.close left the pinned tab: %s", got)
+	}
+}
+
+// The result area has no batch close: its tabs stay, and nothing is said (F22.6).
+func TestCloseTabsNotInResultArea(t *testing.T) {
+	d := &execDB{res: map[string]db.Result{"select 1": rows(3)}}
+	a, _ := inRun(t, d, "select 1")
+	press(t, a, "<CR>")
+	res := a.win().Result
+	a.win().focus(res.ID)
+	selectTab(res, 0)
+	n := len(res.Tabs)
+	for _, act := range []string{"tab.close.others", "tab.close.left", "tab.close.right"} {
+		selectTab(res, 0)
+		a.toast = ""
+		if a.run(act, 0); len(res.Tabs) != n || a.toast != "" {
+			t.Errorf("%s: %d tabs of %d, toast %q", act, len(res.Tabs), n, a.toast)
+		}
 	}
 }
 
@@ -202,11 +220,25 @@ func TestTabMenu(t *testing.T) {
 // The tab bar draws the pinned ones with the pin after the name, the menu over a table's tab
 // and a landing page's (F22.6).
 func TestGoldenPinnedTabs(t *testing.T) {
-	a, p := tabsApp(t, 5)
-	pinAt(a, p, 1)
-	pinAt(a, p, 3)
-	a.menu = nil
-	golden.RequireEqual(t, a.render().String())
+	for _, icons := range []string{"nerd", "ascii"} { // ascii's pin is a ^, not the * of the current tab
+		t.Run(icons, func(t *testing.T) {
+			a, p := tabsApp(t, 5)
+			if icons == "ascii" {
+				a = sized(160, 45, "ascii")
+				p = a.win().Root.Leaves()[0]
+				a.win().focus(p.ID)
+				p.Tabs, p.Cur, p.Prev = nil, 0, -1
+				for i := 1; i <= 5; i++ {
+					name := fmt.Sprintf("t%d", i)
+					putTab(p, Tab{Name: name, Data: newDataTab(a.sess.Conns[0], db.Table{Schema: "public", Name: name})}, false)
+				}
+			}
+			pinAt(a, p, 1)
+			pinAt(a, p, 3)
+			a.menu = nil
+			golden.RequireEqual(t, a.render().String())
+		})
+	}
 }
 
 // The tab menu drawn over a table's tab, a landing page's and a result's (F22.6).
