@@ -38,7 +38,7 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 4. tester 整批测：有问题退回 worker（修复先经 reviewer 复审）；全部通过把批次结论发给决策者和 worker，决策者填状态 `passed（sha；e2e sha）`。
 5. 修复 commit 排在后续 feature 之后时，照常在修复的 sha 上审、测，只看本批的验收项；后续 feature 造成的 e2e 失败由 worker 列出，不算本批问题。
 
-**里程碑结束**：最后一个节点通过、tester 跑完完整回归后暂停，用户体验并提意见；决策者把反馈写成新 feature 追加进 task.md；用户验收通过后 worker 打 tag、推送。暂停期间 worker 不写代码，只可以起草下一个里程碑的清单发给决策者。
+**里程碑结束**：最后一个节点通过、tester 跑完完整回归后暂停，用户体验并提意见；决策者把反馈写成新 feature 追加进 task.md；验收期间追加的节点可以只跑相关脚本，但**发版前 tester 在最终的 sha 上重跑一次完整回归**（M21 节点 3 没重跑，F21.7 改的共用补全框把 WHERE 历史下拉弄坏了，带着发了 v0.10.0）；用户验收通过后 worker 打 tag、推送。暂停期间 worker 不写代码，只可以起草下一个里程碑的清单发给决策者。
 
 **全仓审计**：用户按需让 reviewer 做一次只读的全仓工程质量审计（做法在 `specs/roles/reviewer.md`），每条发现带一个探针，结果发决策者排成一个里程碑（第一次是 M13）。探针和仓库副本放在 worktree 外面（`/root/proj/sqlmux-aud/`）：i18n 的单测遍历整个 worktree，未跟踪的 `.go` 副本也会被扫到。
 
