@@ -1,6 +1,6 @@
 ┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ①  t_order ─────────────────────────────────────     ─┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
 │  15 tables                 │ │ WHERE                                                C-r ▾ │ │   1                                                         │
-│──────────────────────────────│ │  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7             │ │                                                             │
+│──────────────────────────────│ │  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7             │ │                                                             │
 │ ▾  doraemon                 │ │     │  id │ status  │ amount │ paid │ meta                 │ │                                                             │
 │   ▸  agentable              │ │─────┼──────┼─────────┼────────┼──────┼──────────────────────│ │                                                             │
 │   ▾  public                 │ │   1 │    1 │ running │   1.99 │ t    │ {"n": 1, "tags": ["a"│ │                                                             │
@@ -9,9 +9,9 @@
 │       ▸  agent_version  530 │ │   4 │    4 │ ┌─────────────────────┐ │ {"n": 4, "tags": ["a"│ │                                                             │
 │       ▸  goal            57 │ │   5 │    5 │ │  在值编辑器中打开  │ │ {"n": 5, "tags": ["a"│ │                                                             │
 │       ▸  mt_task        812 │ │   6 │    6 │ │  按这个值过滤      │ │ {"n": 6, "tags": ["a"│ │                                                             │
-│       ▸  mt_task_log    96k │ │   7 │    7 │ │  按这一列排序 ↑    │ │ {"n": 7, "tags": ["a"│ │                                                             │
-│       ▸  schema_migrations  │ │   8 │    8 │ │  按这一列排序 ↓    │ │ {"n": 8, "tags": ["a"│ │                                                             │
-│       ▸  t_order       1.2m │ │   9 │    9 │ │  加入排序          │ │ {"n": 9, "tags": ["a"│ │                                                             │
+│       ▸  mt_task_log    96k │ │   7 │    7 │ │  按这一列排序 ↑    │ │ {"n": 7, "tags": ["a"│ │                                                             │
+│       ▸  schema_migrations  │ │   8 │    8 │ │  按这一列排序 ↓    │ │ {"n": 8, "tags": ["a"│ │                                                             │
+│       ▸  t_order       1.2m │ │   9 │    9 │ │  加入排序          │ │ {"n": 9, "tags": ["a"│ │                                                             │
 │       ▸  t_order_item  3.4m │ │  10 │   10 │ │  隐藏这一列        │ │ {"n": 10, "tags": ["a│ │                                                             │
 │       ▸  t_payment     410k │ │  11 │   11 │ │  复制这一格        │ │ {"n": 11, "tags": ["a│ │                                                             │
 │       ▸  t_refund       12k │ │  12 │   12 │ │  复制行为 JSON     │ │ {"n": 12, "tags": ["a│ │                                                             │

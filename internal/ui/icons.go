@@ -100,8 +100,8 @@ var NerdIcons = &Icons{
 	RowDelete:   Icon{Text: "\uf068"},     // nf-fa-minus
 	AutoRefresh: Icon{Text: "\uf017"},     // nf-fa-clock_o
 	Stop:        Icon{Text: "\uf04d"},     // nf-fa-stop
-	SortAsc:     Icon{Text: "\uf160"},     // nf-fa-sort_amount_asc
-	SortDesc:    Icon{Text: "\uf161"},     // nf-fa-sort_amount_desc
+	SortAsc:     Icon{Text: "\uf062"},     // nf-fa-arrow_up: the sort_amount pair draws a down arrow for both in Nerd Fonts v2 and up for desc only in v3, F22.2
+	SortDesc:    Icon{Text: "\uf063"},     // nf-fa-arrow_down
 	View:        Icon{Text: "\uf06e"},     // nf-fa-eye
 	Column:      Icon{Text: "\ueb5f"},     // nf-cod-symbol_field
 	Lock:        Icon{Text: "\uf023"},     // nf-fa-lock

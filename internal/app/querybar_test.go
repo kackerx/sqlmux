@@ -1073,3 +1073,40 @@ func TestOrderActionsOnlyInOrderList(t *testing.T) {
 		t.Errorf("back to the default: order %v, desc %v", tab.order, tab.desc)
 	}
 }
+
+// The arrow on the ORDER chip points as the one by the column in the list and
+// in the menu does: up for ascending, down for descending (F22.2). The Nerd
+// glyphs are the plain arrows, as the sort_amount pair of Font Awesome is
+// down for both in Nerd Fonts v2 and up for descending in v3.
+func TestSortChipDirection(t *testing.T) {
+	if ui.NerdIcons.SortAsc.Text != "" || ui.NerdIcons.SortDesc.Text != "" {
+		t.Fatalf("nf-fa-arrow_up / arrow_down: %q %q", ui.NerdIcons.SortAsc.Text, ui.NerdIcons.SortDesc.Text)
+	}
+	for name, order := range map[string][]string{"asc": {"status"}, "desc": {"status-"}} {
+		a, tab, _ := withRecorder(t)
+		tab.order, tab.shown.order = orderOf(order...), orderOf(order...)
+		chip, arrow, other := " ORDER status "+a.icons.SortAsc.Text+" ", "1↑ status", a.icons.SortDesc.Text
+		if name == "desc" {
+			chip, arrow, other = " ORDER status "+a.icons.SortDesc.Text+" ", "1↓ status", a.icons.SortAsc.Text
+		}
+		view := a.render().String()
+		if !strings.Contains(view, chip) || strings.Contains(view, " ORDER status "+other) {
+			t.Errorf("%s: the chip has %q: %s", name, chip, view)
+		}
+		feed(t, a, "go")
+		if view = a.render().String(); !strings.Contains(view, arrow) {
+			t.Errorf("%s: the list has no %q", name, arrow)
+		}
+	}
+}
+
+// The chip, ascending and descending, as the terminal gets it (F22.2).
+func TestGoldenSortChip(t *testing.T) {
+	for name, order := range map[string][]string{"asc": {"status"}, "desc": {"status-"}} {
+		t.Run(name, func(t *testing.T) {
+			a, tab, _ := withRecorder(t)
+			tab.order, tab.shown.order = orderOf(order...), orderOf(order...)
+			golden.RequireEqual(t, a.render().String())
+		})
+	}
+}
