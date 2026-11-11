@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # F19.5 tree.toggle 照 DataGrip 带焦点（specs/m19-polish/task.md F19.5；tech-design §7.8「schema 侧栏」）
 # SPC b：侧栏开着、焦点在树上 → 收起并回到进树之前的 pane；开着、焦点不在树上 → 只聚焦树、不收起；收起时 → 展开并聚焦树（j 动的是树的光标）。
-# 回到的是进树之前的那个 pane（① 进的回 ①，② 进的回 ②），不是第一个；缩放中先退出缩放；点标题的 « 收起、点折叠栏的 » 展开并聚焦树。只读，用共用库。
+# 回到的是进树之前的那个 pane（① 进的回 ①，② 进的回 ②），不是第一个；缩放中先退出缩放；点标题的 « 收起、点状态栏最左的 »（F22.7）展开并聚焦树。只读，用共用库。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 . "$(dirname "$0")/palette.sh"
@@ -9,7 +9,6 @@ e2e_build || exit 1
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-cfg.XXXXXX"); trap 'e2e_stop; rm -rf "$D"' EXIT
 leader() { e2e_keys Space; e2e_type "$1"; sleep 0.6; }
 open_sb() { e2e_plain | sed -n 1p | grep -q "«"; }                 # 侧栏开着：标题上有 «
-folded() { [[ $(e2e_text 1 3 1) == "┌─┐" ]]; }                    # 折叠栏：┌─┐
 tsel() { local y; for y in $(seq 3 43); do [[ $(e2e_style 4 "$y") == *bg=#364a82* ]] && { e2e_text 1 32 "$y" | noicon | tr -s ' ' | sed 's/^[│ ]*[▾▸]* *//; s/[ │]*$//'; return; }; done; }
 at() { local c; c=$(e2e_find "$1" "$2"); echo "${c%% *} $2"; }
 
@@ -48,8 +47,8 @@ key C-l; key C-l; sleep 0.3
 # ---- 点 « 和 »
 read x y <<<"$(at "«" 1)"; e2e_click $x $y; sleep 0.5
 check "焦点在 ②（不在树上），点标题的 «：收起，焦点还在 ②" eval 'folded && [[ $(focused) == 2 ]] || { echo "  focused [$(focused)]"; false; }'
-e2e_click 2 1; sleep 0.5
-check "点折叠栏的 »：展开并聚焦树" eval 'open_sb && [[ $(focused) == 0 ]]'
+unfold_click; sleep 0.5
+check "点状态栏的 »：展开并聚焦树" eval 'open_sb && [[ $(focused) == 0 ]]'
 t0=$(tsel); key j; t1=$(tsel)
 check "点 » 之后 j 动的是树的光标" eval '[[ $t0 != $t1 ]]'
 read x y <<<"$(at "«" 1)"; e2e_click $x $y; sleep 0.5

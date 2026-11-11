@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # F20.4 打开树时光标不跳：`[tree] follow`（specs/m20-redis-ui/task.md F20.4；tech-design §7.8「tree.toggle」、§6 SPC b、§14 [tree] follow）
-# 默认：SPC b 进树、点折叠栏的 » 展开，树的光标原地不动（也不展开折着的节点）；`follow = true`：落到焦点 pane 当前 tab 的节点（F3.29，f3.29.sh 测这一条）。
+# 默认：SPC b 进树、点状态栏的 » 展开，树的光标原地不动（也不展开折着的节点）；`follow = true`：落到焦点 pane 当前 tab 的节点（F3.29，f3.29.sh 测这一条）。
 # 只读，用共用库。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
@@ -31,7 +31,7 @@ toggle
 check "默认：焦点在 t_order 的 tab 上，SPC b 聚焦树：焦点到树，光标原地（public），t_order 没有被展开出来" eval 'focus_is 0 && cur_is "$P0" && ! visible "t_order .*6.0k"'
 toggle; toggle
 check "默认：SPC b 收起、再 SPC b 展开：光标还在 public，public 还是折着的" eval 'tree_shown && focus_is 0 && cur_is "$P0" && ! visible "t_order .*6.0k"'
-key C-l; toggle; toggle; e2e_click 2 10; sleep 0.4       # 收起（先聚焦树再收起），点折叠栏的 »
+key C-l; toggle; toggle; unfold_click; sleep 0.4       # 收起（先聚焦树再收起），点状态栏最左的 »（F22.7）
 check "默认：点折叠栏展开：焦点到树，光标还是 public" eval 'tree_shown && focus_is 0 && cur_is "$P0"'
 
 # ---- 光标停在别的表上：聚焦一个别的 tab 再进树，光标还在原来那一行
@@ -53,7 +53,7 @@ toggle
 check "follow = true：SPC b 聚焦树：光标落在 public 下的 t_order，public 展开了" eval 'focus_is 0 && cur_is "t_order 6.0k" && visible "t_order .*6.0k"'
 key C-l; toggle; toggle; toggle
 check "follow = true：收起再展开：光标仍在 t_order" eval 'tree_shown && focus_is 0 && cur_is "t_order 6.0k"'
-key j; key C-l; toggle; toggle; e2e_click 2 10; sleep 0.4
+key j; key C-l; toggle; toggle; unfold_click; sleep 0.4
 check "follow = true：点折叠栏展开：光标回到 t_order（点 » 同 SPC b）" eval 'tree_shown && focus_is 0 && cur_is "t_order 6.0k"'
 
 e2e_done

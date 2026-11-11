@@ -55,15 +55,15 @@ start; two_panes
 L z; e2e_down 97 20; e2e_drag_to 80 20; e2e_up 80 20; sleep 0.3; L z
 check "缩放时不登记拖动柄：拖动无效" eval '(( $(w_of 1) == 63 ))'
 
-# ---- 细栏、提示、which-key 项：点击执行对应的 Action
+# ---- 状态栏的 »（F22.7）、提示、which-key 项：点击执行对应的 Action
 start
-L b; L b; e2e_click 2 10; sleep 0.3   # F19.5：第一个 SPC b 只聚焦树，第二个才折叠
-check "点击 3 列宽的细栏：侧栏展开，焦点到树上（同 SPC b，F3.29）" eval 'geom_is 0 "1 1 32 44" && focus_is 0'
+L b; L b; unfold_click; sleep 0.3   # F19.5：第一个 SPC b 只聚焦树，第二个才折叠
+check "点击状态栏最左的 »：侧栏展开，焦点到树上（同 SPC b，F3.29）" eval 'geom_is 0 "1 1 32 44" && focus_is 0'
 e2e_click $(at "«" 1); sleep 0.3
-check "点击侧栏标题上的 «：折叠侧栏" eval '[[ $(e2e_text 1 3 1) == "┌─┐" ]]'
-e2e_click 2 10; sleep 0.3
+check "点击侧栏标题上的 «：折叠侧栏" folded
+unfold_click; sleep 0.3
 e2e_keys Space; sleep 0.6; e2e_click $(for y in $(seq 30 44); do c=$(e2e_find "b →" $y); [[ -n $c ]] && { echo "$c $y"; break; }; done); sleep 0.3
-check "点击 which-key 里的 b：效果同按 b（折叠侧栏），浮层关闭、待输入清空" eval '[[ $(e2e_text 1 3 1) == "┌─┐" ]] && ! wk_open && pending_idle'
+check "点击 which-key 里的 b：效果同按 b（折叠侧栏），浮层关闭、待输入清空" eval 'folded && ! wk_open && pending_idle'
 
 # ---- 悬停（§7.4）：提示、+、状态栏按钮、which-key 项为 select 底
 start

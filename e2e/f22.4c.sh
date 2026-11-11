@@ -56,7 +56,7 @@ check "↵：执行的是「导出…」（菜单关了，开了导出的格式�
 _e2e_kill
 
 # ---- Redis stream：NoInsert
-SOLO=1 start -C "$D/rd"; e2e_keys C-p; sleep 0.3; e2e_type "@stream:events"; sleep 0.8; key Enter; sleep 1.5; wait_for 8 settled
+SOLO=1 start -C "$D/rd"; e2e_keys C-p; sleep 0.3; e2e_type ":stream:events"; sleep 0.8; wait_for 6 eval "e2e_plain | grep -q \"stream:events .*Key\""; key Enter; sleep 1.5; wait_for 8 settled
 check "（准备）stream:events 的键 tab，两条" eval 'e2e_plain | grep -qF "1700000000000-2"' || e2e_plain | sed -n 1,10p | cut -c34-150
 read -r cx cy <<<"$(echo "$(( $(colx id) + 1 )) $(( $(grid_y) + 1 ))")"; rclick "$cx" "$cy"; sleep 0.6
 check "stream 的格右键：添加行、克隆行是 dim，删除行不是（和「复制这一格」同色）" eval '[[ $(fg_of 添加行) == "$(fg_of 克隆行)" && $(fg_of 删除行) != "$(fg_of 克隆行)" && $(fg_of 删除行) == "$(fg_of 复制这一格)" ]]' || { mrows; fg_of 添加行; fg_of 删除行; fg_of 复制这一格; }

@@ -24,7 +24,7 @@ boxtext() { local g y; g=($(dbox)); [[ -n ${g[0]} ]] || return 0; for ((y = g[1]
 start -x 80 -y 35 -C "$D/c"; sleep 0.5
 check "引导页和主界面里没有汉字和全角标点" cjk
 e2e_keys C-p; sleep 0.6
-check "80 列的命令面板：范围行完整（All / Session / Win·Pane / Win / Tab / Table / Cmd / SQL，各带前缀）" eval 'e2e_plain | grep -q "All   Session \$   Win·Pane %   Win &   Tab #   Table @   Cmd >   SQL ;"'
+check "80 列的命令面板：范围行完整（All / Session / Win·Pane / Win / Tab / Table / Key / Cmd / SQL，各带前缀）" eval 'e2e_plain | grep -q "All   Session \$   Win·Pane %   Win &   Tab #   Table @   Key :   Cmd >   SQL ;"'
 check "命令面板里没有汉字" cjk
 key Escape
 key C-c
