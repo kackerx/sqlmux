@@ -261,29 +261,59 @@ func (a *App) recomplete(c *Conn) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+// indexFoot is what the list of the keys says under it when c's index stops short of its
+// db: why it is not made (a stale one stays in use), that it is being made or made again,
+// that it is cut (§9.8, F21.7); "" when it is whole.
+func (a *App) indexFoot(c *Conn) string {
+	ix := c.indexed()
+	switch {
+	case c.indexErr != "":
+		return a.indexFailed(c)
+	case ix == nil && c.building != nil:
+		return i18n.T("索引建立中")
+	case ix != nil && ix.stale:
+		return i18n.T("索引更新中")
+	case ix != nil && ix.capped:
+		return i18n.T("已索引 %d / 共 %d 键", len(ix.names), ix.total)
+	}
+	return ""
+}
+
+// keyNote is indexFoot of the connection the palette's keys are of (F22.5).
+func (a *App) keyNote() string {
+	if c := a.palette.conn; c != nil && !c.sql() && c.State == connReady {
+		return a.indexFoot(c)
+	}
+	return ""
+}
+
+// keyIndexCmd starts the index of the db the palette is on when its input is in the keys'
+// scope and there is none, as the console's first completion does: once, the one that is
+// there is no reason for a rebuild (F22.5).
+func (a *App) keyIndexCmd() tea.Cmd {
+	if a.palette == nil {
+		return nil
+	}
+	if scope, _ := a.paletteScope(); scope != keyScope {
+		return nil
+	}
+	if c := a.palette.conn; c != nil && !c.sql() && c.State == connReady {
+		return a.startIndex(c)
+	}
+	return nil
+}
+
 // keyCandidates are the keys the completion offers for a name partly typed:
 // those of the index, matched as every completion is; while there is none,
 // those the server gave for the prefix, which are asked for. foot is what the
 // list says under it when the index stops short of the db.
 func (a *App) keyCandidates(t *queryTab, partial string) (found []candidate, foot string, cmds []tea.Cmd) {
 	c := t.conn
+	foot = a.indexFoot(c)
 	if ix := c.indexed(); ix != nil {
-		switch {
-		case c.indexErr != "": // a stale index stays in use, and says why it is not made
-			foot = a.indexFailed(c)
-		case ix.stale:
-			foot = i18n.T("索引更新中")
-		case ix.capped:
-			foot = i18n.T("已索引 %d / 共 %d 键", len(ix.names), ix.total)
-		}
 		return ix.narrowed(partial), foot, nil
 	}
-	switch { // none yet: what is typed is matched among the names of the prefix, when they come (F21.7)
-	case c.indexErr != "":
-		foot = a.indexFailed(c)
-	case c.building != nil:
-		foot = i18n.T("索引建立中")
-	}
+	// none yet: what is typed is matched among the names of the prefix, when they come (F21.7)
 	names, have := c.hints["keys\x00"+partial]
 	if !have {
 		cmds = append(cmds, a.askHints(t, "keys", partial))
@@ -298,13 +328,14 @@ func (a *App) keyCandidates(t *queryTab, partial string) (found []candidate, foo
 // have read, and what the last query matched of them, which the next one that goes
 // on from it matches among (F20.3).
 type keyList struct {
-	sig   string // what the dbs had read: the list is made again when it changes
-	items []paletteItem
-	texts []string
-	query string // cand are the items it matches, in their order
-	cand  []int
-	top   []paletteItem // the best keyListed of them, best first
-	ms    []ui.Match    // of top
+	sig     string // what the dbs had read: the list is made again when it changes
+	items   []paletteItem
+	texts   []string
+	matched bool   // match has been run: the empty query is a query too
+	query   string // cand are the items it matches, in their order
+	cand    []int
+	top     []paletteItem // the best keyListed of them, best first
+	ms      []ui.Match    // of top
 }
 
 // keyListed is how many matching keys the palette keeps: no list shows more than the
@@ -320,10 +351,11 @@ type keySource struct {
 	names           []string
 }
 
-// keySources are the dbs the palette lists keys of: the connected Redis ones.
-func (a *App) keySources() (srcs []keySource) {
+// keySources are the dbs the palette lists keys of: the connected Redis ones, or only's
+// alone, which is where an input with no query is (F22.5).
+func (a *App) keySources(only *Conn) (srcs []keySource) {
 	for _, c := range a.sess.conns() {
-		if c.sql() || c.State != connReady {
+		if c.sql() || c.State != connReady || only != nil && c != only {
 			continue
 		}
 		src := keySource{where: c.Spec.Name + "/" + dbText(cmp.Or(c.Spec.Database, c.DB))}
@@ -359,11 +391,11 @@ func (a *App) keyCount() (n int) {
 
 // keySig is what the dbs have read, in a line: the list of keys is that and nothing
 // else, so it is made again when a db reads more.
-func (a *App) keySig() string {
+func (a *App) keySig(only *Conn) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%p", a.icons)
+	fmt.Fprintf(&b, "%p %p", a.icons, only)
 	for _, c := range a.sess.conns() {
-		if !c.sql() && c.State == connReady {
+		if !c.sql() && c.State == connReady && (only == nil || c == only) {
 			fmt.Fprintf(&b, "|%s %p %p", c.tableKey(db.Table{Kind: "k"}), c.index, c.scan)
 			if c.index != nil {
 				fmt.Fprintf(&b, " %d %d", len(c.index.names), c.index.gen)
@@ -409,7 +441,7 @@ func buildKeyList(sig string, srcs []keySource, icons *ui.Icons) *keyList {
 // first. It changes kl and nothing it shares with another list, so it may run in the
 // background over a copy.
 func (kl *keyList) match(query string) {
-	narrow := narrowsTo(kl.query, query) // among what the last query matched
+	narrow := kl.matched && narrowsTo(kl.query, query) // among what the last query matched
 	texts := kl.texts
 	if narrow {
 		texts = make([]string, len(kl.cand))
@@ -426,12 +458,21 @@ func (kl *keyList) match(query string) {
 		ms[i], kl.cand[i] = m, m.Index
 	}
 	slices.SortStableFunc(ms, func(x, y ui.Match) int { return cmp.Or(y.Score-x.Score, x.Index-y.Index) })
-	kl.query, kl.top, kl.ms = query, []paletteItem{}, nil
+	kl.matched, kl.query, kl.top, kl.ms = true, query, []paletteItem{}, nil
 	for _, m := range ms[:min(len(ms), keyListed)] {
 		kl.top = append(kl.top, kl.items[m.Index])
 		m.Index = len(kl.top) - 1
 		kl.ms = append(kl.ms, m)
 	}
+}
+
+// keyOnly is the db the keys are of when the query is empty: the one the palette is on, when
+// it is a Redis one; none, every db's, with something typed or on a SQL connection (F22.5).
+func (a *App) keyOnly(query string) *Conn {
+	if c := a.palette.conn; c != nil && !c.sql() && strings.TrimSpace(query) == "" {
+		return c
+	}
+	return nil
 }
 
 // keyMatches are the best keys that query matches, with their matches, indexes into
@@ -447,11 +488,12 @@ func (a *App) keyMatches(query string) ([]paletteItem, []ui.Match) {
 		}
 		return kl.top, kl.ms
 	}
-	if sig := a.keySig(); kl == nil || kl.sig != sig {
-		kl = buildKeyList(sig, a.keySources(), a.icons)
+	only := a.keyOnly(query)
+	if sig := a.keySig(only); kl == nil || kl.sig != sig {
+		kl = buildKeyList(sig, a.keySources(only), a.icons)
 		a.palette.keys = kl
 	}
-	if kl.query != query {
+	if !kl.matched || kl.query != query {
 		kl.match(query)
 	}
 	return kl.top, kl.ms
@@ -481,11 +523,12 @@ func (a *App) keyListCmd() tea.Cmd {
 		return nil
 	}
 	scope, query := a.paletteScope()
-	if !slices.Contains(scopes[scope].kinds, itemRedisKey) || strings.TrimSpace(query) == "" || a.keyCount() <= matchInline {
+	if scope != keyScope || a.keyCount() <= matchInline {
 		return nil
 	}
-	sig := a.keySig()
-	if kl := p.keys; kl != nil && kl.sig == sig && kl.query == query || p.keyAsked == query && p.keyAskedSig == sig {
+	only := a.keyOnly(query)
+	sig := a.keySig(only)
+	if kl := p.keys; kl != nil && kl.sig == sig && kl.matched && kl.query == query || p.keyAsked == query && p.keyAskedSig == sig {
 		return nil
 	}
 	p.keySeq++
@@ -495,7 +538,7 @@ func (a *App) keyListCmd() tea.Cmd {
 		cp := *kl
 		base = &cp
 	}
-	srcs, icons, seq := a.keySources(), a.icons, p.keySeq
+	srcs, icons, seq := a.keySources(only), a.icons, p.keySeq
 	return func() tea.Msg {
 		kl := base
 		if kl == nil {

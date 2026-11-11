@@ -58,6 +58,7 @@ func init() {
 		}},
 		"palette.window":  {Title: i18n.N("命令面板：窗口"), Run: do(func(a *App, _ Args) { a.openPalette("&") })},
 		"palette.tab":     {Title: i18n.N("命令面板：Tab"), Run: do(func(a *App, _ Args) { a.openPalette("#") })},
+		"palette.key":     {Title: i18n.N("命令面板：键"), Run: do(func(a *App, _ Args) { a.openPalette(":") })},
 		"palette.table":   {Title: i18n.N("命令面板：表"), Run: do(func(a *App, _ Args) { a.openPalette("@") })},
 		"palette.session": {Title: i18n.N("命令面板：session"), Run: do(func(a *App, _ Args) { a.openPalette("$") })},
 		"tips.next":       {Title: i18n.N("下一条提示"), Run: do(func(a *App, _ Args) { a.nextTip() })},

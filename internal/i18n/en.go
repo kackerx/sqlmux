@@ -147,6 +147,7 @@ var en = map[string]string{
 	"命令面板：Tab":                  "Palette: Tab",
 	"命令面板：命令":                   "Palette: command",
 	"命令面板：表":                    "Palette: table",
+	"命令面板：键":                    "Palette: keys",
 	"命令面板：窗口":                   "Palette: window",
 	"回到表格":                      "Back to the grid",
 	"回滚":                        "Roll back",

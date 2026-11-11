@@ -34,13 +34,13 @@ func keyRows(a *App) (rows []paletteItem) {
 	return rows
 }
 
-// The palette's @ and the all scope list the keys of the dbs whose index of names or
+// The palette's : scope lists the keys of the dbs whose index of names or
 // whose tree has read them, with the tables, as "Key" rows placed in their db, the
 // icon of the type the tree knows; none for a db that has neither, and none while
 // nothing is typed. ↵ opens the key as the tree does, and typing asks the server
 // of nothing (§12, F20.3).
 func TestPaletteRedisKeys(t *testing.T) {
-	a, conn := keyPalette(t, "@employees")
+	a, conn := keyPalette(t, ":employees")
 	rows := keyRows(a)
 	names := []string{}
 	for _, r := range rows {
@@ -48,7 +48,7 @@ func TestPaletteRedisKeys(t *testing.T) {
 	}
 	slices.Sort(names)
 	if !slices.Equal(names, []string{"p:employees:1", "p:employees:2"}) {
-		t.Fatalf("@employees: %v", names)
+		t.Fatalf(":employees: %v", names)
 	}
 	for _, r := range rows {
 		want := a.icons.Key
@@ -62,10 +62,11 @@ func TestPaletteRedisKeys(t *testing.T) {
 	feed(t, a, "<Esc>")
 
 	for _, tc := range []struct{ typed, want string }{
-		{"@tree", "tree:only"}, // what the tree read, no index of it
-		{"i18n", "i18n:other"}, // in the all scope too
-		{"@", ""},              // nothing typed: no keys to read
-		{"$employees", ""},     // not in the sessions' scope
+		{":tree", "tree:only"}, // what the tree read, no index of it
+		{"i18n", ""},           // not in the all scope (F22.5)
+		{"@employees", ""},     // nor in the tables'
+		{":", "p:employees:1 tree:only i18n:other p:employees:2 plain"}, // nothing typed: those of the db the palette is on
+		{"$employees", ""}, // not in the sessions' scope
 		{">employees", ""},
 	} {
 		feed(t, a, "<C-p>"+tc.typed)
@@ -79,20 +80,20 @@ func TestPaletteRedisKeys(t *testing.T) {
 		feed(t, a, "<Esc><Esc>")
 	}
 
-	feed(t, a, "<C-p>@employees")
+	feed(t, a, "<C-p>:employees")
 	if len(keyRows(a)) == 0 {
-		t.Fatal("@employees lists none")
+		t.Fatal(":employees lists none")
 	}
-	a.palette.input.Text = "@" // what was matched is not what nothing typed lists
+	a.palette.input.Text = "@" // what was matched is not what the tables list
 	if rows := keyRows(a); len(rows) != 0 {
-		t.Errorf("nothing typed after a query: %d keys", len(rows))
+		t.Errorf("the tables' scope lists %d keys", len(rows))
 	}
 	feed(t, a, "<Esc><Esc>")
 
 	// a db that was not read lists none; one that was is placed in its own
 	other := conn.inDB("1")
 	other.State = connReady
-	feed(t, a, "<C-p>@employees")
+	feed(t, a, "<C-p>:employees")
 	for _, r := range keyRows(a) {
 		if r.where != "doraemon/db0" {
 			t.Errorf("a db that has no keys read: %+v", r)
@@ -108,6 +109,10 @@ func TestPaletteRedisKeys(t *testing.T) {
 	if len(in1) != 1 || in1[0].id != "doraemon/db1/p:employees:9" {
 		t.Errorf("db 1's: %+v", in1)
 	}
+	feed(t, a, "<Esc><Esc><C-p>:") // nothing typed: the keys of the db the palette is on, not db 1's
+	if rows := keyRows(a); len(rows) == 0 || slices.ContainsFunc(rows, func(r paletteItem) bool { return r.where != "doraemon/db0" }) {
+		t.Errorf("nothing typed lists %+v", rows)
+	}
 	feed(t, a, "<Esc><Esc>")
 }
 
@@ -115,7 +120,7 @@ func TestPaletteRedisKeys(t *testing.T) {
 // background (F20.8).
 func TestPaletteKeysFewAreMatchedInPlace(t *testing.T) {
 	a, _ := keyPalette(t, "")
-	a.openPalette("@employees") // no frame drawn: the list is not made yet
+	a.openPalette(":employees") // no frame drawn: the list is not made yet
 	if cmd := a.keyListCmd(); cmd != nil {
 		t.Error("the background is asked for a few names")
 	}
@@ -127,7 +132,7 @@ func TestPaletteKeysFewAreMatchedInPlace(t *testing.T) {
 // ↵ on a key opens its key tab in the data pane, and on one that is open focuses it;
 // it is kept among the recent picks; the preview is empty (§12, F20.3).
 func TestPaletteRedisKeyEnter(t *testing.T) {
-	a, conn := keyPalette(t, "@employees:2")
+	a, conn := keyPalette(t, ":employees:2")
 	if a.palettePreview() != nil {
 		t.Error("a key has a preview")
 	}
@@ -147,7 +152,7 @@ func TestPaletteRedisKeyEnter(t *testing.T) {
 		t.Errorf("a key is kept among the recent picks: %+v", a.state.Recent)
 	}
 	a.win().focus(2)
-	feed(t, a, "<C-p>@employees:2")
+	feed(t, a, "<C-p>:employees:2")
 	items, ms = a.paletteMatches()
 	a.paletteRun(slices.IndexFunc(ms, func(m ui.Match) bool { return items[m.Index].kind == itemRedisKey }), false)
 	keyTabs := 0
@@ -175,8 +180,8 @@ func TestPaletteRedisKeyIntoLanding(t *testing.T) {
 	if a.palette == nil || a.palette.into != landing {
 		t.Fatalf("palette %+v", a.palette)
 	}
-	a.win().focus(2) // another pane is the one a table would go to
-	feed(t, a, "employees:2")
+	a.win().focus(2)               // another pane is the one a table would go to
+	feed(t, a, "<Tab>employees:2") // Tab: from the tables to the keys (F22.5)
 	items, ms := a.paletteMatches()
 	i := slices.IndexFunc(ms, func(m ui.Match) bool { return items[m.Index].id == "doraemon/db0/p:employees:2" })
 	if i < 0 {
@@ -191,7 +196,7 @@ func TestPaletteRedisKeyIntoLanding(t *testing.T) {
 // The keys listed are those of a db that is connected and whose index is done: one
 // that is being made, or of a connection that is down, lists none (§12, F20.3).
 func TestPaletteRedisKeysOnlyOfWhatIsRead(t *testing.T) {
-	a, conn := keyPalette(t, "@employees")
+	a, conn := keyPalette(t, ":employees")
 	if len(keyRows(a)) == 0 {
 		t.Fatal("none listed")
 	}
@@ -215,8 +220,8 @@ func TestPaletteRedisKeysOnlyOfWhatIsRead(t *testing.T) {
 func TestPaletteRedisKeysAskNothing(t *testing.T) {
 	a, conn := keyPalette(t, "")
 	conn.index = nil
-	conn.scan.more = true // the tree stopped at its budget, and no index was begun
-	for _, k := range "@employees" {
+	conn.scan.more = true            // the tree stopped at its budget, and no index was begun
+	for _, k := range "@employees" { // the tables' scope: the keys' starts the index of the db (F22.5)
 		_, cmd := a.Update(teaKey(keymap.Key(string(k))))
 		if cmd == nil {
 			continue
@@ -239,7 +244,7 @@ func TestPaletteRedisKeysNarrow(t *testing.T) {
 	for i := range 3 * keyListed {
 		names = append(names, fmt.Sprintf("app%d:user_%d:s%d", i%7, i%13, i))
 	}
-	a, conn := keyPalette(t, "@")
+	a, conn := keyPalette(t, ":")
 	conn.index.names = names
 	conn.index.makeCands()
 	conn.scan = nil
@@ -252,7 +257,7 @@ func TestPaletteRedisKeysNarrow(t *testing.T) {
 	// fzf's extended syntax: ! asks less the longer it is, a$ ends and a$b does not, | asks less
 	for _, q := range []string{"u", "us", "user_1", "user_12", "user_2", "a", "app3:u", "User_1", "zzz",
 		"!_12", "!_123", "!_1234", "1$", "1$2", "1$23", "s", "s | 5", "s | 55", "^app3", "^app3:", "'user_1", "'user_12", "u !_1", "u !_12"} {
-		a.palette.input.Text = "@" + q
+		a.palette.input.Text = ":" + q
 		got := labels(a.keyMatches(q))
 		a.palette.keys = nil
 		if want := labels(a.keyMatches(q)); !slices.Equal(got, want) {
@@ -278,7 +283,7 @@ func TestPaletteRedisKeysNarrow(t *testing.T) {
 	}
 }
 
-// BenchmarkPaletteRedisKeys is the keystrokes of "@user_123" over an index of
+// BenchmarkPaletteRedisKeys is the keystrokes of ":user_123" over an index of
 // index_keys (100000) names, the lists made again for each, as a frame does
 // eleven times (F20.3): the first one makes the list of keys and matches it, the
 // next ones go on from the last match. Past 30ms for the first, to say in the review.
@@ -294,12 +299,12 @@ func BenchmarkPaletteRedisKeys(b *testing.B) {
 	conn := a.sess.Conns[0]
 	conn.Spec.Engine, conn.drv, conn.eng, conn.DB = "redis", kvDriver{}, nil, "0"
 	conn.index = &keyIndex{names: names, done: true}
-	a.openPalette("@")
+	a.openPalette(":")
 	var first, slowest time.Duration
 	for b.Loop() {
 		a.palette.keys = nil
 		for n := 1; n <= len("user_123"); n++ {
-			a.palette.input.Text = "@" + "user_123"[:n]
+			a.palette.input.Text = ":" + "user_123"[:n]
 			start := time.Now()
 			for range 11 { // the calls of one keystroke and its frame
 				a.paletteMatches()
@@ -313,4 +318,76 @@ func BenchmarkPaletteRedisKeys(b *testing.B) {
 	}
 	b.ReportMetric(float64(first.Milliseconds()), "first-ms")
 	b.ReportMetric(float64(slowest.Milliseconds()), "slowest-ms")
+}
+
+// palette.key opens the palette on the keys' scope, which Tab reaches after the
+// tables' and leaves for the commands'; the all scope and the tables' list none
+// (§12, F22.5).
+func TestPaletteKeyScope(t *testing.T) {
+	a, _ := keyPalette(t, "")
+	feed(t, a, "<Esc><Esc>")
+	a.run("palette.key", 0)
+	if a.palette == nil || a.palette.input.Text != ":" {
+		t.Fatalf("palette.key: %+v", a.palette)
+	}
+	if scope, _ := a.paletteScope(); scope != keyScope || scopes[keyScope-1].prefix != "@" || scopes[keyScope+1].prefix != ">" {
+		t.Errorf("the keys' scope %d is not between the tables' and the commands'", scope)
+	}
+	feed(t, a, "<Esc><Esc><C-p>@")
+	feed(t, a, "<Tab>")
+	if a.palette.input.Text != ":" {
+		t.Errorf("Tab from the tables: %q", a.palette.input.Text)
+	}
+	feed(t, a, "<Tab>")
+	if a.palette.input.Text != ">" {
+		t.Errorf("Tab from the keys: %q", a.palette.input.Text)
+	}
+	feed(t, a, "<Esc><Esc>")
+	// : on the grid opens the palette with nothing in it, and q and qa are the ex aliases as ever
+	a.win().focus(1)
+	feed(t, a, ":q")
+	if a.palette == nil || a.palette.input.Text != "q" {
+		t.Fatalf(": then q: %+v", a.palette)
+	}
+	if items, ms := a.paletteMatches(); len(ms) == 0 || items[ms[0].Index].id != "tab.close" {
+		t.Errorf("q: %v", ms)
+	}
+}
+
+// The keys' scope starts the index of the db the palette is on when there is none,
+// once, and says so under the list: being made, made again, failed (§9.8, F22.5).
+func TestPaletteKeyScopeStartsIndex(t *testing.T) {
+	a, _ := keyPalette(t, "")
+	conn := a.sess.Conns[0]
+	feed(t, a, "<Esc><Esc>")
+	conn.index, conn.scan = nil, nil
+	a.openPalette("@")
+	if a.keyIndexCmd() != nil || conn.building != nil {
+		t.Fatal("the tables' scope starts an index")
+	}
+	a.openPalette(":")
+	if cmd := a.keyIndexCmd(); cmd == nil || conn.building == nil {
+		t.Fatalf("the keys' scope starts none: %v, building %v", cmd, conn.building)
+	}
+	if a.keyIndexCmd() != nil {
+		t.Error("the index is started again while it is made")
+	}
+	if pv := a.palettePreview(); pv == nil || pv.Err != "索引建立中" || !pv.Note {
+		t.Errorf("under the list while it is made: %+v", pv)
+	}
+	if view := a.render().String(); !strings.Contains(view, "索引建立中") {
+		t.Error("the note is not drawn")
+	}
+	conn.building, conn.index = nil, &keyIndex{names: []string{"a"}, total: 1, done: true, stale: true}
+	if pv := a.palettePreview(); pv == nil || pv.Err != "索引更新中" {
+		t.Errorf("while it is made again: %+v", pv)
+	}
+	conn.index.stale, conn.indexErr = false, "boom"
+	if pv := a.palettePreview(); pv == nil || !strings.Contains(pv.Err, "boom") {
+		t.Errorf("failed: %+v", pv)
+	}
+	conn.indexErr = ""
+	if pv := a.palettePreview(); pv != nil {
+		t.Errorf("a whole index says nothing: %+v", pv)
+	}
 }

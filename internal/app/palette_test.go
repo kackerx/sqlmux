@@ -80,7 +80,7 @@ func TestPaletteListsNoOverlayKeys(t *testing.T) {
 	for _, q := range []string{"关闭", "palette"} {
 		feed(t, a, "<C-p>"+q)
 		for _, r := range rowsOf(a) {
-			if strings.HasPrefix(r, "palette.") && r != "palette.open=:" && r != "palette.command=" && r != "palette.window=" && r != "palette.tab=" && r != "palette.table=" && r != "palette.session=" && r != "palette.sql=;" {
+			if strings.HasPrefix(r, "palette.") && r != "palette.open=:" && r != "palette.command=" && r != "palette.window=" && r != "palette.tab=" && r != "palette.table=" && r != "palette.key=" && r != "palette.session=" && r != "palette.sql=;" {
 				t.Errorf("%s lists %s", q, r)
 			}
 		}
@@ -239,7 +239,7 @@ func namesOf(a *App) []string {
 func TestPaletteScopesCycle(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>ord")
-	for _, want := range []string{"$ord", "%ord", "&ord", "#ord", "@ord", ">ord", ";ord", "ord"} {
+	for _, want := range []string{"$ord", "%ord", "&ord", "#ord", "@ord", ":ord", ">ord", ";ord", "ord"} {
 		feed(t, a, "<Tab>")
 		if got := a.palette.input.Text; got != want {
 			t.Fatalf("Tab: %q, want %q", got, want)
@@ -391,7 +391,7 @@ func TestPaletteLayout(t *testing.T) {
 		a := sized(160, 45, icons)
 		feed(t, a, "<C-p>ab")
 		lines := strings.Split(a.render().String(), "\n")
-		if tabs := lines[8]; !strings.Contains(tabs, " 所有   会话 $   窗口·Pane %   窗口 &   Tab #   表 @   命令 > ") {
+		if tabs := lines[8]; !strings.Contains(tabs, " 所有   会话 $   窗口·Pane %   窗口 &   Tab #   表 @   键 :   命令 > ") {
 			t.Errorf("%s: scope tabs row %q", icons, tabs)
 		}
 		if in := lines[9]; !strings.Contains(in, "│ "+search+" ab ") {

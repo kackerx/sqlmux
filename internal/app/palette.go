@@ -89,16 +89,20 @@ type scopeTab struct {
 const tipPrefix = "?"
 
 var scopes = []scopeTab{
-	{i18n.N("所有"), "", []itemKind{itemSession, itemWindow, itemPane, itemTab, itemTable, itemRedisKey, itemQuery, itemCommand}}, // not the SQL history (§12)
+	{i18n.N("所有"), "", []itemKind{itemSession, itemWindow, itemPane, itemTab, itemTable, itemQuery, itemCommand}}, // not the SQL history (§12), nor the keys (F22.5)
 	{i18n.N("会话"), "$", []itemKind{itemSession}},
 	{i18n.N("窗口·Pane"), "%", []itemKind{itemWindow, itemPane, itemTab}},
 	{i18n.N("窗口"), "&", []itemKind{itemWindow}},
 	{"Tab", "#", []itemKind{itemTab}},
-	{i18n.N("表"), "@", []itemKind{itemTable, itemRedisKey, itemQuery}},
+	{i18n.N("表"), "@", []itemKind{itemTable, itemQuery}},
+	{i18n.N("键"), ":", []itemKind{itemRedisKey}}, // Redis keys, as the index of their names has them (F22.5)
 	{i18n.N("命令"), ">", []itemKind{itemCommand}},
 	{"SQL", ";", []itemKind{itemSQL}},              // what follows the ; is SQL, the history while there is none
 	{i18n.N("提示"), tipPrefix, []itemKind{itemTip}}, // the tips of the status bar, ↵ does what one is about (F15.4); the last: not a tab
 }
+
+// keyScope is where the input is Redis keys (§12): the : one.
+var keyScope = slices.IndexFunc(scopes, func(s scopeTab) bool { return s.prefix == ":" })
 
 // sqlScope is where the input is quick SQL (§12): the ; one.
 var sqlScope = slices.IndexFunc(scopes, func(s scopeTab) bool { return s.prefix == ";" })
@@ -275,7 +279,7 @@ func (a *App) paletteMatches() (items []paletteItem, ms []ui.Match) {
 		texts[i] = it.name + " " + it.where
 	}
 	ms = ui.Filter(query, texts)
-	if slices.Contains(scopes[scope].kinds, itemRedisKey) && strings.TrimSpace(query) != "" { // the keys come matched and cut, after what is not a key (F20.3)
+	if scope == keyScope { // the keys come matched and cut (F20.3)
 		kitems, kms := a.keyMatches(query)
 		for _, m := range kms {
 			m.Index += len(items)
@@ -452,6 +456,11 @@ func (a *App) previewedView() (c *Conn, text, schema string) {
 func (a *App) palettePreview() *ui.PalettePreview {
 	_, c, t, ok := a.previewed()
 	if !ok {
+		if scope, _ := a.paletteScope(); scope == keyScope { // the keys have no preview, a note under them when the index is not whole (F22.5)
+			if note := a.keyNote(); note != "" {
+				return &ui.PalettePreview{Err: note, Note: true}
+			}
+		}
 		return a.queryPreview()
 	}
 	if !c.ddl[idOf(t)].got {
