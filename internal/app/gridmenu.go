@@ -81,10 +81,11 @@ func (a *App) rowItems(t *dataTab) []menuItem {
 	add := menuItem{i18n.T("添加行"), "row_add", "grid.row.add", a.addRow}
 	clone := menuItem{i18n.T("克隆行"), "copy", "grid.row.clone", a.cloneRow}
 	remove := menuItem{del, "row_delete", "grid.row.delete", a.deleteRow}
-	if t.whyNoEdit() != "" {
-		add.run, clone.run, remove.run = nil, nil, nil
-	} else if t.cols.NoInsert != "" {
+	if t.whyNoAdd() != "" {
 		add.run, clone.run = nil, nil
+	}
+	if t.whyNoEdit() != "" {
+		remove.run = nil
 	}
 	return []menuItem{add, remove, clone}
 }

@@ -33,7 +33,7 @@ check "gs qty、gS name：qty 1↑、name 2↑（序号在图标前，同下拉�
 check "chip 是 qty ↑, name ↑" eval 'qb_has "ORDER qty ↑, name ↑"'
 # ---- 转置视图下不画
 key T; sleep 0.5
-check "转置视图：不画方向图标（表头是记录号）" eval '[[ -z $(for y in $(seq "$(hy)" 30); do e2e_text 35 159 "$y"; done | python3 -c "import sys; print(\"\".join(c for c in sys.stdin.read() if c in \"\\uf160\\uf161\"))") ]]'
+check "转置视图：不画方向图标（表头是记录号）" eval '[[ -z $(for y in $(seq "$(hy)" 30); do e2e_text 35 159 "$y"; done | python3 -c "import sys; print(\"\".join(c for c in sys.stdin.read() if c in \"\\uf062\\uf063\"))") ]]'
 key T; sleep 0.4
 check "转回竖直：图标又在" eval '[[ -n $(marks) ]]'
 e2e_done

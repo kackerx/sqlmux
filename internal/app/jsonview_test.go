@@ -157,6 +157,23 @@ func TestJSONViewKeepsTurn(t *testing.T) {
 	}
 }
 
+// What is kept of a turned table while its JSON view is open, the layout's and
+// tab.reopen's, is turned still (F22.1).
+func TestJSONViewKeepsTurnKept(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	tab.transpose = true
+	feed(t, a, "gj")
+	if !paneLayout(a.focused()).Tabs[0].Transpose {
+		t.Error("the layout has the table unturned while its JSON view is open")
+	}
+	a.run("tab.close", 0)
+	a.run("tab.reopen", 0)
+	if d := a.focused().Tabs[a.focused().Cur].Data; d == nil || !d.transpose {
+		t.Errorf("reopened: %+v", d)
+	}
+}
+
 // A result has its JSON view too, its page, no more: a result is read only (F14.5).
 func TestJSONViewOfResult(t *testing.T) {
 	d := &execDB{res: map[string]db.Result{"select 1": rows(3)}}
