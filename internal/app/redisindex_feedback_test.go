@@ -81,3 +81,30 @@ func TestKeyIndexFeedback(t *testing.T) {
 		t.Error("the row is drawn in NORMAL")
 	}
 }
+
+// An index that is cut, or being renewed, and a name it has nothing of: no list and no box
+// of the row alone; the row is the foot of a list that has something in it (F21.7).
+func TestKeyIndexFootNotAlone(t *testing.T) {
+	a, c := redisConsole(t, &execDB{}, someCommands(), "")
+	conn := a.sess.Conns[0]
+	conn.docs, conn.State = someDocs(), connReady
+	c.ed.Load("get zzqq")
+	feed(t, a, "A")
+	for name, ix := range map[string]*keyIndex{
+		"capped": {names: []string{"user:1"}, total: 25000, capped: true, done: true},
+		"stale":  {names: []string{"user:1"}, total: 1, done: true, stale: true},
+	} {
+		conn.index = ix
+		a.queryComplete(c, false)
+		if c.comp != nil || c.foot != "" {
+			t.Errorf("%s: comp %v, a box of the row %q", name, c.comp, c.foot)
+		}
+	}
+	c.ed.Load("get us") // with something to list, the row is under it
+	feed(t, a, "A")
+	conn.index = &keyIndex{names: []string{"user:1"}, cands: []candidate{{label: "user:1", insert: "user:1", kind: kindKey}}, total: 25000, capped: true, done: true}
+	a.queryComplete(c, false)
+	if c.comp == nil || c.comp.foot != "已索引 1 / 共 25000 键" {
+		t.Errorf("a list with the row: %+v", c.comp)
+	}
+}
