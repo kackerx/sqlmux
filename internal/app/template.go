@@ -152,7 +152,7 @@ func selectPlaceholder(t *queryTab) {
 func (a *App) alterItems(n node) (items []menuItem) {
 	for _, k := range []alterKind{addColumn, addIndex, renameTbl, dropColumn, dropIndex} {
 		if _, why := alterSQL(n.conn, k, n.table, "", ""); why == "" {
-			items = append(items, menuItem{i18n.T(alterTitles[k]), alterIcons[k], func() tea.Cmd { return a.alter(k) }})
+			items = append(items, menuItem{i18n.T(alterTitles[k]), alterIcons[k], "", func() tea.Cmd { return a.alter(k) }})
 		}
 	}
 	return items

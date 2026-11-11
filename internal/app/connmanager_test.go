@@ -1025,10 +1025,10 @@ func TestMenuConn(t *testing.T) {
 	a := managed(t)
 	a.win().focus(0)
 	rightClickNode(t, a, "second")
-	if got := menuLabels(a); !slices.Equal(got, []string{"选择 schema…", "编辑…", "删除…"}) {
+	if got := menuLabels(a); !slices.Equal(got, []string{"选择 schema…", "刷新", "编辑…", "删除…"}) {
 		t.Fatalf("a MySQL one: %q", got)
 	}
-	edit := a.menu.items[1]
+	edit := a.menu.items[2]
 	a.menu = nil
 	edit.run()
 	if a.form == nil || !a.form.list || fieldText(a, fieldName) != "second" {
@@ -1037,7 +1037,7 @@ func TestMenuConn(t *testing.T) {
 	a.form = nil
 	a.sess.Conns[1].Spec.Engine = "sqlite"
 	rightClickNode(t, a, "second")
-	if got := menuLabels(a); !slices.Equal(got, []string{"编辑…", "删除…"}) {
+	if got := menuLabels(a); !slices.Equal(got, []string{"刷新", "编辑…", "删除…"}) {
 		t.Errorf("SQLite: %q", got)
 	}
 	a.menu = nil

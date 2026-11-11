@@ -67,7 +67,7 @@ func (a *App) pickItem(n node) []menuItem {
 	if dbs {
 		label = i18n.T("选择库…")
 	}
-	return []menuItem{{label, "database", func() tea.Cmd { return a.openPick(n) }}}
+	return []menuItem{{label, "database", "tree.pick", func() tea.Cmd { return a.openPick(n) }}}
 }
 
 // openPick is tree.pick on n: the list of its databases or schemas, opened on a

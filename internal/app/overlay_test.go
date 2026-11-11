@@ -246,7 +246,7 @@ func TestListsHoldTheirTop(t *testing.T) {
 	tab := loadOrders(t, b, 30)
 	b.menu = &menu{at: uv.Pos(40, 4)}
 	for i := range 20 {
-		b.menu.items = append(b.menu.items, menuItem{label: fmt.Sprint("item ", i)})
+		b.menu.items = append(b.menu.items, menuItem{label: fmt.Sprint("item ", i), run: func() tea.Cmd { return nil }})
 	}
 	tops = nil
 	for _, sel := range []int{12, 11, 10, 9} {

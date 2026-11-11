@@ -494,6 +494,7 @@ func init() {
 		"grid.yank.json":   {Title: i18n.N("复制为 JSON"), Run: func(a *App, _ Args) tea.Cmd { return a.yankJSON() }},
 		"grid.yank.insert": {Title: i18n.N("复制为 INSERT"), Run: func(a *App, _ Args) tea.Cmd { return a.yankInsert() }},
 		"grid.paste":       {Title: i18n.N("粘贴成新行"), Run: func(a *App, _ Args) tea.Cmd { return a.pasteRow() }},
+		"grid.row.clone":   {Title: i18n.N("克隆行"), Run: func(a *App, _ Args) tea.Cmd { return a.cloneRow() }},
 		"grid.row.delete":  {Title: i18n.N("标记 / 取消删除这一行"), Run: func(a *App, _ Args) tea.Cmd { return a.deleteRow() }},
 		"result.toggle": {Title: i18n.N("显示 / 隐藏结果区"), Run: do(func(a *App, _ Args) { a.toggleResult() }),
 			On: func(a *App) bool { return a.win().Result != nil && !a.win().resultHidden }},

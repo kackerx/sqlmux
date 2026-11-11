@@ -91,6 +91,7 @@ leader = "<Space>"
 "V" = "grid.select.unset" # VISUAL that takes the range out of the selected (F12.12)
 "yy" = "grid.yank.row"
 "yl" = "grid.yank"
+"yp" = "grid.row.clone" # yy then p in one: a new row of this one's values (F22.4)
 "p" = "grid.paste"
 "yi" = "grid.yank.insert"
 "Y" = "grid.yank.json"

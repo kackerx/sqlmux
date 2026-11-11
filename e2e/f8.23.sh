@@ -22,7 +22,7 @@ rclick() { _sgr 2 "$1" "$2" M; _sgr 2 "$1" "$2" m; sleep 0.6; }                 
 srow() { local y; for y in $(seq 3 43); do [[ $(e2e_text 1 32 "$y") == *" $1 "* ]] && { echo "$y"; return; }; done; }     # 侧栏里 NAME 最靠上的那一行（表在「工作区」的 tab 节点之上）
 srow_last() { local y r=; for y in $(seq 3 43); do [[ $(e2e_text 1 32 "$y") == *" $1 "* ]] && r=$y; done; echo "$r"; }     # 最靠下的（Queries 下的 query 在「工作区」的之下）
 pop() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5 }' | tail -1; }
-mitems() { local g y; g=($(pop)); [[ -n ${g[0]} ]] || return 0; for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 1)) $((g[0] + g[2] - 2)) $y | sed 's/^ *//; s/^[^ ]* //; s/ *$//'; done | tr '\n' '|'; }
+mitems() { local g y; g=($(pop)); [[ -n ${g[0]} ]] || return 0; for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 1)) $((g[0] + g[2] - 2)) $y | sed 's/^ *//; s/^[^ ]* //; s/ *$//; s/  \+[^ ]\+$//'; done | tr '\n' '|'; }
 menu_is() { [[ $(mitems) == "$1" ]] || { echo "  menu: [$(mitems)], want [$1]"; false; }; }
 no_menu() { [[ -z $(pop) ]] || { echo "  popup: [$(mitems)]"; false; }; }
 asked() { e2e_plain | grep -q "不能撤销"; }
@@ -65,7 +65,8 @@ key n; sleep 0.4
 tree_to public; key d; key d; sleep 0.5
 check "schema 节点（public）上 dd：什么都不发生" eval '! asked && no_menu'
 y=$(srow public); rclick 12 "$y"
-check "schema 节点上右键：不弹菜单" no_menu
+check "schema 节点上右键：只有「刷新」（F22.3），键是 R" eval '[[ $(mitems) == "刷新|" ]] && e2e_plain | grep -qE "刷新 +R "'
+key Escape; sleep 0.3
 y=$(for y in $(seq 3 43); do [[ $(e2e_text 1 32 "$y") == *"Tables ("* ]] && { echo "$y"; break; }; done); rclick 12 "$y"
 check "「Tables」分组节点上右键：不弹菜单" no_menu
 

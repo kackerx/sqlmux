@@ -78,6 +78,18 @@ func (t *dataTab) value(sr shownRow, key, col string) (db.Val, bool) {
 	return t.page.Rows[sr.rec][slices.IndexFunc(t.page.Cols, func(c db.Col) bool { return c.Name == col })], true
 }
 
+// rowValues is the values of row sr as the grid shows them, the columns with
+// one: a NULL has its, a DEFAULT in a row added has none.
+func (t *dataTab) rowValues(sr shownRow, key string) map[string]db.Val {
+	vals := map[string]db.Val{}
+	for _, c := range t.page.Cols {
+		if v, set := t.value(sr, key, c.Name); set {
+			vals[c.Name] = v
+		}
+	}
+	return vals
+}
+
 // yankGrid is yy (row) and yl on the focused grid (§7.6, F3.32): the row
 // as TSV of the columns shown, or the cell, to the clipboard, flashing; a
 // table's row kept for p too, every column of it. NULL and DEFAULT are
@@ -96,12 +108,7 @@ func (a *App) yankGrid(row bool) tea.Cmd {
 		if !ok {
 			return nil
 		}
-		vals := map[string]db.Val{}
-		for _, c := range t.page.Cols {
-			if v, set := t.value(sr, key, c.Name); set {
-				vals[c.Name] = v
-			}
-		}
+		vals := t.rowValues(sr, key)
 		for _, f := range t.shownCols() {
 			cells = append(cells, vals[t.page.Cols[f].Name].S)
 		}
@@ -337,7 +344,35 @@ func (a *App) pasteRow() tea.Cmd {
 	if !ok || a.rowCopy == nil || a.rowCopy.conn != t.conn || a.rowCopy.table != idOf(t.table) {
 		return nil
 	}
-	if slices.ContainsFunc(slices.Collect(maps.Values(a.rowCopy.vals)), func(v db.Val) bool { return db.IsBinaryShown(v.S) }) {
+	return a.addCopy(t, a.rowCopy.vals)
+}
+
+// cloneRow is yp (§10.6「克隆行」): p of the row the cursor is on, with no yy
+// before; the cursor stays in its column.
+func (a *App) cloneRow() tea.Cmd {
+	t, ok := a.focusedGrid()
+	if !ok {
+		return nil
+	}
+	sr, key, ok := t.cursor()
+	if !ok {
+		return nil
+	}
+	col := t.col
+	cmd := a.addCopy(t, t.rowValues(sr, key))
+	if at, _, ok := t.cursor(); ok && at.add != nil && at != sr {
+		t.col = col
+		a.gridMove(func(r, c, _, _ int) (int, int) { return r, c })
+	}
+	return cmd
+}
+
+// addCopy adds a row under the cursor's with vals in it, but the columns the
+// database makes the value of: an identity or a generated one, a key's that
+// has a default (a sequence's, an auto_increment), and the BIT that does not
+// go back (F22.4).
+func (a *App) addCopy(t *dataTab, vals map[string]db.Val) tea.Cmd {
+	if slices.ContainsFunc(slices.Collect(maps.Values(vals)), func(v db.Val) bool { return db.IsBinaryShown(v.S) }) {
 		return a.showToast(i18n.T("有二进制列，复制不了")) // what yy took of them is the text shown, not the bytes
 	}
 	cmd := a.addRow()
@@ -346,9 +381,9 @@ func (a *App) pasteRow() tea.Cmd {
 		return cmd
 	}
 	sr.add.cells = map[string]edit{}
-	for name, v := range a.rowCopy.vals {
+	for name, v := range vals {
 		col := t.column(name)
-		if def := col.Default; !col.Fixed && def != "generated always as identity" && (!slices.Contains(t.cols.Key(), name) || def == "") {
+		if def := col.Default; !col.Fixed && !col.Generated && def != "generated always as identity" && (!slices.Contains(t.cols.Key(), name) || def == "") {
 			sr.add.cells[name] = edit{val: v}
 		}
 	}
