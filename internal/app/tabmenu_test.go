@@ -172,6 +172,9 @@ func TestTabMenu(t *testing.T) {
 	if p.Cur != 0 || labels() != "关闭|关闭其他|关闭左侧|关闭右侧|向右拆分|向下拆分|移到下一个 pane|固定" {
 		t.Fatalf("a table's: cur %d, %s", p.Cur, labels())
 	}
+	if k := a.menuKey("tab.close"); k != "x" { // a table pane's x
+		t.Errorf("the key of 关闭: %q", k)
+	}
 	for _, it := range a.menu.items {
 		if it.label == "关闭其他" && a.menuKey(it.action) != "SPC wo" {
 			t.Errorf("the key of 关闭其他: %q", a.menuKey(it.action))

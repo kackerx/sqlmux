@@ -12,7 +12,7 @@
 │       ▸  mt_task_log    96k │ │                                                             │ │                                                             │
 │       ▸  schema_migrations  │ │                                                             │ │                                                             │
 │       ▸  t_order       1.2m┌───────────────────┐                                            │ │                                                             │
-│       ▸  t_order_item  3.4m│  关闭            │                                            │ │                                                             │
+│       ▸  t_order_item  3.4m│  关闭          x │                                            │ │                                                             │
 │       ▸  t_payment     410k│  向右拆分  SPC % │                                            │ │                                                             │
 │       ▸  t_refund       12k│  向下拆分  SPC " │                                            │ │                                                             │
 │       ▸  t_sku         8.1k└───────────────────┘                                            │ │                                                             │

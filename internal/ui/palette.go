@@ -23,16 +23,19 @@ type PaletteRow struct {
 // Palette is the command palette box (§12). Rows are all the candidates;
 // Top is the first one the list shows.
 type Palette struct {
-	Search   Icon // leads the input
-	Input    Input
-	Scopes   []string // the scope tabs, each with its prefix; Scope is the current one
-	Scope    int
-	Rows     []PaletteRow
-	Sel, Top int
-	Footer   []Hint // left: moving, scopes, closing
-	Enter    []Hint // right: what ↵ (and C-t) do
-	Result   *PaletteResult
-	Preview  *PalettePreview
+	Search Icon // leads the input
+	Input  Input
+	Scopes []string // the scope tabs, each with its prefix; Scope is the current one
+	Scope  int
+	// ScopeScroll is where the scope tabs are scrolled to when they do not fit (F22.5): the
+	// palette's, Draw moves it to bring the current one in sight. Nil: not scrolled.
+	ScopeScroll *TabScroll
+	Rows        []PaletteRow
+	Sel, Top    int
+	Footer      []Hint // left: moving, scopes, closing
+	Enter       []Hint // right: what ↵ (and C-t) do
+	Result      *PaletteResult
+	Preview     *PalettePreview
 }
 
 // PalettePreview is the DDL of the table selected, under the list (F4.2):
@@ -138,16 +141,24 @@ func (p Palette) Draw(f *Frame, screen uv.Rectangle) uv.Position {
 	x0, x1 := box.Min.X+2, box.Max.X-2 // one column of padding inside the border
 	y := box.Min.Y + 1
 	x := x0
-	for i, s := range p.Scopes {
+	scopeRow := tabRow{len(p.Scopes), min(p.Scope, len(p.Scopes)-1), func(i int) int { return Width(" " + p.Scopes[i] + " ") }, p.ScopeScroll}
+	first, last := scopeRow.scrolled(x1 - x0) // as a pane's tabs are, when they do not fit (§12)
+	if first > 0 {
+		x = f.Text(x, y, x1, fmt.Sprintf("‹%d", first), dim)
+	}
+	for i := first; i <= last; i++ {
 		st := dim
 		if i == p.Scope {
 			st = uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
 		}
-		t := " " + s + " "
+		t := " " + p.Scopes[i] + " "
 		if f.Region(uv.Rect(x, y, min(Width(t), x1-x), 1), Target{Kind: KindButton, Action: fmt.Sprintf("palette.scope %d", i)}) && i != p.Scope {
 			st.Bg = th.Select
 		}
 		x = f.Text(x, y, x1, t, st) + 1
+	}
+	if last < len(p.Scopes)-1 {
+		f.Text(x, y, x1, fmt.Sprintf(" %d› ", len(p.Scopes)-1-last), dim)
 	}
 	y++
 	x = f.Text(x0, y, x1, p.Search.Text, p.Search.On(uv.Style{Fg: th.Info, Bg: th.PaneBg}))

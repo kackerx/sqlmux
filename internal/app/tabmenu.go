@@ -108,7 +108,7 @@ func (a *App) tabMenu(id, i int, at uv.Position) {
 	selectTab(p, i)
 	var items []menuItem
 	tb := p.Tabs[i]
-	closeIt := menuItem{i18n.T("关闭"), "close", "tab.close", func() tea.Cmd { return a.closeTabAsking(p, p.Cur) }}
+	closeIt := menuItem{i18n.T("关闭"), "close", "tab.close", func() tea.Cmd { return a.closeTabAsking(p, p.Cur) }} // x in a table's pane and a landing page's
 	switch {
 	case tb.Result != nil && tb.Result.run == nil: // the log stays (§11)
 	case tb.Result != nil:

@@ -146,7 +146,7 @@ func (a *App) menuRun(i int) tea.Cmd {
 // no action or none bound (§7.6).
 func (a *App) menuKey(action string) string {
 	scope, _, _ := strings.Cut(action, ".")
-	for _, s := range []string{scope, "normal"} { // tab.* and pane.* are NORMAL's
+	for _, s := range []string{scope, a.paneScope(), "normal"} { // tab.* and pane.* are NORMAL's; a tab's x is its pane's
 		if k := a.keys.Hint(action, s); k != "" {
 			return k
 		}
