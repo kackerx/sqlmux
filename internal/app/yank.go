@@ -333,12 +333,8 @@ func tsv(vals []string) string {
 }
 
 // pasteRow is p (§10.6, F3.32): the row yy took, a row added under the
-// cursor's with its values, but for the row identity's columns that have
-// a default (serial, identity), the generated always identity columns,
-// which take none (PG's 428C9), and MySQL's BIT, shown as no value it
-// takes: theirs. A row of another table, or none taken, pastes nothing.
-// ponytail: a generated (stored) column is copied too, and the save fails
-// on it; leave those out when the catalog tells them apart
+// cursor's with its values (addCopy has what is left out). A row of another
+// table, or none taken, pastes nothing.
 func (a *App) pasteRow() tea.Cmd {
 	t, ok := a.focusedGrid()
 	if !ok || a.rowCopy == nil || a.rowCopy.conn != t.conn || a.rowCopy.table != idOf(t.table) {
@@ -372,13 +368,14 @@ func (a *App) cloneRow() tea.Cmd {
 // has a default (a sequence's, an auto_increment), and the BIT that does not
 // go back (F22.4).
 func (a *App) addCopy(t *dataTab, vals map[string]db.Val) tea.Cmd {
-	if slices.ContainsFunc(slices.Collect(maps.Values(vals)), func(v db.Val) bool { return db.IsBinaryShown(v.S) }) {
-		return a.showToast(i18n.T("有二进制列，复制不了")) // what yy took of them is the text shown, not the bytes
-	}
 	cmd := a.addRow()
 	sr, _, ok := t.cursor()
-	if !ok || sr.add == nil { // read only: no row added
+	if !ok || sr.add == nil { // read only: no row added, and the toast says why
 		return cmd
+	}
+	if slices.ContainsFunc(slices.Collect(maps.Values(vals)), func(v db.Val) bool { return db.IsBinaryShown(v.S) }) {
+		t.dropAdded(sr.add)
+		return a.showToast(i18n.T("有二进制列，复制不了")) // what yy took of them is the text shown, not the bytes
 	}
 	sr.add.cells = map[string]edit{}
 	for name, v := range vals {

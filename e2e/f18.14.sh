@@ -17,7 +17,8 @@ side() { e2e_plain | python3 -c 'import sys; [print(l[1:33].rstrip("│ ")) for 
 srow() { local y t; for y in $(seq 3 43); do t=$(e2e_text 1 32 "$y" | noicon | tr -s ' ' | sed 's/[ │]*$//'); [[ $t == *" $1" ]] && { echo "$y"; return; }; done; }   # 侧栏里以 NAME 结尾的行（连接节点）
 has_node() { side | noicon | tr -s " " | grep -qE "^ [▾▸] $1( |$)"; }
 pop() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5 }' | tail -1; }
-mitems() { local g y; g=($(pop)); [[ -n ${g[0]} ]] || return 0; for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 1)) $((g[0] + g[2] - 2)) $y | sed 's/^ *//; s/^[^ ]* //; s/ *$//'; done | tr '\n' '|'; }
+mraw() { local g y; g=($(pop)); [[ -n ${g[0]} ]] || return 0; for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 1)) $((g[0] + g[2] - 2)) $y | sed 's/^ *//; s/^[^ ]* //; s/ *$//'; done | tr '\n' '|'; }
+mitems() { mraw | sed 's/  \+[^ |]\+|/|/g'; }   # the keys at the right dropped (F22.3)
 menu_is() { [[ $(mitems) == "$1" ]] || { echo "  menu: [$(mitems)], want [$1]"; false; }; }
 tsel() { local y; for y in $(seq 3 43); do [[ $(e2e_style 4 "$y") == *bg=#364a82* ]] && { e2e_text 1 32 "$y" | noicon | tr -s ' ' | sed 's/^[│ ]*[▾▸]* *//; s/[ │]*$//'; return; }; done; }
 tree_focus() { local i; for ((i = 0; i < 6; i++)); do [[ $(focused) == 0 ]] && return 0; key C-h; done; }
@@ -33,23 +34,23 @@ check "（准备）树里有五个连接节点 play、my、lite、rd、exe" eval
 
 # ---- 右键菜单
 rclick 5 "$(srow play)"
-check "右键 PG 连接 play：选择库… / 编辑… / 删除…（编辑和删除排在选择库后面）" menu_is "选择库…|编辑…|删除…|"
+check "右键 PG 连接 play：选择库… / 刷新 / 编辑… / 删除…（编辑和删除排在选择库、刷新后面，F22.3）" menu_is "选择库…|刷新|编辑…|删除…|"
 key Escape
 rclick 5 "$(srow my)"
-check "右键 MySQL 连接 my：选择 schema… / 编辑… / 删除…" menu_is "选择 schema…|编辑…|删除…|"
+check "右键 MySQL 连接 my：选择 schema… / 编辑… / 删除…" menu_is "选择 schema…|刷新|编辑…|删除…|"
 key Escape
 rclick 5 "$(srow lite)"
-check "右键 SQLite 连接 lite：编辑… / 删除…" menu_is "编辑…|删除…|"
+check "右键 SQLite 连接 lite：刷新 / 编辑… / 删除…" menu_is "刷新|编辑…|删除…|"
 key Escape
 rclick 5 "$(srow rd)"
-check "右键 Redis 连接 rd（连不上的）：编辑… / 删除…" menu_is "编辑…|删除…|"
+check "右键 Redis 连接 rd（连不上的）：刷新 / 编辑… / 删除…" menu_is "刷新|编辑…|删除…|"
 key Escape
 rclick 5 "$(srow exe)"
 check "右键 exec 连接 exe（不在连接管理里）：有「删除…」，没有「编辑…」" eval 'mitems | grep -q "删除…" && ! mitems | grep -q "编辑…" || { echo "  menu [$(mitems)]"; false; }'
 key Escape
 rclick 5 "$(srow rd)"
-check "（对照）菜单里「编辑…」「删除…」没有键位提示" eval '! mitems | grep -qE "dd|^D"'
-key Enter; sleep 1
+check "（对照）菜单里「刷新」后面是 R，「删除…」后面是 dd，「编辑…」没有键（F22.3：菜单项右侧画键）" eval '[[ $(mraw) =~ 刷新\ +R\|编辑…\|删除…\ +dd\| ]]'
+key j; key Enter; sleep 1
 check "「编辑…」：打开连接管理，选中 rd（右边表单的 name 是 rd）" eval 'mgr_open && [[ $(lsel) == rd ]] && e2e_plain | grep -qE "name +rd" || { echo "  mgr $(mgr_open && echo open) sel [$(mgr_open && lsel)]"; e2e_plain | head -30 | cut -c1-120; false; }'
 key Escape; sleep 0.4
 check "esc 关掉连接管理" eval '! mgr_open'
@@ -66,7 +67,7 @@ key d; key d; sleep 0.5; key y; sleep 1.2
 check "y：树里没有 lite 了，connections.toml 里也没有，别的连接原样" eval '! has_node lite && ! grep -q "lite" "$(ct)" && grep -q "name = \"play\"" "$(ct)" && grep -q "name = \"rd\"" "$(ct)" && has_node play || { side | noicon | head -6; false; }'
 
 # ---- 右键菜单的「删除…」等于 dd；有 tab 的连接：确认框写几个 tab
-rclick 5 "$(srow rd)"; key j; key Enter; sleep 0.6
+rclick 5 "$(srow rd)"; key j; key j; key Enter; sleep 0.6
 check "右键「删除…」：同一个确认框「删除连接 rd？」" eval '[[ $(dialog) == "删除连接 rd？" ]] || { echo "  dialog [$(dialog)]"; false; }'
 key y; sleep 1.2
 check "y：rd 删掉了（树里和文件里）" eval '! has_node rd && ! grep -q "\"rd\"" "$(ct)"'

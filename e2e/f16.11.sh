@@ -16,15 +16,16 @@ mkdir -p "$D/th2/themes"; printf 'theme = "y"\n' >"$D/th2/config.toml"
 printf '[icon]\njsonview = { text = "V" }\nfunction = { text = "F" }\n' >"$D/th2/themes/y.toml"
 printf '[icon]\nopen = { text = "O", fg = "#ff0000" }\nkeyword = { text = "K" }\njson = { text = "J" }\n' >"$D/th/themes/x.toml"
 BOX() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5 }' | tail -1; }                # the last floating box: x y w h
-# the rows of the open box, one line each: "U+f040 label" (the icon's code point; "-" when the row has none), the dim note after two spaces dropped
+# the rows of the open box, one line each: "U+f040 label" (the icon's code point; "-" when the row has none), the key after two spaces dropped (F22.3)
 rows() { local g y; g=($(BOX)); [[ -n ${g[0]} ]] || return 0
   for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 1)) $((g[0] + g[2] - 2)) $y; done | python3 -c '
 import sys
+import re
 for l in sys.stdin.read().split("\n"):
     l = l.strip()
     if not l: continue
-    if "\ue000" <= l[0] <= "\uf8ff" or "\U000f0000" <= l[0] <= "\U000ffffd": print("U+%04x %s" % (ord(l[0]), l[1:].strip()))
-    else: print("- " + l)'; }
+    if "\ue000" <= l[0] <= "\uf8ff" or "\U000f0000" <= l[0] <= "\U000ffffd": print("U+%04x %s" % (ord(l[0]), re.sub(r"\s{2,}\S+$", "", l[1:].strip())))
+    else: print("- " + re.sub(r"\s{2,}\S+$", "", l))'; }
 icon_fg() { local g; g=($(BOX)); e2e_style $((g[0] + 2)) $((g[1] + $1)); }                # N: the style of the icon cell of the Nth row (1-based)
 rows_are() { local got; got=$(rows); [[ $got == "$1" ]] || { echo "  rows:"; echo "$got" | sed 's/^/    /'; false; }; }
 has_row() { rows | grep -qE "$1" || { echo "  no row /$1/ in:"; rows | sed 's/^/    /'; false; }; }
@@ -42,19 +43,22 @@ open_table t_user; wait_for 8 settled
 
 # ---- 表格的右键菜单：格、表头
 rclick 50 8; sleep 0.6
-check "格上右键：十项，每项左边一个图标（值编辑器 pencil、过滤 filter、排序 ↑ ↓、加入排序、隐藏 eye_slash、复制 clipboard ×2、以 JSON 查看 json、导出 download）" rows_are "U+f040 在值编辑器中打开
+check "格上右键：十三项（最后三项是行操作 row_add、row_delete、复制 clipboard），每项左边一个图标（值编辑器 pencil、过滤 filter、排序 ↑ ↓、加入排序、隐藏 eye_slash、复制 clipboard ×2、以 JSON 查看 json、导出 download）" rows_are "U+f040 在值编辑器中打开
 U+f0b0 按这个值过滤
-U+f160 按这一列排序 ↑
-U+f161 按这一列排序 ↓
-U+f160 加入排序
+U+f062 按这一列排序 ↑
+U+f063 按这一列排序 ↓
+U+f062 加入排序
 U+f070 隐藏这一列
 U+f0ea 复制这一格
 U+f0ea 复制行为 JSON
 U+f1c9 以 JSON 查看
-U+f019 导出…"
+U+f019 导出…
+U+f067 添加行
+U+f068 删除行
+U+f0ea 克隆行"
 check "选中行（第 1 行）的图标和文字同色（fg）、其余行的图标是 dim" eval '[[ $(icon_fg 1) == "fg=#c0caf5 bg=#364a82" && $(icon_fg 2) == "fg=#565f89 bg=#24283b" ]]' || { icon_fg 1; icon_fg 2; }
 g=($(BOX)); w0=${g[2]}
-check "菜单宽度算上图标列：最长的一项「在值编辑器中打开」后面还有空格和右边框，没有被裁（rows_are 里项都是完整的）" eval '(( w0 == 23 ))' || echo "  w=$w0"
+check "菜单宽度算上图标列：最长的一项「在值编辑器中打开」后面还有空格和右边框，没有被裁（rows_are 里项都是完整的）" eval '(( w0 == 25 ))' || echo "  w=$w0"
 key j; key j; sleep 0.3
 check "j j：选中移到第 3 行，图标颜色跟着（第 3 行 fg，第 1 行变 dim）" eval '[[ $(icon_fg 3) == "fg=#c0caf5 bg=#364a82" && $(icon_fg 1) == "fg=#565f89 bg=#24283b" ]]' || { icon_fg 1; icon_fg 3; }
 key Escape; sleep 0.3
@@ -62,9 +66,9 @@ rclick 50 8; sleep 0.6; menu_click "复制这一格"; sleep 0.4
 check "点菜单项照常（图标列不改命中）：「复制这一格」复制了那一格" eval '[[ -n $(clip) ]]'
 hx=$(e2e_find name "$(hy)" | tr ' ' '\n' | awk '$1 > 34 { print; exit }')
 rclick "$((hx + 1))" "$(hy)"; sleep 0.6
-check "表头上右键：四项（排序 ↑ ↓、加入排序、隐藏这一列），图标同格菜单" rows_are "U+f160 按这一列排序 ↑
-U+f161 按这一列排序 ↓
-U+f160 加入排序
+check "表头上右键：四项（排序 ↑ ↓、加入排序、隐藏这一列），图标同格菜单" rows_are "U+f062 按这一列排序 ↑
+U+f063 按这一列排序 ↓
+U+f062 加入排序
 U+f070 隐藏这一列"
 key Escape; sleep 0.3
 
@@ -112,7 +116,7 @@ quit
 e2e_start -C "$D/ascii" "$E2E_BIN $DB"; wait_for 5 flag_is alternate_on 1; sleep 1
 open_table t_user; wait_for 8 settled
 rclick 50 8; sleep 0.6
-check "ascii：格的右键菜单十项，没有图标列（行首就是文字）" rows_are "- 在值编辑器中打开
+check "ascii：格的右键菜单十三项，没有图标列（行首就是文字）" rows_are "- 在值编辑器中打开
 - 按这个值过滤
 - 按这一列排序 ↑
 - 按这一列排序 ↓
@@ -121,9 +125,12 @@ check "ascii：格的右键菜单十项，没有图标列（行首就是文字�
 - 复制这一格
 - 复制行为 JSON
 - 以 JSON 查看
-- 导出…"
+- 导出…
+- 添加行
+- 删除行
+- 克隆行"
 g=($(BOX))
-check "ascii：菜单比 nerd 的窄两列（21，没有图标和空格）" eval '(( ${g[2]} == 21 ))' || echo "  w=${g[2]}"
+check "ascii：菜单比 nerd 的窄两列（23，没有图标和空格）" eval '(( ${g[2]} == 23 ))' || echo "  w=${g[2]}"
 key Escape; sleep 0.3
 y=$(tree_row 't_user( |$)'); rclick 10 "$y"; sleep 0.6
 check "ascii：树里表的菜单同样没有图标" eval '! rows | grep -qv "^- "' || rows

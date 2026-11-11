@@ -116,7 +116,7 @@ rclick() { _sgr 2 "$1" "$2" M; _sgr 2 "$1" "$2" m; sleep 0.6; }
 menu_items() { side_all | python3 -c "
 import re, sys
 for l in sys.stdin:
-    m = re.search(r'│ +(打开|编辑…|删除…?|改名…|设 TTL…|刷新) +│', l)
+    m = re.search(r'│ +(打开|编辑…|删除…?|改名…|设 TTL…|刷新) +(?:\S+ +)?│', l)
     if m: print(m.group(1))"; }   # the items of the open menu, one per line
 sstart rd
 expand str
@@ -130,7 +130,7 @@ y=$(nth_row '^[▾▸] +db0( |$)' 1); rclick 14 "$y"
 check "db 节点上右键：只有 刷新" eval '[[ $(menu_items | tr "\n" "/") == "刷新/" ]]' || e2e_plain | sed -n $((y - 1)),$((y + 4))p | cut -c1-70
 key Escape; sleep 0.3
 y=$(nth_row '^[▸▾] +rd( |$)' 1); rclick 14 "$y"
-check "连接节点上右键：Redis 连接也有 编辑… / 删除…（F18.14，之前没有菜单）" eval '[[ $(menu_items | tr "\n" "/") == "编辑…/删除…/" ]]' || menu_items
+check "连接节点上右键：Redis 连接有 刷新 / 编辑… / 删除…（F18.14，F22.3 加了刷新）" eval '[[ $(menu_items | tr "\n" "/") == "刷新/编辑…/删除…/" ]]' || menu_items
 key Escape; sleep 0.3
 quit_app; _e2e_kill
 

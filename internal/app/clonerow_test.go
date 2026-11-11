@@ -105,12 +105,13 @@ func TestCloneRowRefused(t *testing.T) {
 	if len(tab.added) != 0 || !strings.Contains(a.toast, "只读连接") {
 		t.Errorf("read only: %d added, toast %q", len(tab.added), a.toast)
 	}
+	tab.page.Rows[0][5] = db.Val{S: db.BinaryShown(4)}
+	if feed(t, a, "yp"); len(tab.added) != 0 || !strings.Contains(a.toast, "只读连接") {
+		t.Errorf("read only with a binary column: %d added, toast %q", len(tab.added), a.toast)
+	}
 	tab.conn.readOnly = false
-	tab.page.Rows[0][5] = db.Val{S: "\\x00ff"}
-	if db.IsBinaryShown(tab.page.Rows[0][5].S) {
-		if feed(t, a, "yp"); len(tab.added) != 0 {
-			t.Error("a binary column was cloned")
-		}
+	if feed(t, a, "yp"); len(tab.added) != 0 || !strings.Contains(a.toast, "二进制") {
+		t.Errorf("a binary column: %d added, toast %q", len(tab.added), a.toast)
 	}
 }
 
