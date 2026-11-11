@@ -25,6 +25,10 @@ type Tabs struct {
 	// Production is by tab whether it is of a production connection: its title
 	// in that color (F17.9); none for none of them.
 	Production []bool
+	// Pinned is by tab whether it is pinned, which the pin after its name says (F22.6); a
+	// result's own pin is its icon, and not in it.
+	Pinned []bool
+	Pin    Icon
 	// Scroll is where the bar is scrolled to when the tabs do not fit (F17.1):
 	// the pane's, Draw moves it to bring the current tab in sight when that
 	// or the width has changed since. Nil: not scrolled.
@@ -48,11 +52,19 @@ func (t Tabs) tabWidth(i int) int {
 	case t.Prev:
 		mark = "-"
 	}
-	w := Width(fmt.Sprintf(" %d:", i+1)+t.Names[i]+mark) + 1
+	w := Width(fmt.Sprintf(" %d:", i+1)+t.Names[i]+mark) + 1 + t.pinWidth(i)
 	if ic := t.Icons[i]; ic.Text != "" {
 		w += Width(ic.Text) + 1
 	}
 	return w
+}
+
+// pinWidth is the columns tab i's pin takes: a blank and the icon.
+func (t Tabs) pinWidth(i int) int {
+	if i < len(t.Pinned) && t.Pinned[i] {
+		return 1 + Width(t.Pin.Text)
+	}
+	return 0
 }
 
 // window is the tabs from first to last that fit in room columns, with the
@@ -142,7 +154,7 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 			st.Fg = th.Production
 		}
 		num, ic := fmt.Sprintf(" %d:", i+1), t.Icons[i]
-		w := Width(num+n+mark) + 1
+		w := Width(num+n+mark) + 1 + t.pinWidth(i)
 		if ic.Text != "" {
 			w += Width(ic.Text) + 1
 		}
@@ -158,6 +170,10 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 			x = f.Text(x, y, r.Max.X, " ", st)
 		}
 		x = f.Text(x, y, r.Max.X, n, st)
+		if t.pinWidth(i) > 0 {
+			x = f.Text(x, y, r.Max.X, " ", st)
+			x = f.Text(x, y, r.Max.X, t.Pin.Text, t.Pin.On(st))
+		}
 		tail := mark + " "
 		if t.Close.Text != "" && i >= t.Keep && f.Over(hot) {
 			// × in the mark's place, or the blank's after the name, and a

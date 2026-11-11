@@ -100,7 +100,11 @@ func (a *App) rightClick(p uv.Position) {
 		hits = slices.DeleteFunc(slices.Clone(a.hits), func(h ui.Hit) bool { return h.Target.Kind == ui.KindBackdrop })
 	}
 	t, _ := ui.HitAt(hits, p)
-	if t.Kind != ui.KindNode && t.Kind != ui.KindFold && t.Kind != ui.KindCell && t.Kind != ui.KindHead || a.overlaid() || !a.endEdit() { // on the ▸ too
+	if t.Kind != ui.KindNode && t.Kind != ui.KindFold && t.Kind != ui.KindCell && t.Kind != ui.KindHead && t.Kind != ui.KindTab || a.overlaid() || !a.endEdit() { // on the ▸ too
+		return
+	}
+	if t.Kind == ui.KindTab { // a pane's tab (F22.6)
+		a.tabMenu(t.Pane, t.I, p)
 		return
 	}
 	if t.Kind == ui.KindCell || t.Kind == ui.KindHead { // a grid's (F12.3)
@@ -142,7 +146,12 @@ func (a *App) menuRun(i int) tea.Cmd {
 // no action or none bound (§7.6).
 func (a *App) menuKey(action string) string {
 	scope, _, _ := strings.Cut(action, ".")
-	return a.keys.Hint(action, scope)
+	for _, s := range []string{scope, "normal"} { // tab.* and pane.* are NORMAL's
+		if k := a.keys.Hint(action, s); k != "" {
+			return k
+		}
+	}
+	return ""
 }
 
 // drawMenu paints the menu in a Complete's box, its left edge in the

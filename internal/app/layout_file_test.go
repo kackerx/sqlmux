@@ -64,7 +64,7 @@ func table(conn, schema, name string) config.LayoutTab {
 // not the one the focus last named.
 func TestLayoutRoundTrip(t *testing.T) {
 	order := config.LayoutTab{Kind: "table", Connection: "doraemon", Schema: "public", Table: "t_order", Where: "id > 5", Order: config.LayoutOrder{{Col: "amount", Desc: true}, {Col: "id"}},
-		Limit: 500, Page: 2, Cols: []string{"meta", "note"}, OrderCols: []string{"note", "id", "amount"}, ColWidths: map[string]int{"note": 30, "id": 4}, TransposeWidths: map[string]int{"1": 12, "3": 5}, Transpose: true}
+		Limit: 500, Page: 2, Cols: []string{"meta", "note"}, OrderCols: []string{"note", "id", "amount"}, ColWidths: map[string]int{"note": 30, "id": 4}, TransposeWidths: map[string]int{"1": 12, "3": 5}, Transpose: true, Pinned: true}
 	want := &config.Layout{Version: 1, Active: 1, Sessions: []config.LayoutSession{
 		{Name: "one", Connection: "doraemon", Active: 1, Windows: []config.LayoutWindow{
 			{

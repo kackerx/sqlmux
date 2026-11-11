@@ -39,6 +39,8 @@ leader = "<Space>"
 "gT" = "tab.prev"
 "<Leader>wn" = "tab.move.next" # the tab goes to the next pane clockwise, the focus after it (F12.5)
 "<Leader>wp" = "tab.move.prev"
+"<Leader>wP" = "tab.pin"           # pinned tabs go first, and the batch closes leave them (F22.6)
+"<Leader>wo" = "tab.close.others"
 
 [keys.grid]
 "h" = "grid.left"

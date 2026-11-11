@@ -1204,12 +1204,7 @@ func (a *App) moveTab(d int) tea.Cmd {
 	if src.tab().landing() {
 		return nil
 	}
-	var ids []int
-	for _, id := range a.clockwise() {
-		if id != win.Tree.ID && (win.Result == nil || id != win.Result.ID) {
-			ids = append(ids, id)
-		}
-	}
+	ids := a.ordinaryPanes()
 	i := slices.Index(ids, src.ID) // not the sidebar, nor the result area
 	if i < 0 || len(ids) < 2 {
 		return nil
@@ -1221,8 +1216,23 @@ func (a *App) moveTab(d int) tea.Cmd {
 	}
 	dropTab(src, src.Cur)
 	putTab(dst, tb, dst.tab().landing()) // a landing tab there gives way to it (§5「引导页」)
+	if tb.pinned() {                     // and stays pinned, after the pinned ones there
+		dst.settleTab(dst.Cur)
+	}
 	win.focus(dst.ID)
 	return nil
+}
+
+// ordinaryPanes is the IDs of the window's panes that hold tabs of a table or a query,
+// clockwise: not the sidebar, nor the result area.
+func (a *App) ordinaryPanes() (ids []int) {
+	win := a.win()
+	for _, id := range a.clockwise() {
+		if id != win.Tree.ID && (win.Result == nil || id != win.Result.ID) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // closeTab closes pane p's tab i: the current one (:q) gives way to the

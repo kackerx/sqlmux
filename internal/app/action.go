@@ -158,13 +158,17 @@ func init() {
 			}
 			return a.run("tab.close", 0)
 		}},
-		"tab.quit":      {Title: i18n.N("关闭 tab，空了连 pane / window 一起关"), Run: func(a *App, _ Args) tea.Cmd { return a.quitTab() }},
-		"tab.reopen":    {Title: i18n.N("重开关掉的 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.reopenTab() }},
-		"tab.next":      {Title: i18n.N("下一个 tab"), Run: do(func(a *App, args Args) { a.cycleTab(1, args.Count) })},
-		"tab.prev":      {Title: i18n.N("上一个 tab"), Run: do(func(a *App, args Args) { a.cycleTab(-1, args.Count) })},
-		"tab.move.next": {Title: i18n.N("把 tab 移到下一个 pane"), Run: func(a *App, _ Args) tea.Cmd { return a.moveTab(1) }},
-		"tab.move.prev": {Title: i18n.N("把 tab 移到上一个 pane"), Run: func(a *App, _ Args) tea.Cmd { return a.moveTab(-1) }},
-		"tab.new":       {Title: i18n.N("新建 tab"), Run: do(func(a *App, _ Args) { a.newTab() })},
+		"tab.quit":         {Title: i18n.N("关闭 tab，空了连 pane / window 一起关"), Run: func(a *App, _ Args) tea.Cmd { return a.quitTab() }},
+		"tab.reopen":       {Title: i18n.N("重开关掉的 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.reopenTab() }},
+		"tab.next":         {Title: i18n.N("下一个 tab"), Run: do(func(a *App, args Args) { a.cycleTab(1, args.Count) })},
+		"tab.prev":         {Title: i18n.N("上一个 tab"), Run: do(func(a *App, args Args) { a.cycleTab(-1, args.Count) })},
+		"tab.pin":          {Title: i18n.N("固定 / 取消固定 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.pinTab() }},
+		"tab.close.others": {Title: i18n.N("关闭其他 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.closeOthers(0) }},
+		"tab.close.left":   {Title: i18n.N("关闭左侧的 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.closeOthers(-1) }},
+		"tab.close.right":  {Title: i18n.N("关闭右侧的 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.closeOthers(1) }},
+		"tab.move.next":    {Title: i18n.N("把 tab 移到下一个 pane"), Run: func(a *App, _ Args) tea.Cmd { return a.moveTab(1) }},
+		"tab.move.prev":    {Title: i18n.N("把 tab 移到上一个 pane"), Run: func(a *App, _ Args) tea.Cmd { return a.moveTab(-1) }},
+		"tab.new":          {Title: i18n.N("新建 tab"), Run: do(func(a *App, _ Args) { a.newTab() })},
 		// a landing page's two buttons (§5「引导页」)
 		"tab.table": {Title: i18n.N("打开表"), Run: do(func(a *App, _ Args) {
 			p := a.focused()

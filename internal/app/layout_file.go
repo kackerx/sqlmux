@@ -112,6 +112,7 @@ func paneLayout(p *Pane) config.LayoutPane {
 		default: // a landing tab
 			continue
 		}
+		lt.Pinned = tb.Pinned
 		if i == p.Cur {
 			lp.Current = len(lp.Tabs)
 		}
@@ -240,6 +241,7 @@ func restoreWindow(s *Session, lw config.LayoutWindow, used map[string]bool) (*W
 			if i == lp.Current {
 				p.Cur = len(p.Tabs)
 			}
+			tb.Pinned = lt.Pinned
 			p.Tabs = append(p.Tabs, tb)
 		}
 	}

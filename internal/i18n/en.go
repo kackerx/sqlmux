@@ -3,6 +3,19 @@ package i18n
 // en is the English of every text the interface shows, by its Chinese: what
 // is not here is shown in Chinese (§14).
 var en = map[string]string{
+	"固定 / 取消固定 tab": "Pin / unpin tab",
+	"向右拆分":          "Split right",
+	"向下拆分":          "Split below",
+	"关闭左侧":          "Close tabs to the left",
+	"关闭其他 tab":      "Close other tabs",
+	"取消固定":          "Unpin",
+	"关闭其他":          "Close others",
+	"关闭右侧":          "Close tabs to the right",
+	"关闭右侧的 tab":     "Close tabs to the right",
+	"关闭左侧的 tab":     "Close tabs to the left",
+	"%d 个 tab 有未保存的修改，没关": "%d tab(s) have unsaved changes, not closed",
+	"移到下一个 pane":          "Move to the next pane",
+	"固定":                  "Pin",
 	// Commands: the titles the palette lists and the key export names
 	"WHERE 条件":    "WHERE condition",
 	"session 列表":  "Session list",

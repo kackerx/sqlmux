@@ -31,7 +31,11 @@ type Tab struct {
 	Data   *dataTab
 	Query  *queryTab
 	Result *resultTab
+	Pinned bool // a table's, a query's or a key's, in front of the others (F22.6); a result's is its own
 }
+
+// pinned is whether t is pinned, as any kind of tab is.
+func (t Tab) pinned() bool { return t.Pinned || t.Result != nil && t.Result.pinned }
 
 // turned is whether the table is turned as the user has it: the JSON view
 // takes the turn away while it is open and gives it back (F22.1), so what is

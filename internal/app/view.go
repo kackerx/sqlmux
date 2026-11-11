@@ -341,7 +341,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 	if in.Empty() {
 		return
 	}
-	tabs := ui.Tabs{Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID, NoNew: p == a.win().Result, Close: a.icons.Close, Scroll: &p.tabScroll}
+	tabs := ui.Tabs{Cur: p.Cur, Prev: p.Prev, Hints: tabHints, Pane: p.ID, NoNew: p == a.win().Result, Close: a.icons.Close, Pin: a.icons.Pin, Scroll: &p.tabScroll}
 	if p == a.win().Result { // the log stays (§11)
 		tabs.Keep = 1
 	}
@@ -349,6 +349,7 @@ func (a *App) drawPane(f *ui.Frame, p *Pane, n int, r uv.Rectangle) {
 		ic, _ := a.tabIcon(&p.Tabs[i])
 		tabs.Names, tabs.Icons = append(tabs.Names, p.Tabs[i].Name), append(tabs.Icons, ic)
 		tabs.Production = append(tabs.Production, p.Tabs[i].production())
+		tabs.Pinned = append(tabs.Pinned, p.Tabs[i].Pinned)
 	}
 	tabs.Draw(f, uv.Rect(in.Min.X, in.Max.Y-1, in.Dx(), 1))
 	if p.tab().landing() { // what it can become (§5「引导页」)
