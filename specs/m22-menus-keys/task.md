@@ -5,12 +5,12 @@
 - **范围**：§7.6「JSON 视图」「右键菜单」、§7.8「tab 栏」（固定、关闭一批、右键菜单）「Redis 的树 / 右键菜单」（刷新）和查询条的 ORDER chip、§10「克隆行」、§12「范围与前缀」「Redis 键」、§14（`pinned`）、§6 的键表。都已写进各章（2026-11-11）。用户原话和截图说明在 plan.md「M22 候选」，截图在 `/root/proj/sqlmux-design/m22-refs/`。
 - **依赖**：M21 完成（v0.10.0）。
 - **完成标准**：两个节点全过；完整回归绿（清单外 0）；Windows 冒烟绿；用户体验验收后 worker 打 `m22` 和 `v0.11.0`，照 AGENTS.md 两步推送（打 tag 前本地 main 先和 origin 对齐）。
-- **审查节点**：1 = F22.1 + F22.2 + F22.3 + F22.4；2 = F22.5 + F22.6 + F22.7（收起的侧栏，设计 2026-11-11 当天定了，提前进来）。都是 worker 在 `main` 上做。
+- **审查节点**：1 = F22.1 + F22.2 + F22.3 + F22.4；2 = F22.5 + F22.6 + F22.7（收起的侧栏，设计 2026-11-11 当天定了，提前进来）。 节点 1 过（384bcfb；e2e bc18e99，2026-11-11，0 个问题）。F22.2 的字形在真实终端里没截图（worker 的图是用字体文件渲染的），留给用户验收时看。都是 worker 在 `main` 上做。
 - **不做（留候选）**：tab 的中键关闭、拖动排序；结果 tab 的「关闭其他」；「所有」范围里搜键；克隆多行（选区）；`just test-windows`（plan.md）。
 
 ---
 
-## F22.1 `gj` 退回表格后丢了转置（bug） · 状态：todo
+## F22.1 `gj` 退回表格后丢了转置（bug） · 状态：passed（384bcfb；e2e bc18e99）
 
 - **涉及**：`internal/app`（JSON 视图进出那一处）、`jsonview_test.go`
 - 用户 2026-11-11：`gj` 进 JSON 视图再退回，只回到横置；进入之前是转置（配置里 `[grid] transpose = true`）。现有单测 `jsonview_test.go:95` 把「从转置的表进 JSON 视图后 transpose 为 false」断言成对的。
@@ -23,7 +23,7 @@
 - [ ] 单测：转置的表 `gj` → `esc`、`gj` → `q`、`gj` → `gj` 之后都还是转置；横置的同样三条之后还是横置；结果 tab 同样；先红后绿。
 - [ ] e2e：`transpose = true` 的配置开表，`gj`、`esc`，屏幕上还是字段在左的转置布局。
 
-## F22.2 排序箭头的方向 · 状态：todo
+## F22.2 排序箭头的方向 · 状态：passed（384bcfb；e2e bc18e99）
 
 - **涉及**：`internal/ui/icons.go`（`sort_asc` / `sort_desc`）、查询条的 ORDER chip、golden
 - 用户 2026-11-11（image10）：chip 上倒序画的是朝上的箭头，ORDER 列表里同一列是 `1↓`。倒序（从大到小）应该朝下，两处要一致。
@@ -36,7 +36,7 @@
 - [ ] golden：升序和倒序的 chip 各一张；单测断言 chip 的方向和 ORDER 列表同一列的箭头一致（mutation：对调两个图标就红）。
 - [ ] 送审附一张真实终端的截图（升序、倒序各一），用户验收时看字形。
 
-## F22.3 树的右键菜单加「刷新」 · 状态：todo
+## F22.3 树的右键菜单加「刷新」 · 状态：passed（384bcfb；e2e bc18e99）
 
 - **涉及**：`internal/app`（树的右键菜单）、`internal/i18n`
 - 用户 2026-11-11（image9）：开着的时候外面新建了表，搜不到也匹配不到，要一个 refresh。现状：树上 `R`（`tree.refresh`「刷新表列表」）已有，但右键菜单里只有 Redis 的 db 节点有「刷新」，用户没发现。
@@ -50,7 +50,7 @@
 - [ ] 单测：三种节点的菜单里有「刷新」并带键；mutation。
 - [ ] e2e（PG，自己的库）：sqlmux 开着，外面 `create table f22_new(...)`；树里右键 schema → 刷新，树上出现 `f22_new`；面板 `@f22_new` 搜得到；query 里 `select * from f22_` 补得出。MySQL 跑树和面板两步。
 
-## F22.4 格子的右键菜单加 添加行 / 删除行 / 克隆行 · 状态：todo
+## F22.4 格子的右键菜单加 添加行 / 删除行 / 克隆行 · 状态：passed（384bcfb；e2e bc18e99）
 
 - **涉及**：`internal/app`（表格的右键菜单、新增行那一处）、`internal/keymap` 的默认键、`internal/i18n`、`docs/keys.md`（oss 发版时重生成）
 - 用户 2026-11-11（image5 现状、image6 DataGrip）：删除 / 添加 / 克隆都加上，which-key 也别忘了。
