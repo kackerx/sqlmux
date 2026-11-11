@@ -11,5 +11,7 @@ metadata:
 - Windows 版可以不出 WSL 测：`GOOS=windows go build ./cmd/sqlmux` 出 exe，拷到 `/mnt/c/Users/Administrator/AppData/Local/Temp/...`，用主机的 `/mnt/c/Users/Administrator/AppData/Local/Programs/Python/Python312/python.exe e2e/windows/smoke.py <C:\路径\sqlmux.exe>` 跑 ConPTY 冒烟（pywinpty + pyte 已装）；2026-11-07 在 v0.9.0 上 9 passed。exe 要放 Windows 盘，不要从 `\\wsl.localhost` 路径起。
 - `gh` 登的是 kaixuan188，推送 / 合 PR 时要 `gh auth switch -u kackerx`；git 作者是 kackerx。
 
+- 以 root 起后台会话要带 `IS_SANDBOX=1`（`IS_SANDBOX=1 claude --bg --agent …`），否则会话改不了主工作区（2026-11-08 的 oss 后台会话就被挡住、自己绕去临时 worktree；用户 2026-11-11 指出）。
+
 **Why:** 环境和 AGENTS.md 写的 Mac 不一样，派活前要知道哪些测试跑不了。
 **How to apply:** 派 tester 测 Windows 相关 feature 时直接给上面的命令；涉及 PG / MySQL 的批次先确认 docker 通了。
