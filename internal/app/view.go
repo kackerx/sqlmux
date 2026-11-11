@@ -42,13 +42,11 @@ func (a *App) hints(scope, sep string, actions ...string) string {
 	return strings.Join(ks, sep)
 }
 
-// thinBarWidth is the folded sidebar: two borders around one column (§7.8).
-const thinBarWidth = 3
-
 // window is everything above the status bar.
 func (a *App) window() uv.Rectangle { return uv.Rect(0, 0, max(a.w, 0), max(a.h-1, 0)) }
 
-// sidebarRect is where the ⟨0⟩ sidebar, open or folded, goes.
+// sidebarRect is where the ⟨0⟩ sidebar goes: no columns at all when it is
+// folded (§7.8, F22.7).
 func (a *App) sidebarRect() uv.Rectangle {
 	side := a.window()
 	w := a.sidebarWidth()
@@ -56,7 +54,7 @@ func (a *App) sidebarRect() uv.Rectangle {
 		w = treeWidth(a.win().TreeW, a.w)
 	}
 	if !a.win().TreeOpen {
-		w = thinBarWidth
+		w = 0
 	}
 	side.Max.X = min(side.Min.X+w, side.Max.X)
 	return side
@@ -65,7 +63,9 @@ func (a *App) sidebarRect() uv.Rectangle {
 // mainArea is what the split tree lays out over: right of the sidebar.
 func (a *App) mainArea() uv.Rectangle {
 	main := a.window()
-	main.Min.X = min(a.sidebarRect().Max.X+1, main.Max.X)
+	if a.win().TreeOpen { // a gap between the sidebar and the panes; none with no sidebar
+		main.Min.X = min(a.sidebarRect().Max.X+1, main.Max.X)
+	}
 	return main
 }
 
@@ -93,7 +93,7 @@ func (a *App) drawOn(f *ui.Frame) *ui.Frame {
 	f.Fill(a.window(), uv.Style{Fg: th.Fg, Bg: th.Gap}) // what no pane covers: the gaps (F20.6); the status bar stays bg
 	f.SetMouse(a.mouse)
 	rects := a.layout()
-	if r, ok := rects[a.win().Tree.ID]; ok {
+	if r, ok := rects[a.win().Tree.ID]; ok && a.win().TreeOpen {
 		a.drawSidebar(f, r)
 	}
 	for i, p := range a.win().Root.Leaves() {
@@ -406,10 +406,6 @@ func drawBar(f *ui.Frame, b *errorBar, p *Pane, r uv.Rectangle) {
 // drawSidebar paints the ⟨0⟩ schema tree (§7.8).
 func (a *App) drawSidebar(f *ui.Frame, r uv.Rectangle) {
 	win := a.win()
-	if !win.TreeOpen {
-		a.drawThinBar(f, r)
-		return
-	}
 	paneRegions(f, win.Tree.ID, r)
 	b := ui.Block{ // the session's: the name goes before the « that folds it (§7.8)
 		Num:         a.icons.Number(0),
@@ -562,11 +558,14 @@ func (a *App) statusLine() ui.StatusLine {
 	var s ui.StatusLine
 
 	sess := uv.Style{Fg: th.Bg, Bg: th.Focus, Attrs: uv.AttrBold}
-	s.Left = []ui.Segment{{Runs: []ui.Run{ // a workspace: no engine's icon; a click opens the session list (§7.8)
+	if win := a.win(); !win.TreeOpen || win.Zoom != 0 { // the sidebar is not in sight: the button that brings it (§7.8, F22.7)
+		s.Left = []ui.Segment{{Runs: []ui.Run{{Text: " » ", Style: uv.Style{Fg: th.Info, Bg: th.Bar}}}, Action: "tree.toggle"}}
+	}
+	s.Left = append(s.Left, ui.Segment{Runs: []ui.Run{ // a workspace: no engine's icon; a click opens the session list (§7.8)
 		{Text: " ", Style: sess},
 		{Text: a.sess.Name, Style: sess, Shrink: true},
 		{Text: " ▾ ", Style: sess},
-	}, Action: "session.list"}}
+	}, Action: "session.list"})
 	for i, w := range a.sess.Windows { // a click switches to it (§7.8)
 		seg := ui.Segment{Runs: []ui.Run{{Text: fmt.Sprintf(" %d: %s ", i, w.Name), Style: bar(th.Dim)}}, Drop: dropWindow, Action: fmt.Sprintf("window.select %d", i)}
 		switch cur := (uv.Style{Fg: th.Fg, Bg: th.Border}); {
@@ -694,15 +693,6 @@ func whichKeyItems(next []keymap.Next) []ui.WhichKeyItem {
 		items = append(items, ui.WhichKeyItem{Key: keymap.Display([]keymap.Key{n.Key}), Title: t, Group: n.Table})
 	}
 	return items
-}
-
-// drawThinBar is the folded sidebar (§7.8): a "»" on top and nothing else.
-func (a *App) drawThinBar(f *ui.Frame, r uv.Rectangle) {
-	f.Region(r, ui.Target{Kind: ui.KindButton, Action: "tree.toggle"}) // a click unfolds it
-	in := ui.Block{Pane: a.win().Tree.ID}.Draw(f, r)
-	if !in.Empty() {
-		f.Text(in.Min.X, in.Min.Y, in.Max.X, "»", uv.Style{Fg: f.Theme.Focus, Bg: f.Theme.PaneBg})
-	}
 }
 
 // drawPaneNumbers is SPC q's overlay: each pane's ⟨n⟩ in its middle, until
