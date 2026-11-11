@@ -545,6 +545,10 @@ func (t *dataTab) dropAdded(r *newRow) {
 	t.row = max(min(t.row, len(t.shownRows())-1), 0)
 }
 
+// whyNoAdd is why no row can be added to t, as its toast says it; "" when one
+// can: what whyNoEdit says, or a table whose rows are not made as rows.
+func (t *dataTab) whyNoAdd() string { return cmp.Or(t.whyNoEdit(), t.cols.NoInsert) }
+
 // addRow is o and the query bar's + (§10.6): a row under the cursor's, on
 // its page, the cursor to its first column.
 func (a *App) addRow() tea.Cmd {
@@ -552,10 +556,7 @@ func (a *App) addRow() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	if why := t.whyNoEdit(); why != "" {
-		return a.showToast(why)
-	}
-	if why := t.cols.NoInsert; why != "" {
+	if why := t.whyNoAdd(); why != "" {
 		return a.showToast(why)
 	}
 	// added keeps the order they show in, (page, after), a save's too:

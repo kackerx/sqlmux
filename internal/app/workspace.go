@@ -1570,7 +1570,7 @@ func (s *Session) recordClosed(win, pane int, tab Tab) {
 	switch {
 	case tab.Data != nil:
 		d := tab.Data
-		c = closedTab{conn: d.conn, table: d.table, req: request{applied: d.applied, order: d.order, desc: d.desc, limit: d.limit}, turned: d.transpose}
+		c = closedTab{conn: d.conn, table: d.table, req: request{applied: d.applied, order: d.order, desc: d.desc, limit: d.limit}, turned: d.turned()}
 	case tab.Query != nil:
 		c = closedTab{conn: tab.Query.conn, query: tab.Query.name, schema: tab.Query.schema}
 	default:

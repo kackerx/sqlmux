@@ -364,23 +364,27 @@ func (a *App) cloneRow() tea.Cmd {
 }
 
 // addCopy adds a row under the cursor's with vals in it, but the columns the
-// database makes the value of: an identity or a generated one, a key's that
-// has a default (a sequence's, an auto_increment), and the BIT that does not
-// go back (F22.4).
+// database makes the value of: a generated one, a counter (a sequence's, an
+// identity's, an auto_increment), a key's that has a default, and the BIT that
+// does not go back (F22.4).
 func (a *App) addCopy(t *dataTab, vals map[string]db.Val) tea.Cmd {
-	cmd := a.addRow()
-	sr, _, ok := t.cursor()
-	if !ok || sr.add == nil { // read only: no row added, and the toast says why
-		return cmd
+	if why := t.whyNoAdd(); why != "" {
+		return a.showToast(why)
 	}
 	if slices.ContainsFunc(slices.Collect(maps.Values(vals)), func(v db.Val) bool { return db.IsBinaryShown(v.S) }) {
-		t.dropAdded(sr.add)
 		return a.showToast(i18n.T("有二进制列，复制不了")) // what yy took of them is the text shown, not the bytes
+	}
+	cmd := a.addRow()
+	sr, _, ok := t.cursor()
+	if !ok || sr.add == nil {
+		return cmd
 	}
 	sr.add.cells = map[string]edit{}
 	for name, v := range vals {
 		col := t.column(name)
-		if def := col.Default; !col.Fixed && !col.Generated && def != "generated always as identity" && (!slices.Contains(t.cols.Key(), name) || def == "") {
+		def := col.Default
+		counter := def == "auto_increment" || strings.HasPrefix(def, "nextval(") || strings.HasSuffix(def, "as identity")
+		if !col.Fixed && !col.Generated && !counter && (!slices.Contains(t.cols.Key(), name) || def == "") {
 			sr.add.cells[name] = edit{val: v}
 		}
 	}
