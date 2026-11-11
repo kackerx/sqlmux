@@ -23,6 +23,7 @@ type Complete struct {
 	Sel, Top int    // Sel -1: nothing picked yet
 	Act      string // the Action of a click on a row, for a list the click has to tell from other rows (F10.6)
 	Foot     []Hint // a last row of dim hints in the box, "Key Label · …", when there are some (F8.14)
+	Alone    bool   // draw the box when it has no row but the foot: the index being made (F21.7); a list the typing filtered empty is not drawn (§9.4)
 }
 
 // CompleteRows is how many items a completion list shows (§9.7); the WHERE's
@@ -45,7 +46,7 @@ func CompleteBox(screen uv.Rectangle, at uv.Position, w, n, foot, limit int) (bo
 // Draw paints the list in box, rows of it showing.
 func (c Complete) Draw(f *Frame, box uv.Rectangle, rows int) {
 	th := f.Theme
-	if box.Dx() < 4 || rows == 0 && len(c.Foot) == 0 { // a box of its foot alone is one (F21.7)
+	if box.Dx() < 4 || rows == 0 && !c.Alone {
 		return
 	}
 	f.Region(box, Target{}) // a click inside is not outside

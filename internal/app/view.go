@@ -728,5 +728,5 @@ func paneRegions(f *ui.Frame, id int, r uv.Rectangle) {
 // names being made, or not made (F21.7).
 func (a *App) drawFootBox(f *ui.Frame, foot string, at uv.Position) {
 	box, rows := ui.CompleteBox(a.window(), at, ui.Width(foot)+4, 0, 1, ui.CompleteRows)
-	ui.Complete{Foot: []ui.Hint{{Key: foot}}}.Draw(f, box, rows)
+	ui.Complete{Foot: []ui.Hint{{Key: foot}}, Alone: true}.Draw(f, box, rows)
 }
