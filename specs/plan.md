@@ -50,6 +50,17 @@
 
 ## M22 候选
 
+用户 2026-11-11 提的一批（v0.11.0；一个版本做不完放两个）。截图在仓库外 `/root/proj/sqlmux-design/m22-refs/image4–12.png`。决策者的拆法：不用先出设计的六条进 M22 / v0.11.0，要设计的两条（书签、收起的侧栏）先交 ux-designer，进 M23 / v0.12.0。
+
+- **面板里把 Redis 键从「表 @」拆出去**（image4：`@tblb9c` 出来一屏全是键）：键太多，表搜不到。M20 F20.3 当时定的是「不另开范围、和表混排」，反过来。
+- **格子的右键菜单加 添加行 / 删除行 / 克隆行**（image5 现状、image6 DataGrip），which-key 里也要有。克隆行是新 Action。
+- **书签**（image7 DataGrip）：树里要有书签区，pane（tab）能加 / 删书签，命令面板能搜；参考其他工具设计。→ ux-designer。
+- **tab 的右键菜单**（image8 DataGrip）：关闭、关闭其他、关闭右侧、关闭左侧、向右拆分、向下拆分、移动 tab 到下一个面板、固定 / 取消固定（固定的按序排在最前）。
+- **树的刷新**（image9 DataGrip 的右键「刷新」）：开着的时候外面新建了表，搜不到也匹配不到。现状：树上 `R`（`tree.refresh`「刷新表列表」）已经有，右键菜单里没有、用户没发现。
+- **bug**：`gj` 进 JSON 视图再退回表格，只回到横置；进入之前是转置（配置里也是 `transpose = true`）。
+- **排序箭头**（image10）：ORDER chip 上的图标和列表里的 `1↓` 方向不一致，倒序（从大到小）应该朝下。
+- **收起的侧栏**（image11 现状、image12 Apifox 只留一个图标）：3 列的竖条太显眼、占宽度，但去掉了鼠标又点不了。→ ux-designer。
+
 - **`just test-windows`**（决策者 2026-11-08，v0.10.0 第一次推 tag 时 `ci / windows` 红、Release 空跑；用户定这次只改测试不加机制）：`GOOS=windows go test -short -exec <wrapper> ./...`，wrapper 把测试 exe 拷到 Windows 盘经 WSL interop 跑，打 tag 前跑一次；做法在 m21 task.md F21.8 b。 worker 2026-11-08 试做时看到的：wrapper 要把整个包目录拷到 C 盘再跑（cwd 在 `\\wsl.localhost` 下时 sqlite DSN 和 `../../../testdata` 的相对路径会误报）；argv[0] 用 `exec -a` 传全路径，re-exec 自己的测试（config 的 state_test）才找得到 exe；`internal/app` 的 TestNoKeyTextInCode 在拷出去的目录里找不到 `../..` 的源码，没查完。
 
 ## M21 候选（用户 2026-10-31：M20 放不下的往后排，v0.10.0）
