@@ -67,18 +67,29 @@ func (t Tabs) pinWidth(i int) int {
 	return 0
 }
 
-// window is the tabs from first to last that fit in room columns, with the
+// tabRow is a row of n items of width(i) columns with a gap of one between them, one of them
+// current, which does not always fit and is scrolled: a pane's tabs, and the palette's scopes
+// (§7.8, §12).
+type tabRow struct {
+	n, cur int
+	width  func(i int) int
+	scroll *TabScroll
+}
+
+func (t Tabs) row() tabRow { return tabRow{len(t.Names), t.Cur, t.tabWidth, t.Scroll} }
+
+// window is the items from first to last that fit in room columns, with the
 // ‹N before them and the │ N› after when there are some out of sight: at least
-// the tab at first, cut at the edge if it is wider than room.
-func (t Tabs) window(first, room int) (last int) {
-	n := len(t.Names)
+// the item at first, cut at the edge if it is wider than room.
+func (r tabRow) window(first, room int) (last int) {
+	n := r.n
 	left := 0
 	if first > 0 {
 		left = Width(fmt.Sprintf("‹%d", first))
 	}
-	sum := make([]int, n+1) // sum[i+1]: the tabs first..i and the │ between
+	sum := make([]int, n+1) // sum[i+1]: the items first..i and the │ between
 	for i := first; i < n; i++ {
-		sum[i+1] = sum[i] + t.tabWidth(i)
+		sum[i+1] = sum[i] + r.width(i)
 		if i > first {
 			sum[i+1]++
 		}
@@ -95,30 +106,30 @@ func (t Tabs) window(first, room int) (last int) {
 	return last
 }
 
-// scrolled is the first and last tab to draw in room columns: those that fit
+// scrolled is the first and last item to draw in room columns: those that fit
 // with the ‹N and N› for the others, the current one among them when it
 // has just changed (or the room), the first the scroll's otherwise.
-func (t Tabs) scrolled(room int) (first, last int) {
-	n := len(t.Names)
+func (r tabRow) scrolled(room int) (first, last int) {
+	n := r.n
 	if n == 0 {
 		return 0, -1
 	}
-	s := t.Scroll
+	s := r.scroll
 	if s == nil {
 		s = &TabScroll{}
 	}
 	first = min(max(s.First, 0), n-1)
-	if s.Cur != t.Cur || s.Room != room {
-		first = min(first, t.Cur)
-		for t.window(first, room) < t.Cur {
+	if s.Cur != r.cur || s.Room != room {
+		first = min(first, r.cur)
+		for r.window(first, room) < r.cur {
 			first++
 		}
-		s.Cur, s.Room = t.Cur, room
+		s.Cur, s.Room = r.cur, room
 	}
-	for first > 0 && t.window(first-1, room) == n-1 { // the room after the last tab is for the ones before it
+	for first > 0 && r.window(first-1, room) == n-1 { // the room after the last item is for the ones before it
 		first--
 	}
-	last = t.window(first, room)
+	last = r.window(first, room)
 	s.First, s.Shown = first, last-first+1
 	return first, last
 }
@@ -132,7 +143,7 @@ func (t Tabs) Draw(f *Frame, r uv.Rectangle) {
 	if !t.NoNew {
 		plus = 4
 	}
-	first, last := t.scrolled(r.Dx() - plus)
+	first, last := t.row().scrolled(r.Dx() - plus)
 	if first > 0 {
 		x = t.arrow(f, x, y, r.Max.X, fmt.Sprintf("‹%d", first), -1)
 	}

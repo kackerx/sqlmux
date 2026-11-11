@@ -779,3 +779,32 @@ func TestPalettePreviewHiddenIsNotScrolled(t *testing.T) {
 		t.Errorf("a preview not shown: top %d", a.palette.pvTop)
 	}
 }
+
+// The scope tabs scroll as a pane's tabs do when they do not fit: at 80 columns the current
+// one is always in sight, the ones cut off say how many with ‹N and N› (§12, F22.5).
+func TestPaletteScopesScroll(t *testing.T) {
+	a := sized(80, 24, "nerd")
+	feed(t, a, "<C-p>")
+	row := func() string {
+		lines := strings.Split(a.render().String(), "\n")
+		for i, l := range lines {
+			if strings.Contains(l, "命令面板") {
+				return lines[i+1]
+			}
+		}
+		t.Fatal("no palette")
+		return ""
+	}
+	labels := []string{"所有", "会话 $", "窗口·Pane %", "窗口 &", "Tab #", "表 @", "键 :", "命令 >", "SQL ;"}
+	for i := range 2 * len(labels) { // all the way round, twice
+		want := labels[i%len(labels)]
+		if r := row(); !strings.Contains(r, " "+want+" ") {
+			t.Errorf("scope %d: %q is not in sight in %q", i%len(labels), want, r)
+		}
+		feed(t, a, "<Tab>")
+	}
+	feed(t, a, "<S-Tab>")
+	if r := row(); !strings.Contains(r, "SQL ;") || !strings.Contains(r, "‹") || strings.Contains(r, "›") {
+		t.Errorf("the last scope: %q", r)
+	}
+}

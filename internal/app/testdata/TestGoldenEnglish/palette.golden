@@ -6,7 +6,7 @@
 │   ▾  public                 │ │                                                                                                                             │
 │     ▾  Tables (14)          │ │                                                                                                                             │
 │       ▸  agent          124┌─ Command palette ────────────────────────────────────────────────────────────────────────────────┐                             │
-│       ▸  agent_version  530│  All   Session $   Win·Pane %   Win &   Tab #   Table @   key :   Cmd >   SQL ;                  │                             │
+│       ▸  agent_version  530│  All   Session $   Win·Pane %   Win &   Tab #   Table @   Key :   Cmd >   SQL ;                  │                             │
 │       ▸  goal            57│                                                                                                 │                             │
 │       ▸  mt_task        812│──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
 │       ▸  mt_task_log    96k│  doraemon                                  1 window                                     Session │                             │

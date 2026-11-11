@@ -53,6 +53,7 @@ type palette struct {
 	// what the background was last asked to make of them, and the number of the ask
 	// the answer of which counts (F20.8)
 	keyAsked, keyAskedSig string
+	scopeScroll           ui.TabScroll // where the scope tabs are scrolled to when they do not fit (F22.5)
 	keySeq                int
 }
 
@@ -301,7 +302,7 @@ func (a *App) paletteMatches() (items []paletteItem, ms []ui.Match) {
 func (a *App) paletteView() ui.Palette {
 	items, ms := a.paletteMatches()
 	scope, query := a.paletteScope()
-	p := ui.Palette{Search: a.icons.Search, Input: a.palette.input, Scope: scope, Sel: a.palette.sel, Top: a.palette.top}
+	p := ui.Palette{Search: a.icons.Search, Input: a.palette.input, Scope: scope, ScopeScroll: &a.palette.scopeScroll, Sel: a.palette.sel, Top: a.palette.top}
 	for _, s := range scopes {
 		if s.prefix != tipPrefix {
 			p.Scopes = append(p.Scopes, strings.TrimSpace(i18n.T(s.label)+" "+s.prefix)) // "表 @": the tab says what to type
