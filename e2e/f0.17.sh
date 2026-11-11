@@ -27,7 +27,7 @@ check "80×24: width 76, from column 3, top at row 4" eval '[[ $(left) == 3 && $
 
 # ---- rows top to bottom: border · scope tabs · input · ─ · list · ─ · footer
 start; pal
-check "scope tabs sit right under the border, with prefixes (F5.1 adds 会话 \$, F5.19 窗口 & and Tab #)" eval '[[ $(e2e_text $(($(left) + 2)) $(( $(right) - 1 )) $(tabs_y) | tr -s " ") == " 所有 会话 $ 窗口·Pane % 窗口 & Tab # 表 @ 命令 > SQL ;"* ]]'
+check "scope tabs sit right under the border, with prefixes (F5.1 adds 会话 \$, F5.19 窗口 & and Tab #)" eval '[[ $(e2e_text $(($(left) + 2)) $(( $(right) - 1 )) $(tabs_y) | tr -s " ") == " 所有 会话 $ 窗口·Pane % 窗口 & Tab # 表 @ 键 : 命令 > SQL ;"* ]]'
 check "the input row starts with the search icon (info color), the cursor right after it" eval 'y=$(input_y); [[ $(e2e_text $(($(left) + 2)) $(($(left) + 2)) $y) == "$SEARCH_ICON" ]] && style_has $(($(left) + 2)) $y fg=#7dcfff && [[ $(e2e_flag cursor_y) == $((y - 1)) && $(e2e_flag cursor_x) == $(( $(left) + 3 )) ]]'
 check "then a separator, the list, a separator and the footer" eval 'read s1 s2 <<<"$(seps)"; [[ $s1 == $(( $(input_y) + 1 )) && $(e2e_text $(($(left) + 1)) $(($(left) + 12)) $(foot_y)) == " ↑/↓ 移动 · "* ]]'
 

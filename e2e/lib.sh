@@ -306,6 +306,9 @@ errbar_is() { local got; got=$(errbar "$1" | head -1); [[ $got == "$2" ]] || { e
 
 # ---- the f1.*.sh scripts' data pane: 160x45, ① alone right of the sidebar (x 35..159)
 H() { e2e_flag pane_height; }
+# F22.7: a folded sidebar takes no column (no box 0) and the » that brings it back is the status bar's first block, clicked at its column 2
+folded() { [[ -z $(geom 0) && $(e2e_text 1 3 "$(H)") == " » " ]]; }
+unfold_click() { e2e_click 2 "$(H)"; }
 key() { e2e_keys "$@"; sleep 0.3; }
 bar() { e2e_text 1 "$(e2e_flag pane_width)" "$(H)"; }                    # the status bar
 pos() { bar | grep -oE ' [0-9]+,[0-9]+ ' | tr -d ' '; }                 # its 行,列

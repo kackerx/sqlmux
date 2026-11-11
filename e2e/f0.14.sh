@@ -14,14 +14,14 @@ kinds() { list | cut -d'|' -f1 | awk '{ print $NF }' | sort -u | tr '\n' ' '; } 
 # which scope tab is highlighted (focus background) on the tab row
 current_scope() {
   local y x; y=$(tabs_y)
-  for tab in 所有 会话 窗口·Pane "窗口 &" "Tab #" 表 命令 SQL; do x=$(e2e_find "$tab" $y | cut -d' ' -f1); [[ -n $x ]] && style_has $x $y bg=#9ece6a >/dev/null && { echo "${tab%% *}"; return; }; done
+  for tab in 所有 会话 窗口·Pane "窗口 &" "Tab #" 表 "键 :" 命令 SQL; do x=$(e2e_find "$tab" $y | cut -d' ' -f1); [[ -n $x ]] && style_has $x $y bg=#9ece6a >/dev/null && { echo "${tab%% *}"; return; }; done
 }
 icon_of() { local y; y=$(row_y "$1"); e2e_text $(($(left) + 2)) $(($(left) + 2)) $y; }
 NF_WINDOW=$(printf '\xef\x8b\x92') NF_COMMAND=$(printf '\xef\x83\xa7')   # U+F2D2 U+F0E7
 
 # ---- scopes: Tab / S-Tab cycle by rewriting the prefix only
 start; two_tabs; two_panes; pal   # ① t_user / t_order, ② empty
-check "the tab row (above the input, F0.17) reads 所有 · 会话 \$ (F5.1) · 窗口·Pane % · 窗口 & · Tab # (F5.19) · 表 @ · 命令 > · SQL ;, 所有 highlighted" eval '[[ $(e2e_text $(($(left) + 2)) $(( $(right) - 1 )) $(tabs_y) | tr -s " ") == " 所有 会话 $ 窗口·Pane % 窗口 & Tab # 表 @ 命令 > SQL ;"* && $(current_scope) == 所有 ]]'
+check "the tab row (above the input, F0.17) reads 所有 · 会话 \$ (F5.1) · 窗口·Pane % · 窗口 & · Tab # (F5.19) · 表 @ · 键 : (F22.5) · 命令 > · SQL ;, 所有 highlighted" eval '[[ $(e2e_text $(($(left) + 2)) $(( $(right) - 1 )) $(tabs_y) | tr -s " ") == " 所有 会话 $ 窗口·Pane % 窗口 & Tab # 表 @ 键 : 命令 > SQL ;"* && $(current_scope) == 所有 ]]'
 e2e_type "abc"; e2e_keys Left; sleep 0.2; cx=$(e2e_flag cursor_x)
 e2e_keys Tab; sleep 0.3
 check "Tab → 会话 (F5.1): prefix \$, the rest kept, cursor keeps its place in the text" eval 'input_is "\$abc" && [[ $(current_scope) == 会话 && $(e2e_flag cursor_x) == $((cx + 1)) ]]'
@@ -29,6 +29,7 @@ e2e_keys Tab; sleep 0.3; check "Tab → 窗口·Pane: prefix %" eval 'input_is "
 e2e_keys Tab; sleep 0.3; check "Tab → 窗口 (F5.19): prefix &" eval 'input_is "&abc" && [[ $(current_scope) == 窗口 ]]'
 e2e_keys Tab; sleep 0.3; check "Tab → Tab (F5.19): prefix #" eval 'input_is "#abc" && [[ $(current_scope) == Tab ]]'
 e2e_keys Tab; sleep 0.3; check "Tab → 表: prefix @" eval 'input_is "@abc" && [[ $(current_scope) == 表 ]]'
+e2e_keys Tab; sleep 0.3; check "Tab → 键 (F22.5): prefix :" eval 'input_is ":abc" && [[ $(current_scope) == 键 ]]'
 e2e_keys Tab; sleep 0.3; check "Tab → 命令: prefix >" eval 'input_is ">abc" && [[ $(current_scope) == 命令 ]]'
 e2e_keys Tab; sleep 0.3; check "Tab → SQL (F1.7): prefix ;" eval 'input_is ";abc" && [[ $(current_scope) == SQL ]]'
 e2e_keys Tab; sleep 0.3; check "Tab → 所有: prefix removed" eval 'input_is "abc" && [[ $(current_scope) == 所有 ]]'
