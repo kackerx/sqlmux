@@ -17,9 +17,10 @@ import (
 // a read only editor, in the place of the table. It is the tab's, not the
 // layout's.
 type jsonView struct {
-	ed   *editor.Editor
-	sig  string // what the text was made of: it is made again when that changes
-	text string // what it was made as: the editor is loaded when that is another
+	ed     *editor.Editor
+	sig    string // what the text was made of: it is made again when that changes
+	text   string // what it was made as: the editor is loaded when that is another
+	turned bool   // the table was turned when the view opened: it is again when the view closes (F22.1)
 }
 
 // jsonViewOf is the JSON view of the grid pane p's current tab shows, nil when
@@ -193,12 +194,12 @@ func (a *App) viewJSON() tea.Cmd {
 		return nil
 	}
 	if s.jv != nil {
-		s.jv = nil
+		s.transpose, s.jv = s.jv.turned, nil
 		return nil
 	}
 	ed := editor.New("")
 	ed.ReadOnly = true
-	s.transpose, s.jv = false, &jsonView{ed: ed}
+	s.transpose, s.jv = false, &jsonView{ed: ed, turned: s.transpose}
 	a.jsonSync(p)
 	return nil
 }
