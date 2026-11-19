@@ -77,6 +77,9 @@ func (a *App) followFK() tea.Cmd {
 	if !ok {
 		return a.showToast(i18n.T("这一列不是外键"))
 	}
+	if len(k.Ref.Cols) == 0 || len(k.Ref.Cols) != len(k.Cols) { // SQLite's REFERENCES parent, the parent with no primary key
+		return a.showToast(i18n.T("外键指向的列解析不出"))
+	}
 	c, d := t.conn, t.conn.eng.Dialect()
 	conds := make([]string, len(k.Cols))
 	for i, col := range k.Cols {

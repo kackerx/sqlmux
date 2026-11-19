@@ -189,3 +189,38 @@ func TestDisconnectDropsWhatIsKept(t *testing.T) {
 		t.Errorf("cached: %d cols, %d keys", len(pg.cols), len(pg.keys))
 	}
 }
+
+// A page that was on its way when the connection was disconnected is dropped:
+// it would start the count on a Meta that is gone, and the tab keeps what it
+// showed (F22.12).
+func TestDisconnectDropsPageOnItsWay(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 5)
+	tab.recount = true
+	rows, counted := tab.page.Rows, tab.counted
+	seq := tab.seq
+	a.disconnect(tab.conn)
+	_, cmd := a.Update(pageMsg{tab: tab, seq: seq, cols: tab.cols, page: db.Result{Cols: tab.page.Cols}, next: true})
+	if cmd != nil {
+		cmd() // the count, on a Meta that is nil
+	}
+	if len(tab.page.Rows) != len(rows) || tab.counted != counted || tab.recount != true {
+		t.Error("the page took the place of what was shown, or a count began")
+	}
+}
+
+// A foreign key whose referenced columns the catalog could not give (SQLite's
+// REFERENCES parent, the parent with no primary key) says so and goes nowhere
+// (F22.13).
+func TestFollowForeignKeyUnresolved(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 5)
+	tab.conn.keys[idOf(tab.table)] = []db.Key{{Name: "fk", Cols: []string{"id"}, Ref: &db.Ref{Schema: "public", Table: "t_user"}}}
+	tab.col, tab.row = 0, 0
+	n := len(a.focused().Tabs)
+	a.toast = ""
+	feed(t, a, "gd")
+	if a.toast != "外键指向的列解析不出" || len(a.focused().Tabs) != n {
+		t.Errorf("toast %q, %d tabs", a.toast, len(a.focused().Tabs))
+	}
+}
