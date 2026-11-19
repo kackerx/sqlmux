@@ -298,6 +298,9 @@ func (a *App) gotPage(m pageMsg) tea.Cmd {
 	}
 	m.tab.conn.busy--
 	m.tab.out--
+	if m.tab.conn.State != connReady { // disconnected while it was on its way: the tab keeps what it shows (F22.12)
+		return nil
+	}
 	if m.cols.Cols != nil {
 		m.tab.conn.cols[idOf(m.tab.table)] = m.cols
 	}

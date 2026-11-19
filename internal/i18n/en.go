@@ -148,6 +148,7 @@ var en = map[string]string{
 	"刷新表列表":                     "Refresh the tables",
 	"转到被引用的行":                   "Go to the referenced row",
 	"这一列不是外键":                   "This column is not a foreign key",
+	"外键指向的列解析不出":                "The columns the foreign key points at cannot be resolved",
 	"外键为空，没有被引用的行":              "The foreign key is NULL, there is no referenced row",
 	"断开连接":                      "Disconnect",
 	"已断开 %s":                    "Disconnected %s",
