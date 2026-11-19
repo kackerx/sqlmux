@@ -54,6 +54,25 @@ func (a *App) connect(c *Conn) tea.Cmd {
 	}
 }
 
+// disconnect is conn.disconnect on c and the databases of it: asked first
+// when one of them has a transaction going; the Workers close in a Cmd, what
+// runs on them is cancelled (§7.8「断开连接」, F22.12).
+func (a *App) disconnect(c *Conn) tea.Cmd {
+	c = c.root()
+	if c.State != connReady {
+		return a.showToast(i18n.T("%s 没有连上", c.label()))
+	}
+	family := c.withDBs()
+	return a.unlessLost(0, "", slices.DeleteFunc(slices.Clone(family), func(o *Conn) bool { return !o.inTx() }), verbDisconnect, func() tea.Cmd {
+		var ws []*db.Worker
+		for _, o := range family {
+			ws = append(ws, o.disconnect()...)
+		}
+		a.clampTree()
+		return tea.Batch(closeWorkers(ws), a.showToast(i18n.T("已断开 %s", c.label())))
+	})
+}
+
 // notReady is what a command that needs c connected does while it is not:
 // dials again after a failure; while the dial is on, says so (F12.5).
 func (a *App) notReady(c *Conn) tea.Cmd {
@@ -72,6 +91,9 @@ func (a *App) gotConnected(m connected) tea.Cmd {
 		if m.err != nil {
 			return nil
 		}
+		return m.d.discard()
+	}
+	if c.State != connConnecting && m.err == nil { // disconnected while it dialed: the one that is not wanted
 		return m.d.discard()
 	}
 	var waiting []*queryTab
@@ -169,6 +191,9 @@ func (a *App) gotCatalog(m catalogMsg) tea.Cmd {
 		return a.showToast(i18n.T("%s：%s", m.conn.label(), m.err))
 	}
 	c := m.conn
+	if c.disconnected { // while it was read: nothing of it is kept
+		return nil
+	}
 	c.Schemas, c.Tables, c.funcs, c.seqs, c.Databases = m.schemas, m.tables, m.funcs, m.seqs, m.dbs
 	c.all = m.all
 	// home stays once set, while there: what Meta's current one is moves
@@ -497,11 +522,13 @@ func (a *App) treeNodes() (ns []node, matches int) {
 			cn.Note, cn.NoteFg = pickedNote(len(c.Databases), len(c.all.dbs)), th.Dim
 		}
 		switch c.State {
+		case connReady:
+			cn.Mark = ic.Connected
 		case connConnecting:
 			cn.Aside = strings.TrimSpace(cn.Aside + " " + a.icons.Spinner(a.spin))
 		case connFailed:
 			cn.TextFg = th.Error
-		case connIdle, connReady: // the name as it is
+		case connIdle: // the name as it is
 		}
 		if c.down() != nil { // a redial failed: its next request tries again (F8.19)
 			cn.TextFg = th.Error
@@ -628,6 +655,26 @@ func b2i(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// resizeTree widens the sidebar by d columns, narrows it for a negative d: as
+// a drag does, kept in the window (§7.8, F22.11). A folded one has no width.
+func (a *App) resizeTree(d int) {
+	if a.win().TreeOpen {
+		a.win().TreeW = treeWidth(a.sidebarRect().Dx()+d, a.w)
+	}
+}
+
+// fitTree makes the sidebar as wide as the widest row it lists, borders in.
+func (a *App) fitTree() {
+	ns, _ := a.treeNodes()
+	w := 0
+	for _, n := range ns {
+		w = max(w, n.Width())
+	}
+	if a.win().TreeOpen {
+		a.win().TreeW = treeWidth(w+2, a.w)
+	}
 }
 
 // treeRows is how many nodes the sidebar shows.

@@ -80,7 +80,7 @@ func TestPaletteListsNoOverlayKeys(t *testing.T) {
 	for _, q := range []string{"关闭", "palette"} {
 		feed(t, a, "<C-p>"+q)
 		for _, r := range rowsOf(a) {
-			if strings.HasPrefix(r, "palette.") && r != "palette.open=:" && r != "palette.command=" && r != "palette.window=" && r != "palette.tab=" && r != "palette.table=" && r != "palette.session=" && r != "palette.sql=;" {
+			if strings.HasPrefix(r, "palette.") && r != "palette.open=:" && r != "palette.command=" && r != "palette.window=" && r != "palette.tab=" && r != "palette.table=" && r != "palette.key=" && r != "palette.session=" && r != "palette.sql=;" {
 				t.Errorf("%s lists %s", q, r)
 			}
 		}
@@ -239,7 +239,7 @@ func namesOf(a *App) []string {
 func TestPaletteScopesCycle(t *testing.T) {
 	a := sized(160, 45, "nerd")
 	feed(t, a, "<C-p>ord")
-	for _, want := range []string{"$ord", "%ord", "&ord", "#ord", "@ord", ">ord", ";ord", "ord"} {
+	for _, want := range []string{"$ord", "%ord", "&ord", "#ord", "@ord", ":ord", ">ord", ";ord", "ord"} {
 		feed(t, a, "<Tab>")
 		if got := a.palette.input.Text; got != want {
 			t.Fatalf("Tab: %q, want %q", got, want)
@@ -391,7 +391,7 @@ func TestPaletteLayout(t *testing.T) {
 		a := sized(160, 45, icons)
 		feed(t, a, "<C-p>ab")
 		lines := strings.Split(a.render().String(), "\n")
-		if tabs := lines[8]; !strings.Contains(tabs, " 所有   会话 $   窗口·Pane %   窗口 &   Tab #   表 @   命令 > ") {
+		if tabs := lines[8]; !strings.Contains(tabs, " 所有   会话 $   窗口·Pane %   窗口 &   Tab #   表 @   键 :   命令 > ") {
 			t.Errorf("%s: scope tabs row %q", icons, tabs)
 		}
 		if in := lines[9]; !strings.Contains(in, "│ "+search+" ab ") {
@@ -777,5 +777,34 @@ func TestPalettePreviewHiddenIsNotScrolled(t *testing.T) {
 	feed(t, a, "<C-f><C-f>")
 	if a.palette.pvTop != 0 || strings.Contains(a.render().String(), "滚动预览") {
 		t.Errorf("a preview not shown: top %d", a.palette.pvTop)
+	}
+}
+
+// The scope tabs scroll as a pane's tabs do when they do not fit: at 80 columns the current
+// one is always in sight, the ones cut off say how many with ‹N and N› (§12, F22.5).
+func TestPaletteScopesScroll(t *testing.T) {
+	a := sized(80, 24, "nerd")
+	feed(t, a, "<C-p>")
+	row := func() string {
+		lines := strings.Split(a.render().String(), "\n")
+		for i, l := range lines {
+			if strings.Contains(l, "命令面板") {
+				return lines[i+1]
+			}
+		}
+		t.Fatal("no palette")
+		return ""
+	}
+	labels := []string{"所有", "会话 $", "窗口·Pane %", "窗口 &", "Tab #", "表 @", "键 :", "命令 >", "SQL ;"}
+	for i := range 2 * len(labels) { // all the way round, twice
+		want := labels[i%len(labels)]
+		if r := row(); !strings.Contains(r, " "+want+" ") {
+			t.Errorf("scope %d: %q is not in sight in %q", i%len(labels), want, r)
+		}
+		feed(t, a, "<Tab>")
+	}
+	feed(t, a, "<S-Tab>")
+	if r := row(); !strings.Contains(r, "SQL ;") || !strings.Contains(r, "‹") || strings.Contains(r, "›") {
+		t.Errorf("the last scope: %q", r)
 	}
 }

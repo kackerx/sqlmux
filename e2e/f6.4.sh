@@ -43,7 +43,7 @@ key C-l; key i; paste "select 1 as x; select nosuchcol"; key Escape; key V; key 
 check "日志：tab 叫 Log，行里是 1 rows · 1ms，数据库的错误原文（ERROR: column \"nosuchcol\" does not exist）不翻译" eval 'screen_has "Log*" && screen_has "1 rows" && screen_has "ERROR: column \"nosuchcol\" does not exist"'
 check "状态栏和结果区底部的工具行里没有汉字" eval 'e2e_plain | tail -3 | python3 -c "import sys,re; sys.exit(1 if re.search(r\"[\u4e00-\u9fff]\", sys.stdin.read()) else 0)"'
 e2e_keys C-p; sleep 0.6
-check "命令面板：标题 Command palette，范围标签 All / Session / Win·Pane / Win / Tab / Table / Cmd / SQL，底栏 Move / Scope / Close" eval 'p=$(e2e_plain); grep -q "Command palette" <<<"$p" && grep -q "All   Session \\$   Win·Pane %   Win &   Tab #   Table @   Cmd >   SQL ;" <<<"$p" && grep -q "Move" <<<"$p" && grep -q "Close" <<<"$p"'
+check "命令面板：标题 Command palette，范围标签 All / Session / Win·Pane / Win / Tab / Table / Key / Cmd / SQL，底栏 Move / Scope / Close" eval 'p=$(e2e_plain); grep -q "Command palette" <<<"$p" && grep -q "All   Session \\$   Win·Pane %   Win &   Tab #   Table @   Key :   Cmd >   SQL ;" <<<"$p" && grep -q "Move" <<<"$p" && grep -q "Close" <<<"$p"'
 e2e_type ">switch theme"; sleep 0.8
 check "命令标题是英文：Switch theme…（theme.switch），能按英文标题搜到" eval 'list | head -1 | grep -q "^Switch theme…  theme.switch"'
 clear_input; e2e_type ">tree.toggle"; sleep 0.8

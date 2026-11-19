@@ -154,6 +154,24 @@ func TestCompleteBoxFoot(t *testing.T) {
 	}
 }
 
+// A list the typing filtered empty is not drawn, foot or not (§9.4, F18.9);
+// the box of a foot alone is drawn only when Alone says so (F21.7).
+func TestCompleteFootAlone(t *testing.T) {
+	foot := []Hint{{Key: "indexing"}}
+	drawn := func(c Complete) bool {
+		f := NewFrame(30, 5, TokyonightStorm)
+		c.Draw(f, uv.Rect(0, 0, 30, 3), 0)
+		c0 := f.Buf.CellAt(0, 0).Content // the border's corner
+		return c0 != "" && c0 != " "
+	}
+	if drawn(Complete{Foot: foot}) {
+		t.Error("a list with no rows and a foot was drawn")
+	}
+	if !drawn(Complete{Foot: foot, Alone: true}) {
+		t.Error("a foot alone, asked for, was not drawn")
+	}
+}
+
 // limit is how many items a list shows at most, the room allowing (F10.1).
 func TestCompleteBoxLimit(t *testing.T) {
 	screen := uv.Rect(0, 0, 80, 24)

@@ -30,7 +30,9 @@ type menu struct {
 type menuItem struct {
 	label string
 	icon  string // its name in a theme's [icon] (§7.7)
-	run   func() tea.Cmd
+	// the Action it is, "" for none: its key is drawn at the right (§7.6)
+	action string
+	run    func() tea.Cmd // nil: dim, it cannot be picked
 }
 
 func inMenu(a *App) bool { return a.menu != nil }
@@ -40,9 +42,9 @@ func (a *App) menuItems(n node) []menuItem {
 	switch n.kind {
 	case nodeQueryFile:
 		return []menuItem{
-			{i18n.T("打开"), "open", func() tea.Cmd { return a.treeOpen(false) }},
-			{i18n.T("重命名…"), "rename", a.renameQueryFile},
-			{i18n.T("删除…"), "trash", a.deleteQuery},
+			{i18n.T("打开"), "open", "tree.open", func() tea.Cmd { return a.treeOpen(false) }},
+			{i18n.T("重命名…"), "rename", "", a.renameQueryFile},
+			{i18n.T("删除…"), "trash", "tree.delete", a.deleteQuery},
 		}
 	case nodeTable:
 		drop := i18n.T("删除表…")
@@ -50,30 +52,46 @@ func (a *App) menuItems(n node) []menuItem {
 			drop = i18n.T("删除视图…")
 		}
 		items := []menuItem{
-			{i18n.T("打开"), "open", func() tea.Cmd { return a.treeOpen(false) }},
-			{i18n.T("在新 tab 打开"), "open", func() tea.Cmd { return a.treeOpen(true) }},
-			{drop, "trash", a.dropTable},
+			{i18n.T("打开"), "open", "tree.open", func() tea.Cmd { return a.treeOpen(false) }},
+			{i18n.T("在新 tab 打开"), "open", "tree.open.tab", func() tea.Cmd { return a.treeOpen(true) }},
+			{drop, "trash", "tree.delete", a.dropTable},
 		}
 		return append(items, a.alterItems(n)...)
 	case nodeRedisKey:
 		return []menuItem{
-			{i18n.T("打开"), "open", func() tea.Cmd { return a.treeOpen(false) }},
-			{i18n.T("删除…"), "trash", func() tea.Cmd { return a.deleteRedisKey(n) }},
-			{i18n.T("改名…"), "rename", func() tea.Cmd { return a.renameRedisKey(n) }},
-			{i18n.T("设 TTL…"), "auto_refresh", func() tea.Cmd { return a.ttlKey(n) }},
+			{i18n.T("打开"), "open", "tree.open", func() tea.Cmd { return a.treeOpen(false) }},
+			{i18n.T("删除…"), "trash", "tree.delete", func() tea.Cmd { return a.deleteRedisKey(n) }},
+			{i18n.T("改名…"), "rename", "", func() tea.Cmd { return a.renameRedisKey(n) }},
+			{i18n.T("设 TTL…"), "auto_refresh", "", func() tea.Cmd { return a.ttlKey(n) }},
 		}
 	case nodeNamespace:
-		return []menuItem{{i18n.T("删除…"), "trash", func() tea.Cmd { return a.deleteNamespace(n) }}}
+		return []menuItem{{i18n.T("删除…"), "trash", "tree.delete", func() tea.Cmd { return a.deleteNamespace(n) }}}
 	case nodeDatabase:
 		if n.conn.redis() {
-			return []menuItem{{i18n.T("刷新"), "refresh", func() tea.Cmd { return a.loadKeys(n.conn) }}}
+			return []menuItem{{i18n.T("刷新"), "refresh", "tree.refresh", func() tea.Cmd { return a.loadKeys(n.conn) }}}
 		}
-		return a.pickItem(n)
+		return append(a.pickItem(n), a.refreshItem())
+	case nodeSchema:
+		return []menuItem{a.refreshItem()}
 	case nodeConn:
-		return append(a.pickItem(n), a.connItems(n.conn)...)
-	case nodeSchema, nodeGroup, nodeColumn, nodeObjects, nodeIndex, nodeKey, nodeFunc, nodeSequence, nodeWorkspace, nodeWindow, nodeTab, nodeQueries, nodeSep, nodeNote: // no menu
+		items := a.pickItem(n)
+		if n.conn.Spec.Engine != "exec" { // it has no catalog to read again
+			items = append(items, a.refreshItem())
+		}
+		items = append(items, menuItem{label: i18n.T("断开连接"), icon: "close", action: "conn.disconnect"})
+		if n.conn.State == connReady { // dim till it is
+			items[len(items)-1].run = func() tea.Cmd { return a.disconnect(n.conn) }
+		}
+		return append(items, a.connItems(n.conn)...)
+	case nodeGroup, nodeColumn, nodeObjects, nodeIndex, nodeKey, nodeFunc, nodeSequence, nodeWorkspace, nodeWindow, nodeTab, nodeQueries, nodeSep, nodeNote: // no menu
 	}
 	return nil
+}
+
+// refreshItem is tree.refresh as an item: the connection's catalog is read
+// again, the cursor on the node it is of (F22.3).
+func (a *App) refreshItem() menuItem {
+	return menuItem{i18n.T("刷新"), "refresh", "tree.refresh", a.refreshTree}
 }
 
 // rightClick opens the menu of the tree node under the pointer, the cursor
@@ -86,7 +104,11 @@ func (a *App) rightClick(p uv.Position) {
 		hits = slices.DeleteFunc(slices.Clone(a.hits), func(h ui.Hit) bool { return h.Target.Kind == ui.KindBackdrop })
 	}
 	t, _ := ui.HitAt(hits, p)
-	if t.Kind != ui.KindNode && t.Kind != ui.KindFold && t.Kind != ui.KindCell && t.Kind != ui.KindHead || a.overlaid() || !a.endEdit() { // on the ▸ too
+	if t.Kind != ui.KindNode && t.Kind != ui.KindFold && t.Kind != ui.KindCell && t.Kind != ui.KindHead && t.Kind != ui.KindTab || a.overlaid() || !a.endEdit() { // on the ▸ too
+		return
+	}
+	if t.Kind == ui.KindTab { // a pane's tab (F22.6)
+		a.tabMenu(t.Pane, t.I, p)
 		return
 	}
 	if t.Kind == ui.KindCell || t.Kind == ui.KindHead { // a grid's (F12.3)
@@ -102,16 +124,38 @@ func (a *App) rightClick(p uv.Position) {
 	}
 }
 
-// menuMove moves the selection by d, to the ends and no further.
+// menuMove moves the selection by d, to the ends and no further, over the
+// dim items: none of them is picked.
 func (a *App) menuMove(d int) {
-	a.menu.sel = max(min(a.menu.sel+d, len(a.menu.items)-1), 0)
+	m := a.menu
+	for i := m.sel + d; i >= 0 && i < len(m.items); i += d {
+		if m.items[i].run != nil {
+			m.sel = i
+			return
+		}
+	}
 }
 
 // menuRun closes the menu and runs its item i.
 func (a *App) menuRun(i int) tea.Cmd {
 	m := a.menu
+	if m.items[i].run == nil { // dim: it cannot be picked, the menu stays
+		return nil
+	}
 	a.menu = nil
 	return m.items[i].run()
+}
+
+// menuKey is the key bound to action in the scope its name starts with, "" for
+// no action or none bound (§7.6).
+func (a *App) menuKey(action string) string {
+	scope, _, _ := strings.Cut(action, ".")
+	for _, s := range []string{scope, a.paneScope(), "normal"} { // tab.* and pane.* are NORMAL's; a tab's x is its pane's
+		if k := a.keys.Hint(action, s); k != "" {
+			return k
+		}
+	}
+	return ""
 }
 
 // drawMenu paints the menu in a Complete's box, its left edge in the
@@ -129,8 +173,12 @@ func (a *App) drawMenu(f *ui.Frame) {
 				icon.Fg = cmp.Or(icon.Fg, a.theme.Fg)
 			}
 		}
-		v.Items = append(v.Items, ui.CompleteItem{Icon: icon, Text: it.label})
+		key := a.menuKey(it.action)
+		v.Items = append(v.Items, ui.CompleteItem{Icon: icon, Text: it.label, Note: key, Dim: it.run == nil})
 		w = max(w, ui.Width(lead+it.label)+5) // a border, a blank and the two cells Complete leaves on the right
+		if key != "" {
+			w = max(w, ui.Width(lead+it.label)+ui.Width(key)+6) // and two blanks between the label and its key
+		}
 	}
 	// from the row under the pointer; over it, ending on the row above, when it does not fit below: the node clicked is seen
 	box, rows := ui.CompleteBox(a.window(), m.at, w, len(v.Items), 0, len(v.Items))
@@ -179,10 +227,10 @@ func (a *App) treeDelete() tea.Cmd {
 func (a *App) connItems(c *Conn) []menuItem {
 	var items []menuItem
 	if !c.Spec.Temp && c.Spec.Engine != "exec" {
-		items = append(items, menuItem{i18n.T("编辑…"), "edit", func() tea.Cmd { a.manage(c); return nil }})
+		items = append(items, menuItem{i18n.T("编辑…"), "edit", "", func() tea.Cmd { a.manage(c); return nil }})
 	}
 	if !c.Spec.Temp {
-		items = append(items, menuItem{i18n.T("删除…"), "trash", func() tea.Cmd { return a.treeDeleteConn(c) }})
+		items = append(items, menuItem{i18n.T("删除…"), "trash", "tree.delete", func() tea.Cmd { return a.treeDeleteConn(c) }})
 	}
 	return items
 }

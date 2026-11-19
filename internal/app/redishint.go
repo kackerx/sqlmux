@@ -140,7 +140,7 @@ func (a *App) redisComplete(t *queryTab, before string, manual bool) (*completio
 		return nil, cmds
 	}
 	comp := a.finishMatch(ranked(text, len(text), partial, start, groups...), indexed, partial, indexed.narrowedOf(partial), foot)
-	if comp == nil && foot != "" { // nothing to pick yet, and something to say: a box of its own (F21.7)
+	if comp == nil && foot != "" && (c.indexErr != "" || c.indexed() == nil) { // nothing to pick yet, the index not there or failed: a box of its own; one that is cut or being renewed found nothing, which is not a thing to say (F21.7)
 		t.foot, t.footStart = foot, start
 	}
 	return comp, cmds

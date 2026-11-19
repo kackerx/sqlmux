@@ -737,3 +737,129 @@ func TestRedisTreeEscBackToFilter(t *testing.T) {
 		t.Errorf("the second esc: %+v", a.win().tree)
 	}
 }
+
+// > and < on the tree take the sidebar 4 columns wider or narrower (a count:
+// that many times), as far as the drag goes; a folded one has no width (F22.11).
+func TestTreeResizeKeys(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	a.win().focus(0)
+	width := func() int { return a.sidebarRect().Dx() }
+	for _, c := range []struct {
+		keys string
+		want int
+	}{{">>", 40}, {"<lt>", 36}, {"3<lt>", 24}, {"<lt><lt><lt><lt>", 16}, {"30>", 80}} {
+		feed(t, a, c.keys)
+		if got := width(); got != c.want {
+			t.Fatalf("%s: %d wide, want %d", c.keys, got, c.want)
+		}
+	}
+	feed(t, a, "<Space>b")
+	a.run("tree.wider", 0)
+	if a.win().TreeW != 80 || width() != 0 {
+		t.Errorf("folded: dragged width %d, drawn %d", a.win().TreeW, width())
+	}
+}
+
+// = takes the sidebar to its widest row, the aside and the double-width
+// names in it: whole at that width, cut one column under it, and as narrow as
+// the rows are after one is closed (F22.11).
+func TestTreeFit(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<C-p>@t_user<CR>")
+	dataOf(a.focused()).shown.applied = "name = '甲乙丙丁戊己庚辛壬癸'"
+	a.win().focus(0)
+	sidebar := func() string {
+		var rows []string
+		for _, l := range strings.Split(a.render().String(), "\n") {
+			rows = append(rows, ansi.Strip(l))
+		}
+		return strings.Join(rows, "\n")
+	}
+	feed(t, a, "=")
+	w := a.sidebarRect().Dx()
+	if !strings.Contains(sidebar(), "甲乙丙丁戊己庚辛壬癸") {
+		t.Fatalf("%d wide: the aside is cut", w)
+	}
+	a.win().TreeW = w - 1
+	if strings.Contains(sidebar(), "甲乙丙丁戊己庚辛壬癸") {
+		t.Errorf("%d wide, one under the fit: the aside is still whole", w-1)
+	}
+	treeTo(t, a, "工作区")
+	feed(t, a, "h=")
+	if got := a.sidebarRect().Dx(); got >= w || got < 16 {
+		t.Errorf("workspace closed: %d wide, was %d", got, w)
+	}
+}
+
+// The mark after the name of a connection that is up, in focus color, before
+// the lock of a read-only one; none while it is not, dials or has failed
+// (F22.14). Four connections, in both icon sets.
+func goldenConnMarks(t *testing.T, icons string) {
+	a := sized(160, 45, icons)
+	up, ro := readyConn("up"), readyConn("ro")
+	ro.readOnly = true
+	failed, idle := newConn(config.Connection{Name: "failed", Engine: "postgres"}), newConn(config.Connection{Name: "idle", Engine: "postgres"})
+	failed.State = connFailed
+	a.sess.Conns = []*Conn{up, ro, failed, idle}
+	for _, c := range a.sess.Conns {
+		a.sess.open[connNode(c)] = false
+	}
+	ns, _ := a.treeNodes()
+	var rows []string
+	for i, n := range ns {
+		if n.kind != nodeConn {
+			continue
+		}
+		r := find(t, a, ui.Target{Kind: ui.KindNode, Pane: 0, I: i})
+		rows = append(rows, ansi.Cut(strings.Split(a.render().String(), "\n")[r.Min.Y], r.Min.X, r.Max.X))
+		if want := n.conn.State == connReady; (n.Mark.Text != "") != want {
+			t.Errorf("%s: mark %q", n.Text, n.Mark.Text)
+		}
+		if n.Mark.Text == "" {
+			continue
+		}
+		f := a.render()
+		for x := r.Min.X; x < r.Max.X; x++ {
+			if c := f.Buf.CellAt(x, r.Min.Y); c != nil && c.Content == n.Mark.Text {
+				if c.Style.Fg != a.theme.Focus {
+					t.Errorf("%s: the mark is %v, want focus %v", n.Text, c.Style.Fg, a.theme.Focus)
+				}
+				break
+			} else if x == r.Max.X-1 {
+				t.Errorf("%s: no mark drawn", n.Text)
+			}
+		}
+	}
+	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")
+}
+
+func TestGoldenConnMarksNerd(t *testing.T)  { goldenConnMarks(t, "nerd") }
+func TestGoldenConnMarksASCII(t *testing.T) { goldenConnMarks(t, "ascii") }
+
+// The mark follows the state of the connection and nothing else: gone after a
+// disconnect, which says so, and back when a tab dials it again (F22.14).
+func TestConnMarkFollowsState(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	c := a.sess.Conns[0]
+	mark := func() bool {
+		ns, _ := a.treeNodes()
+		return ns[slices.IndexFunc(ns, func(n node) bool { return n.kind == nodeConn && n.conn == c })].Mark.Text != ""
+	}
+	if !mark() {
+		t.Fatal("no mark on a connection that is up")
+	}
+	a.win().focus(0)
+	treeTo(t, a, "doraemon")
+	a.run("conn.disconnect", 0)
+	if mark() || a.toast != "已断开 doraemon" {
+		t.Errorf("after a disconnect: mark %v, toast %q", mark(), a.toast)
+	}
+	c.State = connConnecting
+	if mark() {
+		t.Error("a mark while it dials")
+	}
+	c.State, c.Main, c.Meta = connReady, readyConn("x").Main, readyConn("x").Meta
+	if !mark() {
+		t.Error("no mark once it is up again")
+	}
+}

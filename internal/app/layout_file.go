@@ -84,7 +84,7 @@ func paneLayout(p *Pane) config.LayoutPane {
 		case tb.Data != nil:
 			d := tb.Data
 			lt = config.LayoutTab{Kind: "table", Connection: d.conn.Spec.Name, DB: d.conn.Spec.Database, Schema: d.table.Schema, Table: d.table.Name,
-				Where: d.applied, Order: config.LayoutOrder(d.order), Desc: d.desc && len(d.order) == 0, Limit: d.limit, Page: d.pageNo, Transpose: d.transpose}
+				Where: d.applied, Order: config.LayoutOrder(d.order), Desc: d.desc && len(d.order) == 0, Limit: d.limit, Page: d.pageNo, Transpose: d.turned()}
 			for name, hidden := range d.hidden {
 				if hidden {
 					lt.Cols = append(lt.Cols, name)
@@ -112,6 +112,7 @@ func paneLayout(p *Pane) config.LayoutPane {
 		default: // a landing tab
 			continue
 		}
+		lt.Pinned = tb.Pinned
 		if i == p.Cur {
 			lp.Current = len(lp.Tabs)
 		}
@@ -240,6 +241,7 @@ func restoreWindow(s *Session, lw config.LayoutWindow, used map[string]bool) (*W
 			if i == lp.Current {
 				p.Cur = len(p.Tabs)
 			}
+			tb.Pinned = lt.Pinned
 			p.Tabs = append(p.Tabs, tb)
 		}
 	}
@@ -463,14 +465,7 @@ func (a *App) openWanted(w *startTable) tea.Cmd {
 		}
 		t = c.Tables[i]
 	}
-	r := newDataTab(c, t).request
-	r.applied, r.desc = w.where, a.newDesc
-	p := a.win().Root.Leaves()[0]
-	open := a.openTableAs(p, c, t, &r, a.newTurned)
-	if d := dataOf(p); w.where != "" && d != nil { // the pane is empty at a start: the table is a new tab
-		return tea.Batch(open, a.rememberWhere(d)) // as if it was typed (§9.7)
-	}
-	return open
+	return a.openWhere(a.win().Root.Leaves()[0], c, t, w.where)
 }
 
 // resolvePending runs once c's catalog is in: a table tab waiting for it

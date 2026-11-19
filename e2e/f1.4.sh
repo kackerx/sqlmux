@@ -168,7 +168,10 @@ check "WHERE ↵ 后马上按 ]：新条件照样计数（499 行），停在第
 where ""
 open_table t_big
 check "t_big（估计 110 万行，没有 WHERE）：显示 ~1.1m 行、PAGE 1/~" eval 'wait_for 3 eval "[[ \$(cnt) == ~1.1m ]]" && qb_has "PAGE 1/~" || { echo "  $(qb)"; false; }'
-check "用估计值时不发计数：Meta 最后一条是取数" eval '[[ $(psql_n "select query from pg_stat_activity where application_name = '"'$APP'"' order by query_start desc limit 1") == "select * from \"public\".\"t_big\""* ]]'
+# F22.13：页面到了以后 Meta 还会发 Indexes / Keys 两条（菜单项要知道哪列是外键），pg_stat_activity 的「最后一条」不再是取数；
+# 改看结果：发过 count(*) 的话它会把 ~1.1m 换成精确数（或超时的 ?），两秒后还是 ~1.1m 就是没发
+sleep 2
+check "用估计值时不发计数：两秒后还是 ~1.1m，Meta 上没有 count(*)" eval '[[ $(cnt) == ~1.1m && -z $(psql_n "select query from pg_stat_activity where application_name = '"'$APP'"' and query ilike '"'%count(*)%' and pid <> pg_backend_pid()"'") ]]'
 where "id < 10"
 check "带 WHERE 时照常精确计数（9 行）" eval '[[ $(cnt) == 9 ]]'
 open_table t_order; key 0   # F3.18 起 t_big 开在新 tab：这里切回原来的 t_order（F1.6），光标照旧在它原来的列

@@ -58,6 +58,7 @@ func init() {
 		}},
 		"palette.window":  {Title: i18n.N("命令面板：窗口"), Run: do(func(a *App, _ Args) { a.openPalette("&") })},
 		"palette.tab":     {Title: i18n.N("命令面板：Tab"), Run: do(func(a *App, _ Args) { a.openPalette("#") })},
+		"palette.key":     {Title: i18n.N("命令面板：键"), Run: do(func(a *App, _ Args) { a.openPalette(":") })},
 		"palette.table":   {Title: i18n.N("命令面板：表"), Run: do(func(a *App, _ Args) { a.openPalette("@") })},
 		"palette.session": {Title: i18n.N("命令面板：session"), Run: do(func(a *App, _ Args) { a.openPalette("$") })},
 		"tips.next":       {Title: i18n.N("下一条提示"), Run: do(func(a *App, _ Args) { a.nextTip() })},
@@ -157,13 +158,17 @@ func init() {
 			}
 			return a.run("tab.close", 0)
 		}},
-		"tab.quit":      {Title: i18n.N("关闭 tab，空了连 pane / window 一起关"), Run: func(a *App, _ Args) tea.Cmd { return a.quitTab() }},
-		"tab.reopen":    {Title: i18n.N("重开关掉的 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.reopenTab() }},
-		"tab.next":      {Title: i18n.N("下一个 tab"), Run: do(func(a *App, args Args) { a.cycleTab(1, args.Count) })},
-		"tab.prev":      {Title: i18n.N("上一个 tab"), Run: do(func(a *App, args Args) { a.cycleTab(-1, args.Count) })},
-		"tab.move.next": {Title: i18n.N("把 tab 移到下一个 pane"), Run: func(a *App, _ Args) tea.Cmd { return a.moveTab(1) }},
-		"tab.move.prev": {Title: i18n.N("把 tab 移到上一个 pane"), Run: func(a *App, _ Args) tea.Cmd { return a.moveTab(-1) }},
-		"tab.new":       {Title: i18n.N("新建 tab"), Run: do(func(a *App, _ Args) { a.newTab() })},
+		"tab.quit":         {Title: i18n.N("关闭 tab，空了连 pane / window 一起关"), Run: func(a *App, _ Args) tea.Cmd { return a.quitTab() }},
+		"tab.reopen":       {Title: i18n.N("重开关掉的 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.reopenTab() }},
+		"tab.next":         {Title: i18n.N("下一个 tab"), Run: do(func(a *App, args Args) { a.cycleTab(1, args.Count) })},
+		"tab.prev":         {Title: i18n.N("上一个 tab"), Run: do(func(a *App, args Args) { a.cycleTab(-1, args.Count) })},
+		"tab.pin":          {Title: i18n.N("固定 / 取消固定 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.pinTab() }},
+		"tab.close.others": {Title: i18n.N("关闭其他 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.closeOthers(0) }},
+		"tab.close.left":   {Title: i18n.N("关闭左侧的 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.closeOthers(-1) }},
+		"tab.close.right":  {Title: i18n.N("关闭右侧的 tab"), Run: func(a *App, _ Args) tea.Cmd { return a.closeOthers(1) }},
+		"tab.move.next":    {Title: i18n.N("把 tab 移到下一个 pane"), Run: func(a *App, _ Args) tea.Cmd { return a.moveTab(1) }},
+		"tab.move.prev":    {Title: i18n.N("把 tab 移到上一个 pane"), Run: func(a *App, _ Args) tea.Cmd { return a.moveTab(-1) }},
+		"tab.new":          {Title: i18n.N("新建 tab"), Run: do(func(a *App, _ Args) { a.newTab() })},
 		// a landing page's two buttons (§5「引导页」)
 		"tab.table": {Title: i18n.N("打开表"), Run: do(func(a *App, _ Args) {
 			p := a.focused()
@@ -254,7 +259,20 @@ func init() {
 				a.treeFilter()
 			}
 		})},
-		"tree.refresh": {Title: i18n.N("刷新表列表"), Run: func(a *App, _ Args) tea.Cmd { return a.refreshTree() }},
+		"tree.wider":    {Title: i18n.N("侧栏加宽"), Run: do(func(a *App, args Args) { a.resizeTree(4 * max(args.Count, 1)) })},
+		"tree.narrower": {Title: i18n.N("侧栏变窄"), Run: do(func(a *App, args Args) { a.resizeTree(-4 * max(args.Count, 1)) })},
+		"tree.fit":      {Title: i18n.N("侧栏按最长的名字自适应"), Run: do(func(a *App, _ Args) { a.fitTree() })},
+		"tree.refresh":  {Title: i18n.N("刷新表列表"), Run: func(a *App, _ Args) tea.Cmd { return a.refreshTree() }},
+		"conn.disconnect": {Title: i18n.N("断开连接"), Run: func(a *App, _ Args) tea.Cmd {
+			c := a.conn()
+			if n, ok := a.treeNode(); ok && a.focused() == a.win().Tree && n.conn != nil { // the node's, not the one a.conn falls back to
+				c = n.conn
+			}
+			if c == nil {
+				return a.noConnection()
+			}
+			return a.disconnect(c)
+		}},
 		"tree.pick": {Title: i18n.N("选择库 / schema…"), Run: func(a *App, _ Args) tea.Cmd {
 			n, ok := a.treeNode()
 			if !ok {
@@ -494,6 +512,7 @@ func init() {
 		"grid.yank.json":   {Title: i18n.N("复制为 JSON"), Run: func(a *App, _ Args) tea.Cmd { return a.yankJSON() }},
 		"grid.yank.insert": {Title: i18n.N("复制为 INSERT"), Run: func(a *App, _ Args) tea.Cmd { return a.yankInsert() }},
 		"grid.paste":       {Title: i18n.N("粘贴成新行"), Run: func(a *App, _ Args) tea.Cmd { return a.pasteRow() }},
+		"grid.row.clone":   {Title: i18n.N("克隆行"), Run: func(a *App, _ Args) tea.Cmd { return a.cloneRow() }},
 		"grid.row.delete":  {Title: i18n.N("标记 / 取消删除这一行"), Run: func(a *App, _ Args) tea.Cmd { return a.deleteRow() }},
 		"result.toggle": {Title: i18n.N("显示 / 隐藏结果区"), Run: do(func(a *App, _ Args) { a.toggleResult() }),
 			On: func(a *App) bool { return a.win().Result != nil && !a.win().resultHidden }},
@@ -560,6 +579,7 @@ func init() {
 			}
 			return nil
 		}},
+		"grid.fk.follow": {Title: i18n.N("转到被引用的行"), Run: func(a *App, _ Args) tea.Cmd { return a.followFK() }},
 		"grid.col.hide": {Title: i18n.N("隐藏这一列"), Run: func(a *App, _ Args) tea.Cmd {
 			if t, _, ok := a.cursorColumn(); ok {
 				a.hideColumn(t, t.fieldAt(t.col))

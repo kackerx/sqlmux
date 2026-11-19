@@ -116,7 +116,7 @@ rclick() { _sgr 2 "$1" "$2" M; _sgr 2 "$1" "$2" m; sleep 0.6; }
 menu_items() { side_all | python3 -c "
 import re, sys
 for l in sys.stdin:
-    m = re.search(r'│ +(打开|编辑…|删除…?|改名…|设 TTL…|刷新) +│', l)
+    m = re.search(r'│ +(打开|编辑…|删除…?|改名…|设 TTL…|刷新) +(?:\S+ +)?│', l)
     if m: print(m.group(1))"; }   # the items of the open menu, one per line
 sstart rd
 expand str
@@ -130,14 +130,14 @@ y=$(nth_row '^[▾▸] +db0( |$)' 1); rclick 14 "$y"
 check "db 节点上右键：只有 刷新" eval '[[ $(menu_items | tr "\n" "/") == "刷新/" ]]' || e2e_plain | sed -n $((y - 1)),$((y + 4))p | cut -c1-70
 key Escape; sleep 0.3
 y=$(nth_row '^[▸▾] +rd( |$)' 1); rclick 14 "$y"
-check "连接节点上右键：Redis 连接也有 编辑… / 删除…（F18.14，之前没有菜单）" eval '[[ $(menu_items | tr "\n" "/") == "编辑…/删除…/" ]]' || menu_items
+check "连接节点上右键：Redis 连接有 刷新 / 编辑… / 删除…（F18.14，F22.3 加了刷新）" eval '[[ $(menu_items | tr "\n" "/") == "刷新/编辑…/删除…/" ]]' || menu_items
 key Escape; sleep 0.3
 quit_app; _e2e_kill
 
-# ---- 命令面板的「表」范围在 Redis 连接上列键（F20.3 起：树读全了的 db 的键，位置 rd/db0，标签 Key）
+# ---- 命令面板的「键」范围在 Redis 连接上列键（F20.3 起：树读全了的 db 的键，位置 rd/db0，标签 Key；F22.5 起前缀是 :）
 sstart rd
-pal "@plain"; sleep 1
-check "面板 @plain：Redis 连接上这个范围列键：str:plain（位置 rd/db0，标签 Key），set:binary 的成员 plain 不算（只列键名）" eval 'e2e_plain | grep -qE "str:plain +rd/db0 +Key" && [[ $(e2e_plain | grep -c "rd/db0") == 1 ]]' || e2e_plain | grep -n plain
+pal ":plain"; sleep 1; wait_for 6 eval 'e2e_plain | grep -qE "str:plain +rd/db0 +Key"'
+check "面板 :plain：Redis 连接上「键」范围列键：str:plain（位置 rd/db0，标签 Key），set:binary 的成员 plain 不算（只列键名）" eval 'e2e_plain | grep -qE "str:plain +rd/db0 +Key" && [[ $(e2e_plain | grep -c "rd/db0") == 1 ]]' || e2e_plain | grep -n plain
 key Escape; sleep 0.3
 quit_app; _e2e_kill
 
@@ -233,7 +233,9 @@ check "全局 /，连接 dbl 写了 \"::\"：连接的盖过全局，命名空�
 quit_app; _e2e_kill; DIR=
 
 # ---- 展开状态（在 session 上，只在内存里，§7.8）：节点按 db 和命名空间的路径区分；R 之后不丢
-sstart rd
+# db5 有 12001 个键：默认预算 10000 时 hash:big 在不在扫到的那部分看 SCAN 的顺序（redis-server 每次起都换哈希种子），所以这里预算放到全扫
+mkdir -p "$D/x"; cp "$D/c/connections.toml" "$D/x/"; printf '[redis]\nscan_keys = 20000\n' >"$D/x/config.toml"
+DIR=$D/x sstart rd
 expand str; expand app; expand users
 key C-h; key g g; key j; key R; sleep 2
 check "展开 str、app → users 之后在 db0 上 R：重扫完它们还是展开的（展开状态保留）" eval 'tree | grep -qx "▾ str 7" && tree | grep -qx "▾ users 3" && tree | grep -qx "▾ app 6"' || tree

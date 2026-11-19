@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # F20.8 键名索引的增量更新与后台匹配（specs/m20-redis-ui/task.md F20.8；tech-design §9.8「索引的增量更新与后台匹配」）
 # 控制台写命令成功后：取命令里的键、一条 EXISTS 增量改索引，不整库 SCAN（SET 新键补得出、DEL 补不出、RENAME 两头、FLUSHDB 清空）；
-# 树上 R 在后台重建，旧索引照用，补全不出现空档；面板 @ 里键的图标：树读到类型的用类型图标，其余通用 key 图标。每个脚本自起 redis-server。
+# 树上 R 在后台重建，旧索引照用，补全不出现空档；面板「键 :」里键的图标（F22.5 起前缀是 :）：树读到类型的用类型图标，其余通用 key 图标。每个脚本自起 redis-server。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 . "$(dirname "$0")/palette.sh"
@@ -34,12 +34,12 @@ rc set str:one v >/dev/null; rc hset hash:h1 f v >/dev/null; rc sadd set:s1 m >/
 
 sstart "$D/c"
 # ---- @ 里键的图标：树读全了的 db 每个键的类型都读到了（树加载时发 TYPE），用类型图标
-opal "@str:one"; wait_for 6 eval 'haskey str:one'
-check "@str:one：树读到类型了：string 图标（U+F031）" eval '[[ $(icon_of str:one) == $STRIC ]] || { echo "  icon: $(icon_of str:one)"; list; false; }'
-cpal; opal "@hash:h1"; wait_for 6 eval 'haskey hash:h1'
-check "@hash:h1：hash 图标（U+F292）" eval '[[ $(icon_of hash:h1) == $HASHIC ]] || { echo "  icon: $(icon_of hash:h1)"; list; false; }'
-cpal; opal "@set:s1"; wait_for 6 eval 'haskey set:s1'
-check "@set:s1：set 图标（U+F009）" eval '[[ $(icon_of set:s1) == U+F009 ]] || { echo "  icon: $(icon_of set:s1)"; list; false; }'
+opal ":str:one"; wait_for 6 eval 'haskey str:one'
+check ":str:one：树读到类型了：string 图标（U+F031）" eval '[[ $(icon_of str:one) == $STRIC ]] || { echo "  icon: $(icon_of str:one)"; list; false; }'
+cpal; opal ":hash:h1"; wait_for 6 eval 'haskey hash:h1'
+check ":hash:h1：hash 图标（U+F292）" eval '[[ $(icon_of hash:h1) == $HASHIC ]] || { echo "  icon: $(icon_of hash:h1)"; list; false; }'
+cpal; opal ":set:s1"; wait_for 6 eval 'haskey set:s1'
+check ":set:s1：set 图标（U+F009）" eval '[[ $(icon_of set:s1) == U+F009 ]] || { echo "  icon: $(icon_of set:s1)"; list; false; }'
 cpal
 
 # ---- 写命令后增量更新：一条 EXISTS，没有整库 SCAN
@@ -49,8 +49,8 @@ run "SET m20:new 1"
 typed "GET m20:n"
 check "SET m20:new 1 之后马上补全 m20:n：m20:new 在候选里" eval 'screen_has m20:new' || e2e_plain | sed -n 1,10p | cut -c60-165
 check "线路：写命令之后服务端收到一条 EXISTS m20:new，没有 SCAN" eval '[[ $(exists_n) == 1 ]] && grep -aqi "\"exists\" \"m20:new\"" "$D/mon.txt" && [[ $(scans) == 0 ]]' || { grep -aiE "exists|scan" "$D/mon.txt" | head -4; }
-opal "@m20:new"; wait_for 6 eval 'haskey m20:new'
-check "@m20:new：增量加进索引的键没读过类型：面板里有它，通用 key 图标（U+F084）" eval '[[ $(icon_of m20:new) == $KEYIC ]] || { echo "  icon: $(icon_of m20:new)"; list; e2e_plain | sed -n 8,16p | cut -c10-130; false; }'
+opal ":m20:new"; wait_for 6 eval 'haskey m20:new'
+check ":m20:new：增量加进索引的键没读过类型：面板里有它，通用 key 图标（U+F084）" eval '[[ $(icon_of m20:new) == $KEYIC ]] || { echo "  icon: $(icon_of m20:new)"; list; e2e_plain | sed -n 8,16p | cut -c10-130; false; }'
 cpal
 run "DEL m20:new"
 typed "GET m20:n"

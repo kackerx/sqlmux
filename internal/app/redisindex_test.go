@@ -683,7 +683,7 @@ func TestKeyMatchSnapshot(t *testing.T) {
 // last one till the answer comes; an answer to an older ask is dropped (F20.8).
 func TestPaletteKeysInBackground(t *testing.T) {
 	async(t)
-	a, conn := keyPalette(t, "@employees")
+	a, conn := keyPalette(t, ":employees")
 	rows := func() (names []string) {
 		for _, r := range keyRows(a) {
 			names = append(names, r.name)
@@ -716,13 +716,13 @@ func TestPaletteKeysInBackground(t *testing.T) {
 	}
 
 	// the next query goes on from the last one's matches, and the list stays as it was meanwhile
-	a.palette.input.Text = "@employees:2"
+	a.palette.input.Text = ":employees:2"
 	list := a.palette.keys
 	second := ask()
 	if a.palette.keys != list || len(rows()) != 2 {
 		t.Error("the list changed before the answer")
 	}
-	a.palette.input.Text = "@employees:1"
+	a.palette.input.Text = ":employees:1"
 	third := ask() // a later ask: the second's answer is no use
 	a.Update(second)
 	if a.palette.keys != list {
@@ -738,7 +738,7 @@ func TestPaletteKeysInBackground(t *testing.T) {
 
 	// the dbs read more: made again, not over the old list; the old goes on till it is
 	conn.index.update([]string{"p:employees:7"}, nil)
-	a.palette.input.Text = "@employees"
+	a.palette.input.Text = ":employees"
 	again := ask()
 	if len(again.list.items) != len(list.items)+1 {
 		t.Errorf("the list after the update has %d keys, was %d", len(again.list.items), len(list.items))

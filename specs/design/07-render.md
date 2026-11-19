@@ -143,13 +143,14 @@ type Hit struct {
   - **点击单元格**：命中区 Kind 为 `cell`，点击等于依次执行 `pane.focus` 和 `grid.goto r c`（§7.4），M1 F1.3 就做。
   - 已修改的单元格用 `warn` 色文字、`edited_bg` 底色、点状下划线（SGR 4:4）。终端不支持点状下划线时，退化为普通下划线。
 - **转置（G-05）只影响渲染**：`GridState` 始终保存数据坐标（游标 Row / Col 和视图偏移 Top / Left 都是），按键时把屏幕方向换算成数据方向，所以光标位置、视图和修改标记在两种视图之间自然保持。转置后：表头行是记录的行号（当前记录的行号用绿色），第一列是字段名（`func` 色，主键带钥匙图标），每一行按字段的类型着色；`j` / `k` 在字段间移动，`h` / `l` 在记录间移动，`0` / `$` 到第一条 / 最后一条记录，`gg` / `G` 到第一个 / 最后一个字段。
-- **JSON 视图**（M14 F14.5，用户 2026-10-11：参考 DataGrip 的「查看方式」，只要 表 和 JSON 两种，不做树）：`gj`（`grid.view.json`「以 JSON 查看」；M15 F15.9 起，用户验收：原来是 `gJ`；表格里 `gj` 没绑，JSON 视图的编辑器不折行、vim 的 `gj` 就是 `j`，让给它）在表 tab 和结果 tab 上切换：内容区换成只读的编辑器（同值编辑器的只读规则，JSON 着色、vim 移动、`/` 搜索、`y` 复制），文字是当前页的 JSON 数组，每个对象同 `Y`（键按显示顺序、值按类型），不截断；查询条照旧，chip 行末多一段 `JSON`（让位顺序同 ORDER 那几个 chip）；作用域 `jsonview`（§6.4）只有 `esc` / `q` 回表格、`s` flash 式跳转（§6.10，M16 F16.8，用户验收时提）、`Y` 把整个视图的 JSON 文本复制到系统剪贴板（`json.yank`「复制整个 JSON」，当前页的那份数组，toast 同表格的 `Y`；只在 NORMAL 下，VISUAL 的 `Y` 仍是 vim 的按行复制选区，同 query 的 `s`（§6.10），F16.8 审查时定：选了一段再按 Y 不能悄悄丢掉选区；M16 F16.9，用户验收时提）（`keys.normal` 的 `esc` 绑了 `pane.error.close`，所以单设；搜索高亮亮着时第一下 `esc` 只清高亮，M15 F15.9，§11「搜索」）和 `gj`（再按一次也回表格）；翻页和刷新沿用表格的键（M15 F15.9，用户验收：表格的翻页改成了 `<` / `>`，JSON 视图得跟着：`[keys.grid]` / `[keys.result]` 里绑到 `grid.page.*` / `result.page.*` / `grid.refresh` 的键在 JSON 视图里照样生效，表格的别的键不进来；原来 `jsonview` 自己绑 `]` / `[` / `R` 到 `json.page.*` / `json.refresh`，这三个 Action 去掉）；光标行不同步；翻页、刷新、改 WHERE / ORDER 在 JSON 视图里照常，内容跟着换（结果 tab 上 `R` 重跑新建的结果 tab 沿用 JSON 视图，转置一并沿用，审查时定）；pane 底部的提示行换成 `]/[ 翻页 · esc 回表格`，键位从表格的作用域和 `jsonview` 读，同值编辑器的提示行；和转置互斥（开一个关另一个）；按 tab 记、不进布局文件；右键菜单和命令面板里都有。M16 Redis 的「以 JSON 查看」复用它。
+- **JSON 视图**（M14 F14.5，用户 2026-10-11：参考 DataGrip 的「查看方式」，只要 表 和 JSON 两种，不做树）：`gj`（`grid.view.json`「以 JSON 查看」；M15 F15.9 起，用户验收：原来是 `gJ`；表格里 `gj` 没绑，JSON 视图的编辑器不折行、vim 的 `gj` 就是 `j`，让给它）在表 tab 和结果 tab 上切换：内容区换成只读的编辑器（同值编辑器的只读规则，JSON 着色、vim 移动、`/` 搜索、`y` 复制），文字是当前页的 JSON 数组，每个对象同 `Y`（键按显示顺序、值按类型），不截断；查询条照旧，chip 行末多一段 `JSON`（让位顺序同 ORDER 那几个 chip）；作用域 `jsonview`（§6.4）只有 `esc` / `q` 回表格、`s` flash 式跳转（§6.10，M16 F16.8，用户验收时提）、`Y` 把整个视图的 JSON 文本复制到系统剪贴板（`json.yank`「复制整个 JSON」，当前页的那份数组，toast 同表格的 `Y`；只在 NORMAL 下，VISUAL 的 `Y` 仍是 vim 的按行复制选区，同 query 的 `s`（§6.10），F16.8 审查时定：选了一段再按 Y 不能悄悄丢掉选区；M16 F16.9，用户验收时提）（`keys.normal` 的 `esc` 绑了 `pane.error.close`，所以单设；搜索高亮亮着时第一下 `esc` 只清高亮，M15 F15.9，§11「搜索」）和 `gj`（再按一次也回表格）；回表格时转置恢复成进 JSON 视图之前的状态（M22 F22.1，用户 2026-11-11：进之前是转置、退回来成了横置）；翻页和刷新沿用表格的键（M15 F15.9，用户验收：表格的翻页改成了 `<` / `>`，JSON 视图得跟着：`[keys.grid]` / `[keys.result]` 里绑到 `grid.page.*` / `result.page.*` / `grid.refresh` 的键在 JSON 视图里照样生效，表格的别的键不进来；原来 `jsonview` 自己绑 `]` / `[` / `R` 到 `json.page.*` / `json.refresh`，这三个 Action 去掉）；光标行不同步；翻页、刷新、改 WHERE / ORDER 在 JSON 视图里照常，内容跟着换（结果 tab 上 `R` 重跑新建的结果 tab 沿用 JSON 视图，转置一并沿用，审查时定）；pane 底部的提示行换成 `]/[ 翻页 · esc 回表格`，键位从表格的作用域和 `jsonview` 读，同值编辑器的提示行；和转置互斥（开一个关另一个）；按 tab 记、不进布局文件；右键菜单和命令面板里都有。M16 Redis 的「以 JSON 查看」复用它。
 - **选择（M10 F10.7，照 yazi）**：选择的单位是记录（竖直视图一行，转置视图一列），选中集按 tab 记。`m`（`grid.select.toggle`，标记）切换光标所在的记录，不进 VISUAL（yazi 用 `space`，这里 `space` 是 leader：单按要等 `timeoutlen`，`space j` 又是用户的 `SPC j`，所以换成 vim 标记的 `m`；worker 开工时提出）；`v`（`grid.select.visual`）进 VISUAL，锚点是当前记录，之后的移动（`j` / `k`，转置下 `h` / `l`，以及 `gg` / `G`、`0` / `$`）改变范围，范围内的记录和 `m` 标记的合并算选中，模式块显示 VISUAL；`esc` 或再按 `v` 退出 VISUAL，范围并入选中集。`V`（`grid.select.unset`，M12 F12.12，同 yazi 的 `visual_mode --unset`；原来和 `v` 一样）进 unset 变体：模式块显示 UNSET，移动同 VISUAL，`esc` 或再按 `V` 时范围内的记录从选中集里去掉，本来没选中的不受影响；VISUAL 里按 `V`、UNSET 里按 `v` 都只是结束当前模式、按当前模式结算，不换模式（审查时定，vim 式换模式保留锚点不做）；`d` / `y` 在 UNSET 里按去掉之后的选中集算。有选中或在 VISUAL 时 `select` 作用域生效（§6.4）：`d`（`grid.select.delete`）对选中的记录做 `dd` 的标记删除，全部已标记时全部取消，`C-s` 才真删；`y`（`grid.select.yank`）复制为 JSON 数组，按显示顺序，每条的格式同 `Y`，复制后序号格闪一下 `yank` 色；两者之后清空选中、退出 VISUAL；NORMAL 下有选中时 `esc`（`grid.select.clear`）清空。VISUAL 仍是 NORMAL 上下文，`normal` 层和用户映射照常（§6.4）。有选中或在 VISUAL 时自动刷新暂停，同有未保存修改时（刷新会清掉选中）。结果 tab 同样能选：`y` 照常，`d` 不做事、选中和 VISUAL 都保留（结果只读）；结果 tab 没有 chip 行，选中数不显示，靠序号格的高亮和模式块。高亮（M12 F12.12 起分两种，用户验收：一种灰色分不清哪些是定了的；同 yazi）：已确认选中的记录的序号格（竖直视图是左侧行号，转置视图是顶部记录号）用 `selected` 底（§7.7，黄色系），VISUAL / UNSET 里正在选的范围用 `visual` 底；chip 行多一段 `3 selected`（M12 F12.12 起文字用 `warn` 色，和 `selected` 底同色相，用户验收时定；原来同其他 chip 文字），独立于行数统计，让位顺序见 §7.8「第二行放不下时谁让位」。换页、刷新、改 WHERE / ORDER / LIMIT 取回新数据后清空选中，转置不清。不做鼠标选择（VISUAL 里单击一条记录只是光标移过去，范围跟着扩到那条），不做 `o` 换锚点。
 - **按单元值过滤**（M12 F12.3，DataGrip 的「按单元值进行本地筛选」）：`*`（`grid.filter.cell`「按这个值过滤」）把光标所在格拼成条件追加进 WHERE 并重新取数：`col = <字面量>`，字面量按列类型：数字、布尔直接写；字符串、时间、uuid、jsonb 当字符串字面量（单引号、`'` 翻倍；MySQL 的反斜杠也翻倍，`NO_BACKSLASH_ESCAPES` 模式不管，`ponytail:` 标出）；bytea / blob、binary / varbinary、数组、PG 的 json 类型（没有 `=` 运算符）和 MySQL 的 json 列（和字符串字面量比较永远不相等）、xml、几何类型、real / float4 / float（文本不是精确值）、MySQL 的 BIT 不做，toast「这一列的类型不支持按值过滤」（worker 开工时定、审查时补齐）。比较用数据库自己的 `=`，和 DataGrip、手写条件一致，所以 MySQL 不分大小写的排序规则、PAD SPACE 的 CHAR、PG 的 interval 会多匹配几行，不另做精确比较；NULL 是 `col IS NULL`；PG 的 bool 写成 true / false，MySQL 的 tinyint(1) 当数字，numeric 的 NaN / Infinity 当字符串字面量，判断只看列类型不看值。WHERE 已有条件时用 ` AND ` 接在后面：已有条件里有顶层的 `or`（MySQL 的 `xor`、`||` 同样，AND 结合更紧；括号、引号、注释之外）就先把它括起来；末尾带 `-- 注释` 时新条件插在注释前。完全相同的条件已经在 WHERE 里就不重复加、不取数，toast「条件已在 WHERE 里」：比较时把已有条件按顶层 AND 拆段，去首尾空白、空白压成一个、关键字和标识符不分大小写、字符串字面量分。转置视图下 `*` 同样作用于光标所在格。进 WHERE 历史同手打的条件。结果 tab 没有 WHERE，不做。（细节 worker 开工时定）
 - **表格的 `f` 组**（M12 F12.11，用户验收）：`fv` = `*`（按这个值过滤）、`fc` = `grid.col.hide`「隐藏这一列」（同 COLS 里取消勾选光标所在列，光标挪到最近的可见列，转置下作用于光标所在字段；结果 tab 没有 COLS、不做事，同 `fv`）、`fe` = `ge`（导出），和 `fh` / `fH` 一组；`O` 和 `e` 一样打开值编辑器。
 - **按列排序**（M12 F12.3）：`gs`（`grid.order.cycle`「按这一列排序」）对光标所在列做表头单击的那一轮：只按这一列 → 翻转 → 默认，和表头单击同一个函数；`gS`（`grid.order.add`「加入排序」）同下拉框的 `space`。表头点击落在列名那一格，隐藏的列没有表头。**表头上的排序标记**（M12 F12.7，用户验收：只在 chip 和树里看得到不直观）：在排序列表里的列，列名后面画方向图标（`sort_asc` / `sort_desc`，`warn` 色，同 chip），多于一列时图标前加序号 `1` `2`；默认排序不画（不然每张表的 id 都带箭头）；列宽不够时列名先截断、图标仍在末尾；转置视图下不画。
 - **Windows 的剪贴板**（M18 F18.3）：工具表在 Windows 上多一行，两条都是显式 UTF-8 的 PowerShell、直接走 argv 不经 cmd（reviewer 2026-10-24：`clip` 按控制台代码页读 stdin、PowerShell 默认按 OEM 代码页输出，中文都成乱码；`Get-Clipboard` 经 host 输出末尾多一个 CRLF，归一后 `PutClip` 会把复制的一个词当成整行贴）：写 `powershell -NoProfile -Command [Console]::InputEncoding=[Text.Encoding]::UTF8;Set-Clipboard -Value ([Console]::In.ReadToEnd())`，读 `powershell -NoProfile -Command [Console]::OutputEncoding=[Text.Encoding]::UTF8;[Console]::Out.Write((Get-Clipboard -Raw))`（读回来的 `\r\n` 归一成 `\n`，同 nvim 的 `:h clipboard-wsl`）；写本来就有 OSC 52 兜底，Windows Terminal 支持。
-- **右键菜单**（M12 F12.3，同树的右键菜单 §7.8，作用域 `menu`，画法和键一样）：在格上右键，光标先移到那一格，菜单项：在值编辑器中打开（§10）、按这个值过滤、按这一列排序 ↑ / ↓、加入排序、隐藏这一列（`grid.col.hide`，M12 F12.11 起有键 `fc`，同 COLS 里取消勾选）、复制这一格、复制行为 JSON、导出…；表头上右键：按这一列排序 ↑ / ↓、加入排序、隐藏这一列。「排序 ↑ / ↓」是只按这一列、方向定死（替换整个列表，同下拉框在别的列上 `↵`）；「加入排序」= `gS`；「复制这一格」= 单元格的 `y`，「复制行为 JSON」= `Y`；「导出…」随 F12.4 加进来。结果 tab 的格只有值编辑器、复制这一格（F12.4 起加导出）。转置视图下的格同样能开。每项等于对应的 Action，只能从右键打开，菜单项不显示键位（审查时定，树的菜单也是）。每项左边一个图标（M16 F16.11，用户 2026-10-17；名字在 §7.7：值编辑器 `edit`、按值过滤 `filter`、排序 `sort_asc` / `sort_desc`、加入排序 `sort_asc`、隐藏列 `hide`、复制格 / 行 `copy`、以 JSON 查看 `json`、导出 `export`；树的菜单：打开 `open`、新 tab 打开 `open`、删表 / 删键 / 删 query `trash`、加列 `column`、加索引 `index`、改名 `rename`、删列 `hide`、删索引 `trash`、设 TTL `auto_refresh`、刷新 `refresh`），ascii 下不画图标。
+- **右键菜单**（M12 F12.3，同树的右键菜单 §7.8，作用域 `menu`，画法和键一样）：在格上右键，光标先移到那一格，菜单项：在值编辑器中打开（§10）、按这个值过滤、按这一列排序 ↑ / ↓、加入排序、隐藏这一列（`grid.col.hide`，M12 F12.11 起有键 `fc`，同 COLS 里取消勾选）、复制这一格、复制行为 JSON、导出…，「转到被引用的行」（`grid.fk.follow`，默认 `gd`；M22 F22.13，issue #11，照 DBeaver / DataGrip 的「转到 › 被引用的行」：光标所在列属于一个外键时才出现，见下面「外键跳转」），以及一组行操作（M22 F22.4，用户 2026-11-11，照 DataGrip）：添加行（`grid.row.add`）、删除行（`grid.row.delete`，这一行已标记删除时写「取消删除」）、克隆行（`grid.row.clone`，§10）；表头上右键：按这一列排序 ↑ / ↓、加入排序、隐藏这一列。「排序 ↑ / ↓」是只按这一列、方向定死（替换整个列表，同下拉框在别的列上 `↵`）；「加入排序」= `gS`；「复制这一格」= 单元格的 `y`，「复制行为 JSON」= `Y`；「导出…」随 F12.4 加进来。结果 tab 的格只有值编辑器、复制这一格（F12.4 起加导出）。转置视图下的格同样能开。每项等于对应的 Action，只能从右键打开。**菜单项右侧画这个 Action 在 keymap 里的键**（`dim` 色、右对齐，没绑键的不画，宽度算进框宽；M22 F22.3 / F22.4 起，三种右键菜单——格子、树、tab——都一样。原来审查时定的是不显示键位；用户 2026-11-11 不知道树上有 `R`、照 DataGrip 的菜单要求带键，菜单是发现键位的地方）。每项左边一个图标（M16 F16.11，用户 2026-10-17；名字在 §7.7：值编辑器 `edit`、按值过滤 `filter`、排序 `sort_asc` / `sort_desc`、加入排序 `sort_asc`、隐藏列 `hide`、复制格 / 行 `copy`、以 JSON 查看 `json`、导出 `export`；树的菜单：打开 `open`、新 tab 打开 `open`、删表 / 删键 / 删 query `trash`、加列 `column`、加索引 `index`、改名 `rename`、删列 `hide`、删索引 `trash`、设 TTL `auto_refresh`、刷新 `refresh`），ascii 下不画图标。
+- **外键跳转**（M22 F22.13，issue #11：从表 1 顺着外键查到表 4，现在只能看 DDL 记 id）：`gd`（`grid.fk.follow`「转到被引用的行」）和格子右键菜单里的同名项。光标所在列是某个外键的列之一时（外键来自 §8 已有的 `Keys`，和树上 `Keys (n)` 同一次取、同一份缓存；一列在多个外键里时取第一个，`ponytail:` 标上限）：在当前 pane 打开被引用的表（同面板打开表的规则：这个 pane 里已开着就切过去），WHERE 设成 `<被引用列> = <这一行的值>`，多列外键用 `and` 连起来，值照 §9 的字面量规则写（同「按这个值过滤」那一处），效果同在 WHERE 里输入并执行：取第一页和计数、记进那张表的 WHERE 历史（`C-r` 里有）。那张表原来的 WHERE 被替换（`C-r` 能找回）。值是 NULL（任何一列）：toast「外键为空，没有被引用的行」；新增行、改过没保存的值照屏幕上的。被引用的表在另一个 schema / 库：照 schema 开（同 `--table` 带 schema）。不是外键列：右键菜单里没有这一项，`gd` toast「这一列不是外键」。结果 tab、Redis、exec 没有。反方向（「引用这一行的」）不做，留候选。
 - **导出**（M12 F12.4，用户要表上也有导出按钮，先 CSV 和 JSON）：查询条的导出按钮、`ge`、右键菜单的「导出…」都打开一个下拉（通用下拉框）：`CSV · 当前页`、`CSV · 全部`、`JSON · 当前页`、`JSON · 全部`。当前页就是内存里这一页；全部是同一条取数语句不带 LIMIT / OFFSET 再跑一遍（WHERE、ORDER 照旧；`select *` 读全部列、写的时候只取显示的列、按显示顺序，隐藏列多读了不写，`ponytail:` 标上限），从驱动流式读（db 层的 `Streamer`：PG 走 pgconn 的 ResultReader、MySQL 走 `database/sql` 的 Rows，没实现的假库退回 Query 逐行）、边读边写文件，不进表格也不占内存；连接同取数（表 tab 用 Meta，手动事务或事务中用 Main；结果 tab 的「全部」在 Main 上、复用那次运行设 schema 的那段），导出期间这条连接忙、别的取数排队、状态栏照旧显示忙碌，同一个 tab 导出还在跑时再开 toast「正在导出」。`C-c` 取消：关文件、删掉半截文件、toast「导出已取消」；中途出错同样删文件、toast 错误原文。当前页不含新增行和未保存的修改，「全部」导出的是数据库里的；当前页里有二进制占位符（§8.1 非 UTF-8 的值内存里只留 `<binary N bytes>`）时，按这一页的 LIMIT / OFFSET 走同一条流式读重读这一页再写，格子不变（审查时定）。结果 tab 的「全部」和翻页一样会把这条 SELECT 再跑一遍，有副作用的（`select nextval('s')`）会再推进一次；写语句都不重跑。文件写进程当前目录 `<表名>.csv` / `.json`（不带 schema；结果 tab 是 `query_1-42.csv`，同 §11；键 tab 用键名），名字里 Windows 不允许的字符（`<` `>` `:` `"` `/` `\` `|` `?` `*` 和控制字符）在所有平台都换成 `_`（M18 F18.2 e：Redis 的键名常带 `:`，Windows 上冒号后面是 ADS 的流名、macOS 的 Finder 把 `:` 显示成 `/`；一条规则不分平台，win-worker 2026-10-24 问），已存在就加 `-2`、`-3`（`O_EXCL` 创建，不覆盖），权限按 umask 的普通文件（导出本来就是要给别人的）；完成 toast `已导出 <绝对路径> · N 行`。下拉的锚点同自动刷新的下拉；结果 tab 的锚在标题按钮处。CSV 规则同 §11（表头一行，NULL 为空）；JSON 是对象数组，每个对象同 `Y`（键按显示顺序、值按列类型、2 空格缩进），空结果是 `[]`。二进制值（MySQL 的 binary / varbinary / blob 族，或非 UTF-8 的值）在 CSV 和 JSON 里都写 `0x` 加十六进制，和 PG bytea 的 `\x` 十六进制对应；格子里的 `<binary N bytes>` 是占位不是数据，不写进文件。不做剪贴板（OSC 52 装不下），不做 TSV、INSERT、XML。结果 tab 的「全部」：能翻页的语句（§11：我们自动加了 LIMIT 的）去掉自动 LIMIT 重跑；其余（自己写了 LIMIT / OFFSET 的、快速 SQL 的、跟在 SET / RESET / DISCARD / USE 之后的）「全部」就是当前页，规则和翻页一样；下拉里仍列出这一项，不灰不藏，免得出现第二种下拉。（细节 worker 开工时定）
 - **转置时列宽不按比例收缩**：一页 100 条记录横排时，收缩下去每列只剩行号那么宽，什么都看不见；所以转置视图各列取期望宽度，放不下就横向滚动。
 - **悬停行**（G-06）：指针所在的行用 `row` 底，不移动光标，与树一致。**点击行号**（G-04）：光标移到那一行，列不变，等于 `grid.goto r <当前列>`；命中区 Kind 为 `rowno`。
@@ -189,7 +190,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
 - 写了 `fg` 的图标在任何位置都用这个颜色；没写时跟随所在位置的颜色，比如标题聚焦时是 `focus` 色。
 - **图标后面留 1 个空格再接文字**（M1 用户反馈）：树、面板的搜索行与候选、pane 标题、侧栏标题、状态栏、查询条都一样。Nerd Font 图标按 1 列计算（§7.1），但不少终端和字体把它画得比 1 列宽，溢出到后一格，紧挨着文字时看起来贴在一起，悬停底色也只盖住半个。留一格空白正好接住溢出的部分。
 - 默认颜色：`save`、`refresh`、`transpose` 用 `info` 色，`sort_asc` / `sort_desc` 和 WHERE 历史下拉里的 `star` 用 `warn` 色（收藏和历史只靠图标区分，黄星一眼能认出）；都可以在 `[icon]` 里用 `fg` 覆盖。
-- 可以覆盖的图标：`schema`、`table`、`data`、`query`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`、`redis` 和 Redis 键的类型 `str` / `hash` / `list` / `set` / `zset` / `stream` / `json`（M16 F16.2；颜色依次用现有的 `sql_string` / `keyword` / `number` / `func` / `warn` / `info` / `sql_operator`，不加主题键），`pane`（M10 F10.5 起树里不再画 pane 节点、没有地方用它，键仍然接受，写了它的主题不报错），以及命令面板用的 `command`（nf-fa-bolt，U+F0E7，ascii 为 `:`）和 `window`（nf-fa-window_restore，U+F2D2，ascii 为 `[]`）、缩放中 pane 的 `zoom`（nf-fa-expand，U+F065，ascii 为 `[Z]`，M9 F9.6）；pane 按钮的 `split_right`（nf-cod-split_horizontal，U+EB56，ascii `|`）、`split_below`（nf-cod-split_vertical，U+EB57，ascii `=`）、`unzoom`（nf-fa-compress，U+F066，ascii `[z]`），缩放和关闭按钮用 `zoom`、`close`（M19 F19.3；两个分割图标 worker 在终端里对照字形确认方向，不对就换成同一套 codicon 里方向对的那个）；查询条的 `save`（U+F0C7，ascii `[S]`）、`refresh`（U+F021，ascii `[R]`）、`transpose`（U+F0EC，ascii `[T]`）、`sort_asc`（nf-fa-sort_amount_asc，U+F160，ascii `↑`）、`sort_desc`（nf-fa-sort_amount_desc，U+F161，ascii `↓`）；树的 `view`（nf-fa-eye，U+F06E，ascii `v`）、`column`（nf-cod-symbol_field，U+EB5F，ascii `-`）、只读连接的 `lock`（nf-fa-lock，U+F023，ascii `RO`，M5 F5.3）；查询条新增的 `row_add`（nf-fa-plus，U+F067，ascii `+`）、`row_delete`（nf-fa-minus，U+F068，ascii `-`）、`auto_refresh`（nf-fa-clock_o，U+F017，ascii `@`）、`stop`（nf-fa-stop，U+F04D，ascii `#`）；结果区的 `result`（nf-fa-list_alt，U+F022，ascii `=`）、`pin`（nf-oct-pin，U+F435，ascii `*`）、`export`（nf-fa-download，U+F019，ascii `>`）、`close`（nf-fa-times，U+F00D，ascii `x`）、日志 tab 的 `log`（nf-fa-file_text_o，U+F0F6，ascii `L`）；WHERE 历史下拉的 `star`（nf-fa-star，U+F005，ascii `*`）、`history`（nf-fa-history，U+F1DA，ascii `h`）；树的工作区里 pane 节点的 `pane`（nf-fa-columns，U+F0DB，ascii `|`，M5 F5.15）；新建连接表单的 `tag`（U+F02B，ascii `#`）、`host`（U+F233，ascii `@`）、`port`（U+F1E6，ascii `:`）、`user`（U+F007，ascii `~`）、`database`（U+F1C0，ascii `=`）、`advanced`（U+F013，ascii `+`）、`link`（U+F0C1，ascii `&`）（M7 F7.4；ascii 都是一个字符，不和 key / pin / star 的 `*` 撞）；分组字段的 `group`（nf-fa-tags，U+F02C，ascii `%`，M10 F10.6；不用 `#`，和上一行 name 的 `tag` 撞）。M3 起去掉 `data`：表 tab 在 pane 标题、tab 栏、树的工作区、面板的 pane 行里一律用 `table` 图标，query tab 用 `query`，引导 tab 不画图标。`mysql`（nf-dev-mysql，U+E704，ascii `my`，M5 F5.4）。补全候选的种类图标（M16 F16.11，用户 2026-10-17：照 nvim-cmp 的 lspkind）：`keyword`（U+F030B，nf-md 的钥匙，ascii `k`，色 `keyword`）、`value`（U+F03A0，nf-md-numeric，ascii `v`，色 `string`；`now()` / `current_timestamp` 也算值，和枚举值、true / false 一组）、`snippet`（nf-cod-symbol_snippet，U+EB66，ascii `s`，色 `info`；keyword 和 value 的字形照用户 nvim 里 blink.cmp 的 `kind_icons`，和他编辑器里看到的一致，用户 2026-10-17 定），表 / 视图 / 列 / Redis 键 / 命令沿用 `table` / `view` / `column` / `key` / `command`（色同树里的），Redis 的 field 用 `column`、子命令和 token 用 `keyword`；没有函数和 schema 候选，所以不定义它们的图标（F16.11 审查时定，有候选时再加）；右键菜单项的图标（同一个 feature）：`open`（nf-fa-folder_open_o，U+F115，ascii `o`）、`edit`（nf-fa-pencil，U+F040，ascii `e`）、`copy`（nf-fa-clipboard，U+F0EA，ascii `y`）、`trash`（nf-fa-trash，U+F1F8，ascii `x`）、`rename`（nf-fa-i_cursor，U+F246，ascii `r`）、`hide`（nf-fa-eye_slash，U+F070，ascii `-`）、`index`（nf-fa-list_ol，U+F0CB，ascii `i`），其余项用已有的 `filter` / `sort_asc` / `sort_desc` / `column` / `export` / `json`（Redis 键类型的那个，同一个 JSON 图标，不另起名：v0.5.0 的主题已经在用 `json`，改名会让用户主题里的键悄悄指到别处，F16.11 审查时定） / `auto_refresh`（设 TTL） / `row_add`；菜单项的图标 `dim` 色、选中行跟文字色。以后新增的图标也按名字加入。名字写错时启动报错。
+- 可以覆盖的图标：`connected`（M22 F22.14，树上已连上的连接后面的点）、`bookmark`（M23，§7.10.9）、`schema`、`table`、`data`、`query`、`filter`、`search`、`keys`、`conn`、`key`、`postgres`、`redis` 和 Redis 键的类型 `str` / `hash` / `list` / `set` / `zset` / `stream` / `json`（M16 F16.2；颜色依次用现有的 `sql_string` / `keyword` / `number` / `func` / `warn` / `info` / `sql_operator`，不加主题键），`pane`（M10 F10.5 起树里不再画 pane 节点、没有地方用它，键仍然接受，写了它的主题不报错），以及命令面板用的 `command`（nf-fa-bolt，U+F0E7，ascii 为 `:`）和 `window`（nf-fa-window_restore，U+F2D2，ascii 为 `[]`）、缩放中 pane 的 `zoom`（nf-fa-expand，U+F065，ascii 为 `[Z]`，M9 F9.6）；pane 按钮的 `split_right`（nf-cod-split_horizontal，U+EB56，ascii `|`）、`split_below`（nf-cod-split_vertical，U+EB57，ascii `=`）、`unzoom`（nf-fa-compress，U+F066，ascii `[z]`），缩放和关闭按钮用 `zoom`、`close`（M19 F19.3；两个分割图标 worker 在终端里对照字形确认方向，不对就换成同一套 codicon 里方向对的那个）；查询条的 `save`（U+F0C7，ascii `[S]`）、`refresh`（U+F021，ascii `[R]`）、`transpose`（U+F0EC，ascii `[T]`）、`sort_asc`（nf-fa-arrow_up，U+F062，ascii `↑`）、`sort_desc`（nf-fa-arrow_down，U+F063，ascii `↓`；M22 F22.2：原来的 sort_amount 那一对 U+F160 / U+F161 在 Nerd Fonts v2 / v3 里方向不一致）；树的 `view`（nf-fa-eye，U+F06E，ascii `v`）、`column`（nf-cod-symbol_field，U+EB5F，ascii `-`）、只读连接的 `lock`（nf-fa-lock，U+F023，ascii `RO`，M5 F5.3）；查询条新增的 `row_add`（nf-fa-plus，U+F067，ascii `+`）、`row_delete`（nf-fa-minus，U+F068，ascii `-`）、`auto_refresh`（nf-fa-clock_o，U+F017，ascii `@`）、`stop`（nf-fa-stop，U+F04D，ascii `#`）；结果区的 `result`（nf-fa-list_alt，U+F022，ascii `=`）、`pin`（nf-oct-pin，U+F435，ascii `*`）、`export`（nf-fa-download，U+F019，ascii `>`）、`close`（nf-fa-times，U+F00D，ascii `x`）、日志 tab 的 `log`（nf-fa-file_text_o，U+F0F6，ascii `L`）；WHERE 历史下拉的 `star`（nf-fa-star，U+F005，ascii `*`）、`history`（nf-fa-history，U+F1DA，ascii `h`）；树的工作区里 pane 节点的 `pane`（nf-fa-columns，U+F0DB，ascii `|`，M5 F5.15）；新建连接表单的 `tag`（U+F02B，ascii `#`）、`host`（U+F233，ascii `@`）、`port`（U+F1E6，ascii `:`）、`user`（U+F007，ascii `~`）、`database`（U+F1C0，ascii `=`）、`advanced`（U+F013，ascii `+`）、`link`（U+F0C1，ascii `&`）（M7 F7.4；ascii 都是一个字符，不和 key / pin / star 的 `*` 撞）；分组字段的 `group`（nf-fa-tags，U+F02C，ascii `%`，M10 F10.6；不用 `#`，和上一行 name 的 `tag` 撞）。M3 起去掉 `data`：表 tab 在 pane 标题、tab 栏、树的工作区、面板的 pane 行里一律用 `table` 图标，query tab 用 `query`，引导 tab 不画图标。`mysql`（nf-dev-mysql，U+E704，ascii `my`，M5 F5.4）。补全候选的种类图标（M16 F16.11，用户 2026-10-17：照 nvim-cmp 的 lspkind）：`keyword`（U+F030B，nf-md 的钥匙，ascii `k`，色 `keyword`）、`value`（U+F03A0，nf-md-numeric，ascii `v`，色 `string`；`now()` / `current_timestamp` 也算值，和枚举值、true / false 一组）、`snippet`（nf-cod-symbol_snippet，U+EB66，ascii `s`，色 `info`；keyword 和 value 的字形照用户 nvim 里 blink.cmp 的 `kind_icons`，和他编辑器里看到的一致，用户 2026-10-17 定），表 / 视图 / 列 / Redis 键 / 命令沿用 `table` / `view` / `column` / `key` / `command`（色同树里的），Redis 的 field 用 `column`、子命令和 token 用 `keyword`；没有函数和 schema 候选，所以不定义它们的图标（F16.11 审查时定，有候选时再加）；右键菜单项的图标（同一个 feature）：`open`（nf-fa-folder_open_o，U+F115，ascii `o`）、`edit`（nf-fa-pencil，U+F040，ascii `e`）、`copy`（nf-fa-clipboard，U+F0EA，ascii `y`）、`trash`（nf-fa-trash，U+F1F8，ascii `x`）、`rename`（nf-fa-i_cursor，U+F246，ascii `r`）、`hide`（nf-fa-eye_slash，U+F070，ascii `-`）、`index`（nf-fa-list_ol，U+F0CB，ascii `i`），其余项用已有的 `filter` / `sort_asc` / `sort_desc` / `column` / `export` / `json`（Redis 键类型的那个，同一个 JSON 图标，不另起名：v0.5.0 的主题已经在用 `json`，改名会让用户主题里的键悄悄指到别处，F16.11 审查时定） / `auto_refresh`（设 TTL） / `row_add`；菜单项的图标 `dim` 色、选中行跟文字色。以后新增的图标也按名字加入。名字写错时启动报错。
 
 ### 7.8 默认尺寸与样式（取自设计稿）
 
@@ -202,8 +203,9 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
 - **schema 侧栏**：
   - 宽度默认 32 列（含边框；设计稿为 250px），config.toml 的 `[tree] width` 可改（M8 F8.22，用户要 300px 左右，即 38 列；范围 16 到窗口宽度的一半，超出只夹、不报错，0 和负数也夹到 16；布局文件里记的 `sidebar_width` 优先，拖过的宽度照旧记在 window 上）。窗口宽度小于 100 列时，缩到 24 列。
   - 可以用鼠标拖动侧栏和右边 pane 之间的那 1 列间隔来调宽度，最窄 16 列，最宽为窗口宽度的一半；拖过的宽度记在 window 上。折叠时不能拖。
+  - **键盘调宽**（M22 F22.11，PR #20 的想法，用户 2026-11-19 定自己做）：焦点在树上时 `>` / `<`（`tree.wider` / `tree.narrower`「侧栏加宽 / 变窄」）每次 4 列（带次数就是次数 × 4），`=`（`tree.fit`「侧栏按最长的名字自适应」）取树里**当前展开着、画得出来**的行里最宽的那一行（缩进、图标、名字、右边的行数或注释都算，加边框）作为宽度；三者都夹在 16 到窗口宽度的一半之间，结果和拖动一样记在 window 上（同 `sidebar_width`）。键同表格调列宽的 `>` / `<` / `=`（F17.14）。折叠时无事。
   - 标题为 `⟨0⟩ <conn 图标> <session 名>`，例如 `⓪  seed`，右侧是收起图标 `«`（`dim` 色，可点击：收起侧栏，焦点在树上时回到进树之前的 pane，M19 F19.5 起不再等于 `tree.toggle`；M10 F10.9 起，原来是键位文字 `SPC b`，用户觉得难看）；放不下时先去掉图标，再截短 session 名。点击标题的其余部分只聚焦树。schema 不再放在标题上、也不再用下拉框切换，改成树里的节点（M1 用户反馈：用下拉框切 schema，看不出还有别的 schema；参考 sqmeow.nvim 的层级树）。
-  - 折叠后是 3 列宽的细栏（设计稿为 24px），左右各 1 列边框、中间 1 列内容：只在顶部显示 `»`（可点击：展开并聚焦树，M19 F19.5），下面不画任何文字（M10 F10.9 起，原来竖排 `schema · SPC b`，用户：不好看，能点、能映射就够了）。
+  - 折叠后占 0 列（M22 F22.7，用户 2026-11-11：3 列的竖条显眼、占宽度，但去掉了鼠标又点不了；ux-designer 出了三个方案，用户选 A。原来是 3 列宽、带边框、顶部一个 `»` 的细栏）：侧栏和 pane 之间的那 1 列间隙也不留，pane 区从第 0 列开始；展开按钮挪到状态栏最左（下面「状态栏」）。键盘不变：`tree.toggle` 的三种情况照旧，收起时 `C-h` 照旧不进树，`pane.focus.next` 照旧跳过收起的树。布局文件的 `sidebar_open` 不变。示意在 `specs/m23-bookmarks/mockups.txt` 的 `#k-a-160`、`#k-a-80`。
   - **`tree.toggle`**（默认 `SPC b`，用户映射成 `Cmd+B`；M19 F19.5 起照 DataGrip 的工具窗口，用户 2026-10-30：原来只开关侧栏、不动焦点，不直觉）：侧栏开着、焦点在树上 → 收起，焦点回到进树之前的那个 pane（它已经关了就回这个 window 的当前 pane）；侧栏开着、焦点不在树上 → 只把焦点移到树，不收起；侧栏收起 → 展开并聚焦树。有 pane 在缩放时侧栏被遮住，按它先退出缩放，再照上面三种情况走（这时焦点在 pane 上，侧栏开着就是聚焦树，收着就是展开并聚焦树；tester 2026-10-30 指出原来「按收起那一条处理」的措辞不对）。「进树之前的 pane」是焦点从某个 pane 进到树时记下的那一个，不论是按键、点击还是 `tree.toggle` 进来的。进树时树的光标（M20 F20.4，用户 2026-10-30：自动定位会打乱光标，只在手动上下时才动）：默认不动，留在上次的位置，当前打开的表照旧用 `focus` 色标着；`[tree] follow = true` 时照 F3.29 落在当前 tab 对应的节点（必要时展开它的上层）。焦点不在树上时也不替用户挪树的光标：表格里沿外键打开被指的表（M14 的 `openRef`）原来会把树光标移过去，同样只在 `follow = true` 时移（dev-2 2026-10-31 问，决策者定，照用户「只在我手动上下时才动」）。命令面板和右键里的标题改成「打开 / 聚焦 / 收起侧栏」，状态栏轮播提示的那条跟着改。
   - 侧栏内部从上到下依次是：
     - 第一行：过滤图标（`info` 色）、`160 tables`（`dim` 色，已连上的各个连接所有 schema 的表和视图总数）；ascii 图标下，图标后面还有 `/`（`fg` 色）（§7.7）。按 `/` 后这一行变成输入框（INSERT），照 nvim-tree 的 live filter：边输入边过滤，只匹配表和视图的名字，匹配项的上级节点全部展开显示，其余节点隐藏（包括工作区整块，以及已展开的表下面的列），顺序不变，匹配到的字符高亮；清空过滤后回到原来的展开状态；`↵` 退出输入框、保留过滤、光标放到第一个匹配上；`esc`（及等同 esc 的 `C-c`）清空过滤并退出。有过滤条件、焦点在树上浏览结果时，`esc` 等于 `/`：回到输入框、文字保留，所以连按两次 `esc` 就是清空（M20 F20.9，用户 2026-11-02）；没有过滤条件时树上的 `esc` 照旧。有过滤条件时这一行显示 `<图标> <过滤文字>`，右侧 dim 色显示 `3/14`；
@@ -229,7 +231,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
       ```
 
       - 每层缩进 2 列。有子节点的节点前面是 `▸`（折叠）/ `▾`（展开），`dim` 色；叶子节点在同一位置留空。
-      - **连接节点**（M5 F5.10 起，原来是 session 节点）：connections.toml 里的每个连接一个，顺序见下面「分组」；引擎图标加连接名，只读连接（F5.3）名字后面加 `lock` 图标。四种状态：未连接时折叠、没有子节点；连接中名字后面跟 `dim` 色的 `…`；失败时名字用 `error` 色，错误进 toast（`<连接名>：<驱动的错误>`）；已连接时下面是 schema。在未连接或失败的节点上展开（`l`、`↵`、单击、`R`）就去连，失败的就是重试，连接中再展开不做事；两个连接上开着同名表时，tab 名和 pane 标题照旧只写表名，焦点所在的连接看状态栏的地址块（已知上限，要区分时再给 tab 加 `[play]` 这样的后缀）；`password_cmd` 也在 Cmd 里跑；连上后加载 catalog，并照「默认展开」展开它。
+      - **连接节点**（M5 F5.10 起，原来是 session 节点）：connections.toml 里的每个连接一个，顺序见下面「分组」；引擎图标加连接名，只读连接（F5.3）名字后面加 `lock` 图标。四种状态：未连接时折叠、没有子节点；连接中名字后面跟 `dim` 色的 `…`；失败时名字用 `error` 色，错误进 toast（`<连接名>：<驱动的错误>`）；已连接时下面是 schema，**收起着也看得出来**：名字后面（`lock` 之前）1 列空白加一个 `focus` 色的连接标记（新图标 `connected`，nerd nf-oct-dot_fill U+F444，ascii `*`；照 DataGrip 数据源图标上的绿点；M22 F22.14，用户 2026-11-19 验收：断开以后节点和断开之前一模一样，看不出断没断）。未连接、连接中、失败时没有这个标记。在未连接或失败的节点上展开（`l`、`↵`、单击、`R`）就去连，失败的就是重试，连接中再展开不做事；两个连接上开着同名表时，tab 名和 pane 标题照旧只写表名，焦点所在的连接看状态栏的地址块（已知上限，要区分时再给 tab 加 `[play]` 这样的后缀）；`password_cmd` 也在 Cmd 里跑；连上后加载 catalog，并照「默认展开」展开它。
       - **数据库节点**（M15 F15.1，只有 PG）：连接节点下先是数据库一层（图标 `database`，DSN 里的库排第一、默认展开，其余按名字），schema 挂在数据库下；别的库点开或 `l` 时才拨号，连不上同连接节点的失败状态；节点 id 多一段 `/db:<name>`；`R` 刷新的是光标所在库；右键菜单、表 tab 的标题（`db.schema.table` 只在不是默认库时带库名）、state.json 的表键、query 标题的 `DB` 字段、状态栏的地址都带库名。query 切库：不另开下拉，`query.schema` 的下拉（标题 `db.schema ▾`）第一级列库、第二级列 schema（worker 起草时提出、决策者同意）；库只有一个（或列表为空、读失败）时没有第一级、直接列 schema，和 MySQL / SQLite 一致，标题照旧（审查时定）。表 tab 标题、右键菜单、删表确认框里非默认库都带库名（`db.schema.table`），免得在别的库里看着像默认库的那张。树过滤只搜表和视图，库和 schema 不参与，同以前。MySQL、SQLite 没有这一层。**exec 连接**（M17 F17.12，用户 2026-10-18 验收：层级要和别的 PG 连接一样）：数据库一层只有一个节点，名字是连接时 `select current_database()` 的结果，它就是默认库、走连接本身的 Conn，不另拨号；命令能到别的库时是另一条连接（§8.8）。
       - **库 / schema 的勾选**（M17 F17.13，用户 2026-10-18 验收时提：同 DataGrip 数据源的「架构」勾选，在连接和库上选显示和加载哪些）：连接节点（PG）的右键菜单和命令面板里「选择库…」，数据库节点（PG）和连接节点（MySQL）的「选择 schema…」，打开一个 COLS 式的列表浮层（同一个浮层、同 `[keys.cols]` 的键：`j` / `k`、`space` 勾选、`a` / `A`、`/` 过滤、`esc` 关闭；标题「库」/「schema」，每行 `[x] 名字`，schema 行的尾注是已加载的表数）。关闭时和打开时不同才生效：写回 connections.toml 的 `databases` / `schemas`（§14）并重载这个库的 catalog（同 `R`）。没勾的库不在树上列、不拨号；没勾的 schema 不在树上列、**catalog 不加载**（Tables / Views / Functions / Sequences 的查询都只查勾了的，§8.3），query 的 schema 下拉、补全、面板的 `@` 范围都只认加载的，手写带前缀的 SQL 照常能跑。两个字段都没写 = 全部（和以前一样）；DSN 里的库（exec 是 `current_database()` 那个）固定勾选、不能取消；schema 浮层里同样固定一个：MySQL 是 DSN 里的库，PG 是 `Schemas` 返回的默认 schema（不带前缀的表名落到的那个，search_path 里没有就是 `public`）——两个浮层都不会关在 0 个上，列表为空就不会写出来（tester 2026-10-19 问的，定的是和库浮层一致）。节点名后面的尾注：勾了的 / 总数（`2/7`，`dim`），只在收窄了时显示；侧栏放不下就整个不画，同 Redis 的尾注。Redis 的 db、SQLite 不做；系统 schema（`pg_catalog`、`information_schema`、`pg_toast`）不列入、不能勾（已知上限，要看系统表去 query 写）。
       - **Redis 的树**（M16 F16.2）：连接 → db（只列 `INFO keyspace` 里非空的，加 DSN 指定的那个，按号从小到大排、DSN 的那个默认展开（M16 F16.10，用户验收时提：原来 DSN 的排最前面，`db2, db0, db1, db3`）；节点名 `db0`，尾注 `DBSIZE`；每个 db 是一个子连接，同 PG 的数据库节点）→ 命名空间（按分隔符切键名，默认 `:`，`[redis] delimiter` 可改、连接里 `delimiter` 覆盖；尾注是它下面扫到的键数）→ 键（前面是类型图标，§7.7；不按类型分文件夹，用户 2026-10-11 定：真实项目的键按前缀组织，类型做标记就够）。扫描预算（`[redis] scan_keys`，默认 10000）用完时，这个 db 的键列表末尾多一行 `dim` 的 `已扫描 10000 / 12k，用 / 过滤`（db 节点的尾注仍是 `DBSIZE`：侧栏 32 列，长尾注放不下会整个不画，F16.2 时 worker 定）；侧栏的 `/` 过滤在 Redis 连接上改成服务端 `SCAN MATCH <模式>`、同一预算，模式不含 `*` 时两头补 `*`。过滤的 SCAN 用 `COUNT 10000`（MATCH 由服务端做，COUNT 只定往返次数；展开 db 的扫描仍是 1000，边扫边有键可画）；扫描在途时连接和 db 节点照画不隐藏，db 节点的尾注换成 `dim` 的「搜索中…」，扫完换回 `DBSIZE`、什么都没找到才按空处理；过滤文字一变就取消在途的扫描（ctx），不排队（M18 F18.11，用户 2026-10-26 验收时提：6 万键、往返 57ms 的库一次过滤要 7–14 秒，期间侧栏全空、计数 `0/61072`，以为搜不到）。过滤命中的字用 `match` 色画（M20 F20.2，用户 2026-10-30：SQL 的树过滤有、Redis 的没有）：服务端是 `*<输入>*` 子串匹配，每个节点（命名空间和键）在自己那一段名字里找输入文字出现的位置（区分大小写，同 MATCH）画上颜色；输入里有 glob 字符（`*` `?` `[`）时不画；一次命中跨过分隔符（`p:emp` 落在 `p` 和 `employees` 两段上）时两段都不画（`ponytail:` 标上限）。右键：db 节点「刷新」；命名空间节点「删除 N 个键…」（确认后分批 `UNLINK`，走 `confirm_dangerous`，§13）；键节点「打开」「删除…」（确认「删除键 <名>？」，`dd` 同样走确认，§13）「改名…」（`RENAME`，目标存在时再确认覆盖）「设 TTL…」。不做 RedisInsight 的内存占比（要全量扫）。SCAN 和写回的规则在 §8.7。
@@ -238,7 +240,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
       - **分组节点**：`Tables (n)`、`Views (n)`，n 为这个 schema 下的个数；n 为 0 时照样显示，没有 `▸`。Tables 含普通表、分区表的父表、外部表；Views 含视图和物化视图。函数、序列、角色等不列：目前对它们没有可做的操作，有用处时再加。
       - **表 / 视图节点**：图标（`func` 色）+ 名字 + 右对齐的行数量级（`border` 色）；普通视图没有行数，不显示。
       - **列节点**：展开表的时候才从 `Meta` 取列，与打开表共用列缓存（§8.4），取回之前不显示子节点，也不显示「加载中」。每行是图标 + 列名 + 右侧 `dim` 色的类型（`format_type`）；主键列用 `key` 图标（`pk` 色），其余用 `column` 图标。
-      - **右键菜单**（M8 F8.23，用户要在树里删 query 和表）：在树的节点上右键（SGR 按钮 2）弹出一个小菜单，左边贴指针的列、框从指针的下一行开始（放不下就翻到指针的上一行结束，被点的节点始终看得见）、`select` 底高亮、可点击，菜单开着时再右键先关掉再按新位置处理，作用域 `menu`（`j` / `k` / `↑` / `↓` 移动，`↵` 执行，`esc` 或点别处关闭），键位文字从 keymap 读。菜单项按节点：连接（PG）→ 选择库…、连接（MySQL）/ 数据库（PG）→ 选择 schema…（M17 F17.13，上面「库 / schema 的勾选」；Redis 的 db 节点照旧只有「刷新」）；连接（每种引擎）另有「编辑…」（打开连接管理并选中它）和「删除…」（同连接管理的删除，F18.12 的确认和关 tab；M18 F18.14，用户 2026-10-26 验收时提：树里连接右键删不了、只能走管理连接）；exec 连接不在连接管理里（F17.7），只有「删除…」；命令行开的临时连接不在 connections.toml 里，两项都没有、`dd` 无事（reviewer 2026-10-26 问）；`tree.delete`（默认 `dd`，不加 `D`：用户 2026-10-26 定）在连接节点上也是这个删除，在 query 文件、表 / 视图、Redis 键 / 命名空间上照旧；query 文件 → 打开、重命名…、删除…；表 / 视图 → 打开、在新 tab 打开、删除表…（视图是「删除视图…」）、**结构修改的模板**（M14 F14.4，命令面板里同样有）：「加列…」「加索引…」「改名…」「删除列…」「删除索引…」，每个把一条按引擎拼好的模板 SQL 开进当前连接的新 query（PG `alter table "s"."t" add column <name> <type>`，MySQL 反引号；SQLite 不支持的不列），占位符是字面的 `<name>` / `<type>` / `<column>` / `<index>` / `<new_name>`，是 snippet 的 tabstop（M15 F15.8，§11「snippet」：第一个在 Select 模式下选中、打字即替换，`Tab` / `S-Tab` 跳到下一个 / 上一个；原来只 VISUAL 选中第一个、要按 `c` 才能替换，用户验收：要和 nvim 的 snippet 一样；`vim = false` 时同样选中、打字即替换、`Tab` 跳），光标所在的列 / 索引直接写进模板；命令面板里「改名…」写成「改名表…」/ `Rename table…`，和 query、session 的重命名区分，右键菜单保持「改名…」；删除类直接写、不写成注释，`C-e` 走危险确认；不做表单；其他节点不弹。「删除表…」走危险操作的确认框（§13，同没带 WHERE 的 delete：红色标题，正文是要执行的 `DROP TABLE "public"."t_log"`，`y` / `↵` 确认），在那个连接的 `Main` 上执行，成功后关掉这张表的全部 tab（所有 session，未保存的修改随 tab 丢弃，不另提示：表都删了存不进去）、重载 catalog、toast；`confirm_dangerous = false` 也照样问（删表没有不问的理由）。手动事务模式、或自动模式下用户自己 `begin` 了的事务里（`c.Manual || c.inTx()`）拒绝删表（toast「手动事务模式下不能删表：先提交或回滚，或切回自动」/「事务中不能删表：先提交或回滚」；审查时在真库实测：MySQL 的 DROP 会把事务里的 insert 隐式提交、rollback 撤不回，PG 的 DROP 进了用户的事务、tab 关了 catalog 里表还在；要在事务里删表去 query 写）。按对象类型用 `DROP TABLE` / `DROP VIEW` / `DROP MATERIALIZED VIEW` / `DROP FOREIGN TABLE`，不带 CASCADE。键盘上同样的事：表 / 视图节点上 `dd`（`tree.delete`，F8.21 的同一个 Action，按节点类型决定删文件还是删表）。只读连接上拒绝、toast。
+      - **右键菜单**（M8 F8.23，用户要在树里删 query 和表）：在树的节点上右键（SGR 按钮 2）弹出一个小菜单，左边贴指针的列、框从指针的下一行开始（放不下就翻到指针的上一行结束，被点的节点始终看得见）、`select` 底高亮、可点击，菜单开着时再右键先关掉再按新位置处理，作用域 `menu`（`j` / `k` / `↑` / `↓` 移动，`↵` 执行，`esc` 或点别处关闭），键位文字从 keymap 读。菜单项按节点：连接（PG）→ 选择库…、连接（MySQL）/ 数据库（PG）→ 选择 schema…（M17 F17.13，上面「库 / schema 的勾选」；Redis 的 db 节点照旧只有「刷新」）；已连上的连接节点（每种引擎，含 exec）另有「断开连接」（`conn.disconnect`，命令面板里同名、作用于光标所在或当前 tab 的连接；M22 F22.12，issue #12：开发库和预发库同开，`@` 搜表挑错了库，想断开一个、不想删它）：关掉这个连接和它各库子连接已连上的 `Main` / `Meta`（同删除连接 F18.12 收尾的那一步），完成后 toast「已断开 <连接名>」（M22 F22.14：原来没有任何反馈），丢掉 catalog 和 Redis 键名索引（内存里的；索引文件留着），树上这个节点收起、回到没连上的样子，面板的「表 `@`」「键 `:`」和补全里不再有它的表和键。它开着的 tab 不关：照旧画着上一次取到的数据，下一次取数、执行、展开树节点时照没连上的连接重新连（同恢复布局时的懒连接，§14）。有未提交的事务时先确认「D 有未提交的事务，会回滚」（同 F18.12 那句）；正在跑的查询直接取消（同关 session）。没连上的连接、命令行开的临时连接（它没有「再展开就重连」以外的入口，也能断开）照样有这一项，没连上时 `dim`；连接、数据库、schema 节点都有「刷新」（= `tree.refresh`，树上的 `R`；M22 F22.3，用户 2026-11-11：外面新建的表搜不到，不知道有 `R`），刷新后树、面板的「表」范围、补全用的是同一份新 catalog；连接（每种引擎）另有「编辑…」（打开连接管理并选中它）和「删除…」（同连接管理的删除，F18.12 的确认和关 tab；M18 F18.14，用户 2026-10-26 验收时提：树里连接右键删不了、只能走管理连接）；exec 连接不在连接管理里（F17.7），只有「删除…」；命令行开的临时连接不在 connections.toml 里，两项都没有、`dd` 无事（reviewer 2026-10-26 问）；`tree.delete`（默认 `dd`，不加 `D`：用户 2026-10-26 定）在连接节点上也是这个删除，在 query 文件、表 / 视图、Redis 键 / 命名空间上照旧；query 文件 → 打开、重命名…、删除…；表 / 视图 → 打开、在新 tab 打开、删除表…（视图是「删除视图…」）、**结构修改的模板**（M14 F14.4，命令面板里同样有）：「加列…」「加索引…」「改名…」「删除列…」「删除索引…」，每个把一条按引擎拼好的模板 SQL 开进当前连接的新 query（PG `alter table "s"."t" add column <name> <type>`，MySQL 反引号；SQLite 不支持的不列），占位符是字面的 `<name>` / `<type>` / `<column>` / `<index>` / `<new_name>`，是 snippet 的 tabstop（M15 F15.8，§11「snippet」：第一个在 Select 模式下选中、打字即替换，`Tab` / `S-Tab` 跳到下一个 / 上一个；原来只 VISUAL 选中第一个、要按 `c` 才能替换，用户验收：要和 nvim 的 snippet 一样；`vim = false` 时同样选中、打字即替换、`Tab` 跳），光标所在的列 / 索引直接写进模板；命令面板里「改名…」写成「改名表…」/ `Rename table…`，和 query、session 的重命名区分，右键菜单保持「改名…」；删除类直接写、不写成注释，`C-e` 走危险确认；不做表单；其他节点不弹。「删除表…」走危险操作的确认框（§13，同没带 WHERE 的 delete：红色标题，正文是要执行的 `DROP TABLE "public"."t_log"`，`y` / `↵` 确认），在那个连接的 `Main` 上执行，成功后关掉这张表的全部 tab（所有 session，未保存的修改随 tab 丢弃，不另提示：表都删了存不进去）、重载 catalog、toast；`confirm_dangerous = false` 也照样问（删表没有不问的理由）。手动事务模式、或自动模式下用户自己 `begin` 了的事务里（`c.Manual || c.inTx()`）拒绝删表（toast「手动事务模式下不能删表：先提交或回滚，或切回自动」/「事务中不能删表：先提交或回滚」；审查时在真库实测：MySQL 的 DROP 会把事务里的 insert 隐式提交、rollback 撤不回，PG 的 DROP 进了用户的事务、tab 关了 catalog 里表还在；要在事务里删表去 query 写）。按对象类型用 `DROP TABLE` / `DROP VIEW` / `DROP MATERIALIZED VIEW` / `DROP FOREIGN TABLE`，不带 CASCADE。键盘上同样的事：表 / 视图节点上 `dd`（`tree.delete`，F8.21 的同一个 Action，按节点类型决定删文件还是删表）。只读连接上拒绝、toast。
       - **对象节点**（M14 F14.3，细节 worker 开工时定）：表展开后先列、再两个默认收起的分组 `Indexes (n)`、`Keys (n)`（和列一起取、`R` 一起丢）；schema 下面在 Tables / Views 之后 `Functions (n)`、`Sequences (n)`（随 catalog 一次读，每种一条查询、所有 schema；只在有对象时才画，空 schema 不显示空分组）；引擎没有的不画（MySQL 没有 Sequences，SQLite 没有 Functions / Sequences）；树过滤时这些节点不显示，只有表和视图参与过滤。叶子文字：索引 `name (a, b) UNIQUE`（含主键那条：PG 的 pkey、MySQL 的 PRIMARY；SQLite 的 autoindex 不含），键 `PRIMARY (id)`、`fk_name (a) → schema.table (b)`（SQLite 的外键没名字，写 `FOREIGN KEY (a) → table (b)`），函数 `name(identity 参数)`（PG `pg_get_function_identity_arguments`，MySQL 用 `information_schema.parameters` 拼）。`↵`：索引 → 表 DDL 浮窗换成那条 `create index`（PG `pg_indexes.indexdef`，SQLite 用 `sqlite_schema.sql`，MySQL 自己拼）；外键 → 打开目标表（另一个 schema 就先展开它的 Tables）；函数 → 新 query 里放定义（PG `pg_get_functiondef`，MySQL `SHOW CREATE FUNCTION`），schema 是函数所在的；PRIMARY 和 Sequence 无事。只做函数：PG `prokind = 'f'`，不含扩展自带的（`pg_depend` deptype `e`）和 `pg_catalog` / `information_schema`；聚合、过程、触发器（`CREATE TRIGGER` 对象）不做，返回 `trigger` / `event_trigger` 的函数照列（它们就是函数，`prokind` 也是 `f`，审查时定）。普通视图不取也不画 Indexes / Keys，物化视图保留 Indexes；SQLite 表达式索引的列显示成字面的 `expr`，PG / MySQL 显示表达式原文（审查时定）。
       - **Queries 节点**（M8 F8.21，同 DataGrip 的「文件」列表）：工作区节点下面再一个根节点，列出 `queries/*.sql` 的全部文件加上开着但还没落盘的 query（没打过字的没有文件但占着编号；按名字，`query_<n>` 按 n 排，改过名的按字母排在后面；目录列表按目录的 mtime 缓存：每画一帧 stat 一次目录，mtime 变了才重读，外部的改动也能看到；F8.20 沿用上一帧时连 stat 也不做；同一时钟刻度里的两次变化看不到，`ponytail:` 标出），每项 `query` 图标 + 名字，右端 `dim` 色的连接名（state.json 里记的最后一次连接，没有就空）；正在某个 session 里开着的名字用 `focus` 色。`↵` / 单击：已经开着就聚焦过去（别的 session 开着就 attach 过去，同 `tab.reopen` 的规则），没开着就在当前 data pane 里新开一个 tab，连接按 §11（记下的连接，不在了用当前连接）。`dd`（`tree.delete`「删除 query 文件」，只对这个节点下的项有效）：确认框「删除 query_3？」后删文件和 state.json 里的记录；正在开着的也删（M10 F10.10 起，同 DataGrip；原来拒绝、toast「先关掉它的 tab」）：关掉它在所有 session 里的 tab，没落盘的内容随文件丢弃，不另提示，确认框已经问过了（同 F8.23 删表关 tab）。两个例外走关 tab 的常规检查：有语句正在执行的拒绝（toast「正在执行，结束后再关闭」）；它是所在连接最后一个 query、连接又在事务里时，再问一次（同关 tab）。已知上限：名字按 F8.11 的不分大小写比较，大小写敏感的文件系统上外部放进来的 `Foo` 会随 `foo` 一起关。右键菜单的「删除…」同样。新建、关闭、改名、删除后列表跟着变。
       - **工作区节点**：当前 session 的 window → tab，最小粒度是 tab（M1 用户反馈）。M10 F10.5 起没有 pane 这一层（用户：`pane-x` 价值不高、层级交错不好读）：window 节点下面直接是 tab 节点，按 pane 编号分组、组内按 tab 顺序，每行 `<带圈编号> <图标> 名字  摘要`，编号同 pane 标题（`① ②`，ascii 图标下 `⟨1⟩`）、`dim` 色；结果区的 tab 也这样列，「日志」tab 画图标 `log`（F3.30）；没有 tab 的 pane 不出现。tab 节点上 `↵` 或单击聚焦过去；tab 节点显示表名加 `dim` 色的条件摘要（WHERE、非默认的 ORDER）。打开、关闭、切换 tab 后跟着变。M5 F5.15 到 M9 是 window → pane → tab，pane 节点 `<pane 图标> pane-<n>` 可以展开 / 折叠。
@@ -275,7 +277,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
 - **查询条**（Q-01～Q-06，data pane 的表格上方，两行；设计稿只给了大致布局，细节在 M1 F1.4 定）：
   - 第一行：`keyword` 色的 `WHERE`，后面是输入框，占满整行。输入框为空且没有聚焦时只显示 `WHERE`，不加占位提示。点击这一行就开始输入（Q-01 的鼠标一栏）。行的右端是历史 / 收藏入口 `▾`（F1.5）：点击时若还没开始输入，先进入 WHERE 输入，再打开下拉。
   - 第二行从左到右：
-    - 四个 chip：` ORDER id <方向图标> `（多列时 ` ORDER source ↓, id ↑ `，M12 F12.1）、` LIMIT 100 `、` PAGE 1/60 `、` COLS 10/10 `。标签 `dim` 色、值 `fg` 色、`sep` 底，悬停 `select` 底，点击等于按对应的键（`go` `gl` `gp` `gc`）。ORDER 的方向用 `sort_asc` / `sort_desc` 图标（§7.7），它本身是一个按钮，见下面的 ORDER；
+    - 四个 chip：` ORDER id <方向图标> `（多列时 ` ORDER source ↓, id ↑ `，M12 F12.1）、` LIMIT 100 `、` PAGE 1/60 `、` COLS 10/10 `。标签 `dim` 色、值 `fg` 色、`sep` 底，悬停 `select` 底，点击等于按对应的键（`go` `gl` `gp` `gc`）。ORDER 的方向用 `sort_asc` / `sort_desc` 图标（§7.7），它本身是一个按钮，见下面的 ORDER；图标里箭头的方向和 ORDER 列表、右键菜单里的 `↑` / `↓` 一致：升序朝上、倒序（从大到小）朝下（M22 F22.2，用户 2026-11-11：chip 上倒序画的是朝上的箭头，和列表的 `1↓` 相反；worker 换成 §7.7 的 arrow_up / arrow_down）；
     - 图标按钮（M2/M3 验收时重新设计，见下面「工具按钮」；这一段是原来的三个按钮）：保存（M2 之前只占位，点击不做事）、刷新（`grid.refresh`）、转置（`grid.transpose`），图标见 §7.7。每个按钮画成 ` <图标> `，左右各留 1 列，按钮之间隔 1 列；悬停时整个按钮 `select` 底，命中区覆盖整个按钮（M1 用户反馈：图标紧贴、悬停只亮半个，见 §7.7「图标后面留空格」）。保存在 M2 之前没有命中区，悬停不亮，免得让人以为能点；M2 起有命中区，点击执行 `save`，有修改时画成 ` <save 图标> 3 `，3 是这个 tab 所有页的修改格数（按格计），没有修改时只有图标（Q-05）；
     - 最右边：`auto · 6000 行 · 12ms`。「行」是计数结果而不是本页行数（本页固定 100 行没有信息量）：计数完成前 `…`，超时 `?`，用估计值时 `~1.2m`（量级格式同侧栏）。
     - **不满一页时常驻**（M19 F19.4，用户 2026-10-30，参考 DataGrip 右下角的「157 行」：结果比 LIMIT 少时窄 pane 里这一段第一个让位，就看不到有几条）：第 1 页的行数少于 LIMIT 时，总数就是这一页的行数：第一页回来时直接记成计数结果、算作计数完成，不再发 COUNT（PAGE 立刻是 `1/1`，exec 连接也省一次子进程；只看第 1 页，后面的页不按这条推总数；reviewer 2026-10-30 问）；这时这一段放不下全文就缩成 `N 行`（i18n，同全文里的「行」），并且排到让位顺序的最后（ORDER 之后才让）。转置视图同一条查询条，一样。满一页的照旧。
@@ -302,6 +304,9 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
   - 当前 tab 用 `pane_bg` 底色、`focus` 色字；其他 tab 用 `dim` 色字。
   - tab 之后是可点击的 `+`；最右端是 `dim` 色的键位提示，如 `hjkl · ↵ edit · T 转置 · gt/gT`，文字从 keymap 读取。
   - **切换**（M1 F1.6）：`gt` / `gT` 照 vim，下一个 / 上一个，到头绕回；`{N}gt` 跳到第 N 个（超出不动），`{N}gT` 往回 N 个。作用于焦点 pane，树和空 pane 上无效。点击 tab 切过去并聚焦该 pane。切换时原来的当前 tab 成为「上一个」（`-`）；旧 tab 正在编辑 WHERE / PAGE 时先退出输入，输入框恢复成生效的条件。中键关闭、拖动排序不做。
+  - **固定 tab**（M22 F22.6，用户 2026-11-11，照 DataGrip）：`tab.pin`「固定 / 取消固定 tab」（默认 `<Leader>wP`）作用于表、query、键 tab（引导页不能固定；结果 tab 照旧用自己的 `P`）。固定的 tab 排在 tab 栏最前、按固定的先后；固定时挪到固定组的末尾，取消固定时挪到固定组后面的第一个；名字后面是固定标记：nerd 下同结果 tab 的图钉，ascii 下是 `^`（不用结果 tab 的 `*`：它在这里会和当前 tab 的 `*`、上一个的 `-` 撞成 `t4 **`、`t2 *-`；reviewer 2026-11-12 提）。序号和 `{N}gt` 按显示顺序。`tab.close` 照样能关固定的 tab；「关闭其他 / 左侧 / 右侧」不关固定的。移到别的 pane 时保持固定、排在那边固定组的末尾。写进布局和 `last.toml`（§14）；`tab.reopen` 重开的不带固定。
+  - **关闭一批**（M22 F22.6）：`tab.close.others`「关闭其他 tab」（默认 `<Leader>wo`）、`tab.close.left` / `tab.close.right`「关闭左侧 / 右侧的 tab」（不带默认键），只管当前 pane。固定的不关；单独关时会弹确认或被拒绝的都不关、留着（表有未保存的修改、query 有未提交的事务、query 正在执行），最后一条 toast「N 个 tab 没关：有未保存的修改、未提交的事务或正在执行」（一条文案盖三种原因，不按原因分开数，不逐个弹确认）；引导页不算在内、不关；关掉的照常进 `tab.reopen` 的列表。
+  - **tab 的右键菜单**（M22 F22.6，画法和作用域同树的右键菜单；M23 起最后多一项书签，§7.10.6）：在 tab 上右键先切到那个 tab，菜单项：关闭、关闭其他、关闭左侧、关闭右侧；向右拆分、向下拆分（`pane.split.right` / `pane.split.below` 之后把这个 tab 移进新 pane；pane 里只有这一个 tab 时只分割、新 pane 是空的）、移到下一个 pane（`tab.move.next`，只有一个普通 pane 时这一项 `dim`、不能选）；固定 / 取消固定。引导页的 tab 只有关闭和两个拆分。结果区的 tab 只有关闭、固定 / 取消固定（现有的两个 Action）。每项后面是 keymap 里的键。
   - **打开已有的表**（F3.37 用户定，取代 M1 起的「在整个 window 里找、多个时列出选择」）：同一个 pane 里一张表只开一个 tab，不同的 pane 可以各开一个，用来对比同一张表的不同条件。从树或命令面板打开一张表时，只在目标 pane（§12「表」）里找这张表的 tab（按 schema + 表名比较）：
     - 有：切过去，焦点移到这个 pane，不重新取数，状态保留；它就是当前 tab 时只移焦点；是从这个 pane 的引导 tab 发起的（引导页的 `t`、`+` 之后从树或面板选），引导 tab 一起关掉，不留空 tab；
     - 没有：在目标 pane 新开一个 tab，不替换当前的表 tab 或 query tab；只有引导 tab 会被替换，它只是占位。别的 pane 里开着这张表不影响。
@@ -311,6 +316,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
 - **状态栏**：
   - 底色为 `bar`（#292e42）。各段是扁平色块，不用 powerline 箭头，每段左右各留 1 列内边距。
   - 左侧依次为：
+    - **展开侧栏的按钮**（M22 F22.7）：侧栏看不见的时候（收起着；或开着但被缩放的 pane 盖住）最左边多一块 ` » `（3 列：空格、`»`、空格；普通字符，nerd 和 ascii 一样），字 `info` 色、底 `bar`，悬停 `select` 底（同状态栏搜索图标的样式）；单击 = `tree.toggle`（收起着 → 展开并聚焦树；缩放中 → 先退出缩放）。侧栏看得见时没有这一块，session 块在第 0 列。
     - ` doraemon ▾ `（session 名）：`focus` 底、`bg` 色字、粗体。M5 起 session 不再对应一个连接，不画引擎图标；点击打开 session 列表（F5.1）；
     - window 列表，如 ` 0: data* `：当前 window 用 #3b4261 底、`fg` 色字，其余 window 用 `dim` 色字、无底色。
   - 右侧右对齐，依次为：
@@ -333,7 +339,7 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
     4. 光标位置；
     5. 截短 session 名。
 
-    始终保留的是：session 块（名称可以被截短）、当前 window、`C-p` 入口、待输入序列、模式块。
+    始终保留的是：展开侧栏的按钮（有的时候）、session 块（名称可以被截短）、当前 window、`C-p` 入口、待输入序列、模式块。
 - **COMMAND 模式**：命令面板打开时，模式块显示 COMMAND；接管按键的浮层（schema / LIMIT 下拉、COLS 列表、ORDER 浮层、WHERE 历史 / 收藏下拉）打开时也是 COMMAND，不论焦点在列表还是过滤框，因为它们和面板一样把 normal 作用域的键（leader、`C-hjkl`）挡在浮层外，不另设模式名；keymap 里 COMMAND 和 INSERT 一样算「在打字」，没绑定的可打印字符照样进过滤框。which-key 不算：它不是作用域（§6.5），弹出时序列还没按完，剩下的键仍在 normal 里解析，所以照旧显示 NORMAL。补全列表也不算：它不接管输入，只是挂在输入框下面，显示 INSERT。状态栏里不再有命令行：M0 用户体验后改由命令面板取代（§12），`:` 打开面板（F5.8 起是「所有」范围）。
 - **JUMP 模式**（M10 F10.8）：flash 式跳转进行中显示 JUMP，`info` 色（§6.10）；跳转的遮罩不盖状态栏。表格的选择（M10 F10.7）在扩选时显示 VISUAL，同 query。
 - **错误栏**（M2/M3 验收时定，参考 DataGrip 在编辑区下方的报错区）：数据库的报错显示在出错那个 pane 的内容区底部、tab 栏上方，不再挤在查询条右侧或者占掉表格。
@@ -363,3 +369,124 @@ table   = { fg = "#a9dc76" }                     # 只换颜色
   - 在 query 里这些都算这次 INSERT 的一部分，一起撤销。单元格编辑、树的过滤框、COLS、面板的其他范围不配对。
   - 配置 `autopairs = true | false`，默认开。编辑器的 nvim 差分测试里关掉，nvim 本体没有这个行为。
 - **有选区时输入开括号或引号**（非 vim 模式才有「选着再输入」，F6.6）：把选区包起来，不替换，同 VS Code 的 autoSurround。
+
+### 7.10 书签（M23，用户 2026-11-11：照 DataGrip 的书签；ux-designer 出了三个方案，用户选 A「对象书签」）
+
+示意的纯文本版在 `specs/m23-bookmarks/mockups.txt`（下面的 `#a-main` 这类是里面的锚点；带颜色的原型在仓库外 `/root/proj/sqlmux-design/m23/index.html`）。
+
+#### 7.10.1 模型
+
+- 一个书签 = `{kind, id, group?, name?}`。`kind` 有三种，`id` 的写法照 state.json 已有的写法：
+  | kind | 指向 | id | 例子 |
+  |---|---|---|---|
+  | `table` | 表、视图（含物化视图） | 同 `tables` 的键：`<连接>/<schema>.<表>`，不是 DSN 的库时 `<连接>/<库>/<schema>.<表>` | `seed/main.t_order` |
+  | `query` | query 文件 | query 名 | `月报_订单` |
+  | `key` | Redis 键 | 同 F16.3：`<连接>/db<n>/<键名>` | `redis-6379/db0/user:1001` |
+- 不存 WHERE / ORDER 这些 tab 状态（条件放在 WHERE 收藏里，§9.2）。不收连接、库、schema、命名空间节点（用户 2026-11-11 定）。
+- 只有一份，所有 session、所有进程共用。
+- `name` 是可选的别名，画在名字的位置上；`group` 是可选的分组名。
+
+#### 7.10.2 存盘
+
+- state.json 顶层的 `bookmarks` 数组，元素 `{"kind","id"}` 加可选的 `"group"`、`"name"`（空的省略）。复用 `config.Recent` 的 `Kind` / `ID` 两个字段，再加两个字段。
+- 多进程：书签的每次改动都先读盘上的 `bookmarks`，在读到的那份上做这一次的改动（加 / 删 / 移 / 改名 / 分组），再整份写回，同时换掉内存里的那份。不进 F13.3 的「按 key 合并」：那样别处删掉的书签会被这边的旧副本写回来。已知上限：另一个进程加的书签，这边下一次改书签或重启时才看到（写 `shortcut:`）。
+- 连接改名：同 state.json 里其他按连接名记的键（`RenameConnection`），`table` / `key` 的 id 前缀跟着改。query 改名（`query.rename`）、Redis 键改名（树上的「改名…」）：对应的 `id` 跟着改。
+- 在 sqlmux 里删掉目标（删表…、删 query 文件、删 Redis 键 / 命名空间、删连接）：那一步已经确认过，它的书签一起删，不再问。
+
+#### 7.10.3 顺序和编号
+
+- 画出来的顺序：没分组的按数组顺序排最前面，然后每组一段，组按数组里第一次出现的顺序，组内按数组顺序。这条规则同连接分组（§7.8「分组」），写成一个函数给两边用，或者直接复用连接分组排序的那个。
+- 编号：画出来的顺序里前 9 个依次是 1–9，第 10 个起没有编号。编号随顺序变（上移、下移、分组、删除之后重新数）。
+- 新书签加到没分组那一段的最后（数组里插在第一个有分组的书签之前；没有就放最后）。
+- 上移 / 下移只在自己那一段里动，到头不动。移到分组：放到那个组最后；组名为空就是移出分组，放到没分组那一段最后。
+
+#### 7.10.4 树里
+
+示意：`#a-main`、`#a-tree-menu`。
+
+- 一个根节点「书签」（英文 `Bookmarks`），排在树的最前面（过滤行和分隔线下面的第一行，连接节点上面）。没有书签时这个节点不画。默认展开，展开状态同别的节点记在 session 上。图标 `bookmark`（新图标，见 §7.10.9），`warn` 色；名字 `fg` 色。
+- 子行（第 1 层），从左到右：1 列空白、2 列缩进、编号（1 列，`warn` 色；没编号的留空。它就画在别的节点画 `▸ / ▾` 的那一列）、1 列空白、目标的图标（同目标在树里的图标和颜色：表 `table`、视图 `view`、query `query`、Redis 键按类型，§7.7）、1 列空白、名字（有 `name` 就画它，否则画表名 / query 名 / 键名）、右对齐的位置注释（`dim` 色）：
+  | kind | 注释 |
+  |---|---|
+  | table | `<连接>.<schema>`，不是 DSN 的库时 `<连接>.<库>.<schema>`（同面板「表」的所在位置） |
+  | query | 记下的连接名（同 Queries 节点） |
+  | key | `<连接>/db<n>` |
+  注释放不下时整个不画，先保名字；名字放不下按字素簇截短加 `…`（同 §7.8 的规则）。
+- 分组：每组前一行分割线 `── <组名> ───…`，从第 1 层的编号那一列开始，宽到侧栏右边，线 `sep` 色、组名 `dim` 色（同连接分组的分割线，缩进不同）。分割线不是节点：`j` / `k` / `gg` / `G` 跳过，不能点。
+- 当前打开的表：这一行的图标和名字用 `focus` 色，同树里表节点的规则（§7.8「光标行和当前打开的表分开画」）。query、键同样。
+- 光标行、悬停行、滚动同树的其他节点。
+- 树过滤（`/`）时整个书签节点不画（同工作区）。
+- `↵` / 单击 / `t` / 中键：打开目标，见 §7.10.7。`l` / `h`：叶子，`h` 回到「书签」节点。
+- `dd`（`tree.delete`，已有）在书签行上 = 移出书签，不确认；toast「已移出书签：<名字>」。
+- 右键菜单（同 §7.8 树的右键菜单，作用域 `menu`）：
+  - 书签行：打开（`↵`）· 改名… · 移到分组… · 上移 · 下移 · 分割线 · 移出书签（`dd`）。
+  - 表 / 视图 / query 文件 / Redis 键节点：在原来的菜单最后加一项：没加书签时「加入书签」，加了时「移出书签」，键位文字是 `bookmark.toggle` 的键（默认 `SPC m`）。
+  - 「书签」根节点、其他节点：不弹 / 照旧。
+
+#### 7.10.5 pane 标题
+
+示意：`#a-main`（① 和 ② 的标题）。
+
+- pane 当前的 tab 是表、query 或 Redis 键 tab，并且它有书签时，标题里名字后面 1 列空白、再画 `bookmark` 图标，`warn` 色。没书签时什么都不画。
+- 这个图标可以点：等于对这个 tab 执行 `bookmark.toggle`（移出），toast 同 `dd`。
+- 标题放不下时，先截名字，图标跟在截短的名字后面不丢（同只读连接的 `lock` 图标）。
+- tab 栏不画标记。
+
+#### 7.10.6 tab 的右键菜单
+
+示意：`#a-tab-menu`。在 §7.8「tab 的右键菜单」（M22 F22.6）上加。
+
+- 在那个菜单最后加一条分割线和一项「加入书签」/「移出书签」，键位文字同上。表、query、Redis 键 tab 才有这一项；结果 tab、日志 tab、引导页没有。
+
+#### 7.10.7 打开一个书签
+
+`↵`、单击、`SPC n`、面板里 `↵` / `C-t` 都走这一处：
+
+- 照打开那个目标的已有路径走，不另写：table 同面板里打开表（§12：目标 pane 的规则、已开着就切过去、焦点移到 data pane）；query 同 Queries 节点的 `↵`；key 同树上键节点的 `↵`。
+- 连接还没连上：后台去连，tab 先挂起，catalog 到了表在就取数，同布局恢复（§14「恢复」）；连不上照那里的错误页。
+- 记进面板的最近使用，记的是目标本身（`kind` = table / query / key），同从面板打开它。
+- 目标不在了：不开 tab，toast，见 §7.10.8。
+
+#### 7.10.8 目标不在了
+
+| 情况 | 什么时候知道 | 树和面板里怎么画 | 打开时 |
+|---|---|---|---|
+| 连接不在 connections.toml 里 | 一直知道 | 名字 `dim`，注释换成 `没有连接`（`error` 色） | toast「没有连接 <连接名>」 |
+| 表不在 catalog 里 | 这个连接（库）的 catalog 加载完以后，只看勾选了的 schema（§7.8 F17.13）；没勾的 schema 里的表也算「不在」 | 图标 `error` 色、名字 `dim`，注释换成 `不在了`（`error` 色） | toast「<表> 不在 <连接>.<schema> 里」 |
+| query 文件不在 Queries 列表里 | 同 Queries 节点的目录缓存 | 同上 | toast「query <名字> 不在了」（不当成空 query 打开） |
+| Redis 键不存在 | 打开的时候 | 打开后照键 tab 现在对不存在的键的处理；这次运行里这一行画成「不在了」 | — |
+
+- 连接没连上时不知道表在不在，照常画。
+- 不自动删：外面临时 drop 再建的表、切分支删掉的文件，回来书签还在。删由用户做（`dd`、右键）。
+
+#### 7.10.9 图标
+
+- 新图标 `bookmark`：Nerd Font nf-fa-bookmark U+F02E，ascii `[B]`，默认 `warn` 色，`[icon]` 里能改（§7.7 的列表加一项）。用在「书签」根节点和 pane 标题。
+
+#### 7.10.10 键位和 Action
+
+| Action | 标题（zh / en） | 默认键 | 作用 |
+|---|---|---|---|
+| `bookmark.toggle` | 加入 / 移出书签 · `Add / remove bookmark` | `[keys.normal]` `<Leader>m` | 焦点在树上：光标所在的表 / 视图 / query / 键节点或书签行；焦点在 pane 上：它当前的 tab。别的地方 toast「这里不能加书签」。开关类（`On` = 这个对象有书签），面板里显示 ON / OFF |
+| `bookmark.jump` | 打开第 N 个书签 · `Open bookmark N` | `<Leader>1` … `<Leader>9` = `"bookmark.jump 1"` … `"bookmark.jump 9"` | §7.10.7；没有第 N 个时 toast「没有第 N 个书签」 |
+| `bookmark.rename` | 改名书签… · `Rename bookmark…` | 无 | 状态栏单行输入（同 `window.rename`），预填当前别名；空 = 去掉别名 |
+| `bookmark.group` | 移到书签分组… · `Move bookmark to group…` | 无 | 同上，输入框带已有组名的补全（同连接表单 group 字段的补全，F10.6） |
+| `bookmark.up` / `bookmark.down` | 书签上移 / 书签下移 · `Move bookmark up / down` | 无 | §7.10.3 |
+| `palette.bookmark` | 命令面板：书签 · `Palette: bookmarks` | 无 | 打开面板并输入 `*`（同 `palette.table` 预填 `@`） |
+
+- 后四个的作用对象：焦点在树上是光标所在的书签行；在 pane 上是当前 tab 的书签；都不是时 toast「这里不是书签」。
+- toast 文案：加入「已加入书签 <n>：<名字>」（n > 9 时「已加入书签：<名字>」）；移出「已移出书签：<名字>」。
+- 冲突检查（default.toml，main 815e5e4）：`<Leader>m`、`<Leader>1`–`<Leader>9` 都没被占；按了 leader 之后数字不再当次数（`keymap/resolve.go` 只有在没有待输入序列时才把数字当次数）。
+- which-key（§6.5）：`<Leader>` 那一页里，Action 相同、参数是连续数字的几项合成一项画，键写成 `1-9`，标题「打开第 N 个书签」（示意 `#a-whichkey`）。键位帮助 `?` 同样合成。这是 which-key 列表里的一条通用规则，不特判 `bookmark.jump`。
+- 特性提示（§7.8 Tip）加一条：「`{key}` 把当前 tab 加入书签」，对应 `bookmark.toggle`。
+
+#### 7.10.11 命令面板
+
+示意：`#a-palette`。
+
+- 新范围「书签」，前缀 `*`，范围标签 `书签 *`（en `Bookmarks *`），排在「所有」后面、「会话」前面；`Tab` / `S-Tab` 按这个顺序走。前缀 `*` 现在没有被占，也不是 fzf 扩展语法里的字符。Redis 键的范围用 `:`（§12，M22 F22.5）。
+- 每一行（§12 的行格式）：目标的图标、名字（别名或对象名）、所在位置（`dim`：同 §7.10.4 的注释，有分组时后面加 ` · <组名>`，不在了加 ` · 不在了`）、键位（前 9 个是 `bookmark.jump n` 的键，如 `SPC 1`）、类型标签「书签」（`Bookmark`）。不在了的行名字 `dim`。
+- 匹配同 §12：名称 + 空格 + 所在位置。输入为空时按 §7.10.3 的顺序列。
+- 「所有」范围也列书签：输入为空时排在「最近」之后、window 之前；同一个表 / query / 键有书签时，「所有」里只出书签那一行，不再出表那一行（「表 @」范围照旧列它）。
+- `↵` / `C-t`：§7.10.7。底栏右侧 `↵ 打开`。
+- 预览同目标本身：表是 DDL，query 是文件的前几行，键空着。

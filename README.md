@@ -9,6 +9,7 @@ Made for people like you, by one of you.
 [![Release](https://img.shields.io/github/v/release/kackerx/sqlmux)](https://github.com/kackerx/sqlmux/releases)
 [![CI](https://github.com/kackerx/sqlmux/actions/workflows/ci.yml/badge.svg)](https://github.com/kackerx/sqlmux/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/kackerx/sqlmux)](LICENSE)
+[![sqlmux on The Terminal Index](https://cli.masoko.net/badge/sqlmux.svg)](https://cli.masoko.net/tools/sqlmux/)
 
 <img src="assets/demo.gif" alt="sqlmux: a SQLite table with a WHERE, the JSON view, the command palette, quick SQL, split panes and a second session">
 
@@ -41,7 +42,7 @@ sqlmux runs natively in [Windows Terminal](https://aka.ms/terminal), with PowerS
 - The old console window (conhost) is not supported; use Windows Terminal. Install a Nerd Font there too, or use `icons = "ascii"`.
 - In WSL, sqlmux is the Linux build: install it there as on Linux.
 
-The icons come from a [Nerd Font](https://www.nerdfonts.com/). Without one they show up as boxes: put `icons = "ascii"` in `~/.config/sqlmux/config.toml`.
+The icons come from a [Nerd Font](https://www.nerdfonts.com/). Without one they show up as boxes: put `icons = "ascii"` in `~/.config/sqlmux/config.toml` (on Windows `%APPDATA%\sqlmux\config.toml`).
 
 Then open something:
 

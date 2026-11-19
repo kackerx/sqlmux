@@ -949,25 +949,20 @@ func TestFoldSidebar(t *testing.T) {
 		t.Errorf("the « on the title is %+v, want dim", cell)
 	}
 	click(a, at)
-	if r := a.layout()[0]; r.Dx() != 3 {
-		t.Fatalf("a click on «: bar %v", r)
+	if r := a.layout()[0]; r.Dx() != 0 || a.mainArea().Min.X != 0 {
+		t.Fatalf("a click on «: bar %v, panes from %d", r, a.mainArea().Min.X)
 	}
-	click(a, uv.Pos(1, 1))
+	click(a, uv.Pos(1, a.h-1)) // the » at the left of the status bar (F22.7)
 	if r := a.layout()[0]; r.Dx() != 32 {
 		t.Fatalf("a click on »: bar %v", r)
 	}
 	a.win().Focus = 0
 	feed(t, a, "<Space>b")
-	if r := a.layout()[0]; r.Dx() != 3 || a.win().Focus == 0 {
+	if r := a.layout()[0]; r.Dx() != 0 || a.win().Focus == 0 {
 		t.Fatalf("folded: bar %v, focus %d", r, a.win().Focus)
 	}
-	col := func(y int) string { return string([]rune(strings.Split(a.render().String(), "\n")[y])[1]) }
-	var down string
-	for y := 1; y <= 15; y++ {
-		down += col(y)
-	}
-	if down != "»"+strings.Repeat(" ", 14) {
-		t.Errorf("thin bar reads %q", down)
+	if rows := strings.Split(a.render().String(), "\n"); !strings.HasPrefix(rows[0], "┌") || !strings.HasPrefix(rows[a.h-1], " » ") {
+		t.Errorf("folded: the panes start at column 0, the status bar at the » block: %q %q", rows[0], rows[a.h-1])
 	}
 	feed(t, a, "<C-h><C-h>")
 	if a.win().Focus == 0 {
@@ -976,6 +971,35 @@ func TestFoldSidebar(t *testing.T) {
 	feed(t, a, "<Space>b")
 	if r := a.layout()[0]; r.Dx() != 32 || a.win().Focus != 0 {
 		t.Errorf("unfolded width %d, focus %d", r.Dx(), a.win().Focus)
+	}
+}
+
+// The » that brings the sidebar back is the status bar's first block, when the
+// sidebar is not in sight: folded, or covered by a zoomed pane; a click on it is
+// tree.toggle; a narrow window keeps it and the session's block (F22.7).
+func TestSidebarButton(t *testing.T) {
+	status := func(a *App) string { rows := strings.Split(a.render().String(), "\n"); return rows[a.h-1] }
+	a := sized(160, 45, "nerd")
+	if strings.HasPrefix(status(a), " » ") {
+		t.Error("an open sidebar has the button")
+	}
+	a.win().focus(2)
+	feed(t, a, "<Space>z")
+	if !strings.HasPrefix(status(a), " » ") {
+		t.Errorf("a zoomed pane covers the sidebar: %q", status(a))
+	}
+	click(a, uv.Pos(1, a.h-1))
+	if a.win().Zoom != 0 || a.win().Focus != 0 || !a.win().TreeOpen || strings.HasPrefix(status(a), " » ") {
+		t.Errorf("the click: zoom %d, focus %d, open %v", a.win().Zoom, a.win().Focus, a.win().TreeOpen)
+	}
+	a.win().TreeOpen = false
+	if !strings.HasPrefix(status(a), " » ") {
+		t.Errorf("folded: %q", status(a))
+	}
+	n := sized(80, 20, "nerd")
+	n.win().TreeOpen = false
+	if bar := status(n); !strings.HasPrefix(bar, " » ") || !strings.Contains(bar, n.sess.Name) {
+		t.Errorf("80 columns: %q", bar)
 	}
 }
 
@@ -1047,7 +1071,7 @@ func TestTreeToggleFocus(t *testing.T) {
 	if open, focus := state(a); open || focus != 2 {
 		t.Fatalf("« with the focus on ②: open %v focus %d", open, focus)
 	}
-	click(a, uv.Pos(1, 1))
+	click(a, uv.Pos(1, a.h-1))
 	if open, focus := state(a); !open || focus != 0 {
 		t.Fatalf("»: open %v focus %d", open, focus)
 	}
@@ -1138,7 +1162,7 @@ func TestTreeFollow(t *testing.T) {
 				a.win().TreeOpen = false
 			}
 			if how == "»" {
-				click(a, uv.Pos(1, 1))
+				click(a, uv.Pos(1, a.h-1))
 			} else {
 				feed(t, a, "<Space>b")
 			}

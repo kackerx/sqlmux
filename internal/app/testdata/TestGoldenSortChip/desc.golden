@@ -1,0 +1,45 @@
+┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ①  t_order ─────────────────────────────────────     ─┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
+│  15 tables                 │ │ WHERE                                                C-r ▾ │ │   1                                                         │
+│──────────────────────────────│ │  ORDER status    LIMIT 100   PAGE 1/?                    │ │                                                             │
+│ ▾  doraemon                │ │     │  id │ status  │ amount │ paid │ meta                │ │                                                             │
+│   ▸  agentable              │ │─────┼──────┼──────────┼────────┼──────┼─────────────────────│ │                                                             │
+│   ▾  public                 │ │   1 │    1 │ running  │   1.99 │ t    │ {"n": 1, "tags": ["a│ │                                                             │
+│     ▾  Tables (14)          │ │   2 │    2 │ done     │   2.99 │ t    │ {"n": 2, "tags": ["a│ │                                                             │
+│       ▸  agent          124 │ │   3 │    3 │ failed   │   3.99 │ t    │ {"n": 3, "tags": ["a│ │                                                             │
+│       ▸  agent_version  530 │ │   4 │    4 │ pending  │   4.99 │ t    │ {"n": 4, "tags": ["a│ │                                                             │
+│       ▸  goal            57 │ │   5 │    5 │ running  │   5.99 │ t    │ {"n": 5, "tags": ["a│ │                                                             │
+│       ▸  mt_task        812 │ │   6 │    6 │ done     │   6.99 │ t    │ {"n": 6, "tags": ["a│ │                                                             │
+│       ▸  mt_task_log    96k │ │   7 │    7 │ failed   │   7.99 │ t    │ {"n": 7, "tags": ["a│ │                                                             │
+│       ▸  schema_migrations  │ │   8 │    8 │ pending  │   8.99 │ t    │ {"n": 8, "tags": ["a│ │                                                             │
+│       ▸  t_order       1.2m │ │   9 │    9 │ running  │   9.99 │ t    │ {"n": 9, "tags": ["a│ │                                                             │
+│       ▸  t_order_item  3.4m │ │  10 │   10 │ done     │  10.99 │ t    │ {"n": 10, "tags": ["│ │                                                             │
+│       ▸  t_payment     410k │ │  11 │   11 │ failed   │  11.99 │ t    │ {"n": 11, "tags": ["│ │                                                             │
+│       ▸  t_refund       12k │ │  12 │   12 │ pending  │  12.99 │ t    │ {"n": 12, "tags": ["│ │                                                             │
+│       ▸  t_sku         8.1k │ │  13 │   13 │ running  │  13.99 │ t    │ {"n": 13, "tags": ["│ │                                                             │
+│       ▸  t_user         38k │ │  14 │   14 │ done     │  14.99 │ t    │ {"n": 14, "tags": ["│ │                                                             │
+│       ▸  t_user_address 52k │ │  15 │   15 │ failed   │  15.99 │ t    │ {"n": 15, "tags": ["│ │                                                             │
+│       ▸  t_user_profile 38k │ │  16 │   16 │ pending  │  16.99 │ t    │ {"n": 16, "tags": ["│ │                                                             │
+│        Views (0)            │ │  17 │   17 │ running  │  17.99 │ t    │ {"n": 17, "tags": ["│ │                                                             │
+│ ▾  工作区                   │ │  18 │   18 │ done     │  18.99 │ t    │ {"n": 18, "tags": ["│ │                                                             │
+│   ▾  data                   │ │  19 │   19 │ failed   │  19.99 │ t    │ {"n": 19, "tags": ["│ │                                                             │
+│       ①  t_order  status ↓  │ │  20 │   20 │ pending  │  20.99 │ t    │ {"n": 20, "tags": ["│ │                                                             │
+│       ②  query_1            │ │  21 │   21 │ running  │  21.99 │ t    │ {"n": 21, "tags": ["│ │                                                             │
+│ ▾  Queries                  │ │  22 │   22 │ done     │  22.99 │ t    │ {"n": 22, "tags": ["│ │                                                             │
+│      query_1                │ │  23 │   23 │ failed   │  23.99 │ t    │ {"n": 23, "tags": ["│ │                                                             │
+│                              │ │  24 │   24 │ pending  │  24.99 │ t    │ {"n": 24, "tags": ["│ │                                                             │
+│                              │ │  25 │   25 │ running  │  25.99 │ t    │ {"n": 25, "tags": ["│ │                                                             │
+│                              │ │  26 │   26 │ done     │  26.99 │ t    │ {"n": 26, "tags": ["│ │                                                             │
+│                              │ │  27 │   27 │ failed   │  27.99 │ t    │ {"n": 27, "tags": ["│ │                                                             │
+│                              │ │  28 │   28 │ pending  │  28.99 │ t    │ {"n": 28, "tags": ["│ │                                                             │
+│                              │ │  29 │   29 │ running  │  29.99 │ t    │ {"n": 29, "tags": ["│ │                                                             │
+│                              │ │  30 │   30 │ done     │  30.99 │ t    │ {"n": 30, "tags": ["│ │                                                             │
+│                              │ │  31 │   31 │ failed   │  31.99 │ t    │ {"n": 31, "tags": ["│ │                                                             │
+│                              │ │  32 │   32 │ pending  │  32.99 │ t    │ {"n": 32, "tags": ["│ │                                                             │
+│                              │ │  33 │   33 │ running  │  33.99 │ t    │ {"n": 33, "tags": ["│ │                                                             │
+│                              │ │  34 │   34 │ done     │  34.99 │ t    │ {"n": 34, "tags": ["│ │                                                             │
+│                              │ │  35 │   35 │ failed   │  35.99 │ t    │ {"n": 35, "tags": ["│ │                                                             │
+│                              │ │  36 │   36 │ pending  │  36.99 │ t    │ {"n": 36, "tags": ["│ │                                                             │
+│──────────────────────────────│ │  37 │   37 │ running  │  37.99 │ t    │ {"n": 37, "tags": ["│ │                                                             │
+│ j/k move · ↵ open            │ │ 1: t_order* │ +             hjkl · ↵ edit · T 转置 · gt/gT │ │ 1: query_1* │ +                                      gt/gT │
+└──────────────────────────────┘ └─────────────────────────────────────────────────────────────┘ └─────────────────────────────────────────────────────────────┘
+ doraemon ▾  0: data*                                                                                        ·    1,1   doraemon · pg@localhost:5432  NORMAL 

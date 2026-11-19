@@ -82,7 +82,8 @@ type LayoutTab struct {
 	// number on the page from 1 (F17.15); a key of TOML is text
 	TransposeWidths map[string]int `toml:"transpose_widths,omitempty"`
 	Transpose       bool           `toml:"transpose,omitempty"`
-	Key             string         `toml:"key,omitempty"` // a key's name, Kind "key"; its db is DB (F16.3)
+	Pinned          bool           `toml:"pinned,omitempty"` // any kind's, F22.6; the order of the tabs is the file's
+	Key             string         `toml:"key,omitempty"`    // a key's name, Kind "key"; its db is DB (F16.3)
 	// a query's: the name of its file; N is what layouts of before
 	// M8 F8.11 say, query_<n>
 	Name string `toml:"name,omitempty"`

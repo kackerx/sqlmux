@@ -56,9 +56,9 @@ check "t_ident 的 yyp：id（serial 主键）和 seq（identity）都是 <defau
 key C-s; wait_for 8 eval '[[ $(qb) == *已保存* || -n $(errbar 1) ]]'
 ident_rows() { psql_n "select string_agg(concat_ws(':', id, seq, v), ' ' order by id) from t_ident"; }
 check "C-s：存进去，seq 由 identity 给出 2" eval '[[ $(ident_rows) == "1:1:abc 2:2:abc" ]] || { errbar 1; ident_rows; false; }'
-# generated（stored）列照抄，保存时报错：已知上限（ponytail）
+# generated（stored）列不抄（F22.4；原来照抄、保存时报 428C9），整行存进去，g 由库算
 open_table t_gen; wait_for 8 settled; key y y; key p; key C-s; wait_for 8 eval '[[ -n $(errbar 1) || $(qb) == *已保存* ]]'
-check "t_gen 的 yyp 再 C-s：generated 列 g 照抄了，报 428C9（已知上限），库里没变" eval '[[ $(errbar 1 | head -1) == "[428C9] "* && $(psql_n "select count(*) from t_gen") == 1 ]] || { errbar 1; false; }'
+check "t_gen 的 yyp 再 C-s：generated 列 g 不抄，存进去，g 由库算（1:3:abc 2:3:abc）" eval '[[ $(psql_n "select string_agg(concat_ws('"':'"', id, g, v), '"' '"' order by id) from t_gen") == "1:3:abc 2:3:abc" ]] || { errbar 1; false; }'
 
 # ---- query 里 yy 同样闪一下；结果区只读：p 不做事，yy / yl 照常
 SOLO= start -C "$D/own"; key C-l; key i; e2e_type "select 7 as a, 'x' as b"; key Escape

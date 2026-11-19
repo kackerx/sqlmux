@@ -884,6 +884,9 @@ func TestWhereHistoryFilteredOut(t *testing.T) {
 	if tab.hist == nil || strings.Contains(a.render().String(), "没有历史") {
 		t.Fatalf("filtered out: list %v, a row saying there is no history", tab.hist != nil)
 	}
+	if out := a.render().String(); strings.Contains(out, "收藏 / 取消收藏") { // the foot's box alone is the index's (F21.7)
+		t.Errorf("a box of the foot hints alone:\n%s", out)
+	}
 	if feed(t, a, "<CR>"); tab.hist != nil || tab.applied != "" {
 		t.Errorf("↵: list %v, applied %q", tab.hist != nil, tab.applied)
 	}

@@ -31,6 +31,20 @@ type Tab struct {
 	Data   *dataTab
 	Query  *queryTab
 	Result *resultTab
+	Pinned bool // a table's, a query's or a key's, in front of the others (F22.6); a result's is its own
+}
+
+// pinned is whether t is pinned, as any kind of tab is.
+func (t Tab) pinned() bool { return t.Pinned || t.Result != nil && t.Result.pinned }
+
+// turned is whether the table is turned as the user has it: the JSON view
+// takes the turn away while it is open and gives it back (F22.1), so what is
+// kept of the tab, in the layout and for tab.reopen, is the view's.
+func (s *gridState) turned() bool {
+	if s.jv != nil {
+		return s.jv.turned
+	}
+	return s.transpose
 }
 
 // gridState is a grid's rows and where it is (§7.6): a table tab's, a

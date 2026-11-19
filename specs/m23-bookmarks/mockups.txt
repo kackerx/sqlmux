@@ -1,0 +1,608 @@
+#a-main  A · 侧栏的「书签」节点、pane 标题上的书签图标、tab 栏（160×45）
+┌─ ⓪ ◆ seed ─────────────── « ─┐ ┌─ ① ▦ t_order ★ ────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ★ ────────── seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+│ ⌕ 22 tables                  │ │ WHERE                                                 C-r ▾ │ │   1 select date(created_at) as day,                         │
+│──────────────────────────────│ │  ORDER id ↓   LIMIT 100   PAGE 1/60   COLS 6/8      6000 行 │ │   2        status,                                          │
+│ ▾ ★ 书签                     │ │   │   id │ user_id │ status   │ amount │ paid │ note        │ │   3        count(*)    as n,                                │
+│   1 ▦ t_order      seed.main │ │───┼──────┼─────────┼──────────┼────────┼──────┼─────────────│ │   4        sum(amount) as total                             │
+│   2 ❯ 月报_订单         seed │ │ 1 │    1 │       2 │ queued   │    1.5 │    1 │             │ │   5   from t_order                                          │
+│   3 ≡ user:1001    redis/db0 │ │ 2 │    2 │       3 │ running  │    3.0 │    0 │             │ │   6  where created_at >= '2026-01-01'                       │
+│   ── 排查 ───────────────────│ │ 3 │    3 │       1 │ done     │    4.5 │    1 │             │ │   7  group by 1, 2                                          │
+│   4 ▦ t_order_item seed.main │ │ 4 │    4 │       2 │ failed   │    6.0 │    0 │             │ │   8  order by 1 desc;                                       │
+│   5 ◉ v_paid          不在了 │ │ 5 │    5 │       3 │ pending  │    7.5 │    1 │             │ │                                                             │
+│ ▾ ◆ seed                     │ │ 6 │    6 │       1 │ queued   │    9.0 │    0 │             │ │                                                             │
+│   ▾ ▦ Tables (21)            │ │ 7 │    7 │       2 │ running  │   10.5 │    1 │             │ │                                                             │
+│     ▸ ▦ ft                   │ │ 8 │    8 │       3 │ done     │   12.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_aud                │ │ 9 │    9 │       1 │ failed   │   13.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_bk                 │ │10 │   10 │       2 │ pending  │   15.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_ck                 │ │11 │   11 │       3 │ queued   │   16.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_desc               │ │12 │   12 │       1 │ running  │   18.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_dt                 │ │13 │   13 │       2 │ done     │   19.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_free               │ │14 │   14 │       3 │ failed   │   21.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_free_wr            │ │15 │   15 │       1 │ pending  │   22.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_gen                │ │16 │   16 │       2 │ queued   │   24.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_int                │ │17 │   17 │       3 │ running  │   25.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_kv                 │ │18 │   18 │       1 │ done     │   27.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_log                │ │                                                             │ │                                                             │
+│     ▸ ▦ t_misc               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_note               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_order              │ │                                                             │ │                                                             │
+│     ▸ ▦ t_order_item         │ │                                                             │ │                                                             │
+│     ▸ ▦ t_part               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_real               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_rowid              │ │                                                             │ │                                                             │
+│     ▸ ▦ t_sku                │ │                                                             │ │                                                             │
+│     ▸ ▦ t_user               │ │                                                             │ │                                                             │
+│   ▸ ◉ Views (1)              │ │                                                             │ │                                                             │
+│ ▸ ▢ 工作区                   │ │                                                             │ │                                                             │
+│ ▾ ❯ Queries                  │ │                                                             │ │                                                             │
+│     ❯ 月报_订单         seed │ │                                                             │ │                                                             │
+│     ❯ query_1           seed │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│──────────────────────────────│ │                                                             │ │                                                             │
+│ j/k move · ↵ open            │ │ 1:t_order* │ 2:t_user- │ +            hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                      gt/gT │
+└──────────────────────────────┘ └─────────────────────────────────────────────────────────────┘ └────────────────────────────────────── 已加入书签 1：t_order ┘
+ seed ▾  0: data*                                                                 Tip: SPC s 切换或新建 session  ⌕  ⌨ ·    1,1  ◆ seed · ~/data/seed.db  NORMAL
+
+#a-tree-menu  A · 书签节点上右键（前 16 行，160 列）
+┌─ ⓪ ◆ seed ─────────────── « ─┐ ┌─ ① ▦ t_order ★ ────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ★ ────────── seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+│ ⌕ 22 tables                  │ │ WHERE                                                 C-r ▾ │ │   1 select date(created_at) as day,                         │
+│──────────────────────────────│ │  ORDER id ↓   LIMIT 100   PAGE 1/60   COLS 6/8      6000 行 │ │   2        status,                                          │
+│ ▾ ★ 书签                     │ │   │   id │ user_id │ status   │ amount │ paid │ note        │ │   3        count(*)    as n,                                │
+│   1 ▦ t_order      seed.main │ │───┼──────┼─────────┼──────────┼────────┼──────┼─────────────│ │   4        sum(amount) as total                             │
+│   2 ❯ 月报_订单         seed │ │ 1 │    1 │       2 │ queued   │    1.5 │    1 │             │ │   5   from t_order                                          │
+│   3 ≡ user┌───────────────┐0 │ │ 2 │    2 │       3 │ running  │    3.0 │    0 │             │ │   6  where created_at >= '2026-01-01'                       │
+│   ── 排查 │ 打开        ↵ │──│ │ 3 │    3 │       1 │ done     │    4.5 │    1 │             │ │   7  group by 1, 2                                          │
+│   4 ▦ t_or│ 改名…         │n │ │ 4 │    4 │       2 │ failed   │    6.0 │    0 │             │ │   8  order by 1 desc;                                       │
+│   5 ◉ v_pa│ 移到分组…     │  │ │ 5 │    5 │       3 │ pending  │    7.5 │    1 │             │ │                                                             │
+│ ▾ ◆ seed  │ 上移          │  │ │ 6 │    6 │       1 │ queued   │    9.0 │    0 │             │ │                                                             │
+│   ▾ ▦ Tabl│ 下移          │  │ │ 7 │    7 │       2 │ running  │   10.5 │    1 │             │ │                                                             │
+│     ▸ ▦ ft│───────────────│  │ │ 8 │    8 │       3 │ done     │   12.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_│ 移出书签   dd │  │ │ 9 │    9 │       1 │ failed   │   13.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_└───────────────┘  │ │10 │   10 │       2 │ pending  │   15.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_ck                 │ │11 │   11 │       3 │ queued   │   16.5 │    1 │             │ │                                                             │
+
+#a-tab-menu  A · tab 上右键：M22 的 tab 菜单末尾加一项（后 19 行，160 列）
+│     ▸ ▦ t_order              │ │                                                             │ │                                                             │
+│     ▸ ▦ t_order_item         │ │                                                             │ │                                                             │
+│     ▸ ▦ t_part               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_real               │ │  ┌────────────────────────┐                                 │ │                                                             │
+│     ▸ ▦ t_rowid              │ │  │ 关闭                 x │                                 │ │                                                             │
+│     ▸ ▦ t_sku                │ │  │ 关闭其他               │                                 │ │                                                             │
+│     ▸ ▦ t_user               │ │  │ 关闭右侧               │                                 │ │                                                             │
+│   ▸ ◉ Views (1)              │ │  │ 关闭左侧               │                                 │ │                                                             │
+│ ▸ ▢ 工作区                   │ │  │────────────────────────│                                 │ │                                                             │
+│ ▾ ❯ Queries                  │ │  │ 向右拆分               │                                 │ │                                                             │
+│     ❯ 月报_订单         seed │ │  │ 向下拆分               │                                 │ │                                                             │
+│     ❯ query_1           seed │ │  │ 移到下一个面板  SPC wn │                                 │ │                                                             │
+│                              │ │  │ 固定                   │                                 │ │                                                             │
+│                              │ │  │────────────────────────│                                 │ │                                                             │
+│                              │ │  │ 移出书签         SPC m │                                 │ │                                                             │
+│──────────────────────────────│ │  └────────────────────────┘                                 │ │                                                             │
+│ j/k move · ↵ open            │ │ 1:t_order* │ 2:t_user- │ +            hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                      gt/gT │
+└──────────────────────────────┘ └─────────────────────────────────────────────────────────────┘ └─────────────────────────────────────────────────────────────┘
+ seed ▾  0: data*                                                                 Tip: SPC s 切换或新建 session  ⌕  ⌨ ·    1,1  ◆ seed · ~/data/seed.db  NORMAL
+
+#a-whichkey  A · 按 SPC 停住时的 which-key（后 9 行，160 列）
+│     ❯ 月报_订单         seed │ │                                                             │ │                                                             │
+┌─ SPC ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [keys.normal]                                                                                                                                                │
+│ s → session 列表             c → 新建 window              % → 左右分割                 q → 按编号跳转               w → …                                    │
+│ ) → 下一个 session           n → 下一个 window            " → 上下分割                 b → 打开 / 聚焦 / 收起侧栏   m → 加入 / 移出书签                      │
+│ ( → 上一个 session           p → 上一个 window            z → 缩放 / 还原              r → 显示 / 隐藏结果区        1-9 → 打开第 N 个书签                    │
+│ L → 上次用的 session         l → 上次用的 window          x → 关闭 pane                ? → 键位帮助                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+ seed ▾  0: data*                                                                 Tip: SPC s 切换或新建 session  ⌕  ⌨ SPC  1,1  ◆ seed · ~/data/seed.db  NORMAL
+
+#a-palette  A · 命令面板的「书签 *」范围（160×45）
+┌─ ⓪ ◆ seed ─────────────── « ─┐ ┌─ ① ▦ t_order ★ ────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ★ ────────── seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+│ ⌕ 22 tables                  │ │ WHERE                                                 C-r ▾ │ │   1 select date(created_at) as day,                         │
+│──────────────────────────────│ │  ORDER id ↓   LIMIT 100   PAGE 1/60   COLS 6/8      6000 行 │ │   2        status,                                          │
+│ ▾ ★ 书签                     │ │   │   id │ user_id │ status   │ amount │ paid │ note        │ │   3        count(*)    as n,                                │
+│   1 ▦ t_order      seed.main │ │───┼──────┼─────────┼──────────┼────────┼──────┼─────────────│ │   4        sum(amount) as total                             │
+│   2 ❯ 月报_订单         seed │ │ 1 │    1 │       2 │ queued   │    1.5 │    1 │             │ │   5   from t_order                                          │
+│   3 ≡ user:1001    redis/db0 │ │ 2 │    2 │       3 │ running  │    3.0 │    0 │             │ │   6  where created_at >= '2026-01-01'                       │
+│   ── 排查 ──────────────────┌─ 命令面板 ───────────────────────────────────────────────────────────────────────────────────────┐                             │
+│   4 ▦ t_order_item seed.main│  所有   书签 *   会话 $   窗口·Pane %   窗口 &   Tab #   表 @   命令 >   SQL ;                   │                             │
+│   5 ◉ v_paid          不在了│ ⌕ *                                                                                              │                             │
+│ ▾ ◆ seed                    │──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
+│   ▾ ▦ Tables (21)           │ ▦ t_order       seed.main                                                             SPC 1 书签 │                             │
+│     ▸ ▦ ft                  │ ❯ 月报_订单     seed                                                                  SPC 2 书签 │                             │
+│     ▸ ▦ t_aud               │ ≡ user:1001     redis/db0                                                             SPC 3 书签 │                             │
+│     ▸ ▦ t_bk                │ ▦ t_order_item  seed.main · 排查                                                      SPC 4 书签 │                             │
+│     ▸ ▦ t_ck                │ ◉ v_paid        seed.main · 排查 · 不在了                                             SPC 5 书签 │                             │
+│     ▸ ▦ t_desc              │──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
+│     ▸ ▦ t_dt                │ CREATE TABLE t_order (                                                                           │                             │
+│     ▸ ▦ t_free              │     id         integer primary key,                                                              │                             │
+│     ▸ ▦ t_free_wr           │     user_id    integer not null references t_user (id),                                          │                             │
+│     ▸ ▦ t_gen               │     status     text not null default 'pending',                                                  │                             │
+│     ▸ ▦ t_int               │     amount     real not null,                                                                    │                             │
+│     ▸ ▦ t_kv                │     paid       integer,                                                                          │                             │
+│     ▸ ▦ t_log               │     note       text,                                                                             │                             │
+│     ▸ ▦ t_misc              │──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
+│     ▸ ▦ t_note              │ ↑/↓ 移动 · Tab/S-Tab 范围 · C-f/C-b 预览 · esc 关闭                                       ↵ 打开 │                             │
+│     ▸ ▦ t_order             └──────────────────────────────────────────────────────────────────────────────────────────────────┘                             │
+│     ▸ ▦ t_order_item         │ │                                                             │ │                                                             │
+│     ▸ ▦ t_part               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_real               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_rowid              │ │                                                             │ │                                                             │
+│     ▸ ▦ t_sku                │ │                                                             │ │                                                             │
+│     ▸ ▦ t_user               │ │                                                             │ │                                                             │
+│   ▸ ◉ Views (1)              │ │                                                             │ │                                                             │
+│ ▸ ▢ 工作区                   │ │                                                             │ │                                                             │
+│ ▾ ❯ Queries                  │ │                                                             │ │                                                             │
+│     ❯ 月报_订单         seed │ │                                                             │ │                                                             │
+│     ❯ query_1           seed │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│──────────────────────────────│ │                                                             │ │                                                             │
+│ j/k move · ↵ open            │ │ 1:t_order* │ 2:t_user- │ +            hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                      gt/gT │
+└──────────────────────────────┘ └─────────────────────────────────────────────────────────────┘ └────────────────────────────────────── 已加入书签 1：t_order ┘
+ seed ▾  0: data*                                                                     Tip: SPC s 切换或新建 session  ⌕  ⌨ ·    ◆ seed · ~/data/seed.db  COMMAND
+
+#b-manager  B · SPC M 打开的快捷槽列表（160×45）
+┌─ ⓪ ◆ seed ─────────────── « ─┐ ┌─ ① ▦ t_order ★ ────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ★ ────────── seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+│ ⌕ 22 tables                  │ │ WHERE                                                 C-r ▾ │ │   1 select date(created_at) as day,                         │
+│──────────────────────────────│ │  ORDER id ↓   LIMIT 100   PAGE 1/60   COLS 6/8      6000 行 │ │   2        status,                                          │
+│ ▾ ★ 书签                     │ │   │   id │ user_id │ status   │ amount │ paid │ note        │ │   3        count(*)    as n,                                │
+│   1 ▦ t_order      seed.main │ │───┼──────┼─────────┼──────────┼────────┼──────┼─────────────│ │   4        sum(amount) as total                             │
+│   2 ❯ 月报_订单         seed │ │ 1 │    1 │       2 │ queued   │    1.5 │    1 │             │ │   5   from t_order                                          │
+│   3 ≡ user:1001    redis/db0 │ │ 2 │    2 │       3 │ running  │    3.0 │    0 │             │ │   6  where created_at >= '2026-01-01'                       │
+│   4 ▦ t_order_item seed.main │ │ 3 │    3 │       1 │ done     │    4.5 │    1 │             │ │   7  group by 1, 2                                          │
+│ ▾ ◆ seed                     │ │ 4 │    4 │       2 │ failed   │    6.0 │    0 │             │ │   8  order by 1 desc;                                       │
+│   ▾ ▦ Tables (21)            │ │ 5 │    5 │       3 │ pending  │    7.5 │    1 │             │ │                                                             │
+│     ▸ ▦ ft                   │ │ 6 │    6 │       1 │ queued   │    9.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_aud                │ │ 7 │    7 │       2 │ running  │   10.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_bk                 │ │ 8 │    8 │     ┌─ 书签 ───────────────────────────────────────────────────┐                                                 │
+│     ▸ ▦ t_ck                 │ │ 9 │    9 │     │ 1 ▦ t_order                                    seed.main │                                                 │
+│     ▸ ▦ t_desc               │ │10 │   10 │     │ 2 ❯ 月报_订单                                       seed │                                                 │
+│     ▸ ▦ t_dt                 │ │11 │   11 │     │ 3 ≡ user:1001                                  redis/db0 │                                                 │
+│     ▸ ▦ t_free               │ │12 │   12 │     │ 4 ▦ t_order_item                               seed.main │                                                 │
+│     ▸ ▦ t_free_wr            │ │13 │   13 │     │ 5                                                        │                                                 │
+│     ▸ ▦ t_gen                │ │14 │   14 │     │ 6                                                        │                                                 │
+│     ▸ ▦ t_int                │ │15 │   15 │     │ 7                                                        │                                                 │
+│     ▸ ▦ t_kv                 │ │16 │   16 │     │ 8                                                        │                                                 │
+│     ▸ ▦ t_log                │ │17 │   17 │     │ 9                                                        │                                                 │
+│     ▸ ▦ t_misc               │ │18 │   18 │     │──────────────────────────────────────────────────────────│                                                 │
+│     ▸ ▦ t_note               │ │                │ j/k 移动 · J/K 换位 · dd 移出 · ↵ 打开 · esc 关闭        │                                                 │
+│     ▸ ▦ t_order              │ │                └──────────────────────────────────────────────────────────┘                                                 │
+│     ▸ ▦ t_order_item         │ │                                                             │ │                                                             │
+│     ▸ ▦ t_part               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_real               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_rowid              │ │                                                             │ │                                                             │
+│     ▸ ▦ t_sku                │ │                                                             │ │                                                             │
+│     ▸ ▦ t_user               │ │                                                             │ │                                                             │
+│   ▸ ◉ Views (1)              │ │                                                             │ │                                                             │
+│ ▸ ▢ 工作区                   │ │                                                             │ │                                                             │
+│ ▾ ❯ Queries                  │ │                                                             │ │                                                             │
+│     ❯ 月报_订单         seed │ │                                                             │ │                                                             │
+│     ❯ query_1           seed │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│──────────────────────────────│ │                                                             │ │                                                             │
+│ j/k move · ↵ open            │ │ 1:t_order* │ 2:t_user- │ +            hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                      gt/gT │
+└──────────────────────────────┘ └─────────────────────────────────────────────────────────────┘ └─────────────────────────────────────────────────────────────┘
+ seed ▾  0: data*                                                                     Tip: SPC s 切换或新建 session  ⌕  ⌨ ·    ◆ seed · ~/data/seed.db  COMMAND
+
+#b-palette  B · 不开新范围：表 @ 里带 ★n 角标（160×45）
+┌─ ⓪ ◆ seed ─────────────── « ─┐ ┌─ ① ▦ t_order ★ ────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ★ ────────── seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+│ ⌕ 22 tables                  │ │ WHERE                                                 C-r ▾ │ │   1 select date(created_at) as day,                         │
+│──────────────────────────────│ │  ORDER id ↓   LIMIT 100   PAGE 1/60   COLS 6/8      6000 行 │ │   2        status,                                          │
+│ ▾ ★ 书签                     │ │   │   id │ user_id │ status   │ amount │ paid │ note        │ │   3        count(*)    as n,                                │
+│   1 ▦ t_order      seed.main │ │───┼──────┼─────────┼──────────┼────────┼──────┼─────────────│ │   4        sum(amount) as total                             │
+│   2 ❯ 月报_订单         seed │ │ 1 │    1 │       2 │ queued   │    1.5 │    1 │             │ │   5   from t_order                                          │
+│   3 ≡ user:1001    redis/db0 │ │ 2 │    2 │       3 │ running  │    3.0 │    0 │             │ │   6  where created_at >= '2026-01-01'                       │
+│   4 ▦ t_order_item seed.main┌─ 命令面板 ───────────────────────────────────────────────────────────────────────────────────────┐                             │
+│ ▾ ◆ seed                    │  所有   会话 $   窗口·Pane %   窗口 &   Tab #   表 @   命令 >   SQL ;                            │                             │
+│   ▾ ▦ Tables (21)           │ ⌕ @ord                                                                                           │                             │
+│     ▸ ▦ ft                  │──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
+│     ▸ ▦ t_aud               │ ▦ t_order ★1       seed.main                                                                  表 │                             │
+│     ▸ ▦ t_bk                │ ▦ t_order_item ★4  seed.main                                                                  表 │                             │
+│     ▸ ▦ t_ck                │ ▦ t_ord_old        seed.main                                                                  表 │                             │
+│     ▸ ▦ t_desc              │ ❯ order_daily      seed                                                                    Query │                             │
+│     ▸ ▦ t_dt                │──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
+│     ▸ ▦ t_free              │ CREATE TABLE t_order (                                                                           │                             │
+│     ▸ ▦ t_free_wr           │     id         integer primary key,                                                              │                             │
+│     ▸ ▦ t_gen               │     user_id    integer not null references t_user (id),                                          │                             │
+│     ▸ ▦ t_int               │     status     text not null default 'pending',                                                  │                             │
+│     ▸ ▦ t_kv                │     amount     real not null,                                                                    │                             │
+│     ▸ ▦ t_log               │     paid       integer,                                                                          │                             │
+│     ▸ ▦ t_misc              │     note       text,                                                                             │                             │
+│     ▸ ▦ t_note              │──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
+│     ▸ ▦ t_order             │ ↑/↓ 移动 · Tab/S-Tab 范围 · C-f/C-b 预览 · esc 关闭                                       ↵ 打开 │                             │
+│     ▸ ▦ t_order_item        └──────────────────────────────────────────────────────────────────────────────────────────────────┘                             │
+│     ▸ ▦ t_part               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_real               │ │                                                             │ │                                                             │
+│     ▸ ▦ t_rowid              │ │                                                             │ │                                                             │
+│     ▸ ▦ t_sku                │ │                                                             │ │                                                             │
+│     ▸ ▦ t_user               │ │                                                             │ │                                                             │
+│   ▸ ◉ Views (1)              │ │                                                             │ │                                                             │
+│ ▸ ▢ 工作区                   │ │                                                             │ │                                                             │
+│ ▾ ❯ Queries                  │ │                                                             │ │                                                             │
+│     ❯ 月报_订单         seed │ │                                                             │ │                                                             │
+│     ❯ query_1           seed │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│                              │ │                                                             │ │                                                             │
+│──────────────────────────────│ │                                                             │ │                                                             │
+│ j/k move · ↵ open            │ │ 1:t_order* │ 2:t_user- │ +            hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                      gt/gT │
+└──────────────────────────────┘ └─────────────────────────────────────────────────────────────┘ └─────────────────────────────────────────────────────────────┘
+ seed ▾  0: data*                                                                     Tip: SPC s 切换或新建 session  ⌕  ⌨ ·    ◆ seed · ~/data/seed.db  COMMAND
+
+#c-main  C · 书签是「带条件的视图」，加入时先起名（160×45）
+┌─ ⓪ ◆ seed ─────────────── « ─┐ ┌─ ① ▦ t_order ★ ────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ★ ────────── seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+│ ⌕ 22 tables                  │ │ WHERE status = 'failed'                               C-r ▾ │ │   1 select date(created_at) as day,                         │
+│──────────────────────────────│ │  ORDER id ↓   LIMIT 100   PAGE 1/12   COLS 6/8      1200 行 │ │   2        status,                                          │
+│ ▾ ★ 书签                     │ │   │   id │ user_id │ status   │ amount │ paid │ note        │ │   3        count(*)    as n,                                │
+│   ▾ ▣ 排查                   │ │───┼──────┼─────────┼──────────┼────────┼──────┼─────────────│ │   4        sum(amount) as total                             │
+│       ▦ 失败订单     t_order │ │ 1 │    4 │       2 │ failed   │    6.0 │    0 │             │ │   5   from t_order                                          │
+│       ▦ 大额待付     t_order │ │ 2 │    9 │       1 │ failed   │   13.5 │    1 │             │ │   6  where created_at >= '2026-01-01'                       │
+│       ≡ user:1001        db0 │ │ 3 │   14 │       3 │ failed   │   21.0 │    0 │             │ │   7  group by 1, 2                                          │
+│   ▸ ▣ 日报                   │ │ 4 │   19 │       2 │ failed   │   28.5 │    1 │             │ │   8  order by 1 desc;                                       │
+│     ❯ 月报_订单         seed │ │ 5 │   24 │       1 │ failed   │   36.0 │    0 │             │ │                                                             │
+│     ▦ t_user       seed.main │ │ 6 │   29 │       3 │ failed   │   43.5 │    1 │             │ │                                                             │
+│ ▾ ◆ seed                     │ │ 7 │   34 │       2 │ failed   │   51.0 │    0 │             │ │                                                             │
+│   ▾ ▦ Tables (21)            │ │ 8 │   39 │       1 │ failed   │   58.5 │    1 │             │ │                                                             │
+│     ▸ ▦ ft                   │ │ 9 │   44 │       3 │ failed   │   66.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_aud                │ │10 │   49 │       2 │ failed   │   73.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_bk                 │ │11 │   54 │       1 │ failed   │   81.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_ck                 │ │12 │   59 │       3 │ failed   │   88.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_desc               │ │13 │   64 │       2 │ failed   │   96.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_dt                 │ │14 │   69 │       1 │ failed   │  103.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_free               │ │15 │   74 │       3 │ failed   │  111.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_free_wr            │ │16 │   79 │       2 │ failed   │  118.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_gen                │ │17 │   84 │       1 │ failed   │  126.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_int                │ │18 │   89 │       3 │ failed   │  133.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_kv                 │ │19 │   94 │       2 │ failed   │  141.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_log                │ │20 │   99 │       1 │ failed   │  148.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_misc               │ │21 │  104 │       3 │ failed   │  156.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_note               │ │22 │  109 │       2 │ failed   │  163.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_order              │ │23 │  114 │       1 │ failed   │  171.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_order_item         │ │24 │  119 │       3 │ failed   │  178.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_part               │ │25 │  124 │       2 │ failed   │  186.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_real               │ │26 │  129 │       1 │ failed   │  193.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_rowid              │ │27 │  134 │       3 │ failed   │  201.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_sku                │ │28 │  139 │       2 │ failed   │  208.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_user               │ │29 │  144 │       1 │ failed   │  216.0 │    0 │             │ │                                                             │
+│   ▸ ◉ Views (1)              │ │30 │  149 │       3 │ failed   │  223.5 │    1 │             │ │                                                             │
+│ ▸ ▢ 工作区                   │ │31 │  154 │       2 │ failed   │  231.0 │    0 │             │ │                                                             │
+│ ▾ ❯ Queries                  │ │32 │  159 │       1 │ failed   │  238.5 │    1 │             │ │                                                             │
+│     ❯ 月报_订单         seed │ │33 │  164 │       3 │ failed   │  246.0 │    0 │             │ │                                                             │
+│     ❯ query_1           seed │ │34 │  169 │       2 │ failed   │  253.5 │    1 │             │ │                                                             │
+│                              │ │35 │  174 │       1 │ failed   │  261.0 │    0 │             │ │                                                             │
+│                              │ │36 │  179 │       3 │ failed   │  268.5 │    1 │             │ │                                                             │
+│──────────────────────────────│ │37 │  184 │       2 │ failed   │  276.0 │    0 │             │ │                                                             │
+│ j/k move · ↵ open            │ │ 1:t_order* │ +                        hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                      gt/gT │
+└──────────────────────────────┘ └─────────────────────────────────────────────────────────────┘ └─────────────────────────────────────────────────────────────┘
+ 书签名  t_order · status = 'failed'                                                                                                           ⌕  ⌨ ·    INSERT
+
+#c-palette  C · 命令面板的「书签 *」范围（160×45）
+┌─ ⓪ ◆ seed ─────────────── « ─┐ ┌─ ① ▦ t_order ★ ────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ★ ────────── seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+│ ⌕ 22 tables                  │ │ WHERE status = 'failed'                               C-r ▾ │ │   1 select date(created_at) as day,                         │
+│──────────────────────────────│ │  ORDER id ↓   LIMIT 100   PAGE 1/12   COLS 6/8      1200 行 │ │   2        status,                                          │
+│ ▾ ★ 书签                     │ │   │   id │ user_id │ status   │ amount │ paid │ note        │ │   3        count(*)    as n,                                │
+│   ▾ ▣ 排查                   │ │───┼──────┼─────────┼──────────┼────────┼──────┼─────────────│ │   4        sum(amount) as total                             │
+│       ▦ 失败订单     t_order │ │ 1 │    4 │       2 │ failed   │    6.0 │    0 │             │ │   5   from t_order                                          │
+│       ▦ 大额待付     t_order │ │ 2 │    9 │       1 │ failed   │   13.5 │    1 │             │ │   6  where created_at >= '2026-01-01'                       │
+│       ≡ user:1001        db0┌─ 命令面板 ───────────────────────────────────────────────────────────────────────────────────────┐                             │
+│   ▸ ▣ 日报                  │  所有   书签 *   会话 $   窗口·Pane %   窗口 &   Tab #   表 @   命令 >   SQL ;                   │                             │
+│     ❯ 月报_订单         seed│ ⌕ *                                                                                              │                             │
+│     ▦ t_user       seed.main│──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
+│ ▾ ◆ seed                    │ ▦ 失败订单   t_order · status = 'failed' · 排查                                             书签 │                             │
+│   ▾ ▦ Tables (21)           │ ▦ 大额待付   t_order · amount > 100 and paid = 0 · ORDER amount ↓ · 排查                    书签 │                             │
+│     ▸ ▦ ft                  │ ≡ user:1001  redis/db0 · 排查                                                               书签 │                             │
+│     ▸ ▦ t_aud               │ ❯ 月报_订单  seed                                                                           书签 │                             │
+│     ▸ ▦ t_bk                │ ▦ t_user     seed.main                                                                      书签 │                             │
+│     ▸ ▦ t_ck                │──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
+│     ▸ ▦ t_desc              │ CREATE TABLE t_order (                                                                           │                             │
+│     ▸ ▦ t_dt                │     id         integer primary key,                                                              │                             │
+│     ▸ ▦ t_free              │     user_id    integer not null references t_user (id),                                          │                             │
+│     ▸ ▦ t_free_wr           │     status     text not null default 'pending',                                                  │                             │
+│     ▸ ▦ t_gen               │     amount     real not null,                                                                    │                             │
+│     ▸ ▦ t_int               │     paid       integer,                                                                          │                             │
+│     ▸ ▦ t_kv                │     note       text,                                                                             │                             │
+│     ▸ ▦ t_log               │──────────────────────────────────────────────────────────────────────────────────────────────────│                             │
+│     ▸ ▦ t_misc              │ ↑/↓ 移动 · Tab/S-Tab 范围 · C-f/C-b 预览 · esc 关闭                                       ↵ 打开 │                             │
+│     ▸ ▦ t_note              └──────────────────────────────────────────────────────────────────────────────────────────────────┘                             │
+│     ▸ ▦ t_order              │ │23 │  114 │       1 │ failed   │  171.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_order_item         │ │24 │  119 │       3 │ failed   │  178.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_part               │ │25 │  124 │       2 │ failed   │  186.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_real               │ │26 │  129 │       1 │ failed   │  193.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_rowid              │ │27 │  134 │       3 │ failed   │  201.0 │    0 │             │ │                                                             │
+│     ▸ ▦ t_sku                │ │28 │  139 │       2 │ failed   │  208.5 │    1 │             │ │                                                             │
+│     ▸ ▦ t_user               │ │29 │  144 │       1 │ failed   │  216.0 │    0 │             │ │                                                             │
+│   ▸ ◉ Views (1)              │ │30 │  149 │       3 │ failed   │  223.5 │    1 │             │ │                                                             │
+│ ▸ ▢ 工作区                   │ │31 │  154 │       2 │ failed   │  231.0 │    0 │             │ │                                                             │
+│ ▾ ❯ Queries                  │ │32 │  159 │       1 │ failed   │  238.5 │    1 │             │ │                                                             │
+│     ❯ 月报_订单         seed │ │33 │  164 │       3 │ failed   │  246.0 │    0 │             │ │                                                             │
+│     ❯ query_1           seed │ │34 │  169 │       2 │ failed   │  253.5 │    1 │             │ │                                                             │
+│                              │ │35 │  174 │       1 │ failed   │  261.0 │    0 │             │ │                                                             │
+│                              │ │36 │  179 │       3 │ failed   │  268.5 │    1 │             │ │                                                             │
+│──────────────────────────────│ │37 │  184 │       2 │ failed   │  276.0 │    0 │             │ │                                                             │
+│ j/k move · ↵ open            │ │ 1:t_order* │ +                        hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                      gt/gT │
+└──────────────────────────────┘ └─────────────────────────────────────────────────────────────┘ └─────────────────────────────────────────────────────────────┘
+ seed ▾  0: data*                                                                     Tip: SPC s 切换或新建 session  ⌕  ⌨ ·    ◆ seed · ~/data/seed.db  COMMAND
+
+#k-now-160  160×45
+┌─┐ ┌─ ① ▦ t_order ─────────────────────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ─────────────── Tx: 自动 ▾ seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+│»│ │ WHERE                                                                C-r ▾ │ │   1 select date(created_at) as day,                                       │
+│ │ │  ORDER id ↓   LIMIT 100   PAGE 1/60   COLS 6/8                     6000 行 │ │   2        status,                                                        │
+│ │ │   │   id │ user_id │ status   │ amount │ paid │ note                       │ │   3        count(*)    as n,                                              │
+│ │ │───┼──────┼─────────┼──────────┼────────┼──────┼────────────────────────────│ │   4        sum(amount) as total                                           │
+│ │ │ 1 │    1 │       2 │ queued   │    1.5 │    1 │                            │ │   5   from t_order                                                        │
+│ │ │ 2 │    2 │       3 │ running  │    3.0 │    0 │                            │ │   6  where created_at >= '2026-01-01'                                     │
+│ │ │ 3 │    3 │       1 │ done     │    4.5 │    1 │                            │ │   7  group by 1, 2                                                        │
+│ │ │ 4 │    4 │       2 │ failed   │    6.0 │    0 │                            │ │   8  order by 1 desc;                                                     │
+│ │ │ 5 │    5 │       3 │ pending  │    7.5 │    1 │                            │ │                                                                           │
+│ │ │ 6 │    6 │       1 │ queued   │    9.0 │    0 │                            │ │                                                                           │
+│ │ │ 7 │    7 │       2 │ running  │   10.5 │    1 │                            │ │                                                                           │
+│ │ │ 8 │    8 │       3 │ done     │   12.0 │    0 │                            │ │                                                                           │
+│ │ │ 9 │    9 │       1 │ failed   │   13.5 │    1 │                            │ │                                                                           │
+│ │ │10 │   10 │       2 │ pending  │   15.0 │    0 │                            │ │                                                                           │
+│ │ │11 │   11 │       3 │ queued   │   16.5 │    1 │                            │ │                                                                           │
+│ │ │12 │   12 │       1 │ running  │   18.0 │    0 │                            │ │                                                                           │
+│ │ │13 │   13 │       2 │ done     │   19.5 │    1 │                            │ │                                                                           │
+│ │ │14 │   14 │       3 │ failed   │   21.0 │    0 │                            │ │                                                                           │
+│ │ │15 │   15 │       1 │ pending  │   22.5 │    1 │                            │ │                                                                           │
+│ │ │16 │   16 │       2 │ queued   │   24.0 │    0 │                            │ │                                                                           │
+│ │ │17 │   17 │       3 │ running  │   25.5 │    1 │                            │ │                                                                           │
+│ │ │18 │   18 │       1 │ done     │   27.0 │    0 │                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │                                                                            │ │                                                                           │
+│ │ │ 1:t_order* │ 2:t_user- │ +                           hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                                    gt/gT │
+└─┘ └────────────────────────────────────────────────────────────────────────────┘ └───────────────────────────────────────────────────────────────────────────┘
+ seed ▾  0: data*                                                                 Tip: SPC s 切换或新建 session  ⌕  ⌨ ·    1,1  ◆ seed · ~/data/seed.db  NORMAL
+
+#k-a-160  160×45
+┌─ ① ▦ t_order ───────────────────────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ───────────────── Tx: 自动 ▾ seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+│ WHERE                                                                  C-r ▾ │ │   1 select date(created_at) as day,                                         │
+│  ORDER id ↓   LIMIT 100   PAGE 1/60   COLS 6/8                       6000 行 │ │   2        status,                                                          │
+│   │   id │ user_id │ status   │ amount │ paid │ note   │ created_at          │ │   3        count(*)    as n,                                                │
+│───┼──────┼─────────┼──────────┼────────┼──────┼────────┼─────────────────────│ │   4        sum(amount) as total                                             │
+│ 1 │    1 │       2 │ queued   │    1.5 │    1 │        │ 2026-01-01 00:00:00 │ │   5   from t_order                                                          │
+│ 2 │    2 │       3 │ running  │    3.0 │    0 │        │ 2026-01-01 00:00:00 │ │   6  where created_at >= '2026-01-01'                                       │
+│ 3 │    3 │       1 │ done     │    4.5 │    1 │        │ 2026-01-01 00:00:00 │ │   7  group by 1, 2                                                          │
+│ 4 │    4 │       2 │ failed   │    6.0 │    0 │        │ 2026-01-01 00:00:00 │ │   8  order by 1 desc;                                                       │
+│ 5 │    5 │       3 │ pending  │    7.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│ 6 │    6 │       1 │ queued   │    9.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│ 7 │    7 │       2 │ running  │   10.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│ 8 │    8 │       3 │ done     │   12.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│ 9 │    9 │       1 │ failed   │   13.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│10 │   10 │       2 │ pending  │   15.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│11 │   11 │       3 │ queued   │   16.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│12 │   12 │       1 │ running  │   18.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│13 │   13 │       2 │ done     │   19.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│14 │   14 │       3 │ failed   │   21.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│15 │   15 │       1 │ pending  │   22.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│16 │   16 │       2 │ queued   │   24.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│17 │   17 │       3 │ running  │   25.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│18 │   18 │       1 │ done     │   27.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│ 1:t_order* │ 2:t_user- │ +                             hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                                      gt/gT │
+└──────────────────────────────────────────────────────────────────────────────┘ └─────────────────────────────────────────────────────────────────────────────┘
+ »  seed ▾  0: data*                                                              Tip: SPC s 切换或新建 session  ⌕  ⌨ ·    1,1  ◆ seed · ~/data/seed.db  NORMAL
+
+#k-b-160  160×45
+» ┌─ ① ▦ t_order ──────────────────────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ──────────────── Tx: 自动 ▾ seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+  │ WHERE                                                                 C-r ▾ │ │   1 select date(created_at) as day,                                        │
+  │  ORDER id ↓   LIMIT 100   PAGE 1/60   COLS 6/8                      6000 行 │ │   2        status,                                                         │
+  │   │   id │ user_id │ status   │ amount │ paid │ note                        │ │   3        count(*)    as n,                                               │
+  │───┼──────┼─────────┼──────────┼────────┼──────┼─────────────────────────────│ │   4        sum(amount) as total                                            │
+  │ 1 │    1 │       2 │ queued   │    1.5 │    1 │                             │ │   5   from t_order                                                         │
+  │ 2 │    2 │       3 │ running  │    3.0 │    0 │                             │ │   6  where created_at >= '2026-01-01'                                      │
+  │ 3 │    3 │       1 │ done     │    4.5 │    1 │                             │ │   7  group by 1, 2                                                         │
+  │ 4 │    4 │       2 │ failed   │    6.0 │    0 │                             │ │   8  order by 1 desc;                                                      │
+  │ 5 │    5 │       3 │ pending  │    7.5 │    1 │                             │ │                                                                            │
+  │ 6 │    6 │       1 │ queued   │    9.0 │    0 │                             │ │                                                                            │
+  │ 7 │    7 │       2 │ running  │   10.5 │    1 │                             │ │                                                                            │
+  │ 8 │    8 │       3 │ done     │   12.0 │    0 │                             │ │                                                                            │
+  │ 9 │    9 │       1 │ failed   │   13.5 │    1 │                             │ │                                                                            │
+  │10 │   10 │       2 │ pending  │   15.0 │    0 │                             │ │                                                                            │
+  │11 │   11 │       3 │ queued   │   16.5 │    1 │                             │ │                                                                            │
+  │12 │   12 │       1 │ running  │   18.0 │    0 │                             │ │                                                                            │
+  │13 │   13 │       2 │ done     │   19.5 │    1 │                             │ │                                                                            │
+  │14 │   14 │       3 │ failed   │   21.0 │    0 │                             │ │                                                                            │
+  │15 │   15 │       1 │ pending  │   22.5 │    1 │                             │ │                                                                            │
+  │16 │   16 │       2 │ queued   │   24.0 │    0 │                             │ │                                                                            │
+  │17 │   17 │       3 │ running  │   25.5 │    1 │                             │ │                                                                            │
+  │18 │   18 │       1 │ done     │   27.0 │    0 │                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │                                                                             │ │                                                                            │
+  │ 1:t_order* │ 2:t_user- │ +                            hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                                     gt/gT │
+  └─────────────────────────────────────────────────────────────────────────────┘ └────────────────────────────────────────────────────────────────────────────┘
+ seed ▾  0: data*                                                                 Tip: SPC s 切换或新建 session  ⌕  ⌨ ·    1,1  ◆ seed · ~/data/seed.db  NORMAL
+
+#k-c-160  160×45
+┌ » ─ ① ▦ t_order ────────────────────────────────────────────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ───────────────── Tx: 自动 ▾ seed · main ▾  ▶ run  ↵ ─ ▥▤⤢× ─┐
+│ WHERE                                                                  C-r ▾ │ │   1 select date(created_at) as day,                                         │
+│  ORDER id ↓   LIMIT 100   PAGE 1/60   COLS 6/8                       6000 行 │ │   2        status,                                                          │
+│   │   id │ user_id │ status   │ amount │ paid │ note   │ created_at          │ │   3        count(*)    as n,                                                │
+│───┼──────┼─────────┼──────────┼────────┼──────┼────────┼─────────────────────│ │   4        sum(amount) as total                                             │
+│ 1 │    1 │       2 │ queued   │    1.5 │    1 │        │ 2026-01-01 00:00:00 │ │   5   from t_order                                                          │
+│ 2 │    2 │       3 │ running  │    3.0 │    0 │        │ 2026-01-01 00:00:00 │ │   6  where created_at >= '2026-01-01'                                       │
+│ 3 │    3 │       1 │ done     │    4.5 │    1 │        │ 2026-01-01 00:00:00 │ │   7  group by 1, 2                                                          │
+│ 4 │    4 │       2 │ failed   │    6.0 │    0 │        │ 2026-01-01 00:00:00 │ │   8  order by 1 desc;                                                       │
+│ 5 │    5 │       3 │ pending  │    7.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│ 6 │    6 │       1 │ queued   │    9.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│ 7 │    7 │       2 │ running  │   10.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│ 8 │    8 │       3 │ done     │   12.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│ 9 │    9 │       1 │ failed   │   13.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│10 │   10 │       2 │ pending  │   15.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│11 │   11 │       3 │ queued   │   16.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│12 │   12 │       1 │ running  │   18.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│13 │   13 │       2 │ done     │   19.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│14 │   14 │       3 │ failed   │   21.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│15 │   15 │       1 │ pending  │   22.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│16 │   16 │       2 │ queued   │   24.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│17 │   17 │       3 │ running  │   25.5 │    1 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│18 │   18 │       1 │ done     │   27.0 │    0 │        │ 2026-01-01 00:00:00 │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│                                                                              │ │                                                                             │
+│ 1:t_order* │ 2:t_user- │ +                             hjkl · ↵ edit · gt/gT │ │ 1:月报_订单* │ +                                                      gt/gT │
+└──────────────────────────────────────────────────────────────────────────────┘ └─────────────────────────────────────────────────────────────────────────────┘
+ seed ▾  0: data*                                                                 Tip: SPC s 切换或新建 session  ⌕  ⌨ ·    1,1  ◆ seed · ~/data/seed.db  NORMAL
+
+#k-now-80  80×20
+┌─┐ ┌─ ① ▦ t_order ─────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ──────────── ▥▤⤢× ─┐
+│»│ │ WHERE                        C-r ▾ │ │   1 select date(created_at) as    │
+│ │ │  ORDER id ↓   LIMIT 100    6000 行 │ │   2        status,                │
+│ │ │   │   id │ user_id │ status        │ │   3        count(*)    as n,      │
+│ │ │───┼──────┼─────────┼───────────────│ │   4        sum(amount) as total   │
+│ │ │ 1 │    1 │       2 │ queued        │ │   5   from t_order                │
+│ │ │ 2 │    2 │       3 │ running       │ │   6  where created_at >=          │
+│ │ │ 3 │    3 │       1 │ done          │ │   7  group by 1, 2                │
+│ │ │ 4 │    4 │       2 │ failed        │ │   8  order by 1 desc;             │
+│ │ │ 5 │    5 │       3 │ pending       │ │                                   │
+│ │ │ 6 │    6 │       1 │ queued        │ │                                   │
+│ │ │ 7 │    7 │       2 │ running       │ │                                   │
+│ │ │ 8 │    8 │       3 │ done          │ │                                   │
+│ │ │ 9 │    9 │       1 │ failed        │ │                                   │
+│ │ │10 │   10 │       2 │ pending       │ │                                   │
+│ │ │11 │   11 │       3 │ queued        │ │                                   │
+│ │ │12 │   12 │       1 │ running       │ │                                   │
+│ │ │ 1:t_order* │ 2:t_user- │ +         │ │ 1:月报_订单* │ +            gt/gT │
+└─┘ └────────────────────────────────────┘ └───────────────────────────────────┘
+ seed ▾  0: data*                ⌕  ⌨ ·    1,1  ◆ seed · ~/data/seed.db  NORMAL
+
+#k-a-80  80×20
+┌─ ① ▦ t_order ───────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ────────────── ▥▤⤢× ─┐
+│ WHERE                          C-r ▾ │ │   1 select date(created_at) as day, │
+│  ORDER id ↓   LIMIT 100      6000 行 │ │   2        status,                  │
+│   │   id │ user_id │ status          │ │   3        count(*)    as n,        │
+│───┼──────┼─────────┼─────────────────│ │   4        sum(amount) as total     │
+│ 1 │    1 │       2 │ queued          │ │   5   from t_order                  │
+│ 2 │    2 │       3 │ running         │ │   6  where created_at >=            │
+│ 3 │    3 │       1 │ done            │ │   7  group by 1, 2                  │
+│ 4 │    4 │       2 │ failed          │ │   8  order by 1 desc;               │
+│ 5 │    5 │       3 │ pending         │ │                                     │
+│ 6 │    6 │       1 │ queued          │ │                                     │
+│ 7 │    7 │       2 │ running         │ │                                     │
+│ 8 │    8 │       3 │ done            │ │                                     │
+│ 9 │    9 │       1 │ failed          │ │                                     │
+│10 │   10 │       2 │ pending         │ │                                     │
+│11 │   11 │       3 │ queued          │ │                                     │
+│12 │   12 │       1 │ running         │ │                                     │
+│ 1:t_order* │ 2:t_user- │ +           │ │ 1:月报_订单* │ +              gt/gT │
+└──────────────────────────────────────┘ └─────────────────────────────────────┘
+ »  seed ▾  0: data*             ⌕  ⌨ ·    1,1  ◆ seed · ~/data/seed.db  NORMAL
+
+#k-b-80  80×20
+» ┌─ ① ▦ t_order ──────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ───────────── ▥▤⤢× ─┐
+  │ WHERE                         C-r ▾ │ │   1 select date(created_at) as day │
+  │  ORDER id ↓   LIMIT 100     6000 行 │ │   2        status,                 │
+  │   │   id │ user_id │ status         │ │   3        count(*)    as n,       │
+  │───┼──────┼─────────┼────────────────│ │   4        sum(amount) as total    │
+  │ 1 │    1 │       2 │ queued         │ │   5   from t_order                 │
+  │ 2 │    2 │       3 │ running        │ │   6  where created_at >=           │
+  │ 3 │    3 │       1 │ done           │ │   7  group by 1, 2                 │
+  │ 4 │    4 │       2 │ failed         │ │   8  order by 1 desc;              │
+  │ 5 │    5 │       3 │ pending        │ │                                    │
+  │ 6 │    6 │       1 │ queued         │ │                                    │
+  │ 7 │    7 │       2 │ running        │ │                                    │
+  │ 8 │    8 │       3 │ done           │ │                                    │
+  │ 9 │    9 │       1 │ failed         │ │                                    │
+  │10 │   10 │       2 │ pending        │ │                                    │
+  │11 │   11 │       3 │ queued         │ │                                    │
+  │12 │   12 │       1 │ running        │ │                                    │
+  │ 1:t_order* │ 2:t_user- │ +          │ │ 1:月报_订单* │ +             gt/gT │
+  └─────────────────────────────────────┘ └────────────────────────────────────┘
+ seed ▾  0: data*                ⌕  ⌨ ·    1,1  ◆ seed · ~/data/seed.db  NORMAL
+
+#k-c-80  80×20
+┌ » ─ ① ▦ t_order ────────────── ▥▤⤢× ─┐ ┌─ ② ❯ 月报_订单 ────────────── ▥▤⤢× ─┐
+│ WHERE                          C-r ▾ │ │   1 select date(created_at) as day, │
+│  ORDER id ↓   LIMIT 100      6000 行 │ │   2        status,                  │
+│   │   id │ user_id │ status          │ │   3        count(*)    as n,        │
+│───┼──────┼─────────┼─────────────────│ │   4        sum(amount) as total     │
+│ 1 │    1 │       2 │ queued          │ │   5   from t_order                  │
+│ 2 │    2 │       3 │ running         │ │   6  where created_at >=            │
+│ 3 │    3 │       1 │ done            │ │   7  group by 1, 2                  │
+│ 4 │    4 │       2 │ failed          │ │   8  order by 1 desc;               │
+│ 5 │    5 │       3 │ pending         │ │                                     │
+│ 6 │    6 │       1 │ queued          │ │                                     │
+│ 7 │    7 │       2 │ running         │ │                                     │
+│ 8 │    8 │       3 │ done            │ │                                     │
+│ 9 │    9 │       1 │ failed          │ │                                     │
+│10 │   10 │       2 │ pending         │ │                                     │
+│11 │   11 │       3 │ queued          │ │                                     │
+│12 │   12 │       1 │ running         │ │                                     │
+│ 1:t_order* │ 2:t_user- │ +           │ │ 1:月报_订单* │ +              gt/gT │
+└──────────────────────────────────────┘ └─────────────────────────────────────┘
+ seed ▾  0: data*                ⌕  ⌨ ·    1,1  ◆ seed · ~/data/seed.db  NORMAL
+

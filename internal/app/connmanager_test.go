@@ -1025,10 +1025,10 @@ func TestMenuConn(t *testing.T) {
 	a := managed(t)
 	a.win().focus(0)
 	rightClickNode(t, a, "second")
-	if got := menuLabels(a); !slices.Equal(got, []string{"选择 schema…", "编辑…", "删除…"}) {
+	if got := menuLabels(a); !slices.Equal(got, []string{"选择 schema…", "刷新", "断开连接", "编辑…", "删除…"}) {
 		t.Fatalf("a MySQL one: %q", got)
 	}
-	edit := a.menu.items[1]
+	edit := a.menu.items[3]
 	a.menu = nil
 	edit.run()
 	if a.form == nil || !a.form.list || fieldText(a, fieldName) != "second" {
@@ -1037,19 +1037,19 @@ func TestMenuConn(t *testing.T) {
 	a.form = nil
 	a.sess.Conns[1].Spec.Engine = "sqlite"
 	rightClickNode(t, a, "second")
-	if got := menuLabels(a); !slices.Equal(got, []string{"编辑…", "删除…"}) {
+	if got := menuLabels(a); !slices.Equal(got, []string{"刷新", "断开连接", "编辑…", "删除…"}) {
 		t.Errorf("SQLite: %q", got)
 	}
 	a.menu = nil
 	a.sess.Conns[1].Spec.Engine = "exec"
 	rightClickNode(t, a, "second")
-	if got := menuLabels(a); !slices.Equal(got, []string{"删除…"}) {
+	if got := menuLabels(a); !slices.Equal(got, []string{"断开连接", "删除…"}) {
 		t.Errorf("exec: %q", got)
 	}
 	a.menu = nil
 	a.sess.Conns[1].Spec.Temp = true
 	rightClickNode(t, a, "second")
-	if got := menuLabels(a); len(got) != 0 {
+	if got := menuLabels(a); !slices.Equal(got, []string{"断开连接"}) { // it can be dialed again by a tab, if not by the file
 		t.Errorf("the command line's: %q", got)
 	}
 }

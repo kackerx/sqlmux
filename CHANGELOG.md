@@ -6,6 +6,35 @@ All notable changes to sqlmux are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-19
+
+### Added
+
+- **Disconnect** a connection without deleting it: right-click it in the tree and pick *Disconnect* (or `conn.disconnect` in the palette). Its connections and what was read from it are dropped, so its tables and keys leave the palette and completion; its tabs stay open with the data they had, and the next fetch, run or expanding the node dials it again. An open transaction is asked about first. ([#12](https://github.com/kackerx/sqlmux/issues/12))
+- **Follow a foreign key**: `gd` on a foreign key's column (or *Go to the referenced row* in the cell's right-click menu, which shows only on such columns) opens the table it points at with the WHERE `referenced_column = this row's value` (`and` for a key of several columns), as if typed, and it is in that table's WHERE history. A table open in the pane goes to that WHERE. ([#11](https://github.com/kackerx/sqlmux/issues/11))
+- A connection that is up has a mark after its name in the tree (`*` with `icons = "ascii"`; the icon is `connected`, themeable), so a folded node tells whether it is connected. A disconnect says *Disconnected <name>*.
+- `sqlmux sqlserver://…` and `sqlmux mssql://…` open a temporary SQL Server connection, named `<database>@<host>`, as `postgres://`, `mysql://` and `redis://` do. ([#19](https://github.com/kackerx/sqlmux/issues/19))
+- The sidebar's width by the keyboard: `>` and `<` on the tree make it 4 columns wider or narrower (a count: that many times), `=` makes it as wide as its longest row. The width is kept in the layout like a drag's. Thanks to odilovalisher17 for the idea ([#20](https://github.com/kackerx/sqlmux/pull/20)).
+- Tabs have a right-click menu: close, close others, close to the left, close to the right, split right, split below, move to the next pane, pin / unpin. A pinned tab goes first in its pane and is kept by *close others / left / right*; `<Leader>wP` pins, `<Leader>wo` closes the others.
+- The cell's right-click menu has *Add row*, *Delete row* and *Clone row*; `yp` clones the row under the cursor into a new row (auto-increment, identity and generated columns are left empty).
+- *Refresh* in the right-click menu of connection, database and schema nodes in the tree (the same as `R`), for tables created elsewhere.
+- Redis keys have their own scope in the command palette, `:` (command *Palette: keys*); `@` lists tables only.
+- Right-click menus show the key of each action at the right.
+
+### Changed
+
+- A folded sidebar takes no columns at all: the panes start at the left edge and a `»` at the left of the status bar opens it.
+- *Sort descending* is drawn with a down arrow on the ORDER chip, as in the ORDER list.
+
+### Fixed
+
+- `gj` and back to the grid kept the table horizontal after you had turned it; it now returns to how it was.
+- A WHERE history that the typed text filtered down to nothing drew an empty box with only its hint line (a regression of 0.10.0).
+
+### Documentation
+
+- The config files' Windows locations (`%APPDATA%\sqlmux\…`) are given next to `~/.config` everywhere. ([#21](https://github.com/kackerx/sqlmux/issues/21))
+
 ## [0.10.0] - 2026-11-08
 
 ### Added
@@ -286,7 +315,9 @@ Note: `go install github.com/kackerx/sqlmux/...` does not work for this version 
 - Every key can be rebound per pane type in `keymaps.toml` (`SPC` is the leader). `sqlmux keys` lists every action and `sqlmux keys --check` reports conflicts. Key help (`?`), which-key hints and full mouse support are built in, and `vim = false` gives plain editors and arrow-key navigation.
 - Themes, border styles, Nerd Font or ASCII icons, and an English or Chinese UI (`language = "zh"`).
 
-[Unreleased]: https://github.com/kackerx/sqlmux/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/kackerx/sqlmux/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/kackerx/sqlmux/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/kackerx/sqlmux/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/kackerx/sqlmux/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/kackerx/sqlmux/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/kackerx/sqlmux/compare/v0.6.1...v0.7.0

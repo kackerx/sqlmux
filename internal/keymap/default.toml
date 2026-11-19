@@ -39,6 +39,8 @@ leader = "<Space>"
 "gT" = "tab.prev"
 "<Leader>wn" = "tab.move.next" # the tab goes to the next pane clockwise, the focus after it (F12.5)
 "<Leader>wp" = "tab.move.prev"
+"<Leader>wP" = "tab.pin"           # pinned tabs go first, and the batch closes leave them (F22.6)
+"<Leader>wo" = "tab.close.others"
 
 [keys.grid]
 "h" = "grid.left"
@@ -74,6 +76,7 @@ leader = "<Space>"
 "gs" = "grid.order.cycle" # this column alone, the other way, the default (F12.3)
 "gS" = "grid.order.add" # joins the ORDER, or turns: space of its list
 "gj" = "grid.view.json" # the page as JSON, read only (F14.5)
+"gd" = "grid.fk.follow" # the row a foreign key points at, in its table (F22.13)
 "*" = "grid.filter.cell" # the cell as a condition of the WHERE
 "e" = "grid.value" # the cell in the value editor (F12.2)
 "O" = "grid.value" # the same
@@ -91,6 +94,7 @@ leader = "<Space>"
 "V" = "grid.select.unset" # VISUAL that takes the range out of the selected (F12.12)
 "yy" = "grid.yank.row"
 "yl" = "grid.yank"
+"yp" = "grid.row.clone" # yy then p in one: a new row of this one's values (F22.4)
 "p" = "grid.paste"
 "yi" = "grid.yank.insert"
 "Y" = "grid.yank.json"
@@ -127,6 +131,9 @@ leader = "<Space>"
 "/" = "tree.filter"
 "<Esc>" = "tree.refilter" # with a filter kept: back to its input, as / (F20.9)
 "R" = "tree.refresh"
+">" = "tree.wider" # the sidebar 4 columns wider or narrower (a count: that many times), = as wide as its longest row (F22.11)
+"<" = "tree.narrower"
+"=" = "tree.fit"
 "dd" = "tree.delete"
 "s" = "jump.start"
 ":" = "palette.open"

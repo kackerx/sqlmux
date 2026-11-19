@@ -22,6 +22,7 @@ type objectsMsg struct {
 	idx   []db.Index
 	keys  []db.Key
 	err   error
+	then  func() tea.Cmd // what goes on once they are in: gd's, which was waiting for them (F22.13)
 }
 
 // hasIndexes and hasKeys are whether the tree lists t's Indexes and Keys: a
@@ -31,7 +32,7 @@ func hasKeys(t db.Table) bool    { return t.Kind != "v" && t.Kind != "m" }
 
 // fetchObjects reads t's indexes and keys on its connection's Meta.
 func (a *App) fetchObjects(c *Conn, t db.Table) tea.Cmd {
-	if !hasIndexes(t) {
+	if !hasIndexes(t) || c.State != connReady { // a disconnected one has no Meta to ask
 		return nil
 	}
 	meta, eng := c.Meta, c.eng
@@ -57,6 +58,9 @@ func (a *App) gotObjects(m objectsMsg) tea.Cmd {
 	}
 	m.conn.idx[idOf(m.table)], m.conn.keys[idOf(m.table)] = m.idx, m.keys
 	a.clampTree()
+	if m.then != nil {
+		return m.then()
+	}
 	return nil
 }
 

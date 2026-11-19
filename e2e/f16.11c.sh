@@ -17,12 +17,12 @@ printf 'icons = "ascii"\n' >"$D/a/config.toml"
 BOX() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5 }' | tail -1; }
 rows() { local g y; g=($(BOX)); [[ -n ${g[0]} ]] || return 0
   for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do e2e_text $((g[0] + 1)) $((g[0] + g[2] - 2)) $y; done | python3 -c '
-import sys
+import re, sys
 for l in sys.stdin.read().split("\n"):
     l = l.strip()
     if not l: continue
-    if "\ue000" <= l[0] <= "\uf8ff" or "\U000f0000" <= l[0] <= "\U000ffffd": print("U+%04x %s" % (ord(l[0]), l[1:].strip()))
-    else: print("- " + l)'; }
+    if "\ue000" <= l[0] <= "\uf8ff" or "\U000f0000" <= l[0] <= "\U000ffffd": print("U+%04x %s" % (ord(l[0]), re.sub(r"\s{2,}\S+$", "", l[1:].strip())))
+    else: print("- " + re.sub(r"\s{2,}\S+$", "", l))'; }   # the key at the right dropped (F22.3)
 icon_fg() { local g; g=($(BOX)); e2e_style $((g[0] + 2)) $((g[1] + $1)); }
 rows_are() { local got; got=$(rows); [[ $got == "$1" ]] || { echo "  rows:"; echo "$got" | sed 's/^/    /'; false; }; }
 has_row() { rows | grep -qE "$1" || { echo "  no row /$1/ in:"; rows | sed 's/^/    /'; false; }; }

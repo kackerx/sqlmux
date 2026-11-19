@@ -49,6 +49,10 @@ type Connection struct {
 	Database string `toml:"-"`
 }
 
+// engines are the values of a connection's engine; temp_test.go makes each say
+// how the command line opens it.
+var engines = []string{"postgres", "mysql", "sqlite", "redis", "exec", "mssql"}
+
 // Kind is the engine whose catalog and commands c speaks: its Engine, or an exec
 // connection's dialect (§8.8).
 func (c Connection) Kind() string {
@@ -230,7 +234,7 @@ func (c Connection) Check(names []string) (field, problem string) {
 	if c.Group != "" && checkFileName(c.Group) != nil { // the characters of a name (F10.6)
 		return "group", fmt.Sprintf(i18n.T(`group = %q：不能含 / 或 \，也不能以 . 开头`), c.Group)
 	}
-	if !slices.Contains([]string{"postgres", "mysql", "sqlite", "redis", "exec", "mssql"}, c.Engine) {
+	if !slices.Contains(engines, c.Engine) {
 		return "engine", fmt.Sprintf(i18n.T("engine = %q：只能是 postgres、mysql、sqlite、redis、mssql 或 exec"), c.Engine)
 	}
 	if c.Engine == "exec" {

@@ -95,6 +95,11 @@ func TestJSONView(t *testing.T) {
 	if jsonViewOf(p) == nil || tab.transpose {
 		t.Errorf("gj from the turned table: jv %v, transpose %v", jsonViewOf(p), tab.transpose)
 	}
+	feed(t, a, "<Esc>")
+	if !tab.transpose {
+		t.Error("esc brings the turned table back turned")
+	}
+	feed(t, a, "gj")
 	// a pending command is the editor's first: esc after y is the y's, q is a key of the view
 	feed(t, a, "y")
 	if feed(t, a, "<Esc>"); jsonViewOf(p) == nil {
@@ -120,6 +125,52 @@ func TestJSONView(t *testing.T) {
 	feed(t, a, "gj:w<CR>")
 	if jsonViewOf(p) == nil || !strings.Contains(a.toast, "不支持的命令") {
 		t.Errorf(":w is none of its: toast %q", a.toast)
+	}
+}
+
+// The JSON view takes the table's turn with it and gives it back, by esc, q
+// and gj alike, turned or not, a table or a result (F22.1).
+func TestJSONViewKeepsTurn(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	d := &execDB{res: map[string]db.Result{"select 1": rows(3)}}
+	ra, _ := inRun(t, d, "select 1")
+	press(t, ra, "<CR>")
+	res := ra.win().Result
+	ra.win().focus(res.ID)
+	for _, back := range []string{"<Esc>", "q", "gj"} {
+		for _, turned := range []bool{true, false} {
+			tab.transpose = turned
+			feed(t, a, "gj")
+			feed(t, a, back)
+			if jsonViewOf(a.focused()) != nil || tab.transpose != turned {
+				t.Errorf("table turned %v, gj %s: view %v, turned %v", turned, back, jsonViewOf(a.focused()) != nil, tab.transpose)
+			}
+			rt := resultOf(res)
+			rt.transpose = turned
+			feed(t, ra, "gj")
+			feed(t, ra, back)
+			if jsonViewOf(res) != nil || rt.transpose != turned {
+				t.Errorf("result turned %v, gj %s: view %v, turned %v", turned, back, jsonViewOf(res) != nil, rt.transpose)
+			}
+		}
+	}
+}
+
+// What is kept of a turned table while its JSON view is open, the layout's and
+// tab.reopen's, is turned still (F22.1).
+func TestJSONViewKeepsTurnKept(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	tab.transpose = true
+	feed(t, a, "gj")
+	if !paneLayout(a.focused()).Tabs[0].Transpose {
+		t.Error("the layout has the table unturned while its JSON view is open")
+	}
+	a.run("tab.close", 0)
+	a.run("tab.reopen", 0)
+	if d := a.focused().Tabs[a.focused().Cur].Data; d == nil || !d.transpose {
+		t.Errorf("reopened: %+v", d)
 	}
 }
 

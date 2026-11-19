@@ -4,7 +4,7 @@ sqlmux opens Redis 6.0 or newer next to your SQL databases: a key browser in the
 
 ## Connect
 
-`sqlmux redis://localhost:6379/0` opens a server straight from the command line, without saving anything. To keep a connection, add it to `~/.config/sqlmux/connections.toml` (or use the connection form):
+`sqlmux redis://localhost:6379/0` opens a server straight from the command line, without saving anything. To keep a connection, add it to `~/.config/sqlmux/connections.toml` (on Windows `%APPDATA%\sqlmux\connections.toml`) (or use the connection form):
 
 ```toml
 [[connection]]

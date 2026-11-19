@@ -31,10 +31,10 @@ func (a *App) gridMenu(t ui.Target, p uv.Position) {
 	case r != nil && t.Kind == ui.KindCell:
 		a.gridGoto(strings.TrimPrefix(t.Action, "grid.goto "))
 		items = []menuItem{
-			{i18n.T("在值编辑器中打开"), "edit", func() tea.Cmd { return a.valueOpen() }},
-			{i18n.T("复制这一格"), "copy", func() tea.Cmd { return a.yankGrid(false) }},
-			{i18n.T("以 JSON 查看"), "json", func() tea.Cmd { return a.viewJSON() }},
-			{i18n.T("导出…"), "export", a.exportOpen},
+			{i18n.T("在值编辑器中打开"), "edit", "grid.value", func() tea.Cmd { return a.valueOpen() }},
+			{i18n.T("复制这一格"), "copy", "grid.yank", func() tea.Cmd { return a.yankGrid(false) }},
+			{i18n.T("以 JSON 查看"), "json", "grid.view.json", func() tea.Cmd { return a.viewJSON() }},
+			{i18n.T("导出…"), "export", "grid.export", a.exportOpen},
 		}
 	}
 	if len(items) > 0 {
@@ -48,25 +48,49 @@ func (a *App) gridMenu(t ui.Target, p uv.Position) {
 func (a *App) columnItems(t *dataTab, cell bool) []menuItem {
 	col := t.page.Cols[t.fieldAt(t.col)].Name
 	sort := []menuItem{
-		{i18n.T("按这一列排序 ↑"), "sort_asc", func() tea.Cmd { return a.orderOnly(t, col, false) }},
-		{i18n.T("按这一列排序 ↓"), "sort_desc", func() tea.Cmd { return a.orderOnly(t, col, true) }},
-		{i18n.T("加入排序"), "sort_asc", func() tea.Cmd { return a.orderToggle(t, col) }},
-		{i18n.T("隐藏这一列"), "hide", func() tea.Cmd { return a.run("grid.col.hide", 0) }},
+		{i18n.T("按这一列排序 ↑"), "sort_asc", "", func() tea.Cmd { return a.orderOnly(t, col, false) }},
+		{i18n.T("按这一列排序 ↓"), "sort_desc", "", func() tea.Cmd { return a.orderOnly(t, col, true) }},
+		{i18n.T("加入排序"), "sort_asc", "grid.order.add", func() tea.Cmd { return a.orderToggle(t, col) }},
+		{i18n.T("隐藏这一列"), "hide", "grid.col.hide", func() tea.Cmd { return a.run("grid.col.hide", 0) }},
 	}
 	if !cell {
 		return sort
 	}
 	items := []menuItem{
-		{i18n.T("在值编辑器中打开"), "edit", func() tea.Cmd { return a.valueOpen() }},
-		{i18n.T("按这个值过滤"), "filter", func() tea.Cmd { return a.filterCell() }},
+		{i18n.T("在值编辑器中打开"), "edit", "grid.value", func() tea.Cmd { return a.valueOpen() }},
+		{i18n.T("按这个值过滤"), "filter", "grid.filter.cell", func() tea.Cmd { return a.filterCell() }},
 	}
 	items = append(items, sort...)
-	return append(items,
-		menuItem{i18n.T("复制这一格"), "copy", func() tea.Cmd { return a.yankGrid(false) }},
-		menuItem{i18n.T("复制行为 JSON"), "copy", func() tea.Cmd { return a.yankJSON() }},
-		menuItem{i18n.T("以 JSON 查看"), "json", func() tea.Cmd { return a.viewJSON() }},
-		menuItem{i18n.T("导出…"), "export", a.exportOpen},
+	items = append(items,
+		menuItem{i18n.T("复制这一格"), "copy", "grid.yank", func() tea.Cmd { return a.yankGrid(false) }},
+		menuItem{i18n.T("复制行为 JSON"), "copy", "grid.yank.json", func() tea.Cmd { return a.yankJSON() }},
+		menuItem{i18n.T("以 JSON 查看"), "json", "grid.view.json", func() tea.Cmd { return a.viewJSON() }},
+		menuItem{i18n.T("导出…"), "export", "grid.export", a.exportOpen},
 	)
+	if _, _, ok := a.cursorFK(); ok { // only on a column of a foreign key
+		items = append(items, menuItem{i18n.T("转到被引用的行"), "link", "grid.fk.follow", a.followFK})
+	}
+	return append(items, a.rowItems(t)...)
+}
+
+// rowItems are the row's: add, delete (or take the mark off) and clone, each
+// what its action does; dim where the table takes no change, which is what
+// their toasts say (F22.4, §7.6).
+func (a *App) rowItems(t *dataTab) []menuItem {
+	del := i18n.T("删除行")
+	if _, key, ok := t.cursor(); ok && t.deleted[key] {
+		del = i18n.T("取消删除")
+	}
+	add := menuItem{i18n.T("添加行"), "row_add", "grid.row.add", a.addRow}
+	clone := menuItem{i18n.T("克隆行"), "copy", "grid.row.clone", a.cloneRow}
+	remove := menuItem{del, "row_delete", "grid.row.delete", a.deleteRow}
+	if t.whyNoAdd() != "" {
+		add.run, clone.run = nil, nil
+	}
+	if t.whyNoEdit() != "" {
+		remove.run = nil
+	}
+	return []menuItem{add, remove, clone}
 }
 
 // hideColumn hides the page's column field, as COLS does, the cursor moved

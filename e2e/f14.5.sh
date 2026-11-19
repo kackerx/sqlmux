@@ -35,7 +35,9 @@ check "q 也回表格" eval '! in_json && e2e_plain | grep -qF " id │ name"'
 key g j; sleep 0.6; key g j; sleep 0.6
 check "再按一次 gj 也回表格" eval '! in_json && e2e_plain | grep -qF " id │ name"'
 key T; sleep 0.6; key g j; sleep 0.8; key Escape; sleep 0.6
-check "转置和 JSON 视图互斥：转置着按 gj 进 JSON，回来之后不再是转置（表头是 id │ name，不是一列字段名）" eval '! in_json && e2e_plain | grep -qF " id │ name"'
+check "转置和 JSON 视图互斥：转置着按 gj 进 JSON，esc 回来还是转置（F22.1：表头不是 id │ name，字段名在左边一列）" eval '! in_json && ! e2e_plain | grep -qF " id │ name" && e2e_plain | grep -qE "│ +name +│ +alice"'
+key T; sleep 0.5
+check "（准备）T 切回横置" eval '! in_json && e2e_plain | grep -qF " id │ name"'
 key g j; sleep 0.8; key G; sleep 0.3; key i; e2e_type x; sleep 0.3
 check "只读：i 输入 x 不改内容（光标在末行，文本里没有 x 多出来）、还在 JSON 视图" eval 'in_json && [[ "$(jlines | tail -3 | tr -d "\n ")" == "}" || -n $(jlines) ]] && ! jlines | grep -q "x\\]"'
 key Escape; sleep 0.3
@@ -66,6 +68,17 @@ check "命令面板里有「以 JSON 查看」（grid.view.json）" eval 'row_ha
 key Enter; sleep 1
 check "面板里执行它：进 JSON 视图" eval 'in_json'
 key Escape; sleep 0.5
+_e2e_kill
+
+# ---- F22.1 [grid] transpose = true 开的表：gj 再 esc，还是转置
+printf '[grid]\ntranspose = true\n' >"$D/turned.toml"
+e2e_start -c "$D/turned.toml" "$E2E_BIN $DB"; wait_for 5 flag_is alternate_on 1; sleep 1; solo
+open_table t_user; wait_for 8 settled
+check "transpose = true：开表就是转置（字段名在左）" eval 'e2e_plain | grep -qE "│ +name +│ +alice"'
+key g j; sleep 0.8
+check "gj：进 JSON 视图" eval 'in_json'
+key Escape; sleep 0.6
+check "esc：回来还是转置，不是横置" eval '! in_json && e2e_plain | grep -qE "│ +name +│ +alice" && ! e2e_plain | grep -qF " id │ name"'
 _e2e_kill
 
 # ---- 结果 tab 上也能用：query 的结果区 gj 是这次结果的 JSON（只有查询的两列）

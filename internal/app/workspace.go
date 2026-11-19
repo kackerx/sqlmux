@@ -217,14 +217,15 @@ type Conn struct {
 	// connection was dialed: an edit of the spec meanwhile is for the next dial
 	// (F8.16). eng is drv as a SQL engine, nil for another kind of server
 	// (§5「连接缝」): what asks for it is not there for such a connection.
-	drv        db.Driver
-	eng        db.Engine
-	readOnly   bool
-	State      connState
-	err        error      // why the last dial failed (connFailed): the table tabs waiting on it say it (F12.5)
-	Main, Meta *db.Worker // §8.2; nil till connected
-	Addr       string     // shown in the status bar, e.g. ctw@localhost:5432
-	busy       int        // its requests out that C-c cancels (§8.3)
+	drv          db.Driver
+	eng          db.Engine
+	readOnly     bool
+	State        connState
+	disconnected bool       // disconnect() ran and no dial since: a catalog still on its way is not kept
+	err          error      // why the last dial failed (connFailed): the table tabs waiting on it say it (F12.5)
+	Main, Meta   *db.Worker // §8.2; nil till connected
+	Addr         string     // shown in the status bar, e.g. ctw@localhost:5432
+	busy         int        // its requests out that C-c cancels (§8.3)
 	// tx is where Main's transaction was as its last request ended: 'I'
 	// out of one, 'T' in one, 'E' in one that failed; 0 before any. The
 	// replies bring it: Main may be busy, its lock not to wait on (F5.11).
@@ -410,12 +411,35 @@ func (c *Conn) databaseNames() []string {
 func (s *Session) conns() []*Conn {
 	var out []*Conn
 	for _, c := range s.Conns {
-		out = append(out, c)
-		for _, name := range slices.Sorted(maps.Keys(c.dbs)) {
-			out = append(out, c.dbs[name])
-		}
+		out = append(out, c.withDBs()...)
 	}
 	return out
+}
+
+// withDBs is c and the connections to the databases of it made so far.
+func (c *Conn) withDBs() []*Conn {
+	out := []*Conn{c}
+	for _, name := range slices.Sorted(maps.Keys(c.dbs)) {
+		out = append(out, c.dbs[name])
+	}
+	return out
+}
+
+// disconnect makes c a connection not dialed again, as one of a layout that
+// no tab has waked (§7.8「断开连接」): what the catalog and the Redis index
+// held in memory is dropped, the tabs that name c are left to dial it when they
+// ask. It returns the Workers to close: Close waits on what runs.
+func (c *Conn) disconnect() (ws []*db.Worker) {
+	if c.State == connReady {
+		ws = []*db.Worker{c.Main, c.Meta}
+	}
+	c.State, c.err, c.Main, c.Meta, c.disconnected = connIdle, nil, nil, nil, true
+	c.tx, c.Manual, c.downMain, c.downMeta, c.mainPath, c.mainOn = 0, false, nil, nil, "", nil
+	c.Schemas, c.Tables, c.funcs, c.seqs, c.Databases, c.all, c.scan = nil, nil, nil, nil, nil, catalogAll{}, nil
+	c.dropCols()
+	c.cmds, c.docs, c.cmdsAsked, c.cmdsReady, c.hints = redis.Commands{}, redis.Docs{}, false, false, nil
+	c.index, c.building, c.indexErr, c.keysAfterCommands = nil, nil, "", false
+	return ws
 }
 
 func newConn(spec config.Connection) *Conn {
@@ -910,7 +934,7 @@ func tunneled(ctx context.Context, spec config.Connection) context.Context {
 
 // take makes c connected over d.
 func (c *Conn) take(d dialed) {
-	c.State, c.Main, c.Meta = connReady, c.worker(d.main, d.spec, false), c.worker(d.meta, d.spec, true)
+	c.State, c.Main, c.Meta, c.disconnected = connReady, c.worker(d.main, d.spec, false), c.worker(d.meta, d.spec, true), false
 	c.Addr, c.DB, c.startedPath = d.info.Addr, d.info.Database, d.info.Path
 	if c.Spec.Database != "" { // two of the server's databases differ by the address alone in the status bar
 		c.Addr += "/" + c.DB
@@ -975,6 +999,26 @@ func (a *App) openTableAs(p *Pane, c *Conn, t db.Table, r *request, turned bool)
 	}
 	putTab(p, tab, landing)
 	return a.fetch(tab.Data, true)
+}
+
+// openWhere opens t of c in pane p with where as its WHERE, as if it was typed
+// and run: the first page and its count read once, the condition in the table's
+// history (§9.7); a tab of it p has goes to it, replacing its WHERE. The one
+// place of --where and of the foreign key's gd (F19.1, F22.13).
+func (a *App) openWhere(p *Pane, c *Conn, t db.Table, where string) tea.Cmd {
+	if p.tableTab(c, t) >= 0 {
+		a.openTableAs(p, c, t, nil, a.newTurned)
+		d := dataOf(p)
+		d.where.Text, d.where.Pos = where, len(where)
+		return a.runWhere(d)
+	}
+	r := newDataTab(c, t).request
+	r.applied, r.desc = where, a.newDesc
+	open := a.openTableAs(p, c, t, &r, a.newTurned)
+	if d := dataOf(p); where != "" && d != nil {
+		return tea.Batch(open, a.rememberWhere(d))
+	}
+	return open
 }
 
 // showTab focuses pane p and switches to its tab i.
@@ -1204,12 +1248,7 @@ func (a *App) moveTab(d int) tea.Cmd {
 	if src.tab().landing() {
 		return nil
 	}
-	var ids []int
-	for _, id := range a.clockwise() {
-		if id != win.Tree.ID && (win.Result == nil || id != win.Result.ID) {
-			ids = append(ids, id)
-		}
-	}
+	ids := a.ordinaryPanes()
 	i := slices.Index(ids, src.ID) // not the sidebar, nor the result area
 	if i < 0 || len(ids) < 2 {
 		return nil
@@ -1221,8 +1260,23 @@ func (a *App) moveTab(d int) tea.Cmd {
 	}
 	dropTab(src, src.Cur)
 	putTab(dst, tb, dst.tab().landing()) // a landing tab there gives way to it (§5「引导页」)
+	if tb.pinned() {                     // and stays pinned, after the pinned ones there
+		dst.settleTab(dst.Cur)
+	}
 	win.focus(dst.ID)
 	return nil
+}
+
+// ordinaryPanes is the IDs of the window's panes that hold tabs of a table or a query,
+// clockwise: not the sidebar, nor the result area.
+func (a *App) ordinaryPanes() (ids []int) {
+	win := a.win()
+	for _, id := range a.clockwise() {
+		if id != win.Tree.ID && (win.Result == nil || id != win.Result.ID) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // closeTab closes pane p's tab i: the current one (:q) gives way to the
@@ -1570,7 +1624,7 @@ func (s *Session) recordClosed(win, pane int, tab Tab) {
 	switch {
 	case tab.Data != nil:
 		d := tab.Data
-		c = closedTab{conn: d.conn, table: d.table, req: request{applied: d.applied, order: d.order, desc: d.desc, limit: d.limit}, turned: d.transpose}
+		c = closedTab{conn: d.conn, table: d.table, req: request{applied: d.applied, order: d.order, desc: d.desc, limit: d.limit}, turned: d.turned()}
 	case tab.Query != nil:
 		c = closedTab{conn: tab.Query.conn, query: tab.Query.name, schema: tab.Query.schema}
 	default:

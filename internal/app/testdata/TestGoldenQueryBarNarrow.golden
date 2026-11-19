@@ -1,7 +1,7 @@
-│  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7             │
-│  ORDER id    LIMIT 100                 已保存 1 行 · 3ms │
+│  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7             │
+│  ORDER id    LIMIT 100                 已保存 1 行 · 3ms │
 │  id = 1：invalid input syntax for type numeric: "a…，已回滚 │
 │  id = 1：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…，已回滚 │
-│  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7             │
-│  ORDER id    LIMIT 100   PAGE 1/60   COLS 7/7     3      │
-│  ORDER id    LIMIT 100     3           已保存 1 行 · 3ms │
+│  ORDER id    LIMIT 100   PAGE 1/?   COLS 7/7             │
+│  ORDER id    LIMIT 100   PAGE 1/60   COLS 7/7     3      │
+│  ORDER id    LIMIT 100     3           已保存 1 行 · 3ms │

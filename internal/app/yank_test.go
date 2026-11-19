@@ -89,7 +89,7 @@ func TestYankRow(t *testing.T) {
 	if a.grid(a.focused(), tab).Yank != nil {
 		t.Error("the flash goes")
 	}
-	tab.cols.Cols[3].Default = "generated always as identity" // paid, as a column taking no value
+	tab.cols.Cols[3].Generated = true // paid, as a column taking no value (an identity that is always, as the catalog has it)
 	feed(t, a, "p")
 	if len(tab.added) != 1 || tab.row != 2 {
 		t.Fatalf("p: added %d, cursor %d", len(tab.added), tab.row)

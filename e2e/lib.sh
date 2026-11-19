@@ -228,7 +228,7 @@ check() {
   if "$@"; then E2E_PASS=$((E2E_PASS + 1)); echo "PASS $_desc"
   else E2E_FAIL=$((E2E_FAIL + 1)); echo "FAIL $_desc"; e2e_cap | sed 's/^/  | /'; fi
 }
-ASC=$(printf '\xef\x85\xa0') DESC=$(printf '\xef\x85\xa1')   # ORDER's sort_asc U+F160 / sort_desc U+F161 (F1.8)
+ASC=$(printf '\xef\x81\xa2') DESC=$(printf '\xef\x81\xa3')   # ORDER's sort_asc U+F062 / sort_desc U+F063, the arrows (F1.8, F22.2)
 SEARCH_ICON=$(printf '\xef\x80\x82')   # U+F002: the status bar's palette entry (icon only under nerd icons, F0.16)
 search_col() { e2e_find "$SEARCH_ICON" "$(e2e_flag pane_height)" | cut -d' ' -f1; }
 # column where the pending key sequence starts: " <search> " then " <keyboard> <seq>"
@@ -306,6 +306,9 @@ errbar_is() { local got; got=$(errbar "$1" | head -1); [[ $got == "$2" ]] || { e
 
 # ---- the f1.*.sh scripts' data pane: 160x45, ① alone right of the sidebar (x 35..159)
 H() { e2e_flag pane_height; }
+# F22.7: a folded sidebar takes no column (no box 0) and the » that brings it back is the status bar's first block, clicked at its column 2
+folded() { [[ -z $(geom 0) && $(e2e_text 1 3 "$(H)") == " » " ]]; }
+unfold_click() { e2e_click 2 "$(H)"; }
 key() { e2e_keys "$@"; sleep 0.3; }
 bar() { e2e_text 1 "$(e2e_flag pane_width)" "$(H)"; }                    # the status bar
 pos() { bar | grep -oE ' [0-9]+,[0-9]+ ' | tr -d ' '; }                 # its 行,列

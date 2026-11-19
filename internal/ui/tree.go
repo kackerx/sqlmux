@@ -22,6 +22,7 @@ type TreeNode struct {
 	Text         string
 	TextFg       color.Color // fg when nil: a failed connection's is error (§7.8)
 	Pos          []int       // filter match positions in Text
+	Mark         Icon        // after the name, in focus color: a connection that is up (F22.14)
 	Aside        string
 	Note         string
 	NoteFg       color.Color
@@ -29,6 +30,32 @@ type TreeNode struct {
 	// Sep is a rule across the tree, Text its title in dim, "" for none: it
 	// is no node, the cursor never rests on it and a click is not on it (F10.6)
 	Sep bool
+}
+
+// Width is the columns Draw spends on the row from the tree's left edge, with
+// the one it leaves free at the right: the sidebar's inner width that shows it
+// whole (tree.fit, §7.8). A Sep is a rule, it has none.
+func (n TreeNode) Width() int {
+	if n.Sep {
+		return 0
+	}
+	w := 1 + 2*n.Depth + 2 + Width(n.Text) + 1
+	if n.Prefix != "" {
+		w += Width(n.Prefix) + 1
+	}
+	if n.Icon.Text != "" {
+		w += Width(n.Icon.Text) + 1
+	}
+	if n.Mark.Text != "" {
+		w += 1 + Width(n.Mark.Text)
+	}
+	if n.Aside != "" {
+		w += 2 + Width(n.Aside)
+	}
+	if n.Note != "" {
+		w += 1 + Width(n.Note)
+	}
+	return w
 }
 
 // Tree is the ⟨0⟩ sidebar inside its border (§7.8): the filter row, the
@@ -146,8 +173,14 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 		}
 		name, pos := TruncateMatch(n.Text, n.Pos, room)
 		x = f.TextMatch(x, row, x+room, name, pos, text)
+		used, edge := Width(name), x+room-Width(name)
+		if mw := Width(n.Mark.Text); mw > 0 && name == n.Text && used+1+mw <= room {
+			x = f.Text(x, row, edge, " ", text)
+			x = f.Text(x, row, edge, n.Mark.Text, n.Mark.On(uv.Style{Fg: th.Focus, Bg: bg}))
+			used += 1 + mw
+		}
 		if n.Aside != "" && name == n.Text {
-			f.Text(x, row, x+max(room-Width(name), 0), Truncate("  "+n.Aside, room-Width(name)), uv.Style{Fg: th.Dim, Bg: bg})
+			f.Text(x, row, x+max(room-used, 0), Truncate("  "+n.Aside, room-used), uv.Style{Fg: th.Dim, Bg: bg})
 		}
 	}
 	if in.Dy() >= 4 {

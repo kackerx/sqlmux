@@ -1,6 +1,6 @@
 # M21 命令行与外层多路复用器 · 任务清单
 
-- **状态**：**完成**（用户 2026-11-08 验收 fe73900 通过、说直接发版；v0.10.0 由 oss 写文档后 worker 打 tag 两步推送）。（2026-11-07 决策者起草；用户 2026-11-07 定 v0.9.0 发出后直接进 M21。从这个里程碑起整套会话在用户 Windows 主机的 WSL 上跑，路径见 AGENTS.md）。
+- **状态**：**完成，v0.10.0 已发**（用户 2026-11-08 验收 fe73900 通过；tag 在 2634dc5，Release run 42481579827 全绿）。（2026-11-07 决策者起草；用户 2026-11-07 定 v0.9.0 发出后直接进 M21。从这个里程碑起整套会话在用户 Windows 主机的 WSL 上跑，路径见 AGENTS.md）。
 - **目标**：命令行能指定默认连接、直接跑一条语句；Redis 键名索引存盘、启动即用；聚焦和未聚焦的边框能用不同线型；在 tmux 里 `C-h/j/k/l` 能越过 sqlmux 的边界；测试残留库自动清掉。发 v0.10.0。
 - **范围**：§14「启动」（`default_connection`、`--sql`、`--schema`）和 config.toml 样例、§9.8「索引存盘」、§7.3 / §14 的 `border_focus_style`、§6 的 `pane.focus.*` 越界、§15「集成测试」的残留库清理。都已写进各章（2026-11-07，docs commit 见 git log）。
 - **依赖**：M20 完成（v0.9.0）。
@@ -143,7 +143,7 @@
 
 ---
 
-## F21.8 Windows 的 CI 红：TestIndexFile 断言 0600 · 状态：todo
+## F21.8 Windows 的 CI 红：TestIndexFile 断言 0600 · 状态：passed（3def415，没送审；CI windows 绿，Release 42481579827 全绿）
 
 - **涉及**：`internal/app/redisindex_disk_test.go`、`justfile`（新入口 `test-windows`）、`AGENTS.md`（打 tag 前跑它，决策者改）
 - worker 2026-11-08：v0.10.0 的 tag 推上去后 Release 红——`ci / windows` 里 `redisindex_disk_test.go:74` 断言文件权限 0600，Windows 上恒为 0666；npm / release / tap 被跳过，Releases 没有包、brew 和 npm 都没发。合入 commit 093707b。同包 `query_test.go:125` 已有 `runtime.GOOS != "windows"` 的写法，这行漏了。同一类问题第二次出现（M18 的 formatprg 测试也是 Windows 上才红），要加机制。

@@ -4,6 +4,7 @@ import (
 	"context"
 	"image/color"
 	"io"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -70,7 +71,7 @@ func TestMenuItemsByNode(t *testing.T) {
 		{"v_paid", []string{"打开", "在新 tab 打开", "删除视图…", "改名…"}},
 		{"mv_sum", []string{"打开", "在新 tab 打开", "删除视图…", "改名…"}},
 		{"queries/query_1", []string{"打开", "重命名…", "删除…"}},
-		{"public", nil},
+		{"public", []string{"刷新"}}, // a schema has the refresh alone (F22.3)
 		{"Tables (14)", nil},
 		{"Queries", nil},
 		{"data", nil},
@@ -386,7 +387,7 @@ func TestMenuIsAlone(t *testing.T) {
 		t.Error("the wheel does not move the cursor with no menu: the case is not a case")
 	}
 	// a session attached, as one dialed in the background is, takes it down
-	a.menu = &menu{items: []menuItem{{"x", "", nil}}}
+	a.menu = &menu{items: []menuItem{{"x", "", "", func() tea.Cmd { return nil }}}}
 	a.attach(a.sess)
 	if a.menu != nil {
 		t.Error("a menu through an attach")
@@ -606,7 +607,7 @@ func TestMenuItemsHaveIcons(t *testing.T) {
 		"改名…": "rename", "设 TTL…": "auto_refresh", "刷新": "refresh",
 		"加列…": "column", "加索引…": "index", "删除列…": "hide", "删除索引…": "trash",
 		"在值编辑器中打开": "edit", "按这个值过滤": "filter", "按这一列排序 ↑": "sort_asc", "按这一列排序 ↓": "sort_desc", "加入排序": "sort_asc",
-		"隐藏这一列": "hide", "复制这一格": "copy", "复制行为 JSON": "copy", "以 JSON 查看": "json", "导出…": "export",
+		"隐藏这一列": "hide", "添加行": "row_add", "删除行": "row_delete", "取消删除": "row_delete", "克隆行": "copy", "复制这一格": "copy", "复制行为 JSON": "copy", "以 JSON 查看": "json", "导出…": "export",
 	}
 	a := menuApp()
 	c := a.sess.Conns[0]
@@ -671,5 +672,52 @@ func TestMenuIconColors(t *testing.T) {
 	}
 	if got := glyph(a, a.icons.Trash.Text).Style.Fg; got != themed.Trash.Fg {
 		t.Errorf("not picked, themed: %v", got)
+	}
+}
+
+// The connection, the database and the schema have 刷新 in their menus, with
+// the key tree.refresh has at the right; it reads the catalog again from the
+// node it was opened on (F22.3).
+func TestMenuRefresh(t *testing.T) {
+	a := menuApp()
+	c := a.sess.Conns[0]
+	for _, k := range []nodeKind{nodeConn, nodeDatabase, nodeSchema} {
+		if items := a.menuItems(node{kind: k, conn: c}); !slices.ContainsFunc(items, func(it menuItem) bool { return it.label == "刷新" && it.action == "tree.refresh" }) {
+			t.Errorf("kind %d has no 刷新: %v", k, items)
+		}
+	}
+	for _, node := range []string{"public", "doraemon"} {
+		a.menu = nil
+		rightClickNode(t, a, node)
+		row := regexp.MustCompile(`刷新 +R `)
+		if !row.MatchString(a.render().String()) {
+			t.Errorf("%s: no 刷新 with its R:\n%s", node, a.render().String())
+		}
+	}
+	a.menu = nil
+	rightClickNode(t, a, "public")
+	if cmd := a.menuRun(0); cmd == nil {
+		t.Error("刷新 reads no catalog")
+	}
+}
+
+// What a refresh reads is the one catalog the tree, the palette's 表 and the
+// completion go by: a table made outside is in all three (F22.3).
+func TestRefreshedCatalogIsShared(t *testing.T) {
+	a := menuApp()
+	c := a.sess.Conns[0]
+	tables := append(slices.Clone(c.Tables), db.Table{Schema: "public", Name: "f22_new", Rows: -1})
+	a.Update(catalogMsg{conn: c, schemas: []string{"public"}, current: "public", tables: tables})
+	a.menu = nil
+	if _, ok := kindsAt(a, c, "select * from f22_")["f22_new"]; !ok {
+		t.Error("the completion has no f22_new")
+	}
+	feed(t, a, "<C-p>@f22")
+	if got := namesOf(a); len(got) != 1 || got[0] != "表:f22_new" {
+		t.Errorf("the palette's 表: %v", got)
+	}
+	feed(t, a, "<Esc>")
+	if !strings.Contains(treeTexts(a), "f22_new") {
+		t.Errorf("the tree has no f22_new:\n%s", treeTexts(a))
 	}
 }
