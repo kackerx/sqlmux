@@ -93,6 +93,9 @@ func (a *App) gotConnected(m connected) tea.Cmd {
 		}
 		return m.d.discard()
 	}
+	if c.State != connConnecting && m.err == nil { // disconnected while it dialed: the one that is not wanted
+		return m.d.discard()
+	}
 	var waiting []*queryTab
 	for _, t := range a.queries() {
 		if t.want == c {

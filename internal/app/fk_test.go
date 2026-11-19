@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"slices"
 	"testing"
 
@@ -96,5 +97,95 @@ func TestFollowForeignKey(t *testing.T) {
 	a.Update(objectsMsg{conn: c, table: tab.table, keys: []db.Key{{Cols: []string{"id"}, Ref: &db.Ref{Schema: "public", Table: "t_user", Cols: []string{"uid"}}}}, then: a.followFK})
 	if where() != `"uid" = 7` {
 		t.Errorf("after the keys: %q", where())
+	}
+}
+
+// A page that comes brings the table's keys with it when the tree has not read
+// them, once: it is what shows the menu's item (F22.13).
+func TestPageReadsKeysOnce(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 5)
+	c := tab.conn
+	delete(c.keys, idOf(tab.table))
+	if a.wantKeys(pageMsg{tab: tab, err: errors.New("boom")}) != nil {
+		t.Error("a page that failed reads none")
+	}
+	cmd := a.wantKeys(pageMsg{tab: tab})
+	if cmd == nil {
+		t.Fatal("the keys are not read")
+	}
+	msg := cmd().(objectsMsg)
+	msg.keys = []db.Key{{Cols: []string{"id"}, Ref: &db.Ref{Schema: "public", Table: "t_user", Cols: []string{"uid"}}}}
+	a.Update(msg)
+	if a.wantKeys(pageMsg{tab: tab}) != nil {
+		t.Error("read again with the keys in")
+	}
+	has := func() bool {
+		return slices.ContainsFunc(a.columnItems(tab, true), func(it menuItem) bool { return it.action == "grid.fk.follow" })
+	}
+	tab.col = 0
+	if !has() {
+		t.Error("no item once the keys are in")
+	}
+}
+
+// gd on the tab of a connection that was disconnected dials it again, as a
+// fetch does, and reads nothing on the Meta that is gone; so does the page that
+// was on its way (F22.13, F22.12).
+func TestFollowForeignKeyDisconnected(t *testing.T) {
+	a, c, _ := withAlpha(t)
+	a.openTable(c, c.Tables[1])
+	tab := dataOf(a.focused())
+	a.disconnect(c)
+	if cmd := a.wantKeys(pageMsg{tab: tab}); cmd != nil {
+		t.Error("a page after the disconnect reads keys")
+	}
+	tab.page.Cols = []db.Col{{Name: "id"}}
+	tab.page.Rows = [][]db.Val{{{S: "1"}}}
+	if cmd := a.followFK(); cmd == nil || c.State != connConnecting {
+		t.Errorf("gd: state %v", c.State)
+	}
+}
+
+// A database that was dialing when its connection was disconnected is not
+// kept when the dial comes in (F22.12).
+func TestDisconnectWhileDialing(t *testing.T) {
+	a, c, alpha := withAlpha(t)
+	alpha.State, alpha.Main, alpha.Meta = connIdle, nil, nil
+	dial := a.connect(alpha)
+	a.disconnect(c)
+	answered(a, dial)
+	if alpha.State != connIdle || len(alpha.Tables) != 0 {
+		t.Errorf("state %v, %d tables", alpha.State, len(alpha.Tables))
+	}
+}
+
+// A Redis connection disconnected has no key index, no scan and no keys in the
+// palette; a PG one no columns or keys cached (F22.12).
+func TestDisconnectDropsWhatIsKept(t *testing.T) {
+	a, c := redisTree(t, someKeys())
+	c.index = indexOfTree(c.scan)
+	feed(t, a, "<C-p>:str")
+	if len(rowsOf(a)) == 0 {
+		t.Fatal("the palette has no key to begin with")
+	}
+	feed(t, a, "<Esc>")
+	a.disconnect(c)
+	if c.index != nil || c.scan != nil || c.State != connIdle {
+		t.Errorf("index %v, scan %v, state %v", c.index, c.scan, c.State)
+	}
+	feed(t, a, "<C-p>:str")
+	if rows := rowsOf(a); len(rows) != 0 {
+		t.Errorf("the palette still lists %q", rows)
+	}
+	feed(t, a, "<Esc>")
+
+	a = sized(160, 45, "nerd")
+	tab := loadOrders(t, a, 3)
+	pg := tab.conn
+	pg.cols[idOf(tab.table)], pg.keys[idOf(tab.table)] = db.Columns{}, nil
+	a.disconnect(pg)
+	if len(pg.cols) != 0 || len(pg.keys) != 0 || len(pg.idx) != 0 {
+		t.Errorf("cached: %d cols, %d keys", len(pg.cols), len(pg.keys))
 	}
 }

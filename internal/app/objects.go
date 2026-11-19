@@ -32,7 +32,7 @@ func hasKeys(t db.Table) bool    { return t.Kind != "v" && t.Kind != "m" }
 
 // fetchObjects reads t's indexes and keys on its connection's Meta.
 func (a *App) fetchObjects(c *Conn, t db.Table) tea.Cmd {
-	if !hasIndexes(t) {
+	if !hasIndexes(t) || c.State != connReady { // a disconnected one has no Meta to ask
 		return nil
 	}
 	meta, eng := c.Meta, c.eng
