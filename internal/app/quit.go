@@ -35,9 +35,10 @@ func unsaved(panes ...*Pane) int {
 type lostVerb struct{ label, discard, rollback string }
 
 var (
-	verbClose   = lostVerb{i18n.N("关闭"), i18n.N("关闭会丢弃。"), i18n.N("关闭会回滚。")}
-	verbQuit    = lostVerb{i18n.N("退出"), i18n.N("退出会丢弃。"), i18n.N("退出会回滚。")}
-	verbRefresh = lostVerb{label: i18n.N("刷新"), discard: i18n.N("刷新会丢弃。")}
+	verbClose      = lostVerb{i18n.N("关闭"), i18n.N("关闭会丢弃。"), i18n.N("关闭会回滚。")}
+	verbQuit       = lostVerb{i18n.N("退出"), i18n.N("退出会丢弃。"), i18n.N("退出会回滚。")}
+	verbDisconnect = lostVerb{label: i18n.N("断开"), rollback: i18n.N("断开会回滚。")}
+	verbRefresh    = lostVerb{label: i18n.N("刷新"), discard: i18n.N("刷新会丢弃。")}
 )
 
 // unlessLost runs then, or asks first (§10.5): with n changes, of what,

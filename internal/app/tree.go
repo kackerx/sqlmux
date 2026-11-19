@@ -54,6 +54,25 @@ func (a *App) connect(c *Conn) tea.Cmd {
 	}
 }
 
+// disconnect is conn.disconnect on c and the databases of it: asked first
+// when one of them has a transaction going; the Workers close in a Cmd, what
+// runs on them is cancelled (§7.8「断开连接」, F22.12).
+func (a *App) disconnect(c *Conn) tea.Cmd {
+	c = c.root()
+	if c.State != connReady {
+		return a.showToast(i18n.T("%s 没有连上", c.label()))
+	}
+	family := c.withDBs()
+	return a.unlessLost(0, "", slices.DeleteFunc(slices.Clone(family), func(o *Conn) bool { return !o.inTx() }), verbDisconnect, func() tea.Cmd {
+		var ws []*db.Worker
+		for _, o := range family {
+			ws = append(ws, o.disconnect()...)
+		}
+		a.clampTree()
+		return closeWorkers(ws)
+	})
+}
+
 // notReady is what a command that needs c connected does while it is not:
 // dials again after a failure; while the dial is on, says so (F12.5).
 func (a *App) notReady(c *Conn) tea.Cmd {
@@ -169,6 +188,9 @@ func (a *App) gotCatalog(m catalogMsg) tea.Cmd {
 		return a.showToast(i18n.T("%s：%s", m.conn.label(), m.err))
 	}
 	c := m.conn
+	if c.disconnected { // while it was read: nothing of it is kept
+		return nil
+	}
 	c.Schemas, c.Tables, c.funcs, c.seqs, c.Databases = m.schemas, m.tables, m.funcs, m.seqs, m.dbs
 	c.all = m.all
 	// home stays once set, while there: what Meta's current one is moves

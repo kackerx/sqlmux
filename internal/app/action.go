@@ -263,6 +263,16 @@ func init() {
 		"tree.narrower": {Title: i18n.N("侧栏变窄"), Run: do(func(a *App, args Args) { a.resizeTree(-4 * max(args.Count, 1)) })},
 		"tree.fit":      {Title: i18n.N("侧栏按最长的名字自适应"), Run: do(func(a *App, _ Args) { a.fitTree() })},
 		"tree.refresh":  {Title: i18n.N("刷新表列表"), Run: func(a *App, _ Args) tea.Cmd { return a.refreshTree() }},
+		"conn.disconnect": {Title: i18n.N("断开连接"), Run: func(a *App, _ Args) tea.Cmd {
+			c := a.conn()
+			if n, ok := a.treeNode(); ok && a.focused() == a.win().Tree && n.conn != nil { // the node's, not the one a.conn falls back to
+				c = n.conn
+			}
+			if c == nil {
+				return a.noConnection()
+			}
+			return a.disconnect(c)
+		}},
 		"tree.pick": {Title: i18n.N("选择库 / schema…"), Run: func(a *App, _ Args) tea.Cmd {
 			n, ok := a.treeNode()
 			if !ok {

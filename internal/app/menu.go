@@ -78,6 +78,10 @@ func (a *App) menuItems(n node) []menuItem {
 		if n.conn.Spec.Engine != "exec" { // it has no catalog to read again
 			items = append(items, a.refreshItem())
 		}
+		items = append(items, menuItem{label: i18n.T("断开连接"), icon: "close", action: "conn.disconnect"})
+		if n.conn.State == connReady { // dim till it is
+			items[len(items)-1].run = func() tea.Cmd { return a.disconnect(n.conn) }
+		}
 		return append(items, a.connItems(n.conn)...)
 	case nodeGroup, nodeColumn, nodeObjects, nodeIndex, nodeKey, nodeFunc, nodeSequence, nodeWorkspace, nodeWindow, nodeTab, nodeQueries, nodeSep, nodeNote: // no menu
 	}
