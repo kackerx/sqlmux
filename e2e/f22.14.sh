@@ -32,8 +32,11 @@ check "收起 ca 的节点（▸）：标记还在" eval '[[ $(rtext ca) == *▸
 y=$(srow cb); e2e_click 10 "$y"; sleep 0.3; key l; wait_for 8 eval '[[ $(rtext cb) == *▾* ]]'; sleep 0.5
 check "只读的 cb 连上后：名字后面先是标记、再是 lock" eval 'r=$(rtext cb); [[ $r == *"cb $DOT "* ]] && has_dot cb && x=$(e2e_find "$DOT" $(srow cb) | cut -d" " -f1) && [[ -n $(e2e_text $((x + 1)) 32 $(srow cb) | tr -d " │") ]] || { echo "  row: $(rtext cb)"; false; }'
 
-# 断开：toast、标记消失
-open_table f22_14
+# 断开：toast、标记消失。ca 和 cb 是同一个库，@f22_14 有两条：挑 ca 的那条
+. "$(dirname "$0")/palette.sh"
+pal "@f22_14"; sleep 0.8; n=$(list | cut -d'|' -f1 | grep -n "ca.public" | cut -d: -f1)
+for ((i = 1; i < n; i++)); do e2e_keys Down; sleep 0.15; done; key Enter; sleep 1.2
+check "（准备）f22_14 是 ca 的（状态栏的地址块是 ca）" eval '[[ $(bar) == *" ca · "* ]] || { bar; false; }'
 y=$(srow ca); rclick 12 "$y"; key j; key j; key Enter
 check "右键 ca →「断开连接」：toast「已断开 ca」" eval 'wait_for 3 toasted "已断开 ca"'
 check "断开后 ca 的标记消失，cb 的还在" eval 'no_dot ca && has_dot cb'
