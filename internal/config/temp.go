@@ -55,7 +55,12 @@ func TempConnection(target string, taken []string) (Connection, error) {
 		database = "db" + cmp.Or(n, "0")
 	}
 	if engine == "mssql" { // the path of a sqlserver:// URL is the instance, the database is the query's
-		database = u.Query().Get("database")
+		database = ""
+		for k, v := range u.Query() { // the driver reads the key in any case (?Database=)
+			if strings.EqualFold(k, "database") && len(v) > 0 {
+				database = v[0]
+			}
+		}
 	}
 	name := strings.Join(slices.DeleteFunc([]string{database, host}, func(s string) bool { return s == "" }), "@")
 	return named(c, name, name, taken), nil

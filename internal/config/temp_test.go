@@ -17,9 +17,10 @@ func TestTempConnection(t *testing.T) {
 		"mysql://root@127.0.0.1:3306/":                   {Name: "127.0.0.1", Engine: "mysql", DSN: "mysql://root@127.0.0.1:3306/", Temp: true},
 		"mysql:///tmp/sock":                              {Name: "mysql", Engine: "mysql", DSN: "mysql:///tmp/sock", Temp: true},
 		"sqlserver://sa:x@db.example:1433?database=shop": {Name: "shop@db.example", Engine: "mssql", DSN: "sqlserver://sa:x@db.example:1433?database=shop", Temp: true},
-		"mssql://sa@127.0.0.1:1/?database=foo":           {Name: "foo@127.0.0.1", Engine: "mssql", DSN: "mssql://sa@127.0.0.1:1/?database=foo", Temp: true}, // the driver's start is made sqlserver:// at connect (mssql.Config)
-		"sqlserver://sa@h/inst":                          {Name: "h", Engine: "mssql", DSN: "sqlserver://sa@h/inst", Temp: true},                            // the path is the instance, not a database
-		`D:/x.db`:                                        {Name: "x", Engine: "sqlite", DSN: `D:/x.db`, Temp: true},                                         // a windows drive, both separators taken
+		"mssql://sa@127.0.0.1:1/?database=foo":           {Name: "foo@127.0.0.1", Engine: "mssql", DSN: "mssql://sa@127.0.0.1:1/?database=foo", Temp: true},           // the driver's start is made sqlserver:// at connect (mssql.Config)
+		"sqlserver://sa@db.example:1433?Database=shop":   {Name: "shop@db.example", Engine: "mssql", DSN: "sqlserver://sa@db.example:1433?Database=shop", Temp: true}, // as the driver reads the key
+		"sqlserver://sa@h/inst":                          {Name: "h", Engine: "mssql", DSN: "sqlserver://sa@h/inst", Temp: true},                                      // the path is the instance, not a database
+		`D:/x.db`:                                        {Name: "x", Engine: "sqlite", DSN: `D:/x.db`, Temp: true},                                                   // a windows drive, both separators taken
 	}
 	if runtime.GOOS == "windows" { // unix's filepath.Base does not cut at a backslash
 		targets[`C:\data\a.db`] = Connection{Name: "a", Engine: "sqlite", DSN: `C:\data\a.db`, Temp: true}
