@@ -48,7 +48,7 @@ cmdp conn.manage; key x; sleep 0.5; key y; sleep 1.5
 check "y：play 的整块从 connections.toml 里没了，doraemon 块原样" eval '! grep -q "name = \"play\"" "$(ct)" && grep -q "name = \"doraemon\"" "$(ct)" || { cat "$(ct)"; false; }'
 check "列表里只剩 doraemon 和新建" eval '[[ $(lrows | sed "/^$/d" | head -2 | tr "\n" ,) == "doraemon,新建," ]]'
 key Escape; sleep 0.6
-check "树里没有 play 连接节点（顶上的「⓪ play」是 session 名），doraemon 还在" eval '! side | noicon | tr -s " " | grep -qE "^ [▾▸] play$" && side | noicon | tr -s " " | grep -qE "^ [▾▸] doraemon$" || { side | noicon | grep -nE "play|doraemon"; false; }'
+check "树里没有 play 连接节点（顶上的「⓪ play」是 session 名），doraemon 还在" eval '! side | noicon | tr -s " " | grep -qE "^ [▾▸] play( |$)" && side | noicon | tr -s " " | grep -qE "^ [▾▸] doraemon( |$)" || { side | noicon | grep -nE "play|doraemon"; false; }'
 check "play 的三个 tab 全关了：t_play1、t_play2、query_1 在工作区和 tab 条里都没有" eval '! e2e_plain | grep -q "t_play" && ! side | grep -q "query_1"'
 check "doraemon 的 t_event tab 不动，还开着、有数据（3 行）" eval 'e2e_plain | head -1 | grep -q "t_event" && e2e_plain | grep -q "signup"'
 check "空了的 query pane 收掉了：只剩侧栏和 ① 两个 pane" panes_are "0 1 "
