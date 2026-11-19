@@ -130,6 +130,9 @@ leader = "<Space>"
 "/" = "tree.filter"
 "<Esc>" = "tree.refilter" # with a filter kept: back to its input, as / (F20.9)
 "R" = "tree.refresh"
+">" = "tree.wider" # the sidebar 4 columns wider or narrower (a count: that many times), = as wide as its longest row (F22.11)
+"<" = "tree.narrower"
+"=" = "tree.fit"
 "dd" = "tree.delete"
 "s" = "jump.start"
 ":" = "palette.open"

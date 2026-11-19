@@ -630,6 +630,26 @@ func b2i(b bool) int {
 	return 0
 }
 
+// resizeTree widens the sidebar by d columns, narrows it for a negative d: as
+// a drag does, kept in the window (§7.8, F22.11). A folded one has no width.
+func (a *App) resizeTree(d int) {
+	if a.win().TreeOpen {
+		a.win().TreeW = treeWidth(a.sidebarRect().Dx()+d, a.w)
+	}
+}
+
+// fitTree makes the sidebar as wide as the widest row it lists, borders in.
+func (a *App) fitTree() {
+	ns, _ := a.treeNodes()
+	w := 0
+	for _, n := range ns {
+		w = max(w, n.Width())
+	}
+	if a.win().TreeOpen {
+		a.win().TreeW = treeWidth(w+2, a.w)
+	}
+}
+
 // treeRows is how many nodes the sidebar shows.
 func (a *App) treeRows() int { return ui.TreeRows(a.sidebarRect().Dy() - 2) }
 

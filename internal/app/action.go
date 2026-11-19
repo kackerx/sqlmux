@@ -259,7 +259,10 @@ func init() {
 				a.treeFilter()
 			}
 		})},
-		"tree.refresh": {Title: i18n.N("刷新表列表"), Run: func(a *App, _ Args) tea.Cmd { return a.refreshTree() }},
+		"tree.wider":    {Title: i18n.N("侧栏加宽"), Run: do(func(a *App, args Args) { a.resizeTree(4 * max(args.Count, 1)) })},
+		"tree.narrower": {Title: i18n.N("侧栏变窄"), Run: do(func(a *App, args Args) { a.resizeTree(-4 * max(args.Count, 1)) })},
+		"tree.fit":      {Title: i18n.N("侧栏按最长的名字自适应"), Run: do(func(a *App, _ Args) { a.fitTree() })},
+		"tree.refresh":  {Title: i18n.N("刷新表列表"), Run: func(a *App, _ Args) tea.Cmd { return a.refreshTree() }},
 		"tree.pick": {Title: i18n.N("选择库 / schema…"), Run: func(a *App, _ Args) tea.Cmd {
 			n, ok := a.treeNode()
 			if !ok {

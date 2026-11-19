@@ -737,3 +737,56 @@ func TestRedisTreeEscBackToFilter(t *testing.T) {
 		t.Errorf("the second esc: %+v", a.win().tree)
 	}
 }
+
+// > and < on the tree take the sidebar 4 columns wider or narrower (a count:
+// that many times), as far as the drag goes; a folded one has no width (F22.11).
+func TestTreeResizeKeys(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	a.win().focus(0)
+	width := func() int { return a.sidebarRect().Dx() }
+	for _, c := range []struct {
+		keys string
+		want int
+	}{{">>", 40}, {"<lt>", 36}, {"3<lt>", 24}, {"<lt><lt><lt><lt>", 16}, {"30>", 80}} {
+		feed(t, a, c.keys)
+		if got := width(); got != c.want {
+			t.Fatalf("%s: %d wide, want %d", c.keys, got, c.want)
+		}
+	}
+	feed(t, a, "<Space>b")
+	a.run("tree.wider", 0)
+	if a.win().TreeW != 80 || width() != 0 {
+		t.Errorf("folded: dragged width %d, drawn %d", a.win().TreeW, width())
+	}
+}
+
+// = takes the sidebar to its widest row, the aside and the double-width
+// names in it: whole at that width, cut one column under it, and as narrow as
+// the rows are after one is closed (F22.11).
+func TestTreeFit(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	feed(t, a, "<C-p>@t_user<CR>")
+	dataOf(a.focused()).shown.applied = "name = '甲乙丙丁戊己庚辛壬癸'"
+	a.win().focus(0)
+	sidebar := func() string {
+		var rows []string
+		for _, l := range strings.Split(a.render().String(), "\n") {
+			rows = append(rows, ansi.Strip(l))
+		}
+		return strings.Join(rows, "\n")
+	}
+	feed(t, a, "=")
+	w := a.sidebarRect().Dx()
+	if !strings.Contains(sidebar(), "甲乙丙丁戊己庚辛壬癸") {
+		t.Fatalf("%d wide: the aside is cut", w)
+	}
+	a.win().TreeW = w - 1
+	if strings.Contains(sidebar(), "甲乙丙丁戊己庚辛壬癸") {
+		t.Errorf("%d wide, one under the fit: the aside is still whole", w-1)
+	}
+	treeTo(t, a, "工作区")
+	feed(t, a, "h=")
+	if got := a.sidebarRect().Dx(); got >= w || got < 16 {
+		t.Errorf("workspace closed: %d wide, was %d", got, w)
+	}
+}

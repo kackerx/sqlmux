@@ -31,6 +31,29 @@ type TreeNode struct {
 	Sep bool
 }
 
+// Width is the columns Draw spends on the row from the tree's left edge, with
+// the one it leaves free at the right: the sidebar's inner width that shows it
+// whole (tree.fit, §7.8). A Sep is a rule, it has none.
+func (n TreeNode) Width() int {
+	if n.Sep {
+		return 0
+	}
+	w := 1 + 2*n.Depth + 2 + Width(n.Text) + 1
+	if n.Prefix != "" {
+		w += Width(n.Prefix) + 1
+	}
+	if n.Icon.Text != "" {
+		w += Width(n.Icon.Text) + 1
+	}
+	if n.Aside != "" {
+		w += 2 + Width(n.Aside)
+	}
+	if n.Note != "" {
+		w += 1 + Width(n.Note)
+	}
+	return w
+}
+
 // Tree is the ⟨0⟩ sidebar inside its border (§7.8): the filter row, the
 // nodes, and the hint row.
 type Tree struct {
