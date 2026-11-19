@@ -9,6 +9,7 @@ Made for people like you, by one of you.
 [![Release](https://img.shields.io/github/v/release/kackerx/sqlmux)](https://github.com/kackerx/sqlmux/releases)
 [![CI](https://github.com/kackerx/sqlmux/actions/workflows/ci.yml/badge.svg)](https://github.com/kackerx/sqlmux/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/kackerx/sqlmux)](LICENSE)
+[![sqlmux on The Terminal Index](https://cli.masoko.net/badge/sqlmux.svg)](https://cli.masoko.net/tools/sqlmux/)
 
 <img src="assets/demo.gif" alt="sqlmux: a SQLite table with a WHERE, the JSON view, the command palette, quick SQL, split panes and a second session">
 
