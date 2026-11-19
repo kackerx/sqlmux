@@ -65,6 +65,11 @@ pal "tree.wider"
 check "命令面板：按名字搜 tree.wider 也有" eval '[[ $(nrows) -ge 1 ]]'
 key Escape; sleep 0.3
 
+# which-key：树上按 ? 列着三个键
+key '?'; sleep 0.6
+check "树上 ?（which-key）：有 > 侧栏加宽、< 侧栏变窄、= 侧栏按最长的名字自适应" eval 'e2e_plain | grep -q ">   → 侧栏加宽" && e2e_plain | grep -q "<   → 侧栏变窄" && e2e_plain | grep -q "=   → 侧栏按最长的名字自适应"'
+key Escape; sleep 0.3
+
 # 和拖动同一份记录：:qa 重启、同一份 state，宽度还在
 key =; key 2; e2e_keys '>'; sleep 0.5
 WQ=$(tw)
@@ -72,4 +77,12 @@ quit_app
 check "（准备）:qa 退出了" screen_has '[e2e-exit 0]'
 SOLO= start -x 200 -C "$D/c" -S "$D/st"; sleep 1
 check "重启后宽度还是 $WQ" tw_is "$WQ"
+
+# 折叠时无事：SPC b 收起，从命令面板执行三条，展开后宽度不变
+key Space; key b; sleep 0.4
+check "（准备）SPC b：侧栏收起" folded
+for c in 侧栏加宽 侧栏变窄 侧栏按最长的名字自适应; do pal ">$c"; key Enter; sleep 0.5; done
+check "折叠时从面板执行加宽 / 变窄 / 自适应：还是收起的、程序没崩" eval 'folded && running'
+key Space; key b; sleep 0.4
+check "SPC b 展开：宽度还是 $WQ（折叠时三条都没动它）" tw_is "$WQ"
 e2e_done

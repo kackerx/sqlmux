@@ -2,7 +2,7 @@
 # F22.12 断开连接的边界（审查时点名的三条；tech-design §7.8「断开连接」）
 # A. 查询 / 取数还在跑时断开：不冒「canceled」之类的报错，tab 留着旧数据，服务端那条查询没了；
 # B. 展开另一个库的拨号还没回来（经 1.5 s 往返的代理）时断开：那个库不能自己又连上（对照：不断开时它连得上）；
-# C. 断开之后在它的 tab 上按 gd：不崩，重连后照样跳。自建两个库，state 放临时目录。
+# C. 断开之后在它的 tab 上按 gd：不崩，重连后照样跳；D. 断开后它的 query 里补全不再有它的表，打字不会把它连回来。自建两个库，state 放临时目录。
 . "$(dirname "$0")/lib.sh"
 e2e_build || exit 1
 . "$(dirname "$0")/palette.sh"
@@ -80,4 +80,16 @@ check "C1 断开后在 t_order_item 的 tab 上 gd：程序没崩" eval 'running
 check "C2 断开后的第一个 gd：重新连上了（树上 ca 又是展开的）；这一下没有跳、也没有 toast（观察：要再按一次，见批次结论）" eval 'wait_for 8 eval "[[ \$(e2e_text 1 32 \$(srow ca)) == *▾* ]]"'
 e2e_keys g; sleep 0.1; e2e_keys d; sleep 2
 check "C3 再按一次 gd：跳到 t_order，WHERE \"id\" = 1" eval '[[ $(e2e_text 34 198 1 | noicon) == *"t_order ─"* && $(e2e_text 36 150 2) == *"\"id\" = 1"* ]] || { e2e_text 34 198 1; false; }'
+_e2e_kill
+
+# ---- D. 补全
+pop() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5 }' | tail -1; }
+start -x 200 -C "$D/c2" -S "$D/st5"; sleep 1
+key C-l; key C-l; key i; e2e_type "select * from f22_"; sleep 1.2
+check "（对照）连着时 query 里 select * from f22_ 补得出 f22_12" eval '[[ -n $(pop) ]] && e2e_plain | grep -q f22_12'
+key Escape; key g g; key d G
+disconnect_menu ca
+key C-l; key C-l; key i; e2e_type "select * from f22_"; sleep 2
+check "D1 断开后同样输入：没有补全框、屏幕上没有 f22_12" eval '[[ -z $(pop) ]] && ! e2e_plain | grep -q f22_12'
+check "D2 打字补全不会把 ca 连回来（树上还是 ▸）" eval '[[ $(e2e_text 1 32 $(srow ca)) == *▸* ]]'
 e2e_done
