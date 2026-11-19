@@ -1,6 +1,6 @@
 # Configuration
 
-sqlmux reads four kinds of files from `$XDG_CONFIG_HOME/sqlmux`, which is `~/.config/sqlmux` when the variable is unset (macOS too). All of them are optional.
+sqlmux reads four kinds of files from `$XDG_CONFIG_HOME/sqlmux`, which is `~/.config/sqlmux` when the variable is unset (macOS too). All of them are optional. Wherever these docs write `~/.config/sqlmux/…`, Windows reads `%APPDATA%\sqlmux\…` instead (for example `C:\Users\<you>\AppData\Roaming\sqlmux\config.toml`), not `%USERPROFILE%\.config`.
 
 | File | Who writes it | What it holds |
 |---|---|---|

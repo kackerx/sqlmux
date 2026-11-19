@@ -42,7 +42,7 @@ sqlmux runs natively in [Windows Terminal](https://aka.ms/terminal), with PowerS
 - The old console window (conhost) is not supported; use Windows Terminal. Install a Nerd Font there too, or use `icons = "ascii"`.
 - In WSL, sqlmux is the Linux build: install it there as on Linux.
 
-The icons come from a [Nerd Font](https://www.nerdfonts.com/). Without one they show up as boxes: put `icons = "ascii"` in `~/.config/sqlmux/config.toml`.
+The icons come from a [Nerd Font](https://www.nerdfonts.com/). Without one they show up as boxes: put `icons = "ascii"` in `~/.config/sqlmux/config.toml` (on Windows `%APPDATA%\sqlmux\config.toml`).
 
 Then open something:
 

@@ -16,7 +16,7 @@ Or download a binary for macOS or Linux (amd64 / arm64) from the [Releases page]
 sqlmux --version
 ```
 
-sqlmux uses Nerd Font icons by default. Without a Nerd Font, put `icons = "ascii"` in `~/.config/sqlmux/config.toml`.
+sqlmux uses Nerd Font icons by default. Without a Nerd Font, put `icons = "ascii"` in `~/.config/sqlmux/config.toml` (on Windows `%APPDATA%\sqlmux\config.toml`).
 
 ## 2. Open a database
 
@@ -37,7 +37,7 @@ sqlite3 demo.db "create table todo(id integer primary key, title text not null, 
 sqlmux ./demo.db
 ```
 
-To keep a connection, add it to `~/.config/sqlmux/connections.toml`:
+To keep a connection, add it to `~/.config/sqlmux/connections.toml` (on Windows `%APPDATA%\sqlmux\connections.toml`):
 
 ```toml
 [[connection]]
