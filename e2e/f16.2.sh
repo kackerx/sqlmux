@@ -233,7 +233,9 @@ check "全局 /，连接 dbl 写了 \"::\"：连接的盖过全局，命名空�
 quit_app; _e2e_kill; DIR=
 
 # ---- 展开状态（在 session 上，只在内存里，§7.8）：节点按 db 和命名空间的路径区分；R 之后不丢
-sstart rd
+# db5 有 12001 个键：默认预算 10000 时 hash:big 在不在扫到的那部分看 SCAN 的顺序（redis-server 每次起都换哈希种子），所以这里预算放到全扫
+mkdir -p "$D/x"; cp "$D/c/connections.toml" "$D/x/"; printf '[redis]\nscan_keys = 20000\n' >"$D/x/config.toml"
+DIR=$D/x sstart rd
 expand str; expand app; expand users
 key C-h; key g g; key j; key R; sleep 2
 check "展开 str、app → users 之后在 db0 上 R：重扫完它们还是展开的（展开状态保留）" eval 'tree | grep -qx "▾ str 7" && tree | grep -qx "▾ users 3" && tree | grep -qx "▾ app 6"' || tree

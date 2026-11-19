@@ -16,7 +16,7 @@ box() { e2e_panes | awk '$1 == "-" { print $2, $3, $4, $5; exit }'; }
 mgr_open() { e2e_plain | grep -q "┌─ 连接"; }
 cmdp() { pal ">$1"; key Enter; sleep 0.7; }
 side() { e2e_plain | python3 -c 'import sys; [print(l[1:33].rstrip("│ ")) for l in sys.stdin.read().split("\n")]'; }
-no_play() { ! side | noicon | tr -s " " | grep -qE "^ [▾▸] play$" && ! grep -q 'name = "play"' "$(ct)"; }
+no_play() { ! side | noicon | tr -s " " | grep -qE "^ [▾▸] play( |$)" && ! grep -q 'name = "play"' "$(ct)"; }
 dlg() { e2e_plain | python3 -c 'import sys, re; t = sys.stdin.read(); m = re.search(r"删除连接[^\n]*", t); print(m.group(0) if m else "")'; }
 paste() { t set-buffer -b e2e "$1"; t paste-buffer -r -p -b e2e -t t; sleep 0.4; }
 setsql() { key Escape; key g g; key d G; key i; paste "$1"; key Escape; key g g; }
