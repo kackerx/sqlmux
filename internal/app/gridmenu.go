@@ -67,6 +67,9 @@ func (a *App) columnItems(t *dataTab, cell bool) []menuItem {
 		menuItem{i18n.T("以 JSON 查看"), "json", "grid.view.json", func() tea.Cmd { return a.viewJSON() }},
 		menuItem{i18n.T("导出…"), "export", "grid.export", a.exportOpen},
 	)
+	if _, _, ok := a.cursorFK(); ok { // only on a column of a foreign key
+		items = append(items, menuItem{i18n.T("转到被引用的行"), "link", "grid.fk.follow", a.followFK})
+	}
 	return append(items, a.rowItems(t)...)
 }
 

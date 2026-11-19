@@ -55,6 +55,7 @@ func withRecorder(t *testing.T) (*App, *dataTab, *recDB) {
 	tab := loadOrders(t, a, 100)
 	rec := &recDB{}
 	a.sess.Conns[0].Meta = db.NewWorker(rec)
+	a.sess.Conns[0].keys[idOf(tab.table)] = nil // read already: a page is not followed by a read of them (F22.13)
 	return a, tab, rec
 }
 

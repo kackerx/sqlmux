@@ -76,6 +76,7 @@ leader = "<Space>"
 "gs" = "grid.order.cycle" # this column alone, the other way, the default (F12.3)
 "gS" = "grid.order.add" # joins the ORDER, or turns: space of its list
 "gj" = "grid.view.json" # the page as JSON, read only (F14.5)
+"gd" = "grid.fk.follow" # the row a foreign key points at, in its table (F22.13)
 "*" = "grid.filter.cell" # the cell as a condition of the WHERE
 "e" = "grid.value" # the cell in the value editor (F12.2)
 "O" = "grid.value" # the same

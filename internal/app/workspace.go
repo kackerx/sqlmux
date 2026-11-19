@@ -1001,6 +1001,26 @@ func (a *App) openTableAs(p *Pane, c *Conn, t db.Table, r *request, turned bool)
 	return a.fetch(tab.Data, true)
 }
 
+// openWhere opens t of c in pane p with where as its WHERE, as if it was typed
+// and run: the first page and its count read once, the condition in the table's
+// history (§9.7); a tab of it p has goes to it, replacing its WHERE. The one
+// place of --where and of the foreign key's gd (F19.1, F22.13).
+func (a *App) openWhere(p *Pane, c *Conn, t db.Table, where string) tea.Cmd {
+	if p.tableTab(c, t) >= 0 {
+		a.openTableAs(p, c, t, nil, a.newTurned)
+		d := dataOf(p)
+		d.where.Text, d.where.Pos = where, len(where)
+		return a.runWhere(d)
+	}
+	r := newDataTab(c, t).request
+	r.applied, r.desc = where, a.newDesc
+	open := a.openTableAs(p, c, t, &r, a.newTurned)
+	if d := dataOf(p); where != "" && d != nil {
+		return tea.Batch(open, a.rememberWhere(d))
+	}
+	return open
+}
+
 // showTab focuses pane p and switches to its tab i.
 func (a *App) showTab(p *Pane, i int) {
 	a.showPane(p.ID)

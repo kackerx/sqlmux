@@ -579,6 +579,7 @@ func init() {
 			}
 			return nil
 		}},
+		"grid.fk.follow": {Title: i18n.N("转到被引用的行"), Run: func(a *App, _ Args) tea.Cmd { return a.followFK() }},
 		"grid.col.hide": {Title: i18n.N("隐藏这一列"), Run: func(a *App, _ Args) tea.Cmd {
 			if t, _, ok := a.cursorColumn(); ok {
 				a.hideColumn(t, t.fieldAt(t.col))

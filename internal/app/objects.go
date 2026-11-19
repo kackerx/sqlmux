@@ -22,6 +22,7 @@ type objectsMsg struct {
 	idx   []db.Index
 	keys  []db.Key
 	err   error
+	then  func() tea.Cmd // what goes on once they are in: gd's, which was waiting for them (F22.13)
 }
 
 // hasIndexes and hasKeys are whether the tree lists t's Indexes and Keys: a
@@ -57,6 +58,9 @@ func (a *App) gotObjects(m objectsMsg) tea.Cmd {
 	}
 	m.conn.idx[idOf(m.table)], m.conn.keys[idOf(m.table)] = m.idx, m.keys
 	a.clampTree()
+	if m.then != nil {
+		return m.then()
+	}
 	return nil
 }
 

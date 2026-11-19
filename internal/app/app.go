@@ -315,7 +315,7 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case namespaceFound:
 		return a, a.gotNamespaceFound(msg)
 	case pageMsg:
-		return a, a.gotPage(msg)
+		return a, tea.Batch(a.gotPage(msg), a.wantKeys(msg))
 	case countMsg:
 		a.gotCount(msg)
 	case autoMsg:
