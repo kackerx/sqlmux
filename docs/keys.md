@@ -1,6 +1,6 @@
 # Keys
 
-Every default key of sqlmux v0.10.0, generated from `sqlmux keys --format toml` by `docs/keys.py`; do not edit by hand.
+Every default key of sqlmux v0.11.0, generated from `sqlmux keys --format toml` by `docs/keys.py`; do not edit by hand.
 The leader is `<Space>`. Keys use vim notation (`<C-p>` is Ctrl+P, `<CR>` Enter, `<lt>` the `<` key, `<Leader>c` the leader then `c`).
 An action with no key runs from the command palette (`<C-p>`, then `>`), or bind it yourself in `keymaps.toml`:
 see [Configuration](config.md#keymapstoml).
@@ -46,8 +46,11 @@ NORMAL mode, the focus in any pane
 | `gT` | `tab.prev` | Previous tab |
 | `<Leader>wn` | `tab.move.next` | Move tab to the next pane |
 | `<Leader>wp` | `tab.move.prev` | Move tab to the previous pane |
+| `<Leader>wP` | `tab.pin` | Pin / unpin tab |
+| `<Leader>wo` | `tab.close.others` | Close other tabs |
 | — | `cell.default` | Set DEFAULT |
 | — | `cell.null` | Set NULL |
+| — | `conn.disconnect` | Disconnect |
 | — | `conn.manage` | Manage connections… |
 | — | `conn.new` | New connection… |
 | — | `key.delete` | Delete the key |
@@ -56,6 +59,7 @@ NORMAL mode, the focus in any pane
 | — | `layout.open` | Open layout |
 | — | `layout.save` | Save layout as… |
 | — | `palette.command` | Palette: command |
+| — | `palette.key` | Palette: keys |
 | — | `palette.session` | Command palette: sessions |
 | — | `palette.tab` | Palette: Tab |
 | — | `palette.table` | Palette: table |
@@ -69,6 +73,8 @@ NORMAL mode, the focus in any pane
 | — | `session.close` | Close session |
 | — | `session.new` | New session |
 | — | `session.rename` | Rename session… |
+| — | `tab.close.left` | Close tabs to the left |
+| — | `tab.close.right` | Close tabs to the right |
 | — | `tab.new` | New tab |
 | — | `tab.quit` | Close tab, and the pane / window with it when empty |
 | — | `tab.reopen` | Reopen the closed tab |
@@ -150,6 +156,9 @@ The focus on the schema tree (NORMAL)
 | `/` | `tree.filter` | Filter |
 | `<Esc>` | `tree.refilter` | Back to the filter input |
 | `R` | `tree.refresh` | Refresh the tables |
+| `>` | `tree.wider` | Widen the sidebar |
+| `<lt>` | `tree.narrower` | Narrow the sidebar |
+| `=` | `tree.fit` | Fit the sidebar to its longest name |
 | `dd` | `tree.delete` | Delete query file, table or view |
 | `s` | `jump.start` | Jump to a character on the screen |
 | `:` | `palette.open` | Command palette |
@@ -188,6 +197,7 @@ The focus on the grid (NORMAL)
 | `gs` | `grid.order.cycle` | Sort by this column |
 | `gS` | `grid.order.add` | Add to sorting |
 | `gj` | `grid.view.json` | View as JSON |
+| `gd` | `grid.fk.follow` | Go to the referenced row |
 | `*`, `fv` | `grid.filter.cell` | Filter by this value |
 | `e`, `O` | `grid.value` | Open in the value editor |
 | `fc` | `grid.col.hide` | Hide this column |
@@ -202,6 +212,7 @@ The focus on the grid (NORMAL)
 | `V` | `grid.select.unset` | Unselect a range |
 | `yy` | `grid.yank.row` | Copy row |
 | `yl` | `grid.yank` | Copy cell |
+| `yp` | `grid.row.clone` | Clone row |
 | `p` | `grid.paste` | Paste as a new row |
 | `yi` | `grid.yank.insert` | Copy as INSERT |
 | `Y` | `grid.yank.json` | Copy as JSON |
