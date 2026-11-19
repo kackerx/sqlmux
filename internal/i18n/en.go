@@ -64,7 +64,7 @@ var en = map[string]string{
 	"关闭键位帮助":     "Close key help",
 	"再按一次 %s 退出": "Press %s again to quit",
 	"切换 schema":  "Switch schema",
-	"不认识的 URL %s://：只有 postgres://、mysql://、redis:// 和 SQLite 的文件": "Unknown URL %s://: only postgres://, mysql://, redis:// and SQLite files",
+	"不认识的 URL %s://：只有 postgres://、mysql://、redis://、sqlserver:// 和 SQLite 的文件": "Unknown URL %s://: only postgres://, mysql://, redis://, sqlserver:// and SQLite files",
 	"%s: 不认识的键 %s": "%s: unknown key(s) %s",
 	"没有历史":         "No history",
 	"搜索中…":         "Searching…",
