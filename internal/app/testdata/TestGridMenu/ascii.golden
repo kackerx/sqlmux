@@ -1,7 +1,7 @@
 ┌─ ⟨0⟩ @ doraemon ───────── « ─┐ ┌─ ⟨1⟩ + table · t_order ───────────────────────── | = [Z] x ─┐ ┌─ ⟨2⟩ > query · qu…  doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
 │ ? / 15 tables              + │ │ WHERE                                               h C-r ▾ │ │   1                                                         │
 │──────────────────────────────│ │  ORDER id ↑   LIMIT 100   PAGE 1/?    [S]  [R]              │ │                                                             │
-│ ▾ pg doraemon                │ │     │ * id │ status  │ amount │ paid │ meta                 │ │                                                             │
+│ ▾ pg doraemon *              │ │     │ * id │ status  │ amount │ paid │ meta                 │ │                                                             │
 │   ▸ # agentable              │ │─────┼──────┼─────────┼────────┼──────┼──────────────────────│ │                                                             │
 │   ▾ # public                 │ │   1 │    1 │ running │   1.99 │ t    │ {"n": 1, "tags": ["a"│ │                                                             │
 │     ▾ + Tables (14)          │ │   2 │    2 │ done    │   2.99 │ t    │ {"n": 2, "tags": ["a"│ │                                                             │

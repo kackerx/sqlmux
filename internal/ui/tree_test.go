@@ -31,13 +31,15 @@ func TestTreeNodeWidth(t *testing.T) {
 		"note":         {Icon: NerdIcons.Table, Text: "t_order", Note: "1.2m"},
 		"aside, note":  {Prefix: "②", Icon: NerdIcons.Table, Text: "t_order", Aside: "id > 5", Note: "1.2m"},
 		"cjk aside":    {Depth: 1, Text: "t_order", Aside: "name = '甲乙丙丁'"},
+		"mark, aside":  {Icon: NerdIcons.Conn, Text: "prod", Mark: NerdIcons.Connected, Aside: NerdIcons.Lock.Text},
+		"mark, note":   {Icon: NerdIcons.Conn, Text: "prod", Mark: NerdIcons.Connected, Note: "3/9"},
 		"cjk and note": {Depth: 2, Icon: NerdIcons.Table, Text: "订单", Note: "测试库"},
 	} {
 		whole := func(w int) bool {
 			f := NewFrame(w, 8, TokyonightStorm)
 			Tree{Nodes: []TreeNode{n}, Icons: NerdIcons}.Draw(f, uv.Rect(0, 0, w, 8))
 			row := ansi.Strip(strings.Split(f.String(), "\n")[2])
-			return strings.Contains(row, n.Text) && strings.Contains(row, n.Aside) && strings.Contains(row, n.Note)
+			return strings.Contains(row, n.Text) && strings.Contains(row, n.Aside) && strings.Contains(row, n.Note) && strings.Contains(row, n.Mark.Text)
 		}
 		if w := n.Width(); !whole(w) || whole(w-1) {
 			t.Errorf("%s: %d wide whole %v, %d wide whole %v", name, w, whole(w), w-1, whole(w-1))

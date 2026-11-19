@@ -1,7 +1,7 @@
 ┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ①  t_order ─────────────────────────────────────     ─┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
 │  15 tables                 │ │ WHERE                                                C-r ▾ │ │   1                                                         │
 │──────────────────────────────│ │  ORDER status    LIMIT 100   PAGE 1/?                    │ │                                                             │
-│ ▾  doraemon                 │ │     │  id │ status  │ amount │ paid │ meta                │ │                                                             │
+│ ▾  doraemon                │ │     │  id │ status  │ amount │ paid │ meta                │ │                                                             │
 │   ▸  agentable              │ │─────┼──────┼──────────┼────────┼──────┼─────────────────────│ │                                                             │
 │   ▾  public                 │ │   1 │    1 │ running  │   1.99 │ t    │ {"n": 1, "tags": ["a│ │                                                             │
 │     ▾  Tables (14)          │ │   2 │    2 │ done     │   2.99 │ t    │ {"n": 2, "tags": ["a│ │                                                             │

@@ -1,7 +1,7 @@
 ┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ① ───────────────────────────────────────────────     ─┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
 │  15 tables                 │ │                                                             │ │▶  1 select 1;                                               │
 │──────────────────────────────│ │                                                             │ │▶  2 select * from t_o                                       │
-│ ▾  doraemon                 │ │                                                             │ │                   ┌──────────────────────┐                  │
+│ ▾  doraemon                │ │                                                             │ │                   ┌──────────────────────┐                  │
 │   ▸  agentable              │ │                                                             │ │                   │  t_order         表 │                  │
 │   ▾  public                 │ │                                                             │ │                   │  t_order_item    表 │                  │
 │     ▾  Tables (14)          │ │                                                             │ │                   │  t_user_profile  表 │                  │

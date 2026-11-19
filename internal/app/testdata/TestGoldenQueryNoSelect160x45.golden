@@ -1,7 +1,7 @@
 ┌─ ⓪  doraemon ─────────── « ─┐ ┌─ ① ───────────────────────────────────────────────     ─┐ ┌─ ②  q…  Tx: 自动 ▾ doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
 │  15 tables                 │ │                                                             │ │▶  1 select * from t_order where                             │
 │──────────────────────────────│ │                                                             │ │          ┌──────────────────────────────────────────────────┐
-│ ▾  doraemon                 │ │                                                             │ │          │  id                            bigint · t_order │
+│ ▾  doraemon                │ │                                                             │ │          │  id                            bigint · t_order │
 │   ▸  agentable              │ │                                                             │ │          │  status                  order_status · t_order │
 │   ▾  public                 │ │                                                             │ │          │  amount                 numeric(10,2) · t_order │
 │     ▾  Tables (14)          │ │                                                             │ │          │  paid                         boolean · t_order │

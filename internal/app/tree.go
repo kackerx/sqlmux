@@ -69,7 +69,7 @@ func (a *App) disconnect(c *Conn) tea.Cmd {
 			ws = append(ws, o.disconnect()...)
 		}
 		a.clampTree()
-		return closeWorkers(ws)
+		return tea.Batch(closeWorkers(ws), a.showToast(i18n.T("已断开 %s", c.label())))
 	})
 }
 
@@ -522,11 +522,13 @@ func (a *App) treeNodes() (ns []node, matches int) {
 			cn.Note, cn.NoteFg = pickedNote(len(c.Databases), len(c.all.dbs)), th.Dim
 		}
 		switch c.State {
+		case connReady:
+			cn.Mark = ic.Connected
 		case connConnecting:
 			cn.Aside = strings.TrimSpace(cn.Aside + " " + a.icons.Spinner(a.spin))
 		case connFailed:
 			cn.TextFg = th.Error
-		case connIdle, connReady: // the name as it is
+		case connIdle: // the name as it is
 		}
 		if c.down() != nil { // a redial failed: its next request tries again (F8.19)
 			cn.TextFg = th.Error

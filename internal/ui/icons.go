@@ -54,6 +54,7 @@ type Icons struct {
 	View, Column             Icon // the tree's (F1.12)
 	Index, Func, Sequence    Icon // and a table's indexes, a schema's functions and sequences (F14.3)
 	Lock                     Icon // a read-only connection's (§13)
+	Connected                Icon // after the name of a connection that is up (F22.14)
 	Result, Pin, Export, Log Icon // the result area's (§11)
 	Close                    Icon
 	Star, History            Icon // a WHERE's favorites and history (§9.7)
@@ -105,6 +106,7 @@ var NerdIcons = &Icons{
 	View:        Icon{Text: "\uf06e"},     // nf-fa-eye
 	Column:      Icon{Text: "\ueb5f"},     // nf-cod-symbol_field
 	Lock:        Icon{Text: "\uf023"},     // nf-fa-lock
+	Connected:   Icon{Text: "\uf444"},     // nf-oct-dot_fill
 	Result:      Icon{Text: "\uf022"},     // nf-fa-list_alt
 	Pin:         Icon{Text: "\uf435"},     // nf-oct-pin
 	Export:      Icon{Text: "\uf019"},     // nf-fa-download
@@ -170,6 +172,7 @@ var ASCIIIcons = &Icons{
 	View:        Icon{Text: "v"},
 	Column:      Icon{Text: "-"},
 	Lock:        Icon{Text: "RO"},
+	Connected:   Icon{Text: "*"},
 	Result:      Icon{Text: "="},
 	Pin:         Icon{Text: "*"},
 	Export:      Icon{Text: ">"},
@@ -283,7 +286,7 @@ func (ic *Icons) byName() map[string]*Icon {
 		"key": &ic.Key, "postgres": &ic.Postgres, "mysql": &ic.MySQL, "redis": &ic.Redis, "str": &ic.Str, "hash": &ic.Hash, "list": &ic.List, "set": &ic.Set, "zset": &ic.ZSet, "stream": &ic.Stream, "json": &ic.JSON, "sqlite": &ic.SQLite, "command": &ic.Command, "window": &ic.Window,
 		"save": &ic.Save, "refresh": &ic.Refresh, "transpose": &ic.Transpose,
 		"row_add": &ic.RowAdd, "row_delete": &ic.RowDelete, "auto_refresh": &ic.AutoRefresh, "stop": &ic.Stop,
-		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column, "lock": &ic.Lock,
+		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column, "lock": &ic.Lock, "connected": &ic.Connected,
 		"result": &ic.Result, "pin": &ic.Pin, "export": &ic.Export, "close": &ic.Close,
 		"pane": &ic.Pane, "log": &ic.Log, "star": &ic.Star, "history": &ic.History, "zoom": &ic.Zoom, "unzoom": &ic.Unzoom, "split_right": &ic.SplitRight, "split_below": &ic.SplitBelow,
 		"tag": &ic.Tag, "host": &ic.Host, "port": &ic.Port, "user": &ic.User, "database": &ic.Database,

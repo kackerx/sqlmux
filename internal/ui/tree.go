@@ -22,6 +22,7 @@ type TreeNode struct {
 	Text         string
 	TextFg       color.Color // fg when nil: a failed connection's is error (§7.8)
 	Pos          []int       // filter match positions in Text
+	Mark         Icon        // after the name, in focus color: a connection that is up (F22.14)
 	Aside        string
 	Note         string
 	NoteFg       color.Color
@@ -44,6 +45,9 @@ func (n TreeNode) Width() int {
 	}
 	if n.Icon.Text != "" {
 		w += Width(n.Icon.Text) + 1
+	}
+	if n.Mark.Text != "" {
+		w += 1 + Width(n.Mark.Text)
 	}
 	if n.Aside != "" {
 		w += 2 + Width(n.Aside)
@@ -169,8 +173,14 @@ func (t Tree) Draw(f *Frame, in uv.Rectangle) uv.Position {
 		}
 		name, pos := TruncateMatch(n.Text, n.Pos, room)
 		x = f.TextMatch(x, row, x+room, name, pos, text)
+		used, edge := Width(name), x+room-Width(name)
+		if mw := Width(n.Mark.Text); mw > 0 && name == n.Text && used+1+mw <= room {
+			x = f.Text(x, row, edge, " ", text)
+			x = f.Text(x, row, edge, n.Mark.Text, n.Mark.On(uv.Style{Fg: th.Focus, Bg: bg}))
+			used += 1 + mw
+		}
 		if n.Aside != "" && name == n.Text {
-			f.Text(x, row, x+max(room-Width(name), 0), Truncate("  "+n.Aside, room-Width(name)), uv.Style{Fg: th.Dim, Bg: bg})
+			f.Text(x, row, x+max(room-used, 0), Truncate("  "+n.Aside, room-used), uv.Style{Fg: th.Dim, Bg: bg})
 		}
 	}
 	if in.Dy() >= 4 {
