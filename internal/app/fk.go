@@ -13,6 +13,9 @@ import (
 // wantKeys reads the keys of the table a page came of when the tree has not:
 // the foreign keys of its grid are the tree's Keys (n), one cache (§7.6「外键跳转」,
 // F22.13). A view has none to read.
+// ponytail: R on the tree drops the keys, and the grid's menu has no foreign key
+// till the next page brings them back; gd reads them when it is pressed.
+// A read that failed is asked for again with every page; remember it as colsAsked does.
 func (a *App) wantKeys(m pageMsg) tea.Cmd {
 	t := m.tab
 	if _, ok := t.conn.keys[idOf(t.table)]; ok || m.err != nil || !t.conn.sql() || t.conn.Spec.Engine == "exec" || a.sessionOf(t.conn) == nil {
@@ -55,6 +58,9 @@ func (a *App) followFK() tea.Cmd {
 	sr, key, ok := t.cursor()
 	if !ok || t.fieldAt(t.col) < 0 {
 		return nil
+	}
+	if t.conn.State != connReady { // disconnected, its tab left: it dials again as a fetch does
+		return a.notReady(t.conn)
 	}
 	if _, ok := t.conn.keys[idOf(t.table)]; !ok {
 		cmd := a.fetchObjects(t.conn, t.table)
