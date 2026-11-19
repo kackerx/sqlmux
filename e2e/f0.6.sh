@@ -74,7 +74,7 @@ check "随后的 C-c 算第一次：不退出" eval 'running && screen_has "再�
 # ---- grid 里的 g：先 grid 的键，再 normal 的键（F3.7 起空 pane 是引导页，没有 grid 的键，要先开表）
 start; open_table t_order
 e2e_type g; sleep 0.6
-check "grid 里按 g：浮层列出 g o l p c e s S j t T（F12.3 加了 s S，F12.4 加了 e，F14.5 加了 J、F15.9 起是 j = 以 JSON 查看）" eval '[[ $(items g) == "g o l p c e s S j t T" ]] || { echo "  got: [$(items g)]"; false; }'
+check "grid 里按 g：浮层列出 g o l p c e s S j d t T（F22.13 加了 d = gd 外键跳转；F12.3 加了 s S，F12.4 加了 e，F14.5 加了 J、F15.9 起是 j = 以 JSON 查看）" eval '[[ $(items g) == "g o l p c e s S j d t T" ]] || { echo "  got: [$(items g)]"; false; }'
 e2e_keys Escape; sleep 0.2
 
 # ---- 高度不够：只截掉放不下的行，不压状态栏
