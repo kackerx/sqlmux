@@ -790,3 +790,76 @@ func TestTreeFit(t *testing.T) {
 		t.Errorf("workspace closed: %d wide, was %d", got, w)
 	}
 }
+
+// The mark after the name of a connection that is up, in focus color, before
+// the lock of a read-only one; none while it is not, dials or has failed
+// (F22.14). Four connections, in both icon sets.
+func goldenConnMarks(t *testing.T, icons string) {
+	a := sized(160, 45, icons)
+	up, ro := readyConn("up"), readyConn("ro")
+	ro.readOnly = true
+	failed, idle := newConn(config.Connection{Name: "failed", Engine: "postgres"}), newConn(config.Connection{Name: "idle", Engine: "postgres"})
+	failed.State = connFailed
+	a.sess.Conns = []*Conn{up, ro, failed, idle}
+	for _, c := range a.sess.Conns {
+		a.sess.open[connNode(c)] = false
+	}
+	ns, _ := a.treeNodes()
+	var rows []string
+	for i, n := range ns {
+		if n.kind != nodeConn {
+			continue
+		}
+		r := find(t, a, ui.Target{Kind: ui.KindNode, Pane: 0, I: i})
+		rows = append(rows, ansi.Cut(strings.Split(a.render().String(), "\n")[r.Min.Y], r.Min.X, r.Max.X))
+		if want := n.conn.State == connReady; (n.Mark.Text != "") != want {
+			t.Errorf("%s: mark %q", n.Text, n.Mark.Text)
+		}
+		if n.Mark.Text == "" {
+			continue
+		}
+		f := a.render()
+		for x := r.Min.X; x < r.Max.X; x++ {
+			if c := f.Buf.CellAt(x, r.Min.Y); c != nil && c.Content == n.Mark.Text {
+				if c.Style.Fg != a.theme.Focus {
+					t.Errorf("%s: the mark is %v, want focus %v", n.Text, c.Style.Fg, a.theme.Focus)
+				}
+				break
+			} else if x == r.Max.X-1 {
+				t.Errorf("%s: no mark drawn", n.Text)
+			}
+		}
+	}
+	golden.RequireEqual(t, strings.Join(rows, "\n")+"\n")
+}
+
+func TestGoldenConnMarksNerd(t *testing.T)  { goldenConnMarks(t, "nerd") }
+func TestGoldenConnMarksASCII(t *testing.T) { goldenConnMarks(t, "ascii") }
+
+// The mark follows the state of the connection and nothing else: gone after a
+// disconnect, which says so, and back when a tab dials it again (F22.14).
+func TestConnMarkFollowsState(t *testing.T) {
+	a := sized(160, 45, "nerd")
+	c := a.sess.Conns[0]
+	mark := func() bool {
+		ns, _ := a.treeNodes()
+		return ns[slices.IndexFunc(ns, func(n node) bool { return n.kind == nodeConn && n.conn == c })].Mark.Text != ""
+	}
+	if !mark() {
+		t.Fatal("no mark on a connection that is up")
+	}
+	a.win().focus(0)
+	treeTo(t, a, "doraemon")
+	a.run("conn.disconnect", 0)
+	if mark() || a.toast != "已断开 doraemon" {
+		t.Errorf("after a disconnect: mark %v, toast %q", mark(), a.toast)
+	}
+	c.State = connConnecting
+	if mark() {
+		t.Error("a mark while it dials")
+	}
+	c.State, c.Main, c.Meta = connReady, readyConn("x").Main, readyConn("x").Meta
+	if !mark() {
+		t.Error("no mark once it is up again")
+	}
+}

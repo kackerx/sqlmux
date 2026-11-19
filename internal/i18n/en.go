@@ -150,6 +150,7 @@ var en = map[string]string{
 	"这一列不是外键":                   "This column is not a foreign key",
 	"外键为空，没有被引用的行":              "The foreign key is NULL, there is no referenced row",
 	"断开连接":                      "Disconnect",
+	"已断开 %s":                    "Disconnected %s",
 	"%s 没有连上":                   "%s is not connected",
 	"断开":                        "Disconnect",
 	"断开会回滚。":                    "Disconnecting will roll it back.",

@@ -1,7 +1,7 @@
 ┌─ ⟨0⟩ @ doraemon ───────── « ─┐ ┌─ ⟨1⟩ + table · t4 ────────────────────────────── | = [Z] x ─┐ ┌─ ⟨2⟩ > query · qu…  doraemon · doraemon.public ▾  ▶ run  ↵ ─┐
 │ ? / 15 tables              + │ │ WHERE                                               h C-r ▾ │ │   1                                                         │
 │──────────────────────────────│ │  ORDER —   LIMIT 100   PAGE 1/?   COLS 0/0    [S]  [R]      │ │                                                             │
-│ ▾ pg doraemon                │ │                                                             │ │                                                             │
+│ ▾ pg doraemon *              │ │                                                             │ │                                                             │
 │   ▸ # agentable              │ │                                                             │ │                                                             │
 │   ▾ # public                 │ │                                                             │ │                                                             │
 │     ▾ + Tables (14)          │ │                                                             │ │                                                             │
