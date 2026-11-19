@@ -46,7 +46,7 @@ rclick 5 "$(srow rd)"
 check "右键 Redis 连接 rd（连不上的）：刷新 / 断开连接 / 编辑… / 删除…" menu_is "刷新|断开连接|编辑…|删除…|"
 key Escape
 rclick 5 "$(srow exe)"
-check "右键 exec 连接 exe（不在连接管理里）：有「删除…」，没有「编辑…」" eval 'mitems | grep -q "删除…" && ! mitems | grep -q "编辑…" || { echo "  menu [$(mitems)]"; false; }'
+check "右键 exec 连接 exe（不在连接管理里）：有「断开连接」「删除…」，没有「编辑…」（F22.12）" eval 'mitems | grep -q "断开连接" && mitems | grep -q "删除…" && ! mitems | grep -q "编辑…" || { echo "  menu [$(mitems)]"; false; }'
 key Escape
 rclick 5 "$(srow rd)"
 check "（对照）菜单里「刷新」后面是 R，「删除…」后面是 dd，「编辑…」没有键（F22.3：菜单项右侧画键）" eval '[[ $(mraw) =~ 刷新\ +R\|断开连接\|编辑…\|删除…\ +dd\| ]]'
@@ -88,7 +88,7 @@ e2e_start -C "$D/c" -S "$D/st9" "$E2E_BIN $SQLMUX_TEST_PG"; wait_for 8 flag_is a
 cp "$(ct)" "$D/orig2.toml"
 check "（准备）临时连接 sqlmux@localhost 在树里" eval 'has_node "sqlmux@localhost"'
 rclick 5 "$(srow sqlmux@localhost)"
-check "右键临时连接：没有「编辑…」「删除…」（F22.12 起多了「断开连接」）" eval '! mitems | grep -qE "编辑|删除" || { echo "  menu [$(mitems)]"; false; }'
+check "右键临时连接：有「断开连接」（F22.12），没有「编辑…」「删除…」" eval 'mitems | grep -q "断开连接" && ! mitems | grep -qE "编辑|删除" || { echo "  menu [$(mitems)]"; false; }'
 key Escape; tree_to sqlmux@localhost; key d; key d; sleep 0.5
 check "dd 在临时连接上：什么都不弹，connections.toml 没变" eval '[[ -z $(dialog) ]] && cmp -s "$(ct)" "$D/orig2.toml" && has_node "sqlmux@localhost"'
 check "程序没崩" running

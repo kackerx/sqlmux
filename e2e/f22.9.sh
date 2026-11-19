@@ -19,6 +19,9 @@ check "报错之后程序还在、还是没有「不认识」" eval 'running && 
 open_url 'sqlserver://sa:x@127.0.0.1:1/?database=bar'
 check "sqlserver://…?database=bar：连接叫 bar@127.0.0.1" eval 'running && node_is bar@127.0.0.1'
 
+open_url 'sqlserver://sa:x@127.0.0.1:1/?Database=baz'
+check "?Database=baz（大写 D，驱动也认）：名字照样是 baz@127.0.0.1" eval 'running && node_is baz@127.0.0.1'
+
 open_url 'sqlserver://sa:x@127.0.0.1:1'
 check "sqlserver:// 没有 database：名字只是主机 127.0.0.1" eval 'running && node_is 127.0.0.1'
 

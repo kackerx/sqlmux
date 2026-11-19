@@ -28,6 +28,10 @@ rows_in_grid() { e2e_plain | grep -cE "│ +[0-9]+ │ +[0-9]+ "; }
 
 start -x 200 -C "$D/c" -S "$D/st"; sleep 1
 check "（准备）树里有 ca、cb，ca 已连上" eval '[[ -n $(srow ca) && -n $(srow cb) ]]'
+y=$(srow cb); rclick 12 "$y"
+fgof() { local g y x; g=($(pop)); for ((y = g[1] + 1; y < g[1] + g[3] - 1; y++)); do x=$(e2e_find "$1" "$y" | cut -d' ' -f1); [[ -n $x ]] && { e2e_style "$x" "$y" | sed -E 's/.*(fg=#[0-9a-f]+).*/\1/'; return; }; done; }
+check "没连上的 cb（懒连接）右键：有「断开连接」，字是 dim 色（和「编辑…」的不同）" eval '[[ $(mitems) == *断开连接* && -n $(fgof 断开连接) && $(fgof 断开连接) != $(fgof 编辑…) ]] || { echo "  [$(mitems)] $(fgof 断开连接) vs $(fgof 编辑…)"; false; }'
+key Escape; sleep 0.3
 y=$(srow cb); e2e_click 10 "$y"; sleep 0.3; key l; wait_for 8 eval '[[ -n $(e2e_plain | grep "f22_12" | sed -n 2p) ]]'; sleep 0.5
 # open_of CONN KEY：面板里 @f22_12 的那一条（CONN.public）用 KEY 打开（Enter 当前 tab，C-t 新 tab）
 open_of() { local n; pal "@f22_12"; sleep 0.8; n=$(list | cut -d'|' -f1 | grep -n "$1.public" | cut -d: -f1)
@@ -35,6 +39,8 @@ open_of() { local n; pal "@f22_12"; sleep 0.8; n=$(list | cut -d'|' -f1 | grep -
 open_of ca Enter; wait_for 5 eval '[[ $(e2e_plain | head -1) == *" f22_12 "* ]]'
 open_of cb C-t; sleep 1
 check "@f22_12：两条（cb 和 ca 各一）" eval '[[ $(tables) == *cb.public*ca.public* || $(tables) == *ca.public*cb.public* ]]' 
+check "已连上的 ca 右键：「断开连接」不是 dim（和「编辑…」同色）" eval 'y=$(srow ca); rclick 12 "$y"; [[ -n $(fgof 断开连接) && $(fgof 断开连接) == $(fgof 编辑…) ]] || { echo "  $(fgof 断开连接) vs $(fgof 编辑…)"; false; }'
+key Escape; sleep 0.3
 check "（准备）右键 ca：菜单里有「断开连接」（选择库… / 刷新 R / 断开连接 / 编辑… / 删除… dd）" eval 'y=$(srow ca); rclick 12 "$y"; [[ $(mitems) == *刷新*断开连接*编辑…*删除…* ]] || { echo "  [$(mitems)]"; false; }'
 key Escape; sleep 0.3
 disconnect_menu ca
