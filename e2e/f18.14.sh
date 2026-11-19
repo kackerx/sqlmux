@@ -34,22 +34,22 @@ check "（准备）树里有五个连接节点 play、my、lite、rd、exe" eval
 
 # ---- 右键菜单
 rclick 5 "$(srow play)"
-check "右键 PG 连接 play：选择库… / 刷新 / 编辑… / 删除…（编辑和删除排在选择库、刷新后面，F22.3）" menu_is "选择库…|刷新|编辑…|删除…|"
+check "右键 PG 连接 play：选择库… / 刷新 / 断开连接 / 编辑… / 删除…（编辑和删除排在选择库、刷新后面，F22.3）" menu_is "选择库…|刷新|断开连接|编辑…|删除…|"
 key Escape
 rclick 5 "$(srow my)"
-check "右键 MySQL 连接 my：选择 schema… / 编辑… / 删除…" menu_is "选择 schema…|刷新|编辑…|删除…|"
+check "右键 MySQL 连接 my：选择 schema… / 刷新 / 断开连接 / 编辑… / 删除…" menu_is "选择 schema…|刷新|断开连接|编辑…|删除…|"
 key Escape
 rclick 5 "$(srow lite)"
-check "右键 SQLite 连接 lite：刷新 / 编辑… / 删除…" menu_is "刷新|编辑…|删除…|"
+check "右键 SQLite 连接 lite：刷新 / 断开连接 / 编辑… / 删除…" menu_is "刷新|断开连接|编辑…|删除…|"
 key Escape
 rclick 5 "$(srow rd)"
-check "右键 Redis 连接 rd（连不上的）：刷新 / 编辑… / 删除…" menu_is "刷新|编辑…|删除…|"
+check "右键 Redis 连接 rd（连不上的）：刷新 / 断开连接 / 编辑… / 删除…" menu_is "刷新|断开连接|编辑…|删除…|"
 key Escape
 rclick 5 "$(srow exe)"
 check "右键 exec 连接 exe（不在连接管理里）：有「删除…」，没有「编辑…」" eval 'mitems | grep -q "删除…" && ! mitems | grep -q "编辑…" || { echo "  menu [$(mitems)]"; false; }'
 key Escape
 rclick 5 "$(srow rd)"
-check "（对照）菜单里「刷新」后面是 R，「删除…」后面是 dd，「编辑…」没有键（F22.3：菜单项右侧画键）" eval '[[ $(mraw) =~ 刷新\ +R\|编辑…\|删除…\ +dd\| ]]'
+check "（对照）菜单里「刷新」后面是 R，「删除…」后面是 dd，「编辑…」没有键（F22.3：菜单项右侧画键）" eval '[[ $(mraw) =~ 刷新\ +R\|断开连接\|编辑…\|删除…\ +dd\| ]]'
 key j; key Enter; sleep 1
 check "「编辑…」：打开连接管理，选中 rd（右边表单的 name 是 rd）" eval 'mgr_open && [[ $(lsel) == rd ]] && e2e_plain | grep -qE "name +rd" || { echo "  mgr $(mgr_open && echo open) sel [$(mgr_open && lsel)]"; e2e_plain | head -30 | cut -c1-120; false; }'
 key Escape; sleep 0.4
@@ -88,7 +88,7 @@ e2e_start -C "$D/c" -S "$D/st9" "$E2E_BIN $SQLMUX_TEST_PG"; wait_for 8 flag_is a
 cp "$(ct)" "$D/orig2.toml"
 check "（准备）临时连接 sqlmux@localhost 在树里" eval 'has_node "sqlmux@localhost"'
 rclick 5 "$(srow sqlmux@localhost)"
-check "右键临时连接：没有「编辑…」「删除…」（只剩选择库…）" eval '! mitems | grep -qE "编辑|删除" || { echo "  menu [$(mitems)]"; false; }'
+check "右键临时连接：没有「编辑…」「删除…」（F22.12 起多了「断开连接」）" eval '! mitems | grep -qE "编辑|删除" || { echo "  menu [$(mitems)]"; false; }'
 key Escape; tree_to sqlmux@localhost; key d; key d; sleep 0.5
 check "dd 在临时连接上：什么都不弹，connections.toml 没变" eval '[[ -z $(dialog) ]] && cmp -s "$(ct)" "$D/orig2.toml" && has_node "sqlmux@localhost"'
 check "程序没崩" running

@@ -21,7 +21,7 @@ y=$(srow public); rclick 12 "$y"
 check "右键 schema（public）：菜单是「刷新」，右边是它的键 R" eval '[[ $(mitems) =~ ^刷新\ +R\|$ ]] || { echo "  [$(mitems)]"; false; }'
 key Escape; sleep 0.3
 y=$(srow rw); rclick 12 "$y"
-check "右键连接（rw）：菜单里有「刷新」和 R，后面是编辑…、删除… dd" eval '[[ $(mitems) =~ 刷新\ +R\|编辑…\|删除…\ +dd\| ]] || { echo "  [$(mitems)]"; false; }'
+check "右键连接（rw）：菜单里有「刷新」和 R，后面是断开连接（没绑键）、编辑…、删除… dd" eval '[[ $(mitems) =~ 刷新\ +R\|断开连接\|编辑…\|删除…\ +dd\| ]] || { echo "  [$(mitems)]"; false; }'
 key Escape; sleep 0.3
 
 psql_n "create table f22_new (id int primary key, name text)" >/dev/null
