@@ -54,6 +54,7 @@
 
 - **`gd` 在外键缓存冷时用错行**（Codex 审 v0.11.0 的 P2，用户 2026-11-19 定先不修）：发起时记下 pane / tab / 行 / 列，回来时选中变了就丢掉这次跳转。复现见 m22 task.md 的审查节点那一行。
 - **外键反向跳转**（「引用这一行的」，F22.13 没做）。
+- **`password_cmd` 失败的提示**（用户 2026-11-20 在 Mac 上：升级后 `D` 连不上，报 `password_cmd: exit status 36:`，冒号后是空的；原因是登录钥匙串被锁，`security` 返回 36 = `errSecInteractionNotAllowed`，`security unlock-keychain` 后恢复）：stderr 为空时不拼冒号；`password_cmd` 是 `security …` 且退出码 36 时提示「macOS 钥匙串被锁住了：先 `security unlock-keychain`」。
 
 ## M22 候选
 
