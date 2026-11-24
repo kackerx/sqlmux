@@ -9,9 +9,9 @@ trap 'e2e_stop' EXIT
 E2E_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 E2E_BIN=${E2E_BIN:-$E2E_ROOT/bin/sqlmux}
 E2E_PASS=0 E2E_FAIL=0
-# sqlmux won't start without a connection (§14): every run needs the seeded PG from
-# docker-compose.yml (AGENTS.md「集成测试环境」) and SQLMUX_TEST_PG pointing at it.
-[[ -n $SQLMUX_TEST_PG ]] || { echo "e2e: SQLMUX_TEST_PG is not set (see docker-compose.yml)" >&2; trap - EXIT; exit 1; }
+# The default test connection uses the seeded PG from docker-compose.yml.
+# File-only tests set E2E_NOCONN before sourcing this file and supply their own connection.
+[[ -n $E2E_NOCONN || -n $SQLMUX_TEST_PG ]] || { echo "e2e: SQLMUX_TEST_PG is not set (see docker-compose.yml)" >&2; trap - EXIT; exit 1; }
 # The user's PG* settings and ~/.pgpass stay out of every run.
 unset $(env | sed -n 's/^\(PG[A-Z_]*\)=.*/\1/p'); export PGPASSFILE=/nonexistent/pgpass
 

@@ -36,7 +36,7 @@ toast_row() { e2e_text 1 "$(e2e_flag pane_width)" $(( $(H) - 1 )); }
 E2E_NOCONN=1 e2e_start "$E2E_BIN"; wait_for 6 flag_is alternate_on 1; sleep 1.5
 check "没有 connections.toml 启动：界面出来（不退出），表单自动打开" eval 'running && form_open'
 check "树里是一行「还没有连接，按 ＋ 新建」" eval 'e2e_plain | sed -n 1,6p | grep -q "还没有连接，按"'
-check "表单：分字段 name / group / engine / host / port 5432 / user / password / database / read_only [ ] / production [ ] / 高级 ▸，底栏有保存、取消和键位提示" eval '[[ $(frows | sed -n 1,11p | tr -s " " | tr "\n" ";") == "name;group;engine postgres │ mysql │ sqlite │ redis │ mssql;host;port 5432;user;password;database;read_only [ ];production [ ];高级 ▸;" ]] && frows | tail -1 | grep -q "Tab 下一项 · ↵ 保存 · esc 取消" && frows | tail -1 | grep -q "\[ 保存 \] \[ 测试 \] \[ 取消 \]"'
+check "表单：分字段 name / group / engine / host / port 5432 / user / password / database / read_only [ ] / production [ ] / 高级 ▸，底栏有保存、取消和键位提示" eval '[[ $(frows | sed -n 1,11p | tr -s " " | tr "\n" ";") == "name;group;engine postgres │ mysql │ sqlite │ redis │ mssql │ duckdb;host;port 5432;user;password;database;read_only [ ];production [ ];高级 ▸;" ]] && frows | tail -1 | grep -q "Tab 下一项 · ↵ 保存 · esc 取消" && frows | tail -1 | grep -q "\[ 保存 \] \[ 测试 \] \[ 取消 \]"'
 check "光标在 name 上" on_field 0
 key Escape; sleep 0.3
 check "esc 关掉表单，没有连接也能用（面板能打开）" eval '! form_open && running && { e2e_keys C-p; sleep 0.4; palette_open; }'
