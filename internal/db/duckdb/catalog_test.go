@@ -1,10 +1,12 @@
-//go:build integration
+//go:build integration && (!linux || duckdb)
 
 package duckdb
 
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -384,4 +386,180 @@ func TestReadOnlyConnection(t *testing.T) {
 		}
 	}
 	eq(t, cells(q(t, ro, "select count(*) from t_log")), []string{"3"})
+}
+
+// A save in a manual transaction whose second row is stale writes nothing: the
+// library takes a row that is not there for no error, so taking the save back
+// is the transaction's failure (review of F24.2).
+func TestManualSaveIsAllOrNothing(t *testing.T) {
+	c, _ := seeded(t)
+	ctx, e, w := context.Background(), Engine{}, db.NewWorker(c)
+	q(t, c, "create temp macro error(msg) as msg") // a user's macro does not stand in for what fails the transaction
+	ch := db.Changes{Updates: []db.Row{
+		{Key: []string{"1"}, Cols: []db.Change{{Name: "name", Val: db.Val{S: "ALICE"}, Old: db.Val{S: "user_1"}}}},
+		{Key: []string{"2"}, Cols: []db.Change{{Name: "name", Val: db.Val{S: "BOB"}, Old: db.Val{S: "changed since"}}}},
+	}}
+	if _, _, err := db.Save(ctx, w, e, "main", "t_user", []string{"id"}, ch, true); !errors.Is(err, db.ErrStale) {
+		t.Fatalf("the second row is stale: %v", err)
+	}
+	if db.TxStatus(c) != 'E' {
+		t.Errorf("the transaction is to be rolled back: %c", db.TxStatus(c))
+	}
+	if r, err := c.Query(ctx, "commit"); err != nil || r.Tag != "ROLLBACK" { // a COMMIT of a failed transaction is its rollback
+		t.Errorf("commit: %+v %v", r, err)
+	}
+	eq(t, cells(q(t, c, "select name from t_user where id in (1, 2) order by id")), []string{"user_1", "user_2"})
+	if db.TxStatus(c) != 'I' {
+		t.Errorf("after: %c", db.TxStatus(c))
+	}
+}
+
+// A statement that leaves the file's database is undone, whichever it is: the
+// grid's two connections would go by different ones, and a write by one name
+// reach another file; the schema is where it was.
+func TestStatementsStayInTheDatabase(t *testing.T) {
+	c, _ := seeded(t)
+	ctx := context.Background()
+	where := func() []string {
+		return cells(q(t, c, "select current_database() = (select database_name from duckdb_tables() where table_name = 't_log'), current_schema()"))
+	}
+	q(t, c, "attach ':memory:' as other")
+	q(t, c, "create schema other.agentable") // a schema of the same name in the other
+	q(t, c, "create table other.main.t_user(id bigint primary key, name varchar)")
+	q(t, c, "create table other.agentable.agent(id int)")
+	q(t, c, "begin")
+	for _, sql := range []string{"use other", "set schema = 'other.main'", "set schema = 'other.agentable'", "use other.agentable"} {
+		_, err := c.Query(ctx, sql)
+		if err == nil || !strings.Contains(err.Error(), "database.schema.table") {
+			t.Fatalf("%s: %v", sql, err)
+		}
+		if db.TxStatus(c) != 'T' {
+			t.Errorf("%s: the transaction is as it was: %c", sql, db.TxStatus(c))
+		}
+		eq(t, where(), []string{"true", "main"})
+	}
+	eq(t, cells(q(t, c, "select count(*) from t_user")), []string{"50"})
+	q(t, c, "use agentable") // a schema of its own is as it was, and where the next undo goes
+	_, err := c.Query(ctx, "use other")
+	if err == nil {
+		t.Fatal("use other")
+	}
+	eq(t, where(), []string{"true", "agentable"})
+	eq(t, cells(q(t, c, "select count(*) from agent")), []string{"3"})
+	q(t, c, "rollback")
+}
+
+// The file made by ?mode=rwc through a symlinked directory is one instance
+// for the two connections, as it is once it is there.
+func TestCreateThroughASymlink(t *testing.T) {
+	UseLibrary(t)
+	target, link := t.TempDir(), filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skip(err)
+	}
+	ctx := context.Background()
+	main, _, err := Connect(ctx, filepath.Join(link, "new.duckdb")+"?mode=rwc", "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer main.Close()
+	meta, _, err := Connect(ctx, filepath.Join(link, "new.duckdb")+"?mode=rwc", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer meta.Close()
+	q(t, main, "create table t(i int)")
+	q(t, main, "insert into t values (5)")
+	eq(t, cells(q(t, meta, "select i from t")), []string{"5"})
+}
+
+// Cancelled before it starts, a statement is not run; a raw result keeps maxRows
+// rows and says there were more; an export stops at its cancel.
+func TestCancelledBeforeAndLongResults(t *testing.T) {
+	c, _ := seeded(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := c.Query(ctx, "delete from t_log"); !errors.Is(err, context.Canceled) {
+		t.Errorf("a cancelled statement: %v", err)
+	}
+	eq(t, cells(q(t, c, "select count(*) from t_log")), []string{"3"})
+	// an export that fails does not fail the transaction it is in
+	q(t, c, "begin")
+	q(t, c, "insert into t_log values (now(), 'pending')")
+	disk := errors.New("disk full")
+	err := db.Guarded(context.Background(), c, "sqlmux_export", func() error {
+		return db.Each(context.Background(), c, "select * from t_sku", func([]db.Col) error { return nil }, func([]db.Val) error { return disk })
+	})
+	if !errors.Is(err, disk) || db.TxStatus(c) != 'T' {
+		t.Errorf("the export: %v, tx %c", err, db.TxStatus(c))
+	}
+	q(t, c, "commit")
+	eq(t, cells(q(t, c, "select count(*) from t_log")), []string{"4"})
+	// cancelled as the last row is written: the export did not finish
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	err = c.Stream(ctx2, "select 5", func([]db.Col) error { return nil }, func([]db.Val) error { cancel2(); return nil })
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("a cancel on the last row: %v", err)
+	}
+	rs, err := c.Exec(context.Background(), "update t_sku set price = price returning code", 5)
+	if err != nil || len(rs) != 1 || len(rs[0].Rows) != 5 || !rs[0].Truncated {
+		t.Errorf("a raw result of 20 rows, 5 kept: %d %v %v", len(rs[0].Rows), rs[0].Truncated, err)
+	}
+	ctx, cancel = context.WithCancel(context.Background())
+	n := 0
+	err = c.Stream(ctx, "select * from t_order", func([]db.Col) error { return nil }, func([]db.Val) error {
+		if n++; n == 10 {
+			cancel()
+		}
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) || n != 10 {
+		t.Errorf("an export cancelled at its 10th row: %d %v", n, err)
+	}
+}
+
+func TestTransactionControlThatIsNotTaken(t *testing.T) {
+	c, _ := open(t)
+	q(t, c, "begin")
+	if _, err := c.Query(context.Background(), "commit and chain"); err == nil {
+		t.Fatal("COMMIT AND CHAIN is no DuckDB statement")
+	}
+	if db.TxStatus(c) != 'E' {
+		t.Errorf("it left the transaction to be rolled back: %c", db.TxStatus(c))
+	}
+	q(t, c, "rollback")
+}
+
+// A library that is too old is not kept: the next connection looks again, and
+// finds another (F24.3 asks for it).
+func TestOldLibraryIsNotKept(t *testing.T) {
+	UseLibrary(t)
+	was := minVersion
+	loadMu.Lock()
+	wasLoaded := loaded
+	loaded = false // to look again
+	loadMu.Unlock()
+	minVersion = "99.0.0"
+	defer func() {
+		minVersion = was
+		loadMu.Lock()
+		loaded = wasLoaded
+		loadMu.Unlock()
+	}()
+	_, _, err := Connect(context.Background(), ":memory:", "", false)
+	if err == nil || !strings.Contains(err.Error(), "v99.0.0") {
+		t.Fatalf("a library below the minimum: %v", err)
+	}
+	loadMu.Lock()
+	kept := loaded
+	loadMu.Unlock()
+	if kept {
+		t.Error("it is kept")
+	}
+	minVersion = was
+	c, _, err := Connect(context.Background(), ":memory:", "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
 }

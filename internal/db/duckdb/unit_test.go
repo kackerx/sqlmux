@@ -1,6 +1,9 @@
+//go:build !linux || duckdb
+
 package duckdb
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -15,16 +18,17 @@ import (
 func TestParse(t *testing.T) {
 	home, _ := os.UserHomeDir()
 	wd, _ := os.Getwd()
+	abs := filepath.Join(t.TempDir(), "x.duckdb") // an absolute path of the system's own kind
 	for _, tc := range []struct {
 		spec, path, config string
 		create             bool
 	}{
 		{"~/x.duckdb", filepath.Join(home, "x.duckdb"), "", false},
 		{"rel/x.duckdb", filepath.Join(wd, "rel/x.duckdb"), "", false},
-		{"/a/x.duckdb?mode=rwc", "/a/x.duckdb", "", true},
-		{"/a/x.duckdb?mode=rw", "/a/x.duckdb", "", false},
-		{"/a/x.duckdb?mode=ro", "/a/x.duckdb", "access_mode=read_only&", false},
-		{"/a/x.duckdb?threads=4&memory_limit=4GB&mode=rwc", "/a/x.duckdb", "memory_limit=4GB&threads=4&", true},
+		{abs + "?mode=rwc", abs, "", true},
+		{abs + "?mode=rw", abs, "", false},
+		{abs + "?mode=ro", abs, "access_mode=read_only&", false},
+		{abs + "?threads=4&memory_limit=4GB&mode=rwc", abs, "memory_limit=4GB&threads=4&", true},
 		{":memory:", ":memory:", "", false},
 		{":memory:?threads=2", ":memory:", "threads=2&", false},
 	} {
@@ -33,7 +37,7 @@ func TestParse(t *testing.T) {
 			t.Errorf("parse(%q) = %q %q %v, %v; want %q %q %v", tc.spec, got.path, got.config(), got.create, err, tc.path, tc.config, tc.create)
 		}
 	}
-	if _, err := parse("/a/x.duckdb?mode=rwx"); err == nil {
+	if _, err := parse(abs + "?mode=rwx"); err == nil {
 		t.Error("a mode that is none")
 	}
 }
@@ -57,26 +61,31 @@ func TestWrapSQL(t *testing.T) {
 func TestTxAfter(t *testing.T) {
 	boom := errors.New("boom")
 	for _, tc := range []struct {
-		tx   byte
-		sql  string
-		err  error
-		want byte
+		tx       byte
+		sql      string
+		prepared bool // the library took it as a statement
+		err      error
+		want     byte
 	}{
-		{'I', "begin", nil, 'T'},
-		{'I', "start transaction", nil, 'T'},
-		{'T', "select 1", nil, 'T'},
-		{'T', "select 1", boom, 'E'},
-		{'E', "select 1", boom, 'E'},
-		{'I', "select nope", boom, 'I'},
-		{'T', "commit", nil, 'I'},
-		{'T', "end", nil, 'I'},
-		{'E', "rollback", nil, 'I'},
-		{'E', "commit", nil, 'I'},
-		{'T', "commit", boom, 'I'}, // the library has rolled back
+		{'I', "begin", true, nil, 'T'},
+		{'I', "start transaction", true, nil, 'T'},
+		{'T', "select 1", true, nil, 'T'},
+		{'T', "select 1", true, boom, 'E'},
+		{'T', "selec 1", false, boom, 'E'}, // not even prepared: it fails the transaction
+		{'E', "select 1", true, boom, 'E'},
+		{'I', "select nope", true, boom, 'I'},
+		{'T', "commit", true, nil, 'I'},
+		{'T', "end", true, nil, 'I'},
+		{'E', "rollback", true, nil, 'I'},
+		{'E', "commit", true, nil, 'I'},
+		{'T', "commit", true, boom, 'I'},               // it ran, and failed: the library has rolled back
+		{'T', "commit and chain", false, boom, 'E'},    // it was not taken: the transaction failed and is to be rolled back
+		{'T', "select 1", true, context.Canceled, 'T'}, // not asked of the library
+		{'T', "use x", true, refusal{"no"}, 'T'},
 	} {
 		word, _, _ := strings.Cut(tc.sql, " ")
-		if got := txAfter(tc.tx, word, tc.sql, tc.err); got != tc.want {
-			t.Errorf("txAfter(%c, %q, %v) = %c, want %c", tc.tx, tc.sql, tc.err, got, tc.want)
+		if got := txAfter(tc.tx, word, tc.sql, tc.prepared, tc.err); got != tc.want {
+			t.Errorf("txAfter(%c, %q, %v, %v) = %c, want %c", tc.tx, tc.sql, tc.prepared, tc.err, got, tc.want)
 		}
 	}
 }
@@ -106,6 +115,8 @@ func TestErrorOf(t *testing.T) {
 		"Catalog Error: Table with name x does not exist!\n\nLINE 1: select * from x": {Severity: "ERROR", Code: "Catalog", Message: "Table with name x does not exist!\n\nLINE 1: select * from x"},
 		"INTERRUPT Error: Interrupted!":                                               {Severity: "ERROR", Code: "INTERRUPT", Message: "Interrupted!"},
 		"TransactionContext Error: Current transaction is aborted (please ROLLBACK)":  {Severity: "ERROR", Code: "TransactionContext", Message: "Current transaction is aborted (please ROLLBACK)"},
+		"Invalid Input Error: Cannot execute: x\nsecond line Error: y":                {Severity: "ERROR", Code: "Invalid Input", Message: "Cannot execute: x\nsecond line Error: y"},
+		"Out of Memory Error: failed to allocate":                                     {Severity: "ERROR", Code: "Out of Memory", Message: "failed to allocate"},
 		"context canceled": {Severity: "ERROR", Message: "context canceled"},
 	} {
 		got := (Engine{}).ErrorOf(errors.New(in))
@@ -126,9 +137,12 @@ func TestCandidates(t *testing.T) {
 	if got[0] != filepath.Join("/data", "duckdb", PinnedVersion, "libduckdb.so") || got[len(got)-1] != "libduckdb.so" || !strings.Contains(strings.Join(got, " "), "/opt/homebrew/lib/libduckdb.so") {
 		t.Errorf("linux: %q", got)
 	}
-	got = candidates("windows", "", "", `C:\app`)
-	if len(got) != 2 || !strings.HasSuffix(got[0], "duckdb.dll") || got[1] != "duckdb.dll" {
+	got = candidates("windows", "", "", `C:\app`) // no bare name: the system would look in the working directory
+	if len(got) != 1 || !strings.HasSuffix(got[0], "duckdb.dll") || got[0] == "duckdb.dll" {
 		t.Errorf("windows: %q", got)
+	}
+	if got = candidates("windows", "", "", ""); len(got) != 0 {
+		t.Errorf("windows with no place known: %q", got)
 	}
 	if got := candidates("darwin", "", "", ""); got[len(got)-1] != "libduckdb.dylib" {
 		t.Errorf("darwin: %q", got)
@@ -204,8 +218,22 @@ func TestEngineSQL(t *testing.T) {
 	if e.Dialect() != sqlkit.DuckDB {
 		t.Error("dialect")
 	}
-	set, rollback, release := (*Conn)(nil).Savepoint("x") // no savepoints: statements that do nothing
-	if set != "select 1" || rollback != "select 1" || release != "" || (*Conn)(nil).Begin() != "begin" {
+	// no savepoints: setting one does nothing; taking back a save's fails the transaction, a read's or an export's does nothing
+	set, rollback, release := (*Conn)(nil).Savepoint(db.SaveSavepoint)
+	if set != "select 1" || !strings.HasPrefix(rollback, "select cast(") || release != "" || (*Conn)(nil).Begin() != "begin" {
 		t.Errorf("tx words %q %q %q", set, rollback, release)
+	}
+	for _, name := range []string{"sqlmux_page", "sqlmux_export"} {
+		if set, rollback, release := (*Conn)(nil).Savepoint(name); set != "select 1" || rollback != "select 1" || release != "" {
+			t.Errorf("%s: %q %q %q", name, set, rollback, release)
+		}
+	}
+}
+
+func TestAtLeast(t *testing.T) {
+	for v, want := range map[string]bool{"v2.0.1": true, "v2.0.0": true, "v2.1.0-dev123": true, "v10.0.0": true, "v1.4.4": false, "v1.9.9": false, "v1.5": false, "": false} {
+		if atLeast(v, "2.0.0") != want {
+			t.Errorf("atLeast(%q) = %v", v, !want)
+		}
 	}
 }

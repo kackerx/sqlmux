@@ -9,7 +9,7 @@ import (
 // lazysql's sqlKeywords (components/sql_lexer.go) and the common words of
 // the two besides, and the first word of every statement in PG 17's docs,
 // Reference, SQL Commands, and of MySQL 8.4's that write, which IsWrite
-// goes by (§12「写语句」, §13), and DuckDB's attach, detach, export and pragma. Not all
+// goes by (§12「写语句」, §13). Not all
 // either one reserves: PG's unreserved keywords (name, type, user) are
 // column names as often.
 var keywords = map[string]bool{}
@@ -30,10 +30,15 @@ func init() {
 		abort analyse checkpoint close cluster comment copy deallocate discard import listen load move notify
 		prepare reassign refresh reindex reset security start unlisten vacuum
 		binlog change clone flush handler install kill optimize purge repair restart shutdown stop uninstall
-		unlock xa attach detach export pragma`) {
+		unlock xa`) {
 		keywords[w] = true
 	}
 }
+
+// duckdbKeywords are the first words of the statements DuckDB has that the
+// others do not, keywords in its dialect alone: SQLite's PRAGMA is no write
+// for quick SQL, and an exported T-SQL procedure is called by its name (F24.2).
+var duckdbKeywords = map[string]bool{"attach": true, "detach": true, "export": true, "pragma": true}
 
 // common are the keywords completion offers besides the names of tables
 // and columns: the common ones of lazysql's builtinKeywords

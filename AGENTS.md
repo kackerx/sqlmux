@@ -11,22 +11,22 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 | 角色 | 会话名 | 启动命令 | 规则 |
 |---|---|---|---|
 | 决策者 | `sqlmux-orchestrator` | `claude -n sqlmux-orchestrator --agent orchestrator --effort high` | [`specs/roles/orchestrator.md`](specs/roles/orchestrator.md) |
-| worker | `sqlmux-dev-n<节点>` | 决策者每个审查节点起一个后台会话：主工作区里 `claude --bg -n sqlmux-dev-n<节点> --agent fullstack-dev --effort high "<任务>"` | [`specs/roles/worker.md`](specs/roles/worker.md) |
+| worker | `sqlmux-dev-n<节点>` | 决策者每个审查节点起一个后台会话：主工作区里 `claude --bg -n sqlmux-dev-n<节点> --agent fullstack-dev --model opus --effort high "<任务>"`（用户 2026-11-24 定用 Opus，agent 定义里的 Sonnet 不够用） | [`specs/roles/worker.md`](specs/roles/worker.md) |
 | 并行 worker | `sqlmux-dev2-n<节点>` | 同 worker，在 `/home/kacker/proj/sqlmux-dev2` 里起，只做 task.md 分给它的 feature，见下面「并行开发」 | 同 worker |
 | 审查 | Codex | 决策者在 `/home/kacker/proj/sqlmux-review` 里跑 Codex 插件，见「固定的工作流」第 3 步 | [`specs/roles/reviewer.md`](specs/roles/reviewer.md) 是审查重点和全仓审计的做法 |
-| tester | `sqlmux-test-n<节点>` | 决策者在 worker 送审时于 `/home/kacker/proj/sqlmux-e2e` 里 `claude --bg -n sqlmux-test-n<节点> --agent test-engineer --effort high "<任务>"` | [`specs/roles/tester.md`](specs/roles/tester.md) |
+| 测试 | Codex | 决策者在 `/home/kacker/proj/sqlmux-e2e` 里跑 Codex 的 task，见「固定的工作流」第 4 步 | [`specs/roles/tester.md`](specs/roles/tester.md) 是测试的做法，写进给 Codex 的任务 |
 | pruner | `sqlmux-pruner` | `claude -n sqlmux-pruner`，用户按需启动，不是必经步骤 | [`specs/roles/pruner.md`](specs/roles/pruner.md) |
 | oss | `sqlmux-oss` | `claude -n sqlmux-oss --agent oss-maintainer --effort high`，用户按需启动：README、对外文档、演示 GIF、changelog / release note、发版后装一遍、发布帖、issue | [`specs/roles/oss.md`](specs/roles/oss.md) |
 
 **接手会话时先读自己那份角色规则**，别的角色的不用读。agent 定义在 `~/.claude/agents/`，是通用角色，项目特有的东西只写在本文件和角色规则里。
 
-**后台会话**（用户 2026-11-24 定）：worker 和 tester 不常驻，一个节点一个会话，免得上下文越堆越大。决策者派活时把任务、队友规则和「完成后用 SendMessage 把结论发给 sqlmux-orchestrator」写进启动命令；会话的名字就是收件地址。节点通过（tester 结论到）后决策者 `claude stop` 再 `claude rm` 两个会话。worker 会话管到节点通过为止，退回的修复也由它做；里程碑结束后用户验收追加的 feature 照样按节点起新会话。
+**后台会话和 Codex**（用户 2026-11-24 定）：worker 不常驻，一个节点一个会话，免得上下文越堆越大；审查和测试都交给 Codex，各起一个任务，不进沙箱、全权限运行（用户定；Codex 插件的命令把沙箱写死了，所以直接用 `codex exec`）。模型由决策者看活定：范围小的用 `gpt-6.2-astra`，会耗大量 token 和上下文的（e2e 测试、完整回归、大批的审查）用 `gpt-6.2-sol`。决策者派活时把任务、队友规则和「完成后用 SendMessage 把结论发给 sqlmux-orchestrator」写进启动命令；会话的名字就是收件地址。节点通过后决策者 `claude stop` 再 `claude rm` worker 会话。worker 会话管到节点通过为止，退回的修复也由它做；里程碑结束后用户验收追加的 feature 照样按节点起新会话。
 
 | 工作区 | 使用者 | 分支 |
 |---|---|---|
 | `/home/kacker/proj/sqlmux` | 决策者、worker、oss 的会话都在这里起；只有 worker（修剪期间是 pruner）在这里改代码，oss 只改 `README.md`、`docs/`、`CHANGELOG.md`、`assets/`（和决策者一样 `git commit --only -- <路径>`） | `main` |
 | `/home/kacker/proj/sqlmux-dev2` | 并行 worker（只在有并行 feature 时存在，决策者 `git worktree add` 建、合完删） | task.md 写的 feature 分支，如 `f19.3` |
-| `/home/kacker/proj/sqlmux-e2e` | tester | `e2e` |
+| `/home/kacker/proj/sqlmux-e2e` | Codex 的测试任务（文中的 tester 都指它） | `e2e` |
 | `/home/kacker/proj/sqlmux-review` | 决策者检出送审的 sha 给 Codex 审 | detached |
 | `/home/kacker/proj/sqlmux-verify` | 决策者编验收版给用户 | detached |
 
@@ -35,9 +35,9 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 ## 固定的工作流（按批）
 
 1. 决策者为一个审查节点起 worker 会话。worker 按 task.md 的开发清单逐个 feature 提交到 `main`，每个 commit 自己保证 `just check` 全绿和相关 e2e 通过。
-2. 到 task.md 标出的**审查节点**，worker 一条消息把 `<上一个节点>..<sha>` 发给决策者，逐个 feature 写明重点；全量 e2e 由 worker 在送审时同时跑，跑完有清单外失败再补一条。决策者这时起 tester 会话，任务是「节点 N 已送审：<范围>」，tester 先准备脚本、在送审的 sha 上试跑（tester.md），等提测。
-3. 决策者用 Codex 整批审：`git -C /home/kacker/proj/sqlmux-review checkout --detach <sha>`，在那里 `node ~/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs review --background --base <上一个节点> --scope branch`（几分钟，`status` / `result` 取结论）。Codex 的结论是「找到这几处」，不是「其余没问题」，所以先对照 spec 逐条判断：会崩、丢数据、违背 spec 的退回 worker（一条消息，附文件行号和复现）；边角问题记进 task.md 的已知上限。worker 修完发修复范围，决策者用 `adversarial-review --wait --base <修复前的 sha> --scope branch "<要确认的点>"` 只复审修复。lint 和 `just check` 由 worker 保证，决策者不重跑。通过且全量 e2e 没有清单外失败后，决策者一条消息给 tester 会话整批提测：范围、各 feature 的验收要点、Codex 提到要特别关注的地方。
-4. tester 整批测：有问题退回 worker（修复先经第 3 步的复审）；全部通过把批次结论发给决策者，决策者填状态 `passed（sha；e2e sha）`，收掉两个会话。
+2. 到 task.md 标出的**审查节点**，worker 一条消息把 `<上一个节点>..<sha>` 发给决策者，逐个 feature 写明重点；全量 e2e 由 worker 在送审时同时跑，跑完有清单外失败再补一条。
+3. 决策者用 Codex 整批审：`git -C /home/kacker/proj/sqlmux-review checkout --detach <sha>`，在那里 `codex exec review --dangerously-bypass-approvals-and-sandbox -m gpt-6.2-astra --base <上一个节点> -o <结论文件>`（放进后台的 Bash 跑，几分钟）。Codex 的结论是「找到这几处」，不是「其余没问题」，所以先对照 spec 逐条判断：会崩、丢数据、违背 spec 的退回 worker（一条消息，附文件行号和复现）；边角问题记进 task.md 的已知上限。worker 修完发修复范围，决策者只复审修复：`codex exec --dangerously-bypass-approvals-and-sandbox -m gpt-6.2-astra -C <审查工作区> -o <结论文件> - < <提示>`，提示里写「审 `git diff <修复前>..<修复后>`」、上一轮结论的路径、退回了哪几条（`codex exec review` 的 `--base` 不能和提示一起用）。lint 和 `just check` 由 worker 保证，决策者不重跑。通过且全量 e2e 没有清单外失败后进第 4 步。
+4. 决策者用 Codex 整批测：`/home/kacker/proj/sqlmux-e2e` 里先 `git merge <sha>`，再 `codex exec --dangerously-bypass-approvals-and-sandbox -m gpt-6.2-sol -c model_reasoning_effort=high -C /home/kacker/proj/sqlmux-e2e -o <结论文件> - < <任务文件>`（后台的 Bash 跑）。任务照 tester.md 写：要覆盖的验收项、环境、已知上限、只改 `e2e/` 并以 `e2e:` 提交到 `e2e` 分支、结论逐项 PASS / FAIL 附复现。Codex 发不了消息，有问题由决策者附复现退回 worker（修复先经第 3 步的复审，再只跑相关脚本）；全部通过决策者填状态 `passed（sha；e2e sha）`，收掉 worker 会话。里程碑末的完整回归也这样跑。
 5. 修复 commit 排在后续 feature 之后时，照常在修复的 sha 上审、测，只看本批的验收项；后续 feature 造成的 e2e 失败由 worker 列出，不算本批问题。
 
 **里程碑结束**：最后一个节点通过、tester 跑完完整回归后暂停，用户体验并提意见；决策者把反馈写成新 feature 追加进 task.md；验收期间追加的节点可以只跑相关脚本，但**发版前 tester 在最终的 sha 上重跑一次完整回归**（M21 节点 3 没重跑，F21.7 改的共用补全框把 WHERE 历史下拉弄坏了，带着发了 v0.10.0）；用户验收通过后 worker 打 tag、推送。暂停期间 worker 不写代码，只可以起草下一个里程碑的清单发给决策者。
@@ -49,7 +49,7 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 - **并行 worker 的流程**：分支从当时的 `main` 拉，只在自己的 worktree 里提交，规矩同 worker（`just check`、相关 e2e、commit 前缀）。集成测试照「集成测试环境」直接连主工作区的容器，不 `up`。到节点先 `git merge main` 进自己的分支、解决冲突（golden 冲突不手合：取 `main` 的那份后重新生成，逐个看 diff 只差自己这条 feature 的改动），`just check` 绿了再送审，范围写 `main..<分支头>`；决策者在 `sqlmux-review` 里检出这个 sha 审，tester 在分支头跑全量回归（同 M18 的 `windows-compat`）。退回、提测、结论照常，结论发给决策者和两个 worker。
 - **合入**：节点通过后由 worker 在主工作区 `git merge --no-ff <分支>`（合的就是通过的那个 sha）。这期间 `main` 又往前走了、合并有冲突时，交回并行 worker 再 `merge main` 一次，决策者只审这次合并的解决，tester 只跑相关脚本。合完决策者填状态、删 worktree 和分支。
 
-**消息只发四类**：spec 问题（→ 决策者）、退回（决策者转 Codex 的必须改、tester → worker）、送审和提测（worker → 决策者 → tester）、批次结论（tester → 决策者）。oss 多两类：发版后的安装验证结论（oss → 决策者）、issue 里能复现的 bug 和需求（oss → 决策者，决策者转成 feature 或测试用例）。不发「收到」、抄送、改状态、回报 sha。spec 改了，决策者只给相关角色一行指针（「docs <sha> 改了 §7.8」），worker 和 tester 按 commit 里的 spec 工作。
+**消息只发四类**：spec 问题（→ 决策者）、退回（决策者转 Codex 审查和测试的问题 → worker）、送审（worker → 决策者）。oss 多两类：发版后的安装验证结论（oss → 决策者）、issue 里能复现的 bug 和需求（oss → 决策者，决策者转成 feature 或测试用例）。不发「收到」、抄送、改状态、回报 sha。spec 改了，决策者只给相关角色一行指针（「docs <sha> 改了 §7.8」），worker 按 commit 里的 spec 工作。
 
 ## 通用规则
 

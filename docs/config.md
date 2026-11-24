@@ -128,7 +128,7 @@ DSN per engine:
 | `postgres` | `postgres://user@host:5432/db?sslmode=disable` (the tree lists the other databases on the server too) |
 | `mysql` | `user@tcp(host:3306)/db` or `mysql://user@host:3306/db` |
 | `sqlite` | a file path; `~` is expanded, `?mode=ro` and other query parameters pass through; a missing file is not created |
-| `duckdb` | a file path, as for `sqlite` (`~` expanded, a missing file is not created unless `?mode=rwc`), or `:memory:` to query Parquet and CSV files directly; other query parameters (`?memory_limit=4GB&threads=4`) are DuckDB settings. Needs `libduckdb`, see `[duckdb] library` above |
+| `duckdb` | a file path, as for `sqlite` (`~` expanded, a missing file is not created unless `?mode=rwc`), or `:memory:` to query Parquet and CSV files directly; other query parameters (`?memory_limit=4GB&threads=4`) are DuckDB settings. Needs `libduckdb`, see `[duckdb] library` above. On Linux the default `sqlmux` build is static and has no DuckDB: use the `sqlmux_<version>_linux_<arch>_duckdb` archive, or `go install -tags duckdb` |
 | `mssql` | `sqlserver://user@host:1433?database=app` (`mssql://` works too); driver options such as `encrypt` pass through. A server with a self-signed certificate, like the official Docker image, needs `&TrustServerCertificate=true` |
 | `redis` | `redis://user@host:6379/0` or `rediss://…`; the number is the database. See [Redis](redis.md) |
 | `exec` | no `dsn`: `dialect` and `command`, see [External commands](#external-commands-engine--exec) |

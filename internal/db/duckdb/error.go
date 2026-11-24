@@ -1,3 +1,5 @@
+//go:build !linux || duckdb
+
 package duckdb
 
 import (
@@ -23,8 +25,8 @@ func (Engine) Connect(ctx context.Context, dsn, password string, readOnly bool) 
 func (Engine) Broken(error) db.Lost { return db.NotLost }
 
 // category is the start of an error of the library's: <category> Error: then the
-// message (Binder, Catalog, Constraint, INTERRUPT).
-var category = regexp.MustCompile(`^(?s)(\w+) Error: (.*)$`)
+// message (Binder, Catalog, Constraint, INTERRUPT, Invalid Input, Out of Memory).
+var category = regexp.MustCompile(`(?s)^([^\n]+?) Error: (.*)$`)
 
 // ErrorOf is err as the log and an error bar show it (§11): the category is
 // the code, the rest the message; there is no SQLSTATE.

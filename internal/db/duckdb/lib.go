@@ -1,3 +1,5 @@
+//go:build !linux || duckdb
+
 // Package duckdb is the DuckDB engine (§8.1, F24.1): the C API of libduckdb,
 // loaded as the program runs (purego), so the build stays CGO_ENABLED=0 and
 // the binary the size it was. Reference: duckdb.h of the library; the probes
@@ -9,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"unsafe"
@@ -102,6 +106,24 @@ func Version() string { return goString(c.version()) }
 // the library is looked for under this version in the data directory.
 const PinnedVersion = "2.0.1"
 
+// minVersion is the oldest libduckdb the catalog queries run on: 1.4.4 has no
+// duckdb_columns().is_generated (tried on both).
+var minVersion = "2.0.0" // a var for the tests
+
+// atLeast is whether version v, "v2.0.1" or "v2.1.0-dev123", is minimum or
+// later, by its numbers.
+func atLeast(v, minimum string) bool {
+	nums := func(s string) (n [3]int) {
+		s, _, _ = strings.Cut(strings.TrimPrefix(s, "v"), "-")
+		for i, f := range strings.SplitN(s, ".", 3) {
+			n[i], _ = strconv.Atoi(f)
+		}
+		return n
+	}
+	a, b := nums(v), nums(minimum)
+	return slices.Compare(a[:], b[:]) >= 0
+}
+
 var (
 	loadMu           sync.Mutex
 	loaded           bool
@@ -138,7 +160,8 @@ func libName(goos string) string {
 // candidates are the places to look for the library, in order (§8.1): the
 // configured path alone when there is one; else the data directory's, the
 // package managers' directories, the program's own on windows, then the bare
-// name, which the system's loader looks up as it does.
+// name, which the system's loader looks up as it does; on windows none, whose
+// search would take a duckdb.dll of the working directory.
 func candidates(goos, configured, data, exeDir string) []string {
 	if configured != "" {
 		return []string{configured}
@@ -149,11 +172,16 @@ func candidates(goos, configured, data, exeDir string) []string {
 		out = append(out, filepath.Join(data, "duckdb", PinnedVersion, name))
 	}
 	if goos == "windows" {
-		out = append(out, filepath.Join(exeDir, name))
+		if exeDir != "" {
+			out = append(out, filepath.Join(exeDir, name))
+		}
 	} else {
 		for _, d := range []string{"/opt/homebrew/lib", "/usr/local/lib", "/home/linuxbrew/.linuxbrew/lib"} {
 			out = append(out, d+"/"+name)
 		}
+	}
+	if goos == "windows" {
+		return out
 	}
 	return append(out, name)
 }
@@ -166,9 +194,12 @@ func Load() error {
 	if loaded {
 		return nil
 	}
-	exe, _ := os.Executable()
+	exeDir := ""
+	if exe, err := os.Executable(); err == nil {
+		exeDir = filepath.Dir(exe)
+	}
 	var tried []string
-	for _, p := range candidates(runtime.GOOS, library, dataDir, filepath.Dir(exe)) {
+	for _, p := range candidates(runtime.GOOS, library, dataDir, exeDir) {
 		_, statErr := os.Stat(p)
 		bare := p == filepath.Base(p) // the loader's to find
 		if statErr != nil && !bare {
@@ -187,7 +218,12 @@ func Load() error {
 			return loadError(p, err)
 		}
 		if err := bind(h); err != nil {
+			closeLib(h) // not kept: the user's next try is of another library
 			return err
+		}
+		if v := Version(); !atLeast(v, minVersion) {
+			closeLib(h) // nor is one that is too old, for a newer one to be found at the next try
+			return fmt.Errorf("%s", i18n.T("libduckdb 至少要 v%s，这个是 %s", minVersion, v))
 		}
 		loaded = true
 		return nil

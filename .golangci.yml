@@ -4,7 +4,7 @@
 version: "2"
 
 run:
-  build-tags: [integration] # the integration tests are code too
+  build-tags: [integration, duckdb] # the integration tests are code too, and DuckDB's, which Linux builds in with its tag
 
 linters:
   # standard: errcheck (unchecked errors), govet (vet's analyzers),

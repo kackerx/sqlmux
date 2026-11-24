@@ -4,7 +4,7 @@
 - **目标**：DuckDB 作为第六个引擎：打开 `.duckdb` 文件或内存库，树、表格、改格子保存、query、取消都和 PG 一样能用；不用 cgo，发布方式和二进制大小不变。发 v0.12.0。
 - **范围**：§8.1「DuckDB」（全部细节在那一条）、§4 的 `internal/db/duckdb`、§14 的 `engine = "duckdb"` 和 `[duckdb] library`、命令行的 `.duckdb` / `.ddb`、§7.8 连接表单的 duckdb 段。评估和实测在 `eval.md`；探针在仓库外 `/home/kacker/proj/sqlmux-aud/engines/duckdb/nocgo/b/`（purego 绑定 167 行，取消、两条连接、`cast(columns(*) as varchar)` 都在 Linux 和 Windows 上跑过），照它写，不从零摸索。
 - **依赖**：M22 完成（v0.11.0）。M23 书签往后排。
-- **完成标准**：两个节点全过；完整回归绿（清单外 0）；Windows 冒烟绿，另在 Windows 上连一次 DuckDB；用户验收后打 `m24`、`v0.12.0`，照 AGENTS.md 两步推送。
+- **完成标准**：两个节点全过；Linux 默认包仍是静态的；完整回归绿（清单外 0）；Windows 冒烟绿，另在 Windows 上连一次 DuckDB；用户验收后打 `m24`、`v0.12.0`，照 AGENTS.md 两步推送。
 - **审查节点**：1 = F24.1 + F24.2；2 = F24.3 + F24.4。都由 worker 在 `main` 上做，按 AGENTS.md 的后台会话和 Codex 审查走。
 - **不做（留候选）**：`attach` 进来的库进树（数据库层）；官方 cgo 驱动的构建包；DuckDB 的多进程写（2.0 的 Quack）；无主键表靠 `rowid` 编辑；在 sqlmux 外面限制 DuckDB 的内存（崩溃会带走界面，用户可在 DSN 里设 `memory_limit`）。
 
@@ -20,7 +20,7 @@
 
 **开发**（§8.1「DuckDB」）
 - [ ] a. 绑定：purego 注册用到的 C 函数（照探针 `duck.go`，`duckdb_result` 只传指针）；`load_unix.go` / `load_windows.go` 两个文件分平台的加载。库的查找按 §8.1「库从哪来」的顺序（这一条只做查找和报错：找不到时返回一个可识别的错误，F24.3 接上确认下载）。
-- [ ] b. 实例和连接：同一个文件在进程里只 `duckdb_open` 一次，Meta 和 Main 各 `duckdb_connect` 一条；用 C API 的实例缓存还是包里自己一个按路径的表加引用计数，**实测**后定，最后一条连接关了才 `duckdb_close`（断开连接后用户的 Python 要能打开这个文件）。DSN：路径规则照 SQLite 的 `Path`（复用，不抄），`?mode=rwc` 才新建，其余 `?k=v` 用 `duckdb_set_config`；`read_only` 用 `access_mode=read_only`；**实测** Meta 的只读用什么办法（事务级只读）。`Info`：`Addr` 是路径，版本 `select version()`。
+- [ ] b. 实例和连接：同一个文件在进程里只 `duckdb_open` 一次，Meta 和 Main 各 `duckdb_connect` 一条；用 C API 的实例缓存还是包里自己一个按路径的表加引用计数，**实测**后定，最后一条连接关了才 `duckdb_close`（断开连接后用户的 Python 要能打开这个文件）。DSN：路径规则照 SQLite 的 `Path`（复用，不抄），`?mode=rwc` 才新建，其余 `?k=v` 用 `duckdb_set_config`；`read_only` 连接用只读事务、`?mode=ro` 才是文件级只读（§8.1，worker 2026-11-24 实测后改）；**实测** Meta 的只读用什么办法（事务级只读）。`Info`：`Addr` 是路径，版本 `select version()`。
 - [ ] c. `Exec` / `Query`：用 `duckdb_extract_statements` 或共用的分句切开；查询形的语句包成 `select cast(columns(*) as varchar) from (<语句>)`，列名和类型从 prepared statement 的列信息或 `describe` 取（**实测**哪个省一次往返）；同名列用真名。非查询形的语句原样跑，行数用 `duckdb_rows_changed`；**实测** `returning`、`show`、`pragma`、`describe`、`explain` 的结果文本，给不出的写成已知上限。`Stream`（流式导出）同 PG / MySQL 的形状。
 - [ ] d. 取消：ctx 结束时另一个 goroutine 调 `duckdb_interrupt`，每 300 ms 重发直到查询返回；事务里取消后 `TxStatus` 报 `'E'`。
 - [ ] e. `Broken` 恒为不是断线；`ErrorOf` 拆 `<类别> Error: <消息>`。
@@ -29,7 +29,7 @@
 **验收**
 - [ ] 单测：DSN 解析（`~`、相对路径、`?mode=rwc`、配置项、`:memory:`）、错误拆分、语句包装；mutation。
 - [ ] 集成测试（`SQLMUX_TEST_DUCKDB`）：各类型的文本和 CLI 的一致（LIST、STRUCT、MAP、DECIMAL、HUGEINT、TIMESTAMPTZ 换 `TimeZone`、UUID、BLOB、INTERVAL、NULL 和字符串 'NULL'）；取消一条长查询 1 秒内回来、连接还能用；事务里取消后 aborted；Meta 写入被拒；两条连接互不阻塞；断开后另一个进程（CLI）能打开文件。
-- [ ] `GOOS=windows`、`GOOS=darwin`、`GOARCH=arm64` 交叉编译过，`CGO_ENABLED=0`。
+- [ ] `GOOS=windows`、`GOOS=darwin`、`GOARCH=arm64` 交叉编译过，`CGO_ENABLED=0`；不带标签的 linux/amd64 产物是静态的、在 `alpine:3` 容器里 `--version` 能跑。
 
 ## F24.2 DuckDB 引擎与接线 · 状态：todo
 
@@ -44,9 +44,12 @@
 - [ ] d. 配置和界面：`engine = "duckdb"`；`[duckdb] library`；连接表单的 duckdb 段同 sqlite（§7.8）；树的连接图标加 `duckdb`（nerd font 里挑一个，ascii 回退，主题可覆盖，同 `postgres` / `redis`）；命令行 `sqlmux x.duckdb` / `x.ddb` 开临时 DuckDB 连接（§14）；`--table` 的当前 schema 是 `main`。
 - [ ] e. 测试环境：`testdata/seed/duckdb.sql`（对照 `pg.sql` 的表和行，类型换成 DuckDB 的；外键只能写在 `create table` 里，DuckDB 不支持 `alter table add constraint foreign key`），集成测试在临时目录建库导入；CI 的 integration job 加一步下载钉死版本的 libduckdb（同 F24.3 的地址和 sha256），设 `SQLMUX_TEST_DUCKDB`。
 
+- [ ] f. **Linux 的构建标签**（用户 2026-11-24 定，Codex 审查发现 purego 让 Linux 二进制变成动态的）：§8.1「Linux 例外」和 §15「Linux 的 DuckDB 包」。purego 和绑定只在 `!linux || duckdb` 时编译，`linux && !duckdb` 是一个只返回「不带 DuckDB」错误的桩；`.goreleaser.yaml` 加带标签的 Linux build 和 `_duckdb` 压缩包；`justfile` 和 CI 的 Linux job 带标签，另加不带标签的静态断言。
+
 **验收**
 - [ ] 单测：方言、`Quote` / `Arg` / `Same` / `Eq`、命令行认扩展名；mutation。
 - [ ] 集成测试（和 PG / SQLite 同一组用例）：catalog、DDL、分页、乐观校验（旧值被改报行已变化；旧值在表里重复时只改一行）、唯一约束当行标识、无主键表只读、外键、`UseSchema`、只读连接拦截写。
+- [ ] e2e（节点 1 的 tester）：打开 DuckDB 文件、树、开表翻页、改一格保存、别人改了报行已变化、无主键表只读、query 里查一个 CSV 文件、取消长查询、只读连接拦写、命令行 `sqlmux x.duckdb`；libduckdb 用 `[duckdb] library` 指向开发用的库。表单 engine 行多了 `│ duckdb`，`f7.4.sh`、`f18.7c.sh` 跟着改。
 - [ ] Windows：`GOOS=windows` 编的 exe 放 C 盘，从 DuckDB 的 Release 下 `duckdb.dll`，配 `[duckdb] library`，在主机上连一次、开表、改一格保存、取消一条长查询（AGENTS.md「WSL」的冒烟办法）。
 
 ## F24.3 找不到 libduckdb 时确认下载 · 状态：todo
@@ -66,5 +69,5 @@
 ## F24.4 e2e 与文档 · 状态：todo
 
 - **依赖**：F24.2、F24.3
-- [ ] a. e2e（tester）：打开 DuckDB 文件、树、开表翻页、改一格保存、并发改了报行已变化、query 里查一个 Parquet / CSV 文件、取消长查询、只读连接、命令行 `sqlmux x.duckdb`；libduckdb 用 `[duckdb] library` 指向开发用的库，确认下载那条用本地假服务或只测「取消下载给出手动办法」。
+- [ ] a. e2e（tester）：确认下载那条用本地假服务或只测「取消下载给出手动办法」；库在、库坏（加载失败）两种提示。打开文件、浏览、编辑、取消这些在节点 1 的 tester 那一轮已经写了（见 F24.2 的验收）。
 - [ ] b. 文档（oss，没起 oss 会话时决策者代管）：README 和 docs 的引擎列表、DuckDB 的连接写法和库的来源；brew formula 和 npm 包的描述加 DuckDB（`.github/scripts/tap-formula.sh`、`npm/sqlmux/package.json`）；CHANGELOG。
