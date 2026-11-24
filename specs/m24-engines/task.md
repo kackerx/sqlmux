@@ -20,7 +20,7 @@
 
 **开发**（§8.1「DuckDB」）
 - [ ] a. 绑定：purego 注册用到的 C 函数（照探针 `duck.go`，`duckdb_result` 只传指针）；`load_unix.go` / `load_windows.go` 两个文件分平台的加载。库的查找按 §8.1「库从哪来」的顺序（这一条只做查找和报错：找不到时返回一个可识别的错误，F24.3 接上确认下载）。
-- [ ] b. 实例和连接：同一个文件在进程里只 `duckdb_open` 一次，Meta 和 Main 各 `duckdb_connect` 一条；用 C API 的实例缓存还是包里自己一个按路径的表加引用计数，**实测**后定，最后一条连接关了才 `duckdb_close`（断开连接后用户的 Python 要能打开这个文件）。DSN：路径规则照 SQLite 的 `Path`（复用，不抄），`?mode=rwc` 才新建，其余 `?k=v` 用 `duckdb_set_config`；`read_only` 用 `access_mode=read_only`；**实测** Meta 的只读用什么办法（事务级只读）。`Info`：`Addr` 是路径，版本 `select version()`。
+- [ ] b. 实例和连接：同一个文件在进程里只 `duckdb_open` 一次，Meta 和 Main 各 `duckdb_connect` 一条；用 C API 的实例缓存还是包里自己一个按路径的表加引用计数，**实测**后定，最后一条连接关了才 `duckdb_close`（断开连接后用户的 Python 要能打开这个文件）。DSN：路径规则照 SQLite 的 `Path`（复用，不抄），`?mode=rwc` 才新建，其余 `?k=v` 用 `duckdb_set_config`；`read_only` 连接用只读事务、`?mode=ro` 才是文件级只读（§8.1，worker 2026-11-24 实测后改）；**实测** Meta 的只读用什么办法（事务级只读）。`Info`：`Addr` 是路径，版本 `select version()`。
 - [ ] c. `Exec` / `Query`：用 `duckdb_extract_statements` 或共用的分句切开；查询形的语句包成 `select cast(columns(*) as varchar) from (<语句>)`，列名和类型从 prepared statement 的列信息或 `describe` 取（**实测**哪个省一次往返）；同名列用真名。非查询形的语句原样跑，行数用 `duckdb_rows_changed`；**实测** `returning`、`show`、`pragma`、`describe`、`explain` 的结果文本，给不出的写成已知上限。`Stream`（流式导出）同 PG / MySQL 的形状。
 - [ ] d. 取消：ctx 结束时另一个 goroutine 调 `duckdb_interrupt`，每 300 ms 重发直到查询返回；事务里取消后 `TxStatus` 报 `'E'`。
 - [ ] e. `Broken` 恒为不是断线；`ErrorOf` 拆 `<类别> Error: <消息>`。
