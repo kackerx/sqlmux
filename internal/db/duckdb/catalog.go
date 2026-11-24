@@ -120,7 +120,7 @@ func (Engine) TableColumns(ctx context.Context, c db.Conn, schema, table string)
 	}
 	for _, k := range out.Key() {
 		for _, col := range out.Cols {
-			if col.Name == k && strings.HasPrefix(col.Type, "blob") {
+			if col.Name == k && col.Type == "blob" {
 				out.ReadOnly = i18n.T("行标识列 %s 是 %s", k, col.Type)
 			}
 		}

@@ -99,6 +99,14 @@ func TestBlob(t *testing.T) {
 		t.Fatal(err)
 	}
 	eq(t, got, []string{`'\x5C'::BLOB`, `'\x00Aabc\x0A\x22\x27 \x7F'::BLOB`})
+	// a list of blobs is a list, not a blob
+	q(t, c, `create table bl(x blob[])`)
+	q(t, c, `insert into bl values (['\xAA'::blob, 'b'::blob])`)
+	got = nil
+	if err := c.Stream(context.Background(), "select x from bl", func([]db.Col) error { return nil }, func(v []db.Val) error { got = append(got, v[0].S); return nil }); err != nil || len(got) != 1 || strings.Contains(got[0], "BLOB") {
+		t.Errorf("a list of blobs: %q %v", got, err)
+	}
+	got = []string{`'\x5C'::BLOB`, `'\x00Aabc\x0A\x22\x27 \x7F'::BLOB`}
 	// the literal makes the bytes again
 	q(t, c, "create table b2 as select "+got[1]+" as x")
 	eq(t, cells(q(t, c, "select octet_length(x) from b2")), []string{"10"})
@@ -293,6 +301,16 @@ func TestInstance(t *testing.T) {
 	eq(t, cells(q(t, c2, "select i from t")), []string{"7"})
 	if _, _, err := Connect(context.Background(), path+"?memory_limit=1GB", "", false); err == nil || !strings.Contains(err.Error(), "already open") {
 		t.Errorf("the file with other settings: %v", err)
+	}
+	// a symlink to the file is the same instance
+	link := filepath.Join(t.TempDir(), "link.duckdb")
+	if err := os.Symlink(path, link); err == nil {
+		c3, _, err := Connect(context.Background(), link, "", false)
+		if err != nil {
+			t.Fatalf("by a symlink: %v", err)
+		}
+		eq(t, cells(q(t, c3, "select i from t")), []string{"7"})
+		c3.Close()
 	}
 	if out := other(t, path); !strings.Contains(out, "lock") || !strings.Contains(out, "PID") {
 		t.Errorf("another process while it is open: %q", out)

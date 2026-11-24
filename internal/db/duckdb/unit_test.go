@@ -72,7 +72,7 @@ func TestTxAfter(t *testing.T) {
 		{'T', "end", nil, 'I'},
 		{'E', "rollback", nil, 'I'},
 		{'E', "commit", nil, 'I'},
-		{'T', "commit", boom, 'E'},
+		{'T', "commit", boom, 'I'}, // the library has rolled back
 	} {
 		word, _, _ := strings.Cut(tc.sql, " ")
 		if got := txAfter(tc.tx, word, tc.sql, tc.err); got != tc.want {

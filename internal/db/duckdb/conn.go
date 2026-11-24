@@ -203,6 +203,9 @@ func wrapSQL(sql string, maxRows int) string {
 func txAfter(tx byte, word, sql string, err error) byte {
 	switch {
 	case err != nil:
+		if tx == 'T' && sqlkit.EndsTx(sql, sqlkit.DuckDB) != "" { // a COMMIT that fails has rolled back
+			return 'I'
+		}
 		if tx == 'T' {
 			return 'E'
 		}
@@ -346,7 +349,7 @@ func (conn *Conn) read(res *result, r *db.Result, cols []db.Col, wrap bool, typ 
 		if len(cols) == int(n) {
 			r.Cols[i] = cols[i]
 		}
-		blob[i] = types[i] == typeBlob && !wrap || strings.HasPrefix(r.Cols[i].Type, "blob") && wrap
+		blob[i] = types[i] == typeBlob && !wrap || r.Cols[i].Type == "blob" && wrap
 	}
 	unreadable := -1 // the first column of a type with no text
 	for i := range n {

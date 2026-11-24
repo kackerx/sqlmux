@@ -44,3 +44,9 @@ func TestDuckDB(t *testing.T) {
 		t.Error("EndsTx")
 	}
 }
+
+func TestDuckDBExplainAnalyzeRuns(t *testing.T) {
+	if !Dangerous("explain analyze delete from t", DuckDB) || Dangerous("explain delete from t", DuckDB) || Dangerous("explain analyze select 1", DuckDB) {
+		t.Error("EXPLAIN ANALYZE runs the statement it explains")
+	}
+}

@@ -239,7 +239,7 @@ func (c Connection) Check(names []string) (field, problem string) {
 		return "group", fmt.Sprintf(i18n.T(`group = %q：不能含 / 或 \，也不能以 . 开头`), c.Group)
 	}
 	if !slices.Contains(engines, c.Engine) {
-		return "engine", fmt.Sprintf(i18n.T("engine = %q：只能是 postgres、mysql、sqlite、redis、mssql 或 exec"), c.Engine)
+		return "engine", fmt.Sprintf(i18n.T("engine = %q：只能是 postgres、mysql、sqlite、duckdb、redis、mssql 或 exec"), c.Engine)
 	}
 	if c.Engine == "exec" {
 		place := map[string]string{"postgres": "{sql}", "redis": "{cmd}"}[c.Dialect]

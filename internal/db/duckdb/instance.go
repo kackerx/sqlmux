@@ -6,6 +6,7 @@ import (
 	"maps"
 	"net/url"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -86,6 +87,9 @@ func acquire(t target) (*instance, error) {
 		if _, err := os.Stat(t.path); err != nil { // a file that is not there is no new database: a path mistyped
 			return nil, err
 		}
+	}
+	if resolved, err := filepath.EvalSymlinks(t.path); err == nil { // one instance per file, by whatever path reaches it
+		t.path = resolved
 	}
 	instMu.Lock()
 	defer instMu.Unlock()
