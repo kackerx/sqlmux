@@ -1,6 +1,6 @@
 # M24 DuckDB · 任务清单
 
-- **状态**：进行中。节点 1 过（F24.1、F24.2 passed，7276c1e；e2e fe30dc6，2026-11-24）：Codex（astra）审了三轮，第一轮 18 条退 15 条，第二轮退 6 条，第三轮收敛（剩下的一条「过滤写错让手动事务作废」是 §8.1 写明的已知上限）；Codex（sol）测：10 个流程、三处审查修复、8 个发版包、Alpine 上的静态构建、Windows 冒烟和 DLL 加载全过；全量 e2e 清单外只有脚本写死的文字（f7.4、f18.7c、f11.1 已改，f16.1b 留给节点 2 的测试）。审查时用户定 Linux 主包保持静态、DuckDB 另发 `_duckdb` 包（F24.2 f）。（2026-11-24 决策者起草，用户同日定直接开工）
+- **状态**：两个节点都过，等用户验收（验收版 784f4dd 在 ksmac 的 `~/sqlmux-verify/`）。节点 2 过（F24.3、F24.4 passed，8a20f5d；e2e db60b20，2026-11-25）：Codex（astra）审了三轮，第一轮 15 条退 8 条、文档 3 条转 oss、4 条记已知上限，第二轮退 2 条（排队的 `--sql`、不稳定的 `TestCancel`），第三轮 PASS；Codex（sol）在 784f4dd 上测：下载流程 8 项全过（含真下载和 v1.4.4 太旧），完整回归 301 个脚本 298 过、3 个跳过（SQL Server 没起）、清单外 0；观察（不改）：命令行直接开 .duckdb 又拒绝下载时还没有结果面板，查询日志里查过的路径看不到。README / docs 由 oss 改成对外的口吻，CHANGELOG 定为 `[0.12.0] - 2026-11-25`（用户定）。节点 1 过（F24.1、F24.2 passed，7276c1e；e2e fe30dc6，2026-11-24）：Codex（astra）审了三轮，第一轮 18 条退 15 条，第二轮退 6 条，第三轮收敛（剩下的一条「过滤写错让手动事务作废」是 §8.1 写明的已知上限）；Codex（sol）测：10 个流程、三处审查修复、8 个发版包、Alpine 上的静态构建、Windows 冒烟和 DLL 加载全过；全量 e2e 清单外只有脚本写死的文字（f7.4、f18.7c、f11.1 已改，f16.1b 留给节点 2 的测试）。审查时用户定 Linux 主包保持静态、DuckDB 另发 `_duckdb` 包（F24.2 f）。（2026-11-24 决策者起草，用户同日定直接开工）
 - **目标**：DuckDB 作为第六个引擎：打开 `.duckdb` 文件或内存库，树、表格、改格子保存、query、取消都和 PG 一样能用；不用 cgo，发布方式和二进制大小不变。发 v0.12.0。
 - **范围**：§8.1「DuckDB」（全部细节在那一条）、§4 的 `internal/db/duckdb`、§14 的 `engine = "duckdb"` 和 `[duckdb] library`、命令行的 `.duckdb` / `.ddb`、§7.8 连接表单的 duckdb 段。评估和实测在 `eval.md`；探针在仓库外 `/home/kacker/proj/sqlmux-aud/engines/duckdb/nocgo/b/`（purego 绑定 167 行，取消、两条连接、`cast(columns(*) as varchar)` 都在 Linux 和 Windows 上跑过），照它写，不从零摸索。
 - **依赖**：M22 完成（v0.11.0）。M23 书签往后排。
@@ -52,7 +52,7 @@
 - [ ] e2e（节点 1 的 tester）：打开 DuckDB 文件、树、开表翻页、改一格保存、别人改了报行已变化、无主键表只读、query 里查一个 CSV 文件、取消长查询、只读连接拦写、命令行 `sqlmux x.duckdb`；libduckdb 用 `[duckdb] library` 指向开发用的库。表单 engine 行多了 `│ duckdb`，`f7.4.sh`、`f18.7c.sh` 跟着改。
 - [ ] Windows：`GOOS=windows` 编的 exe 放 C 盘，从 DuckDB 的 Release 下 `duckdb.dll`，配 `[duckdb] library`，在主机上连一次、开表、改一格保存、取消一条长查询（AGENTS.md「WSL」的冒烟办法）。
 
-## F24.3 找不到 libduckdb 时确认下载 · 状态：todo
+## F24.3 找不到 libduckdb 时确认下载 · 状态：passed（8a20f5d；e2e db60b20）
 
 - **依赖**：F24.1
 - **涉及**：`internal/db/duckdb`（下载和校验）、`internal/app`（确认框，复用现有的确认浮层）、`internal/config`（数据目录）
@@ -66,7 +66,7 @@
 - [ ] 单测：sha256 不对时不落盘、残留被删；表里每个平台都有条目或明确不支持；用一个本地的 HTTP 服务假装 Release（不连外网）。
 - [ ] 手动：清掉数据目录后在 Linux 和 Windows 上各走一遍「确认 → 下载 → 连上」，worker 贴结果。
 
-## F24.4 e2e 与文档 · 状态：todo
+## F24.4 e2e 与文档 · 状态：passed（a：e2e db60b20；b：97abab8、oss 759d6dd、733afca）
 
 - **依赖**：F24.2、F24.3
 - [ ] a. e2e（tester）：确认下载那条用本地假服务或只测「取消下载给出手动办法」；库在、库坏（加载失败）两种提示。打开文件、浏览、编辑、取消这些在节点 1 的 tester 那一轮已经写了（见 F24.2 的验收）。
