@@ -64,10 +64,12 @@ func (e Engine) Quick(ctx context.Context, w *db.Worker, sql, schema string, max
 }
 
 // Begin and Savepoint are the transaction's words (db.TxSaver): DuckDB has no
-// savepoints, so one that is set, and taken back, is no statement, and a save
-// that fails in a transaction fails the transaction (§8.1).
+// savepoints, so one is set by no statement, and taking it back is an error of
+// our own, which the library fails the transaction with: a save that fails in
+// a transaction fails the transaction (§8.1), where a stale row, which the
+// library takes for no error, would leave the rows before it written.
 func (*Conn) Begin() string { return "begin" }
 
 func (*Conn) Savepoint(string) (set, rollback, release string) {
-	return "select 1", "select 1", ""
+	return "select 1", "select error('sqlmux: the save failed')", ""
 }

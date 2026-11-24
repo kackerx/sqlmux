@@ -50,3 +50,23 @@ func TestDuckDBExplainAnalyzeRuns(t *testing.T) {
 		t.Error("EXPLAIN ANALYZE runs the statement it explains")
 	}
 }
+
+// DuckDB's own first words are keywords in its dialect alone: another's
+// PRAGMA or procedure of that name is as it was (F24.2 review).
+func TestDuckDBWordsAreNoOthers(t *testing.T) {
+	if IsWrite("pragma table_info(t)", SQLite) {
+		t.Error("SQLite's PRAGMA is no write")
+	}
+	if !IsWrite("pragma table_info(t)", DuckDB) {
+		t.Error("DuckDB's PRAGMA may write")
+	}
+	if !BeginsBareExec("export x", MSSQL) || BeginsBareExec("export x", PG) {
+		t.Error("a T-SQL procedure called export is a bare EXEC")
+	}
+	if kinds := kindsOf(t, "attach 'x'", DuckDB); kinds[0] != Keyword {
+		t.Errorf("attach in DuckDB: %v", kinds)
+	}
+	if kinds := kindsOf(t, "attach 'x'", PG); kinds[0] != Ident {
+		t.Errorf("attach in PG: %v", kinds)
+	}
+}

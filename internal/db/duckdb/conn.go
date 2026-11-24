@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kackerx/sqlmux/internal/db"
+	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/sqlkit"
 )
 
@@ -40,7 +41,8 @@ type Conn struct {
 	inst     *instance
 	h        uintptr
 	readOnly bool
-	tx       byte // 'I', 'T', or 'E' for a transaction a statement failed in: any error does that (§8.1)
+	tx       byte   // 'I', 'T', or 'E' for a transaction a statement failed in: any error does that (§8.1)
+	database string // the library's name for the file's database, which a USE must leave as it is
 	closed   bool
 }
 
@@ -55,6 +57,9 @@ func Connect(ctx context.Context, spec, _ string, readOnly bool) (*Conn, db.Info
 	if err := Load(); err != nil {
 		return nil, db.Info{}, err
 	}
+	if v := Version(); !atLeast(v, minVersion) {
+		return nil, db.Info{}, fmt.Errorf("%s", i18n.T("libduckdb 至少要 v%s，这个是 %s", minVersion, v))
+	}
 	t, err := parse(spec)
 	if err != nil {
 		return nil, db.Info{}, err
@@ -67,6 +72,10 @@ func Connect(ctx context.Context, spec, _ string, readOnly bool) (*Conn, db.Info
 	if c.connect(inst.h, &conn.h) != 0 {
 		inst.release()
 		return nil, db.Info{}, errors.New("duckdb_connect failed")
+	}
+	if conn.database, err = conn.scalar("select current_database()"); err != nil {
+		conn.Close()
+		return nil, db.Info{}, err
 	}
 	return conn, db.Info{Addr: t.path, Path: "main"}, nil // no database before main on a query's title, as SQLite's
 }
@@ -109,6 +118,9 @@ func (conn *Conn) Stream(ctx context.Context, sql string, head func([]db.Col) er
 		return err
 	}
 	for _, vals := range r.Rows {
+		if err := ctx.Err(); err != nil { // a cancel stops the export, which the caller then deletes
+			return err
+		}
 		if err := row(vals); err != nil {
 			return err
 		}
@@ -123,8 +135,12 @@ func (conn *Conn) run(ctx context.Context, sql string, args []db.Val, maxRows in
 	if conn.closed {
 		return r, errClosed
 	}
+	if err := ctx.Err(); err != nil {
+		return r, err
+	}
 	start := time.Now()
 	word := sqlkit.FirstWord(sql, sqlkit.DuckDB)
+	was := conn.tx
 	if conn.readOnly && conn.tx == 'I' {
 		// a statement is a read only transaction of its own, a BEGIN a read only one that lasts
 		if word == "begin" || word == "start" {
@@ -136,11 +152,13 @@ func (conn *Conn) run(ctx context.Context, sql string, args []db.Val, maxRows in
 			defer func() { _ = conn.simple("rollback") }() // an error aborts the transaction as well: it goes
 		}
 	}
-	defer func() { conn.tx = txAfter(conn.tx, word, sql, err) }()
-	st, err := conn.prepare(sql)
+	prepared := false
+	defer func() { conn.tx = txAfter(conn.tx, word, sql, prepared, err) }()
+	st, err := conn.prepare(ctx, sql)
 	if err != nil {
 		return r, err
 	}
+	prepared = true
 	typ := c.stmtType(st)
 	wrap := typ == stmtSelect && word != "pragma" // pragma's rows are no subquery
 	var cols []db.Col
@@ -152,17 +170,27 @@ func (conn *Conn) run(ctx context.Context, sql string, args []db.Val, maxRows in
 				return r, err
 			}
 		}
-		if st, err = conn.prepare(wrapSQL(sql, maxRows)); err != nil {
+		if st, err = conn.prepare(ctx, wrapSQL(sql, maxRows)); err != nil {
 			return r, err
 		}
 	}
 	defer c.destroyPrep(&st)
+	if err := ctx.Err(); err != nil {
+		return r, err
+	}
 	res, err := conn.execute(ctx, st, args)
 	if err != nil {
 		return r, err
 	}
 	defer c.destroy(res)
-	conn.read(res, &r, cols, wrap, typ, export)
+	if word == "use" {
+		if err := conn.keepDatabase(); err != nil {
+			return r, err
+		}
+	}
+	if err := conn.read(ctx, res, &r, cols, wrap, typ, export, maxRows); err != nil {
+		return r, err
+	}
 	if maxRows > 0 && len(r.Rows) > maxRows {
 		r.Rows, r.Truncated = r.Rows[:maxRows], true
 	}
@@ -175,9 +203,29 @@ func (conn *Conn) run(ctx context.Context, sql string, args []db.Val, maxRows in
 		r.Tag += " " + strconv.Itoa(len(r.Rows))
 	case isWrite(typ):
 		r.Tag += " " + strconv.FormatInt(r.Affected, 10)
+	case was == 'E' && sqlkit.EndsTx(sql, sqlkit.DuckDB) == "commit": // a COMMIT of a failed transaction is its rollback
+		r.Tag = "ROLLBACK"
 	}
 	r.Took = time.Since(start)
 	return r, nil
+}
+
+// refusal is an error of ours, no statement of the library's failed: the
+// transaction is as it was.
+type refusal struct{ msg string }
+
+func (e refusal) Error() string { return e.msg }
+
+// keepDatabase is run after a USE: the connection stays in the file's own
+// database, where a grid's reads and writes (the Meta and Main connections go
+// by their own current database) and the catalog are; another is one that was
+// attached (§8.1), by its three-part names instead.
+func (conn *Conn) keepDatabase() error {
+	if cur, err := conn.scalar("select current_database()"); err != nil || cur == conn.database {
+		return err
+	}
+	_ = conn.simple("use " + (Engine{}).Quote(conn.database))
+	return refusal{i18n.T("DuckDB 连接里不能用 use 切换到别的库，请用 库.schema.表 的三段名")}
 }
 
 // isWrite is a statement that hits rows, which says how many.
@@ -198,12 +246,16 @@ func wrapSQL(sql string, maxRows int) string {
 }
 
 // txAfter is where the transaction is after statement sql, whose first word is
-// word, ran in it, tx before, err the error it ended with. Any error fails the
-// transaction it was in, a cancel too (§8.1, tried on 2.0.1).
-func txAfter(tx byte, word, sql string, err error) byte {
+// word, ran in it, tx before, err the error it ended with, and prepared whether
+// the library took it as a statement. Any error fails the transaction it was
+// in, a cancel too (§8.1, tried on 2.0.1), a COMMIT that failed to run having
+// rolled it back; one that is not the library's changes nothing.
+func txAfter(tx byte, word, sql string, prepared bool, err error) byte {
+	var own refusal
 	switch {
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded), errors.As(err, &own):
 	case err != nil:
-		if tx == 'T' && sqlkit.EndsTx(sql, sqlkit.DuckDB) != "" { // a COMMIT that fails has rolled back
+		if tx == 'T' && prepared && sqlkit.EndsTx(sql, sqlkit.DuckDB) != "" {
 			return 'I'
 		}
 		if tx == 'T' {
@@ -218,8 +270,10 @@ func txAfter(tx byte, word, sql string, err error) byte {
 }
 
 // prepare is the statement the library made of sql, or what it says of one it could not.
-func (conn *Conn) prepare(sql string) (st uintptr, err error) {
-	if c.prepare(conn.h, sql, &st) != 0 {
+func (conn *Conn) prepare(ctx context.Context, sql string) (st uintptr, err error) {
+	var state int32
+	conn.interruptible(ctx, func() { state = c.prepare(conn.h, sql, &st) }) // binding can read files: CSV's columns say
+	if state != 0 {
 		err = errors.New(goString(c.prepareError(st)))
 		c.destroyPrep(&st)
 		return 0, err
@@ -229,12 +283,21 @@ func (conn *Conn) prepare(sql string) (st uintptr, err error) {
 
 // simple runs sql that nothing asks of, as the library's own, out of any cancel.
 func (conn *Conn) simple(sql string) error {
+	_, err := conn.scalar(sql)
+	return err
+}
+
+// scalar is the first cell of the result of sql, "" for none or NULL.
+func (conn *Conn) scalar(sql string) (string, error) {
 	var res result
 	defer c.destroy(&res)
 	if c.query(conn.h, sql, &res) != 0 {
-		return errors.New(goString(c.resultError(&res)))
+		return "", errors.New(goString(c.resultError(&res)))
 	}
-	return nil
+	if c.rowCount(&res) == 0 || c.colCount(&res) == 0 {
+		return "", nil
+	}
+	return cell(&res, 0, 0), nil
 }
 
 // describe is the columns the statement answers with, names and types as the
@@ -325,11 +388,14 @@ func (conn *Conn) interruptible(ctx context.Context, f func()) {
 // wrapped has them all as VARCHAR, cols the types describe told; any other
 // is read as the library gives it, the cells of a type it has no text for
 // shown as <?> from the first (§8.1). A result of one column, Count or Success,
-// is the answer of a command (how many rows it hit): no columns.
+// is the answer of a command (how many rows it hit): no columns. At most
+// maxRows+1 rows are read (0: all), or ctx ends the reading.
 // shortcut: duckdb_value_varchar is deprecated (still exported by 2.0.1) and
 // reads a VARCHAR alone; read the vectors of duckdb_result_get_chunk when a
-// library drops it, or when a statement's own rows need more types.
-func (conn *Conn) read(res *result, r *db.Result, cols []db.Col, wrap bool, typ int32, export bool) {
+// library drops it, or when a statement's own rows need more types; it
+// also stops a VARCHAR's text at a NUL in it (fromC), which the vector's
+// string length would not.
+func (conn *Conn) read(ctx context.Context, res *result, r *db.Result, cols []db.Col, wrap bool, typ int32, export bool, maxRows int) error {
 	n := c.colCount(res)
 	names := make([]string, n)
 	types := make([]int32, n)
@@ -340,7 +406,7 @@ func (conn *Conn) read(res *result, r *db.Result, cols []db.Col, wrap bool, typ 
 		if names[0] == "Count" && isWrite(typ) {
 			r.Affected = int64(c.rowsChanged(res))
 		}
-		return
+		return nil
 	}
 	blob := make([]bool, n)
 	r.Cols = make([]db.Col, n)
@@ -359,8 +425,16 @@ func (conn *Conn) read(res *result, r *db.Result, cols []db.Col, wrap bool, typ 
 		}
 	}
 	rows := c.rowCount(res)
+	if maxRows > 0 {
+		rows = min(rows, uint64(maxRows)+1) // one more than kept, to say there are more
+	}
 	r.Rows = make([][]db.Val, rows)
 	for row := range rows {
+		if row%1024 == 0 {
+			if err := ctx.Err(); err != nil { // a big result takes a while to read
+				return err
+			}
+		}
 		vals := make([]db.Val, n)
 		for col := range n {
 			switch {
@@ -378,6 +452,7 @@ func (conn *Conn) read(res *result, r *db.Result, cols []db.Col, wrap bool, typ 
 		}
 		r.Rows[row] = vals
 	}
+	return nil
 }
 
 // blobText is a BLOB as the library writes it, \xAA for a byte that is no

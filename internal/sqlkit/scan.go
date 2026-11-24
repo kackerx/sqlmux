@@ -114,7 +114,7 @@ func Scan(s string, d Dialect) []Token {
 		case identStart(r): // before digits and blanks: past ASCII, those are a name's too
 			i = advance(s, i, func(r rune) bool { return identStart(r) || r == '$' || r >= '0' && r <= '9' })
 			kind = Ident
-			if keywords[strings.ToLower(s[start:i])] {
+			if w := strings.ToLower(s[start:i]); keywords[w] || d == DuckDB && duckdbKeywords[w] {
 				kind = Keyword
 			}
 		case r >= '0' && r <= '9', r == '.' && i+1 < len(s) && s[i+1] >= '0' && s[i+1] <= '9':
