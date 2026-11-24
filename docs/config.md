@@ -62,6 +62,9 @@ load_all  = 5000                       # hashes, sets and sorted sets up to this
 index_keys = 100000                    # key names kept per database for fuzzy key completion and the palette
 index_cache = true                     # save that index to disk, so completion is ready at once next time
 
+[duckdb]
+library = ""                           # the libduckdb to load; unset = look in the data directory, Homebrew's, /usr/local/lib, then the system's
+
 [pane]
 outer_nav = "off"                      # "auto": inside tmux, C-h / C-j / C-k / C-l at sqlmux's edge go to the next tmux pane
 ```
@@ -107,7 +110,7 @@ sqlmux uses `pbcopy` / `pbpaste`, `wl-copy` / `wl-paste`, `xclip` or `xsel`, whi
 ```toml
 [[connection]]
 name     = "local"                     # required, unique; no / or \, not starting with .
-engine   = "postgres"                  # postgres | mysql | sqlite | mssql | redis
+engine   = "postgres"                  # postgres | mysql | sqlite | duckdb | mssql | redis
 dsn      = "postgres://me@localhost:5432/app?sslmode=disable"
 password_cmd = "security find-generic-password -s sqlmux-local -w"
 read_only = false                      # refuse writes on this connection
@@ -125,6 +128,7 @@ DSN per engine:
 | `postgres` | `postgres://user@host:5432/db?sslmode=disable` (the tree lists the other databases on the server too) |
 | `mysql` | `user@tcp(host:3306)/db` or `mysql://user@host:3306/db` |
 | `sqlite` | a file path; `~` is expanded, `?mode=ro` and other query parameters pass through; a missing file is not created |
+| `duckdb` | a file path, as for `sqlite` (`~` expanded, a missing file is not created unless `?mode=rwc`), or `:memory:` to query Parquet and CSV files directly; other query parameters (`?memory_limit=4GB&threads=4`) are DuckDB settings. Needs `libduckdb`, see `[duckdb] library` above |
 | `mssql` | `sqlserver://user@host:1433?database=app` (`mssql://` works too); driver options such as `encrypt` pass through. A server with a self-signed certificate, like the official Docker image, needs `&TrustServerCertificate=true` |
 | `redis` | `redis://user@host:6379/0` or `rediss://…`; the number is the database. See [Redis](redis.md) |
 | `exec` | no `dsn`: `dialect` and `command`, see [External commands](#external-commands-engine--exec) |
@@ -175,7 +179,7 @@ The command runs once per statement (cancelling kills it) and prints JSON on std
 ```sh
 sqlmux                      # restore the layout you quit from (or the default one)
 sqlmux local                # open the connection named local
-sqlmux ./app.db             # open a SQLite file
+sqlmux ./app.db             # open a SQLite file (a .duckdb or .ddb file opens as DuckDB)
 sqlmux postgres://me@localhost/app   # or mysql://…, redis://…: a temporary connection, not saved anywhere
 sqlmux --layout work        # open layouts/work.toml (or a path)
 sqlmux local --table orders # open the table orders of local ([schema.]table; on Redis, a key)

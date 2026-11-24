@@ -71,11 +71,11 @@ var connFields = []string{fieldName: "name", fieldGroup: "group", fieldEngine: "
 	fieldPassword: "password", fieldDatabase: "database", fieldReadOnly: "read_only", fieldProduction: "production", fieldAdvanced: "", fieldDSN: "dsn", fieldPasswordCmd: "password_cmd", fieldSSH: "ssh"}
 
 // defaultPort is the port of an engine's server.
-var defaultPort = map[string]string{"postgres": "5432", "mysql": "3306", "redis": "6379", "mssql": "1433"} // none for SQLite
+var defaultPort = map[string]string{"postgres": "5432", "mysql": "3306", "redis": "6379", "mssql": "1433"} // none for a file
 
 // dsnExample is what an empty dsn field shows of each engine, the URL form
 // of both (§8): the driver's own form of MySQL is read as well, not shown.
-var dsnExample = map[string]string{"postgres": "postgres://user:pass@host:5432/db?sslmode=prefer", "mysql": "mysql://user:pass@host:3306/db", "sqlite": "~/data.db?mode=ro", "redis": "redis://user:pass@host:6379/0", "mssql": "sqlserver://user:pass@host:1433?database=db&TrustServerCertificate=true"}
+var dsnExample = map[string]string{"postgres": "postgres://user:pass@host:5432/db?sslmode=prefer", "mysql": "mysql://user:pass@host:3306/db", "sqlite": "~/data.db?mode=ro", "redis": "redis://user:pass@host:6379/0", "mssql": "sqlserver://user:pass@host:1433?database=db&TrustServerCertificate=true", "duckdb": "~/data.duckdb?mode=ro"}
 
 // managed are the connections the manager lists: those of connections.toml,
 // not one of the command line, which is nowhere to find, edit or delete (F14.1).
@@ -101,7 +101,7 @@ func blankFields() []ui.FormField {
 		fs[i].Label = name
 	}
 	fs[fieldAdvanced].Label = i18n.T("高级")
-	fs[fieldEngine].Kind, fs[fieldEngine].Choices = ui.FormSegments, []string{"postgres", "mysql", "sqlite", "redis", "mssql"}
+	fs[fieldEngine].Kind, fs[fieldEngine].Choices = ui.FormSegments, []string{"postgres", "mysql", "sqlite", "redis", "mssql", "duckdb"}
 	fs[fieldReadOnly].Kind = ui.FormCheck
 	fs[fieldProduction].Kind = ui.FormCheck
 	fs[fieldAdvanced].Kind = ui.FormFold
@@ -175,7 +175,7 @@ var mysqlDSN = regexp.MustCompile(`^(?:([^:@/]*)(?::[^@]*)?@)?tcp\(([^)]*)\)/([^
 // says them in a form it knows: a URL, which is what the form writes for
 // both engines, or the go-sql-driver's; "" for what it cannot read.
 func splitDSN(engine, dsn string) (host, port, user, database string) {
-	if engine == "sqlite" { // the file is all there is
+	if config.FileEngine(engine) { // the file is all there is
 		return "", "", "", dsn
 	}
 	if engine == "mysql" && !strings.Contains(dsn, "://") {
@@ -208,18 +208,18 @@ func (f *connForm) skipped(i int) bool {
 	case fieldDSN, fieldPasswordCmd:
 		return !f.advanced()
 	case fieldSSH: // a file has no network to go through (F15.2)
-		return !f.advanced() || f.sqlite()
+		return !f.advanced() || f.file()
 	case fieldHost, fieldPort, fieldUser:
-		return f.dsnGiven() || f.sqlite()
+		return f.dsnGiven() || f.file()
 	case fieldPassword:
-		return f.sqlite()
+		return f.file()
 	case fieldDatabase:
 		return f.dsnGiven()
 	}
 	return false
 }
 
-// password is the password typed, "" with SQLite on, whose password field is
+// password is the password typed, "" with a file engine on, whose password field is
 // hidden: what it held when the engine was another's is no password of a file.
 func (f *connForm) password() string {
 	if f.skipped(fieldPassword) {
@@ -228,11 +228,11 @@ func (f *connForm) password() string {
 	return f.fields[fieldPassword].Input.Text
 }
 
-// sqlite is whether the engine on is SQLite, whose form is a file, its
-// database field, and no more (F14.1).
-func (f *connForm) sqlite() bool {
+// file is whether the engine on is SQLite or DuckDB, whose form is a file, its
+// database field, and no more (F14.1, F24.2).
+func (f *connForm) file() bool {
 	e := f.fields[fieldEngine]
-	return e.Choices[e.On] == "sqlite"
+	return config.FileEngine(e.Choices[e.On])
 }
 
 // redis is whether the engine on is Redis, which has no user that must be
@@ -560,7 +560,7 @@ func (a *App) formConn() (config.Connection, bool) {
 		c.DSN = text(fieldDSN)
 		return c, true
 	}
-	if f.sqlite() { // the file is the dsn
+	if f.file() { // the file is the dsn
 		if text(fieldDatabase) == "" {
 			a.fail(fieldDatabase, i18n.T("缺少 %s", "file"))
 			return c, false
@@ -683,6 +683,8 @@ func versionText(engine, v string) string {
 		return "MySQL " + v
 	case "sqlite":
 		return "SQLite " + v
+	case "duckdb": // version() says v2.0.1
+		return "DuckDB " + v
 	case "redis": // INFO server's text
 		return "Redis " + redis.Version(v)
 	}
@@ -905,10 +907,10 @@ func (a *App) formView() ui.Form {
 		fieldAdvanced: ic.Advanced, fieldDSN: ic.Link, fieldPasswordCmd: ic.Query, fieldSSH: ic.Link}
 	for i := range fields {
 		fields[i].Icon = icons[i]
-		fields[i].Hidden = (i == fieldDSN || i == fieldPasswordCmd || i == fieldSSH) && !f.advanced() || f.sqlite() && (i == fieldHost || i == fieldPort || i == fieldUser || i == fieldPassword || i == fieldSSH)
+		fields[i].Hidden = (i == fieldDSN || i == fieldPasswordCmd || i == fieldSSH) && !f.advanced() || f.file() && (i == fieldHost || i == fieldPort || i == fieldUser || i == fieldPassword || i == fieldSSH)
 		fields[i].Dim = f.skipped(i) && !fields[i].Hidden
 	}
-	if f.sqlite() {
+	if f.file() {
 		fields[fieldDatabase].Label = "file"
 	}
 	if f.redis() {

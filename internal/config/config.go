@@ -57,6 +57,9 @@ type Config struct {
 	// RedisIndexCache is `[redis] index_cache`: the index of a db's key names
 	// is kept on disk and used at the next start (§9.8, F21.4).
 	RedisIndexCache bool
+	// DuckDBLibrary is `[duckdb] library`: the libduckdb to load, "" to look for it
+	// (§8.1, F24.1).
+	DuckDBLibrary string
 	// HistoryMax is how many statements history.jsonl keeps, the oldest cut
 	// at the start (`[query] history_max`, §11).
 	HistoryMax int
@@ -193,6 +196,9 @@ func Parse(data string) (*Config, error) {
 			IndexKeys  *int    `toml:"index_keys"`
 			IndexCache *bool   `toml:"index_cache"`
 		} `toml:"redis"`
+		DuckDB struct {
+			Library string `toml:"library"`
+		} `toml:"duckdb"`
 		Pane struct {
 			OuterNav *string `toml:"outer_nav"`
 		} `toml:"pane"`
@@ -320,6 +326,7 @@ func Parse(data string) (*Config, error) {
 		}
 		c.OuterNav = *n
 	}
+	c.DuckDBLibrary = raw.DuckDB.Library
 	if raw.Redis.IndexCache != nil {
 		c.RedisIndexCache = *raw.Redis.IndexCache
 	}

@@ -33,6 +33,7 @@ type Icons struct {
 	// A Redis key's type in the tree (F16.2)
 	Str, Hash, List, Set, ZSet, Stream, JSON Icon
 	SQLite                                   Icon
+	DuckDB                                   Icon
 	Search, Keys                             Icon // status bar: palette entry, pending keys
 	Conn                                     Icon
 	Key                                      Icon // primary key columns
@@ -88,6 +89,7 @@ var NerdIcons = &Icons{
 	Stream:      Icon{Text: "\uf043"},     // nf-fa-tint
 	JSON:        Icon{Text: "\uf1c9"},     // nf-fa-file_code_o
 	SQLite:      Icon{Text: "\ue7c4"},     // nf-dev-sqllite
+	DuckDB:      Icon{Text: "\U000f01e5"}, // nf-md-duck
 	Search:      Icon{Text: "\uf002"},     // nf-fa-search
 	Keys:        Icon{Text: "\uf11c"},     // nf-fa-keyboard_o
 	Conn:        Icon{Text: "\uf1e6"},     // nf-fa-plug
@@ -154,6 +156,7 @@ var ASCIIIcons = &Icons{
 	Stream:      Icon{Text: "x"},
 	JSON:        Icon{Text: "j"},
 	SQLite:      Icon{Text: "sq"},
+	DuckDB:      Icon{Text: "dk"},
 	Search:      Icon{Text: "~"},
 	Keys:        Icon{Text: "kb"},
 	Conn:        Icon{Text: "@"},
@@ -260,6 +263,8 @@ func (ic *Icons) Engine(engine string) Icon {
 		return ic.MySQL
 	case "sqlite":
 		return ic.SQLite
+	case "duckdb":
+		return ic.DuckDB
 	case "redis":
 		return ic.Redis
 	}
@@ -283,7 +288,7 @@ func (ic *Icons) byName() map[string]*Icon {
 	return map[string]*Icon{
 		"schema": &ic.Schema, "table": &ic.Table, "query": &ic.Query,
 		"filter": &ic.Filter, "search": &ic.Search, "keys": &ic.Keys, "conn": &ic.Conn,
-		"key": &ic.Key, "postgres": &ic.Postgres, "mysql": &ic.MySQL, "redis": &ic.Redis, "str": &ic.Str, "hash": &ic.Hash, "list": &ic.List, "set": &ic.Set, "zset": &ic.ZSet, "stream": &ic.Stream, "json": &ic.JSON, "sqlite": &ic.SQLite, "command": &ic.Command, "window": &ic.Window,
+		"key": &ic.Key, "postgres": &ic.Postgres, "mysql": &ic.MySQL, "redis": &ic.Redis, "str": &ic.Str, "hash": &ic.Hash, "list": &ic.List, "set": &ic.Set, "zset": &ic.ZSet, "stream": &ic.Stream, "json": &ic.JSON, "sqlite": &ic.SQLite, "duckdb": &ic.DuckDB, "command": &ic.Command, "window": &ic.Window,
 		"save": &ic.Save, "refresh": &ic.Refresh, "transpose": &ic.Transpose,
 		"row_add": &ic.RowAdd, "row_delete": &ic.RowDelete, "auto_refresh": &ic.AutoRefresh, "stop": &ic.Stop,
 		"sort_asc": &ic.SortAsc, "sort_desc": &ic.SortDesc, "view": &ic.View, "column": &ic.Column, "lock": &ic.Lock, "connected": &ic.Connected,

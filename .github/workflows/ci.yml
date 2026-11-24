@@ -117,4 +117,12 @@ jobs:
           mysql -h 127.0.0.1 -uroot -psqlmux sqlmux < testdata/seed/mysql.sql
           docker run -i --rm --network host redis/redis-stack-server:7.4.0-v3 redis-cli -h 127.0.0.1 < testdata/seed/redis.txt
           docker run -i --rm --network host --entrypoint /opt/mssql-tools18/bin/sqlcmd mcr.microsoft.com/mssql/server:2022-latest -C -b -S localhost -U sa -P 'Sqlmux!2026' < testdata/seed/mssql.sql
+      # F24.2: DuckDB needs no service, but its library: the version sqlmux pins
+      # (duckdb.PinnedVersion), its checksum the one F24.3 puts in the download table
+      - name: libduckdb
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/duckdb.tgz" https://install.duckdb.org/v2.0.1/duckdb-shared-libs-linux-amd64.tar.gz
+          echo "e25502612fed533a243b61f23a2a574daad030e7e88906222a5f0ab30d06769e  $RUNNER_TEMP/duckdb.tgz" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/duckdb" && tar -xzf "$RUNNER_TEMP/duckdb.tgz" -C "$RUNNER_TEMP/duckdb"
+          echo "SQLMUX_TEST_DUCKDB=$RUNNER_TEMP/duckdb/libduckdb.so" >> "$GITHUB_ENV"
       - run: go test -tags integration ./...

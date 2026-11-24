@@ -487,3 +487,14 @@ func TestOuterNav(t *testing.T) {
 		t.Errorf("zellij: %v", err)
 	}
 }
+
+// [duckdb] library is the libduckdb to load (F24.2); a misspelt key is told.
+func TestParseDuckDB(t *testing.T) {
+	c, err := Parse("[duckdb]\nlibrary = \"/opt/lib/libduckdb.so\"\n")
+	if err != nil || c.DuckDBLibrary != "/opt/lib/libduckdb.so" || len(c.Unknown) != 0 {
+		t.Errorf("%+v %v", c, err)
+	}
+	if c, _ := Parse("[duckdb]\nlibrry = \"x\"\n"); len(c.Unknown) != 1 || c.DuckDBLibrary != "" {
+		t.Errorf("a misspelt key: %v", c.Unknown)
+	}
+}

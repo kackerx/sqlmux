@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/kackerx/sqlmux/internal/config"
+	"github.com/kackerx/sqlmux/internal/db/duckdb"
 	"github.com/kackerx/sqlmux/internal/editor"
 	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/keymap"
@@ -149,6 +150,7 @@ var whichKeyDelay = 400 * time.Millisecond
 // not "", shows as a toast on start.
 func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, warning string) *App {
 	editor.UnnamedPlus = cfg.Clipboard == "unnamedplus"
+	duckdb.Configure(cfg.DuckDBLibrary, config.DataDir()) // where to look for libduckdb (§8.1)
 	a := &App{
 		theme: cfg.Theme, icons: cfg.Icons, baseIcons: cfg.BaseIcons, plain: !cfg.Vim, themeName: cfg.ThemeName, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, redisDelim: cfg.RedisDelimiter, scanKeys: cfg.RedisScanKeys, indexKeys: cfg.RedisIndexKeys, indexCache: cfg.RedisIndexCache, outerNav: cfg.OuterNav == "auto", loadAll: cfg.RedisLoadAll, resultHeight: cfg.ResultHeight, fullWidth: cfg.GridFullWidth, treeWidth: cfg.TreeWidth, treeFollow: cfg.TreeFollow, border: cfg.Border, focusBorder: cfg.FocusBorder, newDesc: cfg.GridDesc, newTurned: cfg.GridTranspose,
 		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg, autoPairs: cfg.AutoPairs, valueHints: cfg.Hints, tipsOn: cfg.Tips, tip: tipState{cur: -1, pick: rand.IntN}, confirmDangerous: cfg.ConfirmDangerous, previewSave: cfg.PreviewSave,

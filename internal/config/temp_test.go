@@ -20,7 +20,9 @@ func TestTempConnection(t *testing.T) {
 		"mssql://sa@127.0.0.1:1/?database=foo":           {Name: "foo@127.0.0.1", Engine: "mssql", DSN: "mssql://sa@127.0.0.1:1/?database=foo", Temp: true},           // the driver's start is made sqlserver:// at connect (mssql.Config)
 		"sqlserver://sa@db.example:1433?Database=shop":   {Name: "shop@db.example", Engine: "mssql", DSN: "sqlserver://sa@db.example:1433?Database=shop", Temp: true}, // as the driver reads the key
 		"sqlserver://sa@h/inst":                          {Name: "h", Engine: "mssql", DSN: "sqlserver://sa@h/inst", Temp: true},                                      // the path is the instance, not a database
-		`D:/x.db`:                                        {Name: "x", Engine: "sqlite", DSN: `D:/x.db`, Temp: true},                                                   // a windows drive, both separators taken
+		"./sales.duckdb":                                 {Name: "sales", Engine: "duckdb", DSN: "./sales.duckdb", Temp: true},
+		"/tmp/Data.DDB?mode=rwc":                         {Name: "Data", Engine: "duckdb", DSN: "/tmp/Data.DDB?mode=rwc", Temp: true},
+		`D:/x.db`:                                        {Name: "x", Engine: "sqlite", DSN: `D:/x.db`, Temp: true}, // a windows drive, both separators taken
 	}
 	if runtime.GOOS == "windows" { // unix's filepath.Base does not cut at a backslash
 		targets[`C:\data\a.db`] = Connection{Name: "a", Engine: "sqlite", DSN: `C:\data\a.db`, Temp: true}
@@ -47,7 +49,7 @@ func TestTempConnection(t *testing.T) {
 // engines without a line here, or a URL start the command line does not take,
 // is red (M18 left mssql:// out, issue #19).
 func TestTempConnectionOpensEveryEngine(t *testing.T) {
-	url := map[string]string{"postgres": "postgres://h/d", "mysql": "mysql://h/d", "redis": "redis://h/0", "mssql": "sqlserver://h?database=d", "sqlite": "", "exec": ""} // "": no URL
+	url := map[string]string{"postgres": "postgres://h/d", "mysql": "mysql://h/d", "redis": "redis://h/0", "mssql": "sqlserver://h?database=d", "sqlite": "", "duckdb": "", "exec": ""} // "": no URL
 	for _, e := range engines {
 		u, ok := url[e]
 		if !ok {
