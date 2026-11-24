@@ -41,7 +41,7 @@ trow() { local y; for y in $(seq 3 43); do [[ $(e2e_text 1 32 "$y") == *" $1 "* 
 CT=$E2E_TMP/config/sqlmux/connections.toml
 pal ">conn.new"; key Enter; sleep 0.4
 key Tab; sleep 0.2; key Tab; sleep 0.2; for i in 1 2 3 4; do key Space; done; sleep 0.3
-check "表单 engine 选 mssql：engine 行是 postgres │ mysql │ sqlite │ redis │ mssql，端口默认 1433" eval 'e2e_plain | grep -qa "engine  postgres │ mysql │ sqlite │ redis │ mssql" && e2e_plain | grep -qa "port 1433"'
+check "表单 engine 选 mssql：engine 行是 postgres │ mysql │ sqlite │ redis │ mssql │ duckdb，端口默认 1433" eval 'e2e_plain | grep -qa "engine  postgres │ mysql │ sqlite │ redis │ mssql │ duckdb" && e2e_plain | grep -qa "port 1433"'
 key Escape; sleep 0.3; key Escape; sleep 0.3
 pal ">conn.new"; key Enter; form_dsn m2 "$SQLMUX_TEST_MSSQL" "" mssql
 check "新建连接 engine 切成 mssql：追加的一段是 engine = \"mssql\"，树里多出 m2" eval 'grep -q "^engine = \"mssql\"" <(tail -6 "$CT") && [[ -n $(trow m2) ]] || { tail -8 "$CT"; false; }'
