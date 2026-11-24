@@ -4,7 +4,7 @@
 - **目标**：DuckDB 作为第六个引擎：打开 `.duckdb` 文件或内存库，树、表格、改格子保存、query、取消都和 PG 一样能用；不用 cgo，发布方式和二进制大小不变。发 v0.12.0。
 - **范围**：§8.1「DuckDB」（全部细节在那一条）、§4 的 `internal/db/duckdb`、§14 的 `engine = "duckdb"` 和 `[duckdb] library`、命令行的 `.duckdb` / `.ddb`、§7.8 连接表单的 duckdb 段。评估和实测在 `eval.md`；探针在仓库外 `/home/kacker/proj/sqlmux-aud/engines/duckdb/nocgo/b/`（purego 绑定 167 行，取消、两条连接、`cast(columns(*) as varchar)` 都在 Linux 和 Windows 上跑过），照它写，不从零摸索。
 - **依赖**：M22 完成（v0.11.0）。M23 书签往后排。
-- **完成标准**：两个节点全过；完整回归绿（清单外 0）；Windows 冒烟绿，另在 Windows 上连一次 DuckDB；用户验收后打 `m24`、`v0.12.0`，照 AGENTS.md 两步推送。
+- **完成标准**：两个节点全过；Linux 默认包仍是静态的；完整回归绿（清单外 0）；Windows 冒烟绿，另在 Windows 上连一次 DuckDB；用户验收后打 `m24`、`v0.12.0`，照 AGENTS.md 两步推送。
 - **审查节点**：1 = F24.1 + F24.2；2 = F24.3 + F24.4。都由 worker 在 `main` 上做，按 AGENTS.md 的后台会话和 Codex 审查走。
 - **不做（留候选）**：`attach` 进来的库进树（数据库层）；官方 cgo 驱动的构建包；DuckDB 的多进程写（2.0 的 Quack）；无主键表靠 `rowid` 编辑；在 sqlmux 外面限制 DuckDB 的内存（崩溃会带走界面，用户可在 DSN 里设 `memory_limit`）。
 
@@ -29,7 +29,7 @@
 **验收**
 - [ ] 单测：DSN 解析（`~`、相对路径、`?mode=rwc`、配置项、`:memory:`）、错误拆分、语句包装；mutation。
 - [ ] 集成测试（`SQLMUX_TEST_DUCKDB`）：各类型的文本和 CLI 的一致（LIST、STRUCT、MAP、DECIMAL、HUGEINT、TIMESTAMPTZ 换 `TimeZone`、UUID、BLOB、INTERVAL、NULL 和字符串 'NULL'）；取消一条长查询 1 秒内回来、连接还能用；事务里取消后 aborted；Meta 写入被拒；两条连接互不阻塞；断开后另一个进程（CLI）能打开文件。
-- [ ] `GOOS=windows`、`GOOS=darwin`、`GOARCH=arm64` 交叉编译过，`CGO_ENABLED=0`。
+- [ ] `GOOS=windows`、`GOOS=darwin`、`GOARCH=arm64` 交叉编译过，`CGO_ENABLED=0`；不带标签的 linux/amd64 产物是静态的、在 `alpine:3` 容器里 `--version` 能跑。
 
 ## F24.2 DuckDB 引擎与接线 · 状态：todo
 
@@ -43,6 +43,8 @@
 - [ ] c. 分页、计数、AutoLimit 走 PG 的形状；保存、乐观校验、事务收尾走共用层，不另写。无主键也没有唯一约束的表只读，原因写在界面上（同 SQLite 的 blob 键那条的话术）。
 - [ ] d. 配置和界面：`engine = "duckdb"`；`[duckdb] library`；连接表单的 duckdb 段同 sqlite（§7.8）；树的连接图标加 `duckdb`（nerd font 里挑一个，ascii 回退，主题可覆盖，同 `postgres` / `redis`）；命令行 `sqlmux x.duckdb` / `x.ddb` 开临时 DuckDB 连接（§14）；`--table` 的当前 schema 是 `main`。
 - [ ] e. 测试环境：`testdata/seed/duckdb.sql`（对照 `pg.sql` 的表和行，类型换成 DuckDB 的；外键只能写在 `create table` 里，DuckDB 不支持 `alter table add constraint foreign key`），集成测试在临时目录建库导入；CI 的 integration job 加一步下载钉死版本的 libduckdb（同 F24.3 的地址和 sha256），设 `SQLMUX_TEST_DUCKDB`。
+
+- [ ] f. **Linux 的构建标签**（用户 2026-11-24 定，Codex 审查发现 purego 让 Linux 二进制变成动态的）：§8.1「Linux 例外」和 §15「Linux 的 DuckDB 包」。purego 和绑定只在 `!linux || duckdb` 时编译，`linux && !duckdb` 是一个只返回「不带 DuckDB」错误的桩；`.goreleaser.yaml` 加带标签的 Linux build 和 `_duckdb` 压缩包；`justfile` 和 CI 的 Linux job 带标签，另加不带标签的静态断言。
 
 **验收**
 - [ ] 单测：方言、`Quote` / `Arg` / `Same` / `Eq`、命令行认扩展名；mutation。
