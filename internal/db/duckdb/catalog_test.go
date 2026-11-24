@@ -394,6 +394,7 @@ func TestReadOnlyConnection(t *testing.T) {
 func TestManualSaveIsAllOrNothing(t *testing.T) {
 	c, _ := seeded(t)
 	ctx, e, w := context.Background(), Engine{}, db.NewWorker(c)
+	q(t, c, "create temp macro error(msg) as msg") // a user's macro does not stand in for what fails the transaction
 	ch := db.Changes{Updates: []db.Row{
 		{Key: []string{"1"}, Cols: []db.Change{{Name: "name", Val: db.Val{S: "ALICE"}, Old: db.Val{S: "user_1"}}}},
 		{Key: []string{"2"}, Cols: []db.Change{{Name: "name", Val: db.Val{S: "BOB"}, Old: db.Val{S: "changed since"}}}},
@@ -413,24 +414,37 @@ func TestManualSaveIsAllOrNothing(t *testing.T) {
 	}
 }
 
-// A USE that leaves the file's database is undone: the grid's two connections
-// would go by different ones, and a write by one name reach another file.
-func TestUseStaysInTheDatabase(t *testing.T) {
+// A statement that leaves the file's database is undone, whichever it is: the
+// grid's two connections would go by different ones, and a write by one name
+// reach another file; the schema is where it was.
+func TestStatementsStayInTheDatabase(t *testing.T) {
 	c, _ := seeded(t)
 	ctx := context.Background()
+	where := func() []string {
+		return cells(q(t, c, "select current_database() = (select database_name from duckdb_tables() where table_name = 't_log'), current_schema()"))
+	}
 	q(t, c, "attach ':memory:' as other")
-	q(t, c, "create table other.t_user(id bigint primary key, name varchar)")
+	q(t, c, "create schema other.agentable") // a schema of the same name in the other
+	q(t, c, "create table other.main.t_user(id bigint primary key, name varchar)")
+	q(t, c, "create table other.agentable.agent(id int)")
 	q(t, c, "begin")
-	_, err := c.Query(ctx, "use other")
-	if err == nil || !strings.Contains(err.Error(), "database.schema.table") {
-		t.Fatalf("use other: %v", err)
+	for _, sql := range []string{"use other", "set schema = 'other.main'", "set schema = 'other.agentable'", "use other.agentable"} {
+		_, err := c.Query(ctx, sql)
+		if err == nil || !strings.Contains(err.Error(), "database.schema.table") {
+			t.Fatalf("%s: %v", sql, err)
+		}
+		if db.TxStatus(c) != 'T' {
+			t.Errorf("%s: the transaction is as it was: %c", sql, db.TxStatus(c))
+		}
+		eq(t, where(), []string{"true", "main"})
 	}
-	if db.TxStatus(c) != 'T' {
-		t.Errorf("the transaction is as it was: %c", db.TxStatus(c))
-	}
-	eq(t, cells(q(t, c, "select current_database() = (select database_name from duckdb_tables() where table_name = 't_log')")), []string{"true"})
 	eq(t, cells(q(t, c, "select count(*) from t_user")), []string{"50"})
-	q(t, c, "use agentable") // a schema of its own is as it was
+	q(t, c, "use agentable") // a schema of its own is as it was, and where the next undo goes
+	_, err := c.Query(ctx, "use other")
+	if err == nil {
+		t.Fatal("use other")
+	}
+	eq(t, where(), []string{"true", "agentable"})
 	eq(t, cells(q(t, c, "select count(*) from agent")), []string{"3"})
 	q(t, c, "rollback")
 }
@@ -469,6 +483,24 @@ func TestCancelledBeforeAndLongResults(t *testing.T) {
 		t.Errorf("a cancelled statement: %v", err)
 	}
 	eq(t, cells(q(t, c, "select count(*) from t_log")), []string{"3"})
+	// an export that fails does not fail the transaction it is in
+	q(t, c, "begin")
+	q(t, c, "insert into t_log values (now(), 'pending')")
+	disk := errors.New("disk full")
+	err := db.Guarded(context.Background(), c, "sqlmux_export", func() error {
+		return db.Each(context.Background(), c, "select * from t_sku", func([]db.Col) error { return nil }, func([]db.Val) error { return disk })
+	})
+	if !errors.Is(err, disk) || db.TxStatus(c) != 'T' {
+		t.Errorf("the export: %v, tx %c", err, db.TxStatus(c))
+	}
+	q(t, c, "commit")
+	eq(t, cells(q(t, c, "select count(*) from t_log")), []string{"4"})
+	// cancelled as the last row is written: the export did not finish
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	err = c.Stream(ctx2, "select 5", func([]db.Col) error { return nil }, func([]db.Val) error { cancel2(); return nil })
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("a cancel on the last row: %v", err)
+	}
 	rs, err := c.Exec(context.Background(), "update t_sku set price = price returning code", 5)
 	if err != nil || len(rs) != 1 || len(rs[0].Rows) != 5 || !rs[0].Truncated {
 		t.Errorf("a raw result of 20 rows, 5 kept: %d %v %v", len(rs[0].Rows), rs[0].Truncated, err)
@@ -496,4 +528,38 @@ func TestTransactionControlThatIsNotTaken(t *testing.T) {
 		t.Errorf("it left the transaction to be rolled back: %c", db.TxStatus(c))
 	}
 	q(t, c, "rollback")
+}
+
+// A library that is too old is not kept: the next connection looks again, and
+// finds another (F24.3 asks for it).
+func TestOldLibraryIsNotKept(t *testing.T) {
+	UseLibrary(t)
+	was := minVersion
+	loadMu.Lock()
+	wasLoaded := loaded
+	loaded = false // to look again
+	loadMu.Unlock()
+	minVersion = "99.0.0"
+	defer func() {
+		minVersion = was
+		loadMu.Lock()
+		loaded = wasLoaded
+		loadMu.Unlock()
+	}()
+	_, _, err := Connect(context.Background(), ":memory:", "", false)
+	if err == nil || !strings.Contains(err.Error(), "v99.0.0") {
+		t.Fatalf("a library below the minimum: %v", err)
+	}
+	loadMu.Lock()
+	kept := loaded
+	loadMu.Unlock()
+	if kept {
+		t.Error("it is kept")
+	}
+	minVersion = was
+	c, _, err := Connect(context.Background(), ":memory:", "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
 }

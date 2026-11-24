@@ -218,9 +218,15 @@ func TestEngineSQL(t *testing.T) {
 	if e.Dialect() != sqlkit.DuckDB {
 		t.Error("dialect")
 	}
-	set, rollback, release := (*Conn)(nil).Savepoint("x") // no savepoints: setting one does nothing, taking it back fails the transaction
-	if set != "select 1" || !strings.HasPrefix(rollback, "select error(") || release != "" || (*Conn)(nil).Begin() != "begin" {
+	// no savepoints: setting one does nothing; taking back a save's fails the transaction, a read's or an export's does nothing
+	set, rollback, release := (*Conn)(nil).Savepoint(db.SaveSavepoint)
+	if set != "select 1" || !strings.HasPrefix(rollback, "select cast(") || release != "" || (*Conn)(nil).Begin() != "begin" {
 		t.Errorf("tx words %q %q %q", set, rollback, release)
+	}
+	for _, name := range []string{"sqlmux_page", "sqlmux_export"} {
+		if set, rollback, release := (*Conn)(nil).Savepoint(name); set != "select 1" || rollback != "select 1" || release != "" {
+			t.Errorf("%s: %q %q %q", name, set, rollback, release)
+		}
 	}
 }
 

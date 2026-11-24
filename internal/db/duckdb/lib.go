@@ -108,7 +108,7 @@ const PinnedVersion = "2.0.1"
 
 // minVersion is the oldest libduckdb the catalog queries run on: 1.4.4 has no
 // duckdb_columns().is_generated (tried on both).
-const minVersion = "2.0.0"
+var minVersion = "2.0.0" // a var for the tests
 
 // atLeast is whether version v, "v2.0.1" or "v2.1.0-dev123", is minimum or
 // later, by its numbers.
@@ -220,6 +220,10 @@ func Load() error {
 		if err := bind(h); err != nil {
 			closeLib(h) // not kept: the user's next try is of another library
 			return err
+		}
+		if v := Version(); !atLeast(v, minVersion) {
+			closeLib(h) // nor is one that is too old, for a newer one to be found at the next try
+			return fmt.Errorf("%s", i18n.T("libduckdb 至少要 v%s，这个是 %s", minVersion, v))
 		}
 		loaded = true
 		return nil

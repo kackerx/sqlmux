@@ -44,7 +44,8 @@ type Conn struct {
 	h        uintptr
 	readOnly bool
 	tx       byte   // 'I', 'T', or 'E' for a transaction a statement failed in: any error does that (§8.1)
-	database string // the library's name for the file's database, which a USE must leave as it is
+	database string // the library's name for the file's database, where every statement leaves the connection
+	schema   string // and the schema it was in after the last
 	closed   bool
 }
 
@@ -59,9 +60,6 @@ func Connect(ctx context.Context, spec, _ string, readOnly bool) (*Conn, db.Info
 	if err := Load(); err != nil {
 		return nil, db.Info{}, err
 	}
-	if v := Version(); !atLeast(v, minVersion) {
-		return nil, db.Info{}, fmt.Errorf("%s", i18n.T("libduckdb 至少要 v%s，这个是 %s", minVersion, v))
-	}
 	t, err := parse(spec)
 	if err != nil {
 		return nil, db.Info{}, err
@@ -75,10 +73,12 @@ func Connect(ctx context.Context, spec, _ string, readOnly bool) (*Conn, db.Info
 		inst.release()
 		return nil, db.Info{}, errors.New("duckdb_connect failed")
 	}
-	if conn.database, err = conn.scalar("select current_database()"); err != nil {
+	where, err := conn.scalars("select current_database(), current_schema()")
+	if err != nil {
 		conn.Close()
 		return nil, db.Info{}, err
 	}
+	conn.database, conn.schema = where[0], where[1]
 	return conn, db.Info{Addr: t.path, Path: "main"}, nil // no database before main on a query's title, as SQLite's
 }
 
@@ -127,7 +127,7 @@ func (conn *Conn) Stream(ctx context.Context, sql string, head func([]db.Col) er
 			return err
 		}
 	}
-	return nil
+	return ctx.Err() // the last row was written as the cancel came
 }
 
 // run runs sql, one statement, keeping at most maxRows rows (0: all), the
@@ -185,10 +185,8 @@ func (conn *Conn) run(ctx context.Context, sql string, args []db.Val, maxRows in
 		return r, err
 	}
 	defer c.destroy(res)
-	if word == "use" {
-		if err := conn.keepDatabase(); err != nil {
-			return r, err
-		}
+	if err := conn.keepDatabase(); err != nil {
+		return r, err
 	}
 	if err := conn.read(ctx, res, &r, cols, wrap, typ, export, maxRows); err != nil {
 		return r, err
@@ -218,16 +216,26 @@ type refusal struct{ msg string }
 
 func (e refusal) Error() string { return e.msg }
 
-// keepDatabase is run after a USE: the connection stays in the file's own
-// database, where a grid's reads and writes (the Meta and Main connections go
-// by their own current database) and the catalog are; another is one that was
-// attached (§8.1), by its three-part names instead.
+// keepDatabase is run after every statement that ran: the connection stays in
+// the file's own database, which a grid's reads and writes (a table is its
+// schema and name, the Meta and Main connections each go by their own current
+// database) and the catalog rest on. A USE or a SET schema that went to one that
+// was attached (§8.1) is undone, to where the connection was, and said: its
+// tables are named by three parts instead.
 func (conn *Conn) keepDatabase() error {
-	if cur, err := conn.scalar("select current_database()"); err != nil || cur == conn.database {
+	where, err := conn.scalars("select current_database(), current_schema()")
+	if err != nil {
 		return err
 	}
-	_ = conn.simple("use " + (Engine{}).Quote(conn.database))
-	return refusal{i18n.T("DuckDB 连接里不能用 use 切换到别的库，请用 库.schema.表 的三段名")}
+	if where[0] == conn.database {
+		conn.schema = where[1]
+		return nil
+	}
+	e := Engine{}
+	if conn.simple("use "+e.Quote(conn.database, conn.schema)) != nil { // the schema is gone since
+		_ = conn.simple("use " + e.Quote(conn.database))
+	}
+	return refusal{i18n.T("DuckDB 连接里不能切换到别的库（use、set schema），请用 库.schema.表 的三段名")}
 }
 
 // isWrite is a statement that hits rows, which says how many.
@@ -252,6 +260,11 @@ func wrapSQL(sql string, maxRows int) string {
 // the library took it as a statement. Any error fails the transaction it was
 // in, a cancel too (§8.1, tried on 2.0.1), a COMMIT that failed to run having
 // rolled it back; one that is not the library's changes nothing.
+// shortcut: a connection that sets default_transaction_invalidation_policy so that
+// a syntax error does not fail the transaction is told as failed; and a COMMIT
+// whose arguments do not bind (Query with args: no screen of ours does it) is told
+// as ended. Read the library's own state (duckdb_connection_transaction_state)
+// when one comes up.
 func txAfter(tx byte, word, sql string, prepared bool, err error) byte {
 	var own refusal
 	switch {
@@ -283,23 +296,28 @@ func (conn *Conn) prepare(ctx context.Context, sql string) (st uintptr, err erro
 	return st, nil
 }
 
-// simple runs sql that nothing asks of, as the library's own, out of any cancel.
+// simple runs sql that nothing asks of, out of any cancel.
 func (conn *Conn) simple(sql string) error {
-	_, err := conn.scalar(sql)
+	_, err := conn.scalars(sql)
 	return err
 }
 
-// scalar is the first cell of the result of sql, "" for none or NULL.
-func (conn *Conn) scalar(sql string) (string, error) {
+// scalars are the cells of the first row of the result of sql, "" for NULL,
+// none when it has no row.
+func (conn *Conn) scalars(sql string) ([]string, error) {
 	var res result
 	defer c.destroy(&res)
 	if c.query(conn.h, sql, &res) != 0 {
-		return "", errors.New(goString(c.resultError(&res)))
+		return nil, errors.New(goString(c.resultError(&res)))
 	}
-	if c.rowCount(&res) == 0 || c.colCount(&res) == 0 {
-		return "", nil
+	n := c.colCount(&res)
+	cells := make([]string, n)
+	if c.rowCount(&res) > 0 {
+		for i := range n {
+			cells[i] = cell(&res, i, 0)
+		}
 	}
-	return cell(&res, 0, 0), nil
+	return cells, nil
 }
 
 // describe is the columns the statement answers with, names and types as the

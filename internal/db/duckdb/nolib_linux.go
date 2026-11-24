@@ -19,6 +19,9 @@ func Configure(string, string) {}
 
 // Engine is a driver that cannot connect (§8.1「Linux 例外」), no SQL engine:
 // there is nothing of DuckDB's to read, for no connection is made.
+// shortcut: so `sqlmux --table t --where … x.duckdb` is refused for its connection
+// being no SQL one, before this message can be shown; the connection in the tree
+// and its test say it. Make this an Engine (Dialect, Quote …) if that is wanted.
 type Engine struct{}
 
 func (Engine) Connect(context.Context, string, string, bool) (db.Conn, db.Info, error) {

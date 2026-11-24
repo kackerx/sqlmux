@@ -133,8 +133,10 @@ func (i *instance) release() {
 // realPath is path with its symbolic links followed, so that the instance of a
 // file is one whichever way it is reached; a file that is not made yet has its
 // directory followed, and is the same path once it is.
-// shortcut: a hard link, or a path in other letters on a case-folding disk, is
-// another file to this; compare os.SameFile of the open ones if one comes up.
+// shortcut: a hard link, a path in other letters on a case-folding disk, and a
+// ?mode=rwc one whose last part is a symlink to a file not yet there, are
+// another file to this, a second instance; compare os.SameFile of the open ones
+// if one comes up.
 func realPath(path string) string {
 	if r, err := filepath.EvalSymlinks(path); err == nil {
 		return r

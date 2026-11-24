@@ -63,6 +63,11 @@ func End(ctx context.Context, c Conn, sql string) (string, error) {
 	return r.Tag, err
 }
 
+// SaveSavepoint is the name of the savepoint a save in a transaction is guarded
+// by: a Conn without savepoints (DuckDB's) fails the transaction for it alone
+// (TxSaver), where a read or an export that fails leaves the transaction as it is.
+const SaveSavepoint = "sqlmux_save"
+
 // Guarded runs f on c, in savepoint name, a plain word, when c is in a
 // transaction: f failing takes back what f did alone, where an error would
 // leave the whole transaction failed, all the user did in it lost (§10.3).
@@ -166,7 +171,7 @@ func Save(ctx context.Context, w *Worker, e Engine, schema, table string, keyCol
 			}
 		}
 		if nested {
-			return Guarded(ctx, c, "sqlmux_save", write)
+			return Guarded(ctx, c, SaveSavepoint, write)
 		}
 		if err := write(); err != nil {
 			_, _ = End(ctx, c, "rollback")

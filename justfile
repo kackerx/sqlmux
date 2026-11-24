@@ -33,9 +33,15 @@ npm-check:
     cd "$tmp/use" && npm init -y >/dev/null && npm i --offline "$tmp"/tgz/*.tgz >/dev/null
     ./node_modules/.bin/sqlmux --version
 
-# build bin/sqlmux
+ldflags := "-X main.version=" + `git describe --tags --match 'v*' --always --dirty` + " -X main.commit=" + `git rev-parse --short HEAD` + " -X main.date=" + `TZ=UTC git log -1 --date=iso-strict-local --format=%cd`
+
+# build bin/sqlmux: static on Linux, which has no DuckDB (§8.1「Linux 例外」)
 build:
-    go build -tags duckdb -ldflags "-X main.version=$(git describe --tags --match 'v*' --always --dirty) -X main.commit=$(git rev-parse --short HEAD) -X main.date=$(TZ=UTC git log -1 --date=iso-strict-local --format=%cd)" -o bin/sqlmux ./cmd/sqlmux
+    go build -ldflags "{{ldflags}}" -o bin/sqlmux ./cmd/sqlmux
+
+# build bin/sqlmux with DuckDB, on Linux a binary linked to glibc
+build-duckdb:
+    go build -tags duckdb -ldflags "{{ldflags}}" -o bin/sqlmux ./cmd/sqlmux
 
 # run sqlmux from source
 run *args:
