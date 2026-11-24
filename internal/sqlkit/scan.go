@@ -17,10 +17,11 @@ const (
 	MySQL
 	SQLite // read as PG, but for its $tag$ strings, E'…' and nested comments, and with `…` identifiers too (F14.1)
 	MSSQL  // read as PG, but for its [name] and "name" identifiers and N'…' strings, @x and #x names, and its GO batches (§9.2, F18.6)
+	DuckDB // read as PG, whose SQL it is of: "ident", 'str', $$…$$, comments (F24.1)
 )
 
 // CaseInsensitive is whether names go by any case, `quoted` ones too: MySQL's
-// and SQLite's; PG folds an unquoted name's to lower case and takes a quoted one
+// SQLite's and DuckDB's; PG folds an unquoted name's to lower case and takes a quoted one
 // as it is.
 // ponytail: MySQL's tables on Linux go by case; SQLite's ASCII letters only
 func (d Dialect) CaseInsensitive() bool { return d != PG }

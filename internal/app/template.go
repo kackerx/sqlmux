@@ -98,7 +98,7 @@ func alterSQL(c *Conn, kind alterKind, t db.Table, col, index string) (sql, why 
 			return "drop index " + name(index, "<index>") + " on " + table + ";", ""
 		case sqlkit.SQLite:
 			return "drop index " + name(index, "<index>") + ";", ""
-		case sqlkit.PG:
+		case sqlkit.PG, sqlkit.DuckDB: // drop index schema.name
 		}
 		return "drop index " + q(t.Schema) + "." + name(index, "<index>") + ";", ""
 	}

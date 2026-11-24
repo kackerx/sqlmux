@@ -69,6 +69,21 @@ limit
 offset
   10
 
+-- duckdb: select [1, 2] l, {'k': 1} s, x::int from "t" where d is not distinct from $1 -- c
+qualify row_number() over () = 1 limit 5
+select
+  [1, 2] l,
+  {'k': 1} s,
+  x::int
+from
+  "t"
+where
+  d is not distinct from $1 -- c
+qualify
+  row_number() over () = 1
+limit
+  5
+
 -- upper, types too, not functions; tab_width 4
 SELECT
     a,

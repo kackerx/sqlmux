@@ -93,5 +93,8 @@ func (d Dialect) NeedsQuote(name string) bool {
 			return true
 		}
 	}
+	if d == DuckDB { // PG's words (F24.1)
+		d = PG
+	}
 	return reserved[d][strings.ToLower(name)]
 }
