@@ -47,6 +47,7 @@
 **验收**
 - [ ] 单测：方言、`Quote` / `Arg` / `Same` / `Eq`、命令行认扩展名；mutation。
 - [ ] 集成测试（和 PG / SQLite 同一组用例）：catalog、DDL、分页、乐观校验（旧值被改报行已变化；旧值在表里重复时只改一行）、唯一约束当行标识、无主键表只读、外键、`UseSchema`、只读连接拦截写。
+- [ ] e2e（节点 1 的 tester）：打开 DuckDB 文件、树、开表翻页、改一格保存、别人改了报行已变化、无主键表只读、query 里查一个 CSV 文件、取消长查询、只读连接拦写、命令行 `sqlmux x.duckdb`；libduckdb 用 `[duckdb] library` 指向开发用的库。表单 engine 行多了 `│ duckdb`，`f7.4.sh`、`f18.7c.sh` 跟着改。
 - [ ] Windows：`GOOS=windows` 编的 exe 放 C 盘，从 DuckDB 的 Release 下 `duckdb.dll`，配 `[duckdb] library`，在主机上连一次、开表、改一格保存、取消一条长查询（AGENTS.md「WSL」的冒烟办法）。
 
 ## F24.3 找不到 libduckdb 时确认下载 · 状态：todo
@@ -66,5 +67,5 @@
 ## F24.4 e2e 与文档 · 状态：todo
 
 - **依赖**：F24.2、F24.3
-- [ ] a. e2e（tester）：打开 DuckDB 文件、树、开表翻页、改一格保存、并发改了报行已变化、query 里查一个 Parquet / CSV 文件、取消长查询、只读连接、命令行 `sqlmux x.duckdb`；libduckdb 用 `[duckdb] library` 指向开发用的库，确认下载那条用本地假服务或只测「取消下载给出手动办法」。
+- [ ] a. e2e（tester）：确认下载那条用本地假服务或只测「取消下载给出手动办法」；库在、库坏（加载失败）两种提示。打开文件、浏览、编辑、取消这些在节点 1 的 tester 那一轮已经写了（见 F24.2 的验收）。
 - [ ] b. 文档（oss，没起 oss 会话时决策者代管）：README 和 docs 的引擎列表、DuckDB 的连接写法和库的来源；brew formula 和 npm 包的描述加 DuckDB（`.github/scripts/tap-formula.sh`、`npm/sqlmux/package.json`）；CHANGELOG。
