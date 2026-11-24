@@ -1,6 +1,6 @@
 # M24 DuckDB · 任务清单
 
-- **状态**：todo（2026-11-24 决策者起草，用户同日定直接开工）。
+- **状态**：进行中。节点 1 过（F24.1、F24.2 passed，7276c1e；e2e fe30dc6，2026-11-24）：Codex（astra）审了三轮，第一轮 18 条退 15 条，第二轮退 6 条，第三轮收敛（剩下的一条「过滤写错让手动事务作废」是 §8.1 写明的已知上限）；Codex（sol）测：10 个流程、三处审查修复、8 个发版包、Alpine 上的静态构建、Windows 冒烟和 DLL 加载全过；全量 e2e 清单外只有脚本写死的文字（f7.4、f18.7c、f11.1 已改，f16.1b 留给节点 2 的测试）。审查时用户定 Linux 主包保持静态、DuckDB 另发 `_duckdb` 包（F24.2 f）。（2026-11-24 决策者起草，用户同日定直接开工）
 - **目标**：DuckDB 作为第六个引擎：打开 `.duckdb` 文件或内存库，树、表格、改格子保存、query、取消都和 PG 一样能用；不用 cgo，发布方式和二进制大小不变。发 v0.12.0。
 - **范围**：§8.1「DuckDB」（全部细节在那一条）、§4 的 `internal/db/duckdb`、§14 的 `engine = "duckdb"` 和 `[duckdb] library`、命令行的 `.duckdb` / `.ddb`、§7.8 连接表单的 duckdb 段。评估和实测在 `eval.md`；探针在仓库外 `/home/kacker/proj/sqlmux-aud/engines/duckdb/nocgo/b/`（purego 绑定 167 行，取消、两条连接、`cast(columns(*) as varchar)` 都在 Linux 和 Windows 上跑过），照它写，不从零摸索。
 - **依赖**：M22 完成（v0.11.0）。M23 书签往后排。
@@ -12,7 +12,7 @@
 
 ---
 
-## F24.1 libduckdb 的绑定与 Conn · 状态：todo
+## F24.1 libduckdb 的绑定与 Conn · 状态：passed（7276c1e；e2e fe30dc6）
 
 - **依赖**：无
 - **涉及**：`internal/db/duckdb`（新包）、`go.mod`（加 `github.com/ebitengine/purego`）
@@ -31,7 +31,7 @@
 - [ ] 集成测试（`SQLMUX_TEST_DUCKDB`）：各类型的文本和 CLI 的一致（LIST、STRUCT、MAP、DECIMAL、HUGEINT、TIMESTAMPTZ 换 `TimeZone`、UUID、BLOB、INTERVAL、NULL 和字符串 'NULL'）；取消一条长查询 1 秒内回来、连接还能用；事务里取消后 aborted；Meta 写入被拒；两条连接互不阻塞；断开后另一个进程（CLI）能打开文件。
 - [ ] `GOOS=windows`、`GOOS=darwin`、`GOARCH=arm64` 交叉编译过，`CGO_ENABLED=0`；不带标签的 linux/amd64 产物是静态的、在 `alpine:3` 容器里 `--version` 能跑。
 
-## F24.2 DuckDB 引擎与接线 · 状态：todo
+## F24.2 DuckDB 引擎与接线 · 状态：passed（7276c1e；e2e fe30dc6）
 
 - **依赖**：F24.1
 - **涉及**：`internal/db/duckdb`、`internal/sqlkit`（Dialect、格式化映射）、`internal/config`（engine 白名单、`[duckdb] library`）、`internal/app`（`workspace.go` 的 `engines`、表单、树的图标、命令行位置参数）、`testdata/seed/duckdb.sql`、`.github/workflows/ci.yml`
