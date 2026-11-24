@@ -4,6 +4,8 @@
 
 **If you live in tmux and vim,<br>your database client should too.**
 
+A terminal client for PostgreSQL, MySQL, SQLite, DuckDB, SQL Server and Redis.
+
 Made for people like you, by one of you.
 
 [![Release](https://img.shields.io/github/v/release/kackerx/sqlmux)](https://github.com/kackerx/sqlmux/releases)
@@ -32,6 +34,8 @@ brew install kackerx/tap/sqlmux
 | Go 1.26+ | `go install github.com/kackerx/sqlmux/cmd/sqlmux@latest` |
 | Binaries | macOS, Linux and Windows, amd64 and arm64, on the [Releases page](https://github.com/kackerx/sqlmux/releases), with `checksums.txt` |
 
+On Linux, DuckDB comes in its own build: see [DuckDB](#duckdb).
+
 ### Windows
 
 sqlmux runs natively in [Windows Terminal](https://aka.ms/terminal), with PowerShell or cmd. Install it with `npm install -g sqlmux`, with `go install` as above, or from the `sqlmux_<version>_windows_amd64.zip` (or `arm64`) on the Releases page: unzip it and put `sqlmux.exe` on your `PATH`.
@@ -44,13 +48,19 @@ sqlmux runs natively in [Windows Terminal](https://aka.ms/terminal), with PowerS
 
 ### DuckDB
 
-sqlmux talks to DuckDB through `libduckdb` (v2.0.0 or newer), loaded at runtime, so the binary stays small and needs no cgo. Where the library comes from:
+On macOS and Windows, every install above has DuckDB. On Linux, Homebrew, npm, the plain `sqlmux_<version>_linux_<arch>.tar.gz` and `go install` do not; for DuckDB take one of:
 
-- **Nothing to do**: the first time you connect to DuckDB and no library is found, sqlmux asks to download the pinned version (v2.0.1, an 18 to 27 MB download) from [DuckDB's GitHub Release](https://github.com/duckdb/duckdb/releases) into its data directory (`~/.local/share/sqlmux/duckdb/`, on Windows `%LOCALAPPDATA%\sqlmux\duckdb\`). The download is checked against a sha256 built into sqlmux, and `C-c` cancels it. Nothing is downloaded without asking.
-- **Homebrew**: `brew install duckdb` (macOS, Linuxbrew); sqlmux finds it in Homebrew's `lib`.
-- **Your own**: `library = "/path/to/libduckdb.so"` under `[duckdb]` in `config.toml` (`libduckdb.dylib` on macOS, `duckdb.dll` on Windows). Use this when your files were made by a newer DuckDB than v2.0.1.
+- `sqlmux_<version>_linux_<arch>_duckdb.tar.gz` from the [Releases page](https://github.com/kackerx/sqlmux/releases);
+- `go install -tags duckdb github.com/kackerx/sqlmux/cmd/sqlmux@latest`.
 
-On Linux the release build (Homebrew, npm, `sqlmux_<version>_linux_<arch>.tar.gz`) is static and has no DuckDB, so it runs anywhere, Alpine included; `go install` without a tag has no DuckDB either. For DuckDB take `sqlmux_<version>_linux_<arch>_duckdb.tar.gz` from the Releases page, or `go install -tags duckdb github.com/kackerx/sqlmux/cmd/sqlmux@latest`; that build is linked to glibc (not for Alpine or other musl systems). On Windows, `duckdb.dll` needs the [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist).
+Both are linked to glibc, so not for Alpine or other musl systems; the plain Linux archive and npm's are static and run anywhere.
+
+sqlmux loads DuckDB's library, `libduckdb` v2.0.0 or newer, when it connects. If it finds none, the first DuckDB connection asks before it downloads v2.0.1 (18 to 27 MB) from [DuckDB's GitHub Release](https://github.com/duckdb/duckdb/releases) into sqlmux's data directory, checked against a sha256 built into sqlmux. Or install it yourself:
+
+- `brew install duckdb` (macOS, Linuxbrew);
+- or download `libduckdb` from DuckDB's releases and set `library = "<path>"` under `[duckdb]` in `config.toml`. Do this too when your files come from a newer DuckDB than v2.0.1.
+
+On Windows, `duckdb.dll` needs the [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist). See [DuckDB](docs/duckdb.md) for where sqlmux looks, `:memory:` and Parquet, and file locking.
 
 The icons come from a [Nerd Font](https://www.nerdfonts.com/). Without one they show up as boxes: put `icons = "ascii"` in `~/.config/sqlmux/config.toml` (on Windows `%APPDATA%\sqlmux\config.toml`).
 
@@ -77,6 +87,7 @@ The [quickstart](docs/quickstart.md) goes from here to editing your first row.
 - **Completion and signature hints.** Tables, columns, keywords and functions as you type, with fuzzy matching; enum values where a value goes; a line above the cursor that says which column the value you are typing is for.
 - **Command palette** (`C-p`) for every command, table, tab, window and session, with a DDL preview. **Quick SQL** (`;`) runs a one-off statement from anywhere.
 - **JSON view** (`gj`) of a table page or a result, read-only with vim movement and search.
+- **DuckDB**: open a `.duckdb` file, or a `:memory:` connection to query Parquet and CSV files with SQL; tables page, filter and edit as on PostgreSQL. See [DuckDB](docs/duckdb.md).
 - **Redis**: a tree of databases, namespaces and keys read with `SCAN`; each key (string, hash, list, set, zset, stream, RedisJSON) as an editable table; a console with completion and signatures from the server's `COMMAND DOCS`; key names complete fuzzily, as table names do, and show up in the palette; their index is saved, so completion is ready as soon as you start. See [Redis](docs/redis.md).
 - **Every key can be rebound**, per pane type, plus vim-style maps (`J = "5j"`). `vim = false` gives plain editors and arrow keys.
 - Passwords from the OS keychain, a command (`pass`, `op`, …) or an environment variable; SSH tunnels through `~/.ssh/config`; read-only connections; manual transactions; two built-in [themes](docs/config.md#themes) (tokyonight-storm and ristretto) or your own; Nerd Font or ASCII icons; English or Chinese UI.

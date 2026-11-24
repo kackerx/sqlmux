@@ -8,9 +8,9 @@ All notable changes to sqlmux are listed here. The format follows
 
 ### Added
 
-- **DuckDB**, the sixth engine: open a `.duckdb` or `.ddb` file (`sqlmux data.duckdb`), or `:memory:` to query Parquet and CSV files. Schemas, tables, views, macros and sequences in the tree; tables page, sort, filter and edit as on PostgreSQL (a table needs a primary key or a unique constraint to be edited); queries run and cancel; `?mode=ro` opens a file read only and other DSN parameters are DuckDB settings (`?memory_limit=4GB`).
-- sqlmux loads `libduckdb` (v2.0.0 or newer) at runtime, without cgo. When there is none, the first DuckDB connection asks to download v2.0.1 from DuckDB's GitHub Release into the data directory, checked against a built-in sha256 (`C-c` cancels). `brew install duckdb` or `[duckdb] library = "<path>"` work too. See [DuckDB](README.md#duckdb).
-- On Linux, DuckDB comes in its own archive, `sqlmux_<version>_linux_<arch>_duckdb.tar.gz`, linked to glibc; `go install -tags duckdb` builds it. The default Linux build (Homebrew, npm, the plain archive) stays static and has no DuckDB.
+- **DuckDB**, the sixth engine: open a `.duckdb` or `.ddb` file (`sqlmux data.duckdb`), or a `:memory:` connection to query Parquet and CSV files. Schemas, tables, views, macros and sequences in the tree; tables page, sort, filter and edit as on PostgreSQL (a table needs a primary key or a unique constraint to be edited); queries run and cancel; `?mode=ro` opens a file read only and other DSN parameters are DuckDB settings (`?memory_limit=4GB`). DuckDB lets one process write a file at a time: while sqlmux is connected, other programs cannot open it; *Disconnect* releases it. See [DuckDB](docs/duckdb.md).
+- sqlmux loads `libduckdb` (v2.0.0 or newer) when it connects, so the binary stays small and needs no cgo. With none found, the first DuckDB connection asks before it downloads v2.0.1 from DuckDB's GitHub Release into the data directory, checked against a sha256 built into sqlmux (`C-c` cancels). `brew install duckdb` or `[duckdb] library = "<path>"` work too. On Windows, `duckdb.dll` needs the Microsoft Visual C++ Redistributable.
+- On Linux, DuckDB comes in its own archive, `sqlmux_<version>_linux_<arch>_duckdb.tar.gz`, linked to glibc (not for Alpine or other musl systems), or with `go install -tags duckdb`. Homebrew, npm, the plain Linux archive and a plain `go install` have no DuckDB; the plain archive and npm's binary stay static. macOS and Windows have DuckDB in every package.
 
 ## [0.11.0] - 2026-11-19
 
