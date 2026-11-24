@@ -104,7 +104,11 @@ func (a *App) gotConnected(m connected) tea.Cmd {
 	}
 	if m.err != nil {
 		c.State, c.err = connFailed, m.err // the tabs waiting on it stay, saying why (F12.5)
-		return a.showToast(i18n.T("%s：%s", c.label(), m.err))
+		say := func() tea.Cmd { return a.showToast(i18n.T("%s：%s", c.label(), m.err)) }
+		if a.offerLibrary(m.err, func() tea.Cmd { return a.connect(c) }, say) { // no libduckdb (F24.3)
+			return nil
+		}
+		return say()
 	}
 	c.take(m.d)
 	cmds := []tea.Cmd{a.loadCatalog(c)}

@@ -133,7 +133,7 @@ func (a *App) askNewSession() tea.Cmd {
 		if a.sessionNamed(name) {
 			return a.showToast(i18n.T("已有同名 session")), true
 		}
-		return a.dialSession(name), false
+		return a.dialSession(name, a.conn().Spec), false
 	}}
 	return nil
 }
@@ -147,11 +147,10 @@ func (a *App) freeSessionName() string {
 	return strconv.Itoa(n)
 }
 
-// dialSession makes a session called name of its own connections, once the
-// one current here is connected for it, attached then. One not connecting
+// dialSession makes a session called name of its own connections, once spec,
+// the one current here, is connected for it, attached then. One not connecting
 // makes none, the session staying the one it is (F5.1).
-func (a *App) dialSession(name string) tea.Cmd {
-	spec := a.conn().Spec
+func (a *App) dialSession(name string, spec config.Connection) tea.Cmd {
 	return tea.Batch(a.showToast(i18n.T("正在连接 %s…", spec.Name)), func() tea.Msg {
 		d, err := dial(context.Background(), spec)
 		return sessionDialed{name, spec, d, err}
@@ -174,7 +173,11 @@ func (a *App) gotSessionDialed(m sessionDialed) tea.Cmd {
 		a.toast = ""
 	}
 	if m.err != nil {
-		return a.showToast(i18n.T("%s：%s", m.spec.Name, m.err))
+		say := func() tea.Cmd { return a.showToast(i18n.T("%s：%s", m.spec.Name, m.err)) }
+		if a.offerLibrary(m.err, func() tea.Cmd { return a.dialSession(m.name, m.spec) }, say) { // no libduckdb (F24.3)
+			return nil
+		}
+		return say()
 	}
 	if a.sessionNamed(m.name) { // another session took it while this one dialed
 		return tea.Batch(a.showToast(i18n.T("已有同名 session")), m.d.discard())

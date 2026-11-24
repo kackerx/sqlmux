@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -556,6 +557,21 @@ func TestOldLibraryIsNotKept(t *testing.T) {
 	if kept {
 		t.Error("it is kept")
 	}
+	// one too old where sqlmux looks, with none configured, is one to download in place of it (F24.3)
+	data := t.TempDir()
+	into := downloadPath(runtime.GOOS, data)
+	if err := os.MkdirAll(filepath.Dir(into), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(os.Getenv("SQLMUX_TEST_DUCKDB"), into); err != nil {
+		t.Skip(err) // windows without the right to make one
+	}
+	Configure("", data)
+	_, _, err = Connect(context.Background(), ":memory:", "", false)
+	if nf := (*NotFound)(nil); !errors.As(err, &nf) || !strings.HasPrefix(nf.Old, "v") || nf.Into != into {
+		t.Errorf("too old in the data directory: %v", err)
+	}
+	UseLibrary(t)
 	minVersion = was
 	c, _, err := Connect(context.Background(), ":memory:", "", false)
 	if err != nil {

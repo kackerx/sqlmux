@@ -180,9 +180,10 @@ func TestLoadErrors(t *testing.T) {
 	if err := Load(); err == nil || !strings.Contains(err.Error(), notLib) {
 		t.Errorf("a file that is no library: %v", err)
 	}
-	Configure("", t.TempDir())
+	data := t.TempDir()
+	Configure("", data)
 	var nf *NotFound
-	if err := Load(); err != nil && !errors.As(err, &nf) { // a machine with the library in a place it looks has it loaded
+	if err := Load(); err != nil && (!errors.As(err, &nf) || nf.Into != downloadPath(runtime.GOOS, data)) { // a machine with the library in a place it looks has it loaded
 		t.Errorf("no library in the data directory: %v", err)
 	}
 }

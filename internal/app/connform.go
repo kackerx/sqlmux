@@ -694,7 +694,8 @@ func versionText(engine, v string) string {
 }
 
 // gotConnTested shows what a test found, unless the form it was for is gone
-// or its fields changed since (F12.5).
+// or its fields changed since (F12.5); no libduckdb is a question of
+// downloading it, the test again once it is there (F24.3).
 func (a *App) gotConnTested(m connTested) {
 	f := a.form
 	if f == nil || f.testing != m.seq {
@@ -704,6 +705,12 @@ func (a *App) gotConnTested(m connTested) {
 	f.result = m.note
 	if m.err != nil {
 		f.result = toastLine(m.err.Error())
+		a.offerLibrary(m.err, func() tea.Cmd {
+			if a.form != f { // closed meanwhile
+				return nil
+			}
+			return a.testConnForm()
+		}, nil)
 	}
 }
 

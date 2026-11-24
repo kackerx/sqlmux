@@ -116,6 +116,10 @@ func init() {
 				c.cancel()
 				return nil
 			}
+			if f := a.libFetch; f != nil { // the download of libduckdb, as its toast says (F24.3)
+				f.cancel()
+				return nil
+			}
 			if a.toast != "" && a.toastSeq == a.quitToast { // the first press's toast is still up
 				return a.quit()
 			}
@@ -553,7 +557,14 @@ func init() {
 			}
 			return then()
 		})},
-		"confirm.no": {Title: i18n.N("取消"), Local: true, Run: when(inConfirm, func(a *App) tea.Cmd { a.confirm = nil; return nil })},
+		"confirm.no": {Title: i18n.N("取消"), Local: true, Run: when(inConfirm, func(a *App) tea.Cmd {
+			no := a.confirm.no
+			a.confirm = nil
+			if no == nil {
+				return nil
+			}
+			return no()
+		})},
 		// The query bar (§7.8「查询条」).
 		"grid.where": {Title: i18n.N("WHERE 条件"), Run: do(func(a *App, _ Args) {
 			if t := dataOf(a.focused()); t != nil && t.typing != "where" {
