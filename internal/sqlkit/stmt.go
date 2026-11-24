@@ -336,11 +336,11 @@ func BreaksReadOnly(s string, d Dialect) bool {
 func isRead(s string, ts []Token, depth []int) bool {
 	i := first(s, ts)
 	switch lower(s, ts, i) {
-	case "show", "desc", "describe", "table", "values", "check": // MySQL's CHECK TABLE
+	case "show", "desc", "describe", "table", "values", "check", "summarize": // MySQL's CHECK TABLE, DuckDB's SUMMARIZE
 		return true
 	case "explain":
 		return explainRead(s, ts[i+1:], depth[i+1:])
-	case "select", "with":
+	case "select", "with", "from": // DuckDB's FROM t [SELECT …]
 	default:
 		return false
 	}
@@ -406,7 +406,7 @@ func explainOptions(s string, ts []Token) (analyze bool, i int) {
 // cursor for (§9.4, §12), as PG 16 psql's is_select_command (common.c, for
 // FETCH_COUNT; PG 17 dropped it) took select and values; table and with
 // are added, a WITH … SELECT over a big table being common.
-var queryWords = map[string]bool{"select": true, "with": true, "table": true, "values": true}
+var queryWords = map[string]bool{"select": true, "with": true, "table": true, "values": true, "from": true}
 
 // IsQuery is whether statement s starts as a query does (queryWords), past
 // opening parentheses.

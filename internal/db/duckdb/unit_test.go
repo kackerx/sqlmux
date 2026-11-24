@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/kackerx/sqlmux/internal/db"
+	"github.com/kackerx/sqlmux/internal/sqlkit"
 )
 
 func TestParse(t *testing.T) {
@@ -183,5 +184,28 @@ func TestBindMissing(t *testing.T) {
 	}
 	if err := bind(h); err == nil || !strings.Contains(err.Error(), "duckdb_open_ext") {
 		t.Errorf("bind: %v", err)
+	}
+}
+
+func TestEngineSQL(t *testing.T) {
+	e := Engine{}
+	for got, want := range map[string]string{
+		e.Quote("t"):                `"t"`,
+		e.Quote("main", "my table"): `"main"."my table"`,
+		e.Quote(`a"b`):              `"a""b"`,
+		e.Arg(3):                    "$3",
+		e.Same("c", "$2"):           "(c is not distinct from $2)",
+		e.Eq(`"k"`, "$1"):           `("k" is not distinct from $1)`,
+	} {
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	}
+	if e.Dialect() != sqlkit.DuckDB {
+		t.Error("dialect")
+	}
+	set, rollback, release := (*Conn)(nil).Savepoint("x") // no savepoints: statements that do nothing
+	if set != "select 1" || rollback != "select 1" || release != "" || (*Conn)(nil).Begin() != "begin" {
+		t.Errorf("tx words %q %q %q", set, rollback, release)
 	}
 }

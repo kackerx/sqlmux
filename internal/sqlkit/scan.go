@@ -50,7 +50,7 @@ type Token struct {
 
 // Scan splits s into tokens (§9.1), after lazysql's components/sql_lexer.go,
 // with each dialect's strings and comments:
-//   - PG: a doubled quote in '…', \ in E'…', $tag$…$tag$, "…"
+//   - PG and DuckDB: a doubled quote in '…', \ in E'…', $tag$…$tag$, "…"
 //     identifiers, -- and /* */ that nest;
 //   - MySQL: \ and doubled quotes in '…' and "…", `…` identifiers, #, --
 //     with a blank after it, /* */ that do not nest; /*! … */ is code, its
@@ -69,12 +69,13 @@ type Token struct {
 func Scan(s string, d Dialect) []Token {
 	var out []Token
 	line := 0
-	exec := false // in MySQL's /*! … */
+	exec := false                // in MySQL's /*! … */
+	pg := d == PG || d == DuckDB // $tag$ strings, E'…', nested comments, no `…` (F24.1)
 	for i := 0; i < len(s); {
 		start := i
 		r, n := utf8.DecodeRuneInString(s[i:])
 		kind, tag := Space, ""
-		if d == PG && r == '$' {
+		if pg && r == '$' {
 			tag = dollarTag(s[i:])
 		}
 		switch {
@@ -87,18 +88,18 @@ func Scan(s string, d Dialect) []Token {
 			line, _, _ := strings.Cut(s[i:], "\n")
 			kind, i = Comment, i+len(line)
 		case strings.HasPrefix(s[i:], "/*"):
-			kind, i = Comment, blockComment(s, i, d == PG)
+			kind, i = Comment, blockComment(s, i, pg)
 		case r == '\'':
 			kind, i = String, quoted(s, i, d == MySQL)
 		case d == MSSQL && (r == 'N' || r == 'n') && strings.HasPrefix(s[i+1:], "'"): // N'…'
 			kind, i = String, quoted(s, i+1, false)
 		case r == '[' && d == MSSQL: // [name], a ] in it doubled
 			kind, i = Quoted, bracket(s, i)
-		case r == '"' && d != MySQL, r == '`' && d != PG:
+		case r == '"' && d != MySQL, r == '`' && !pg:
 			kind, i = Quoted, quoted(s, i, false)
 		case r == '"':
 			kind, i = String, quoted(s, i, true)
-		case d == PG && (r == 'e' || r == 'E') && strings.HasPrefix(s[i+1:], "'"): // E'…'
+		case pg && (r == 'e' || r == 'E') && strings.HasPrefix(s[i+1:], "'"): // E'…'
 			kind, i = String, quoted(s, i+1, true)
 		case tag != "":
 			kind = String

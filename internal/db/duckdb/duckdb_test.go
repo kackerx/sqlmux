@@ -14,21 +14,10 @@ import (
 	"github.com/kackerx/sqlmux/internal/db"
 )
 
-// lib points the package at the libduckdb of SQLMUX_TEST_DUCKDB; the tests of
-// the library skip when it is not set (§8.1「测试」).
-func lib(t testing.TB) {
-	t.Helper()
-	p := os.Getenv("SQLMUX_TEST_DUCKDB")
-	if p == "" {
-		t.Skip("SQLMUX_TEST_DUCKDB is not set")
-	}
-	Configure(p, "")
-}
-
 // open is a connection to a new file, mode=rwc.
 func open(t testing.TB) (*Conn, string) {
 	t.Helper()
-	lib(t)
+	UseLibrary(t)
 	path := filepath.Join(t.TempDir(), "t.duckdb")
 	conn, _, err := Connect(context.Background(), path+"?mode=rwc", "", false)
 	if err != nil {
@@ -352,7 +341,7 @@ func TestOther(t *testing.T) {
 	if path == "" {
 		t.Skip("run by TestInstance")
 	}
-	lib(t)
+	UseLibrary(t)
 	c, _, err := Connect(context.Background(), path, "", false)
 	if err != nil {
 		t.Logf("result: %v", err)
