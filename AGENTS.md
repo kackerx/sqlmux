@@ -11,7 +11,7 @@ sqlmux：按 tmux 的 session / window / pane 思路组织的终端数据库客�
 | 角色 | 会话名 | 启动命令 | 规则 |
 |---|---|---|---|
 | 决策者 | `sqlmux-orchestrator` | `claude -n sqlmux-orchestrator --agent orchestrator --effort high` | [`specs/roles/orchestrator.md`](specs/roles/orchestrator.md) |
-| worker | `sqlmux-dev-n<节点>` | 决策者每个审查节点起一个后台会话：主工作区里 `claude --bg -n sqlmux-dev-n<节点> --agent fullstack-dev --effort high "<任务>"` | [`specs/roles/worker.md`](specs/roles/worker.md) |
+| worker | `sqlmux-dev-n<节点>` | 决策者每个审查节点起一个后台会话：主工作区里 `claude --bg -n sqlmux-dev-n<节点> --agent fullstack-dev --model opus --effort high "<任务>"`（用户 2026-11-24 定用 Opus，agent 定义里的 Sonnet 不够用） | [`specs/roles/worker.md`](specs/roles/worker.md) |
 | 并行 worker | `sqlmux-dev2-n<节点>` | 同 worker，在 `/home/kacker/proj/sqlmux-dev2` 里起，只做 task.md 分给它的 feature，见下面「并行开发」 | 同 worker |
 | 审查 | Codex | 决策者在 `/home/kacker/proj/sqlmux-review` 里跑 Codex 插件，见「固定的工作流」第 3 步 | [`specs/roles/reviewer.md`](specs/roles/reviewer.md) 是审查重点和全仓审计的做法 |
 | 测试 | Codex | 决策者在 `/home/kacker/proj/sqlmux-e2e` 里跑 Codex 的 task，见「固定的工作流」第 4 步 | [`specs/roles/tester.md`](specs/roles/tester.md) 是测试的做法，写进给 Codex 的任务 |

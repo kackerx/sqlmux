@@ -12,3 +12,4 @@ metadata:
 
 同日追加：用户说「后续测试和审查, 分别开codex的astra6.2去做吧」：审查和 e2e 测试各起一个 Codex 任务，模型 `gpt-6.2-astra`（本机 models_cache 里有）；tester 的 Claude 会话不再起。
 同日再追加：「如果判断会花费较多token和上下文的话就用6.2sol」「不要让codex在沙箱里跑, 直接全权限运行」：范围小的用 astra，重的（e2e、完整回归、大批审查）用 `gpt-6.2-sol`；一律 `codex exec --dangerously-bypass-approvals-and-sandbox`，不走插件（插件把沙箱写死成 read-only / workspace-write）。
+同日再追加：「后面开发者也直接用opus5.5 high吧, sonnect效率性能还是弱点」：worker 的 bg 会话带 `--model opus --effort high`，盖过 fullstack-dev 定义里的 Sonnet。
