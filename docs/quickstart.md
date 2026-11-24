@@ -27,6 +27,7 @@ sqlmux ./app.db
 sqlmux "postgres://me@localhost:5432/app?sslmode=disable"
 sqlmux "mysql://me@localhost:3306/app"
 sqlmux "redis://localhost:6379/0"
+sqlmux ./data.duckdb      # DuckDB: the first time, sqlmux offers to download libduckdb
 ```
 
 No database at hand? Make one:
@@ -42,7 +43,7 @@ To keep a connection, add it to `~/.config/sqlmux/connections.toml` (on Windows 
 ```toml
 [[connection]]
 name         = "local"
-engine       = "postgres"          # postgres | mysql | sqlite | mssql | redis
+engine       = "postgres"          # postgres | mysql | sqlite | duckdb | mssql | redis
 dsn          = "postgres://me@localhost:5432/app?sslmode=disable"
 password_env = "PGPASSWORD"        # or password_cmd = "…", or password = "…"
 ```

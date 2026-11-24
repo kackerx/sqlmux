@@ -63,7 +63,7 @@ index_keys = 100000                    # key names kept per database for fuzzy k
 index_cache = true                     # save that index to disk, so completion is ready at once next time
 
 [duckdb]
-library = ""                           # the libduckdb to load; unset = look in the data directory, Homebrew's, /usr/local/lib, then the system's
+library = ""                           # the libduckdb to load; unset = look in the data directory, Homebrew's, /usr/local/lib, then the system's; none: offer to download it
 
 [pane]
 outer_nav = "off"                      # "auto": inside tmux, C-h / C-j / C-k / C-l at sqlmux's edge go to the next tmux pane
@@ -128,7 +128,7 @@ DSN per engine:
 | `postgres` | `postgres://user@host:5432/db?sslmode=disable` (the tree lists the other databases on the server too) |
 | `mysql` | `user@tcp(host:3306)/db` or `mysql://user@host:3306/db` |
 | `sqlite` | a file path; `~` is expanded, `?mode=ro` and other query parameters pass through; a missing file is not created |
-| `duckdb` | a file path, as for `sqlite` (`~` expanded, a missing file is not created unless `?mode=rwc`), or `:memory:` to query Parquet and CSV files directly; other query parameters (`?memory_limit=4GB&threads=4`) are DuckDB settings. Needs `libduckdb`, see `[duckdb] library` above. On Linux the default `sqlmux` build is static and has no DuckDB: use the `sqlmux_<version>_linux_<arch>_duckdb` archive, or `go install -tags duckdb` |
+| `duckdb` | a file path, as for `sqlite` (`~` expanded, a missing file is not created unless `?mode=rwc`), or `:memory:` to query Parquet and CSV files directly; other query parameters (`?memory_limit=4GB&threads=4`) are DuckDB settings. Needs `libduckdb` v2.0.0 or newer: without one, the first connection offers to download v2.0.1 from DuckDB's GitHub Release into the data directory (see [DuckDB](../README.md#duckdb)), or set `[duckdb] library` above. On Linux the default `sqlmux` build is static and has no DuckDB: use the `sqlmux_<version>_linux_<arch>_duckdb` archive, or `go install -tags duckdb` |
 | `mssql` | `sqlserver://user@host:1433?database=app` (`mssql://` works too); driver options such as `encrypt` pass through. A server with a self-signed certificate, like the official Docker image, needs `&TrustServerCertificate=true` |
 | `redis` | `redis://user@host:6379/0` or `rediss://…`; the number is the database. See [Redis](redis.md) |
 | `exec` | no `dsn`: `dialect` and `command`, see [External commands](#external-commands-engine--exec) |

@@ -42,12 +42,23 @@ sqlmux runs natively in [Windows Terminal](https://aka.ms/terminal), with PowerS
 - The old console window (conhost) is not supported; use Windows Terminal. Install a Nerd Font there too, or use `icons = "ascii"`.
 - In WSL, sqlmux is the Linux build: install it there as on Linux.
 
+### DuckDB
+
+sqlmux talks to DuckDB through `libduckdb` (v2.0.0 or newer), loaded at runtime, so the binary stays small and needs no cgo. Where the library comes from:
+
+- **Nothing to do**: the first time you connect to DuckDB and no library is found, sqlmux asks to download the pinned version (v2.0.1, an 18 to 27 MB download) from [DuckDB's GitHub Release](https://github.com/duckdb/duckdb/releases) into its data directory (`~/.local/share/sqlmux/duckdb/`, on Windows `%LOCALAPPDATA%\sqlmux\duckdb\`). The download is checked against a sha256 built into sqlmux, and `C-c` cancels it. Nothing is downloaded without asking.
+- **Homebrew**: `brew install duckdb` (macOS, Linuxbrew); sqlmux finds it in Homebrew's `lib`.
+- **Your own**: `library = "/path/to/libduckdb.so"` under `[duckdb]` in `config.toml` (`libduckdb.dylib` on macOS, `duckdb.dll` on Windows). Use this when your files were made by a newer DuckDB than v2.0.1.
+
+On Linux the release build (Homebrew, npm, `sqlmux_<version>_linux_<arch>.tar.gz`) is static and has no DuckDB, so it runs anywhere, Alpine included; `go install` without a tag has no DuckDB either. For DuckDB take `sqlmux_<version>_linux_<arch>_duckdb.tar.gz` from the Releases page, or `go install -tags duckdb github.com/kackerx/sqlmux/cmd/sqlmux@latest`; that build is linked to glibc (not for Alpine or other musl systems). On Windows, `duckdb.dll` needs the [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist).
+
 The icons come from a [Nerd Font](https://www.nerdfonts.com/). Without one they show up as boxes: put `icons = "ascii"` in `~/.config/sqlmux/config.toml` (on Windows `%APPDATA%\sqlmux\config.toml`).
 
 Then open something:
 
 ```sh
 sqlmux ./app.db                                       # a SQLite file
+sqlmux ./data.duckdb                                  # a DuckDB file (.duckdb or .ddb)
 sqlmux "postgres://me@localhost:5432/app?sslmode=disable"   # or mysql://…
 sqlmux local --table orders --where "user_id = 42"    # straight to one table of a saved connection
 sqlmux local --sql "select count(*) from orders"      # or run one statement and see its result
@@ -58,7 +69,7 @@ The [quickstart](docs/quickstart.md) goes from here to editing your first row.
 
 ## Features
 
-- **Five engines in one tree**: PostgreSQL, MySQL, SQLite, SQL Server and Redis, side by side in the same session.
+- **Six engines in one tree**: PostgreSQL, MySQL, SQLite, DuckDB, SQL Server and Redis, side by side in the same session.
 - **tmux inside.** Sessions, windows, split panes and tabs, with `SPC` as the leader (`SPC %` splits, `SPC c` opens a window, `SPC s` lists sessions). Each session sees all your connections. The layout you quit from comes back next time, and you can save named layouts. When sqlmux runs inside tmux, `C-h` / `C-j` / `C-k` / `C-l` can carry on into the tmux panes around sqlmux ([`outer_nav`](docs/config.md#moving-between-tmux-and-sqlmux-panes)).
 - **Edit tables in place.** Change cells, add and delete rows, then `C-s` saves everything in one transaction. Enum, boolean and time columns get pickers; long text and JSON open in a value editor.
 - **Table tabs.** A WHERE input with completion, history and favorites; multi-column ORDER, LIMIT, paging, a column picker, transpose, filter by a cell's value, export to CSV or JSON.
@@ -80,7 +91,7 @@ sqlmux edits live databases, so it has guards against mistakes. They are not a p
 - **Preview before save**: `C-s` first shows the exact statements, values inlined, with the counts of changed, added and deleted rows (`[grid] preview_save`, on by default).
 - **Production connections** (`production = true`) are drawn in a warning color, ask before every write (even with `confirm_dangerous` off; the save preview cannot be turned off there), and are read-only unless you also write `read_only = false`.
 - **No silent re-runs**: after a dropped connection, a statement that may have reached the server is never re-run on its own; only requests that never left are retried.
-- **Tested on real databases**: the integration tests run in CI against PostgreSQL 17, MySQL 8.4, SQL Server 2022, SQLite and Redis Stack 7.4, not mocks.
+- **Tested on real databases**: the integration tests run in CI against PostgreSQL 17, MySQL 8.4, SQL Server 2022, SQLite, DuckDB 2.0 and Redis Stack 7.4, not mocks.
 
 The checks read the SQL text, so a write hidden inside a function or procedure (`select my_func()`) is not caught by sqlmux; the server-side read-only, or the account's privileges, still are.
 
@@ -92,11 +103,14 @@ The checks read the SQL text, so a write hidden inside a function or procedure (
 
 ## Build from source
 
-With Go 1.26+ and [just](https://github.com/casey/just): `just build` puts the binary in `bin/`, and `just --list` shows the tests, lint and the sample databases (`just db-up` starts PostgreSQL and MySQL with sample data in Docker). Without just:
+With Go 1.26+ and [just](https://github.com/casey/just): `just build` puts the binary in `bin/` (`just build-duckdb` with DuckDB), and `just --list` shows the tests, lint and the sample databases (`just db-up` starts PostgreSQL and MySQL with sample data in Docker). Without just:
 
 ```sh
-go build -o bin/sqlmux ./cmd/sqlmux
+CGO_ENABLED=0 go build -o bin/sqlmux ./cmd/sqlmux                 # static; on Linux without DuckDB
+CGO_ENABLED=0 go build -tags duckdb -o bin/sqlmux ./cmd/sqlmux    # Linux with DuckDB, linked to glibc
 ```
+
+Without `CGO_ENABLED=0`, a machine with a C compiler builds a binary linked to its libc. macOS and Windows have DuckDB without the tag.
 
 Built with [Bubble Tea v2](https://github.com/charmbracelet/bubbletea). The design notes are in [specs/](specs/tech-design.md) (in Chinese).
 
