@@ -182,11 +182,14 @@ func (a *App) gotSessionDialed(m sessionDialed) tea.Cmd {
 	if a.sessionNamed(m.name) { // another session took it while this one dialed
 		return tea.Batch(a.showToast(i18n.T("已有同名 session")), m.d.discard())
 	}
-	conns, start := make([]*Conn, len(a.sess.Conns)), 0
+	conns, start := make([]*Conn, len(a.sess.Conns)), -1
 	for i, c := range a.sess.Conns {
 		if conns[i] = newConn(c.Spec); c.Spec.Name == m.spec.Name {
 			start = i
 		}
+	}
+	if start < 0 { // deleted while it dialed, or waited for libduckdb (F24.3)
+		return m.d.discard()
 	}
 	conns[start].take(m.d)
 	s := bareSession(m.name, conns, conns[start])

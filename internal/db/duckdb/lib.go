@@ -189,12 +189,15 @@ func Load() error {
 		}
 		h, err := openLib(p)
 		if err != nil {
+			// shortcut: one on the system's search path that does not load (of another
+			// architecture) is taken for none, and a download offered
 			if bare && library == "" {
 				tried = append(tried, p)
 				continue
 			}
 			return loadError(p, err)
 		}
+		// shortcut: one older than the functions (0.9) says so plainly, no download offered
 		if err := bind(h); err != nil {
 			closeLib(h) // not kept: the user's next try is of another library
 			return err
@@ -202,6 +205,8 @@ func Load() error {
 		if v := Version(); !atLeast(v, minVersion) {
 			// nor is one that is too old, for a newer one to be found at the next try:
 			// with none configured, the one a download puts in the data directory
+			// shortcut: one put at the same path over it is not, the old one staying
+			// mapped there till sqlmux is started again
 			closeLib(h)
 			if library == "" {
 				return &NotFound{Old: v, Into: into}

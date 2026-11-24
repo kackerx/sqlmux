@@ -101,6 +101,10 @@ func init() {
 				p.conn.Meta.Cancel()
 				return nil
 			}
+			if c := a.conn(); a.libFetch != nil && (c == nil || c.busy == 0) { // the download of libduckdb, as its toast says, over an input's esc (F24.3)
+				a.libFetch.cancel()
+				return nil
+			}
 			if ed := a.vim(); ed != nil && ed.Plain() { // a plain editor's: the selection, then the list, else the first press (§6.9)
 				switch {
 				case ed.HasSelection():
@@ -114,10 +118,6 @@ func init() {
 			}
 			if c := a.conn(); c != nil && c.busy > 0 { // a query or a save of the current connection is running: cancel it (§8.3, §10.3)
 				c.cancel()
-				return nil
-			}
-			if f := a.libFetch; f != nil { // the download of libduckdb, as its toast says (F24.3)
-				f.cancel()
 				return nil
 			}
 			if a.toast != "" && a.toastSeq == a.quitToast { // the first press's toast is still up

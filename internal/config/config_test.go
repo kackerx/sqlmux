@@ -498,3 +498,21 @@ func TestParseDuckDB(t *testing.T) {
 		t.Errorf("a misspelt key: %v", c.Unknown)
 	}
 }
+
+// A relative [duckdb] library is of config.toml's directory, not the one
+// sqlmux starts in (§8.1); an absolute one is as it is.
+func TestLoadDuckDBLibraryRelative(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	abs := filepath.Join(t.TempDir(), "libduckdb.so")
+	for lib, want := range map[string]string{"lib/libduckdb.so": filepath.Join(Dir(), "lib", "libduckdb.so"), abs: abs} {
+		if err := os.MkdirAll(Dir(), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(Dir(), "config.toml"), []byte("[duckdb]\nlibrary = '"+lib+"'\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if c, err := Load(); err != nil || c.DuckDBLibrary != want {
+			t.Errorf("%s: %q, %v", lib, c.DuckDBLibrary, err)
+		}
+	}
+}

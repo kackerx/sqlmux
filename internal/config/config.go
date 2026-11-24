@@ -146,6 +146,9 @@ func Load() (*Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", path, err)
 		}
+		if l := c.DuckDBLibrary; l != "" && !filepath.IsAbs(l) { // the file's, not the working directory's: another project's library is not loaded (§8.1)
+			c.DuckDBLibrary = filepath.Join(Dir(), l)
+		}
 	}
 	path = filepath.Join(Dir(), "keymaps.toml")
 	data, err = os.ReadFile(path)

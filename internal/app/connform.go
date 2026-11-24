@@ -705,8 +705,9 @@ func (a *App) gotConnTested(m connTested) {
 	f.result = m.note
 	if m.err != nil {
 		f.result = toastLine(m.err.Error())
+		shown := f.result
 		a.offerLibrary(m.err, func() tea.Cmd {
-			if a.form != f { // closed meanwhile
+			if a.form != f || f.testing != 0 || f.result != shown { // closed, or its fields changed (untest), meanwhile
 				return nil
 			}
 			return a.testConnForm()

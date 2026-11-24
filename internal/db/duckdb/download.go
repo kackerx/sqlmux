@@ -18,7 +18,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync/atomic"
 
 	"github.com/kackerx/sqlmux/internal/i18n"
@@ -79,19 +78,19 @@ type NotFound struct {
 	Old, Into string
 }
 
+// Error is short, a toast's one line: the places looked in are Tried's, for
+// the log.
 func (e *NotFound) Error() string {
 	if e.Old != "" {
-		return i18n.T("libduckdb 至少要 v%s，这个是 %s。", minVersion, e.Old) + Manual()
+		return i18n.T("libduckdb 至少要 v%s，这个是 %s", minVersion, e.Old) + Manual()
 	}
-	return i18n.T("找不到 libduckdb（找过：%s）。", strings.Join(e.Tried, ", ")) + Manual()
+	return i18n.T("找不到 libduckdb") + Manual()
 }
 
-// Manual is how to put a library there oneself (§8.1).
+// Manual points to how to put a library there oneself (§8.1): the README's,
+// whole, which a toast's line is not.
 func Manual() string {
-	if runtime.GOOS == "windows" {
-		return i18n.T("可以从 %s 下载 duckdb.dll，在 config.toml 的 [duckdb] library 写上它的路径", "https://github.com/duckdb/duckdb/releases")
-	}
-	return i18n.T("可以 brew install duckdb，或从 %s 下载 libduckdb，在 config.toml 的 [duckdb] library 写上它的路径", "https://github.com/duckdb/duckdb/releases")
+	return i18n.T("：见 %s", "https://github.com/kackerx/sqlmux#duckdb")
 }
 
 // Download is the library a download gives: what the question before it says
@@ -114,6 +113,10 @@ func Offer(err error) (Download, bool) {
 	return Download{URL: releaseURL + a.name, Path: nf.Into, Old: nf.Old, Size: a.size, sum: a.sha256}, true
 }
 
+// partial begins the names of the files a download makes on its way, which
+// are no one else's to keep.
+const partial = ".sqlmux-partial-"
+
 // counter counts the bytes written through it.
 type counter struct{ n *atomic.Int64 }
 
@@ -127,15 +130,13 @@ func Fetch(ctx context.Context, d Download, got *atomic.Int64) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	// what a download left when sqlmux quit halfway through it
+	// what a download left when sqlmux quit halfway through it, by the name only it gives
 	// shortcut: one another sqlmux is making at the same time goes too, and that one fails
-	for _, pattern := range []string{"download-*", filepath.Base(d.Path) + ".*"} {
-		left, _ := filepath.Glob(filepath.Join(dir, pattern))
-		for _, p := range left {
-			_ = os.Remove(p)
-		}
+	left, _ := filepath.Glob(filepath.Join(dir, partial+"*"))
+	for _, p := range left {
+		_ = os.Remove(p)
 	}
-	tmp, err := os.CreateTemp(dir, "download-*")
+	tmp, err := os.CreateTemp(dir, partial+"*")
 	if err != nil {
 		return err
 	}
@@ -165,6 +166,7 @@ func Fetch(ctx context.Context, d Download, got *atomic.Int64) error {
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
+	// shortcut: a cancel while it unpacks is not seen, the library goes in and the connections are tried again
 	return unpack(tmp, d.Path)
 }
 
@@ -189,7 +191,7 @@ func unpack(r io.Reader, to string) error {
 			break
 		}
 	}
-	f, err := os.CreateTemp(filepath.Dir(to), name+".*")
+	f, err := os.CreateTemp(filepath.Dir(to), partial+"*")
 	if err != nil {
 		return err
 	}

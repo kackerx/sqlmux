@@ -94,10 +94,13 @@ func TestFetch(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(d.Path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, half := range []string{"download-123", name + ".456"} { // of a download sqlmux quit during
+	for _, half := range []string{partial + "123", partial + "456"} { // of a download sqlmux quit during
 		if err := os.WriteFile(filepath.Join(filepath.Dir(d.Path), half), []byte("half"), 0o600); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(d.Path), name+".bak"), []byte("mine"), 0o600); err != nil {
+		t.Fatal(err)
 	}
 	var got atomic.Int64
 	if err := Fetch(context.Background(), d, &got); err != nil {
@@ -106,7 +109,7 @@ func TestFetch(t *testing.T) {
 	if b, err := os.ReadFile(d.Path); err != nil || string(b) != "the library" || got.Load() != d.Size {
 		t.Errorf("%q %v, %d bytes", b, err, got.Load())
 	}
-	if l := left(t, d); len(l) != 1 {
+	if l := left(t, d); len(l) != 2 { // and the user's own backup
 		t.Errorf("left %q", l)
 	}
 }
