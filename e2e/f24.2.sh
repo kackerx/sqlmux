@@ -18,15 +18,15 @@ tree_click() {
   e2e_click "${x%% *}" "$y"
 }
 table_on_screen() { [[ $(e2e_cap | head -1) == *" $1 ─"* ]]; }
-sku_title() {
+sku_title() { # 1-based visible row, default first
   local x y width
   read -r x y width _ <<<"$(geom 1)"
   [[ -n $width ]] || return 1
-  e2e_text "$((x + 1))" "$((x + width - 2))" "$(( $(grid_y) + 1 ))" |
+  e2e_text "$((x + 1))" "$((x + width - 2))" "$(( $(grid_y) + ${1:-1} ))" |
     awk -F '│' '{ gsub(/^ +| +$/, "", $4); print $4 }'
 }
 edit_title() {
-  key l l Enter
+  key 0 l l Enter
   e2e_type "$1"
   key Enter
 }
@@ -34,7 +34,7 @@ stored_titles_are() {
   screen_has '[e2e-exit 0]' || return 1
   local titles
   titles=$(duckdb_cli -c "select title from t_sku where code in ('sku_0', 'sku_1') order by code") || return 1
-  [[ $titles == "$1"$'\nSKU 1' ]] || { printf 'CLI returned:\n%s\n' "$titles"; return 1; }
+  [[ $titles == "$1"$'\n'"${2:-SKU 1}" ]] || { printf 'CLI returned:\n%s\n' "$titles"; return 1; }
 }
 
 start -C "$D/conf"
@@ -95,10 +95,46 @@ check 'Save against a stale row: UI identifies sku_0 and reports the rollback' w
 check 'sqlmux discards the unsaved grid edit and exits before CLI readback' duckdb_quit discard
 check 'Stale save preserves the peer write and leaves the other row alone' stored_titles_are peer-wrote
 
+start -x 200 -C "$D/conf"
+open_table t_sku
+key C-l
+setsql "attach ':memory:' as other; use other"
+key V Enter
+check 'Query pane refuses the batch that tries to switch to another database' wait_for 5 screen_has '不能切换到别的库'
+key C-h
+edit_title file-stayed
+key C-s
+check 'Grid can still save to the original DuckDB table' wait_for 5 eval 'screen_has "已保存 1 行" && [[ $(sku_title) == file-stayed ]]'
+
+# Make the second visible row stale before the grid's manual transaction starts.
+key C-l
+pal '>query.conn'; key Enter
+e2e_type peer; key Enter
+setsql "update t_sku set title = 'peer-second' where code = 'sku_1' returning title"
+key Enter
+check 'Peer updates sku_1 while the grid retains the old second row' wait_for 5 eval '[[ $(sku_title 2) == "SKU 1" ]] && rrow 3 | grep -qF -- peer-second'
+pal '>query.conn'; key Enter
+e2e_type file; key Enter
+pal '>tx.mode'; key Enter; key Escape
+check 'The file connection is in manual-commit mode' wait_for 5 screen_has 'Tx: 手动'
+key C-h
+edit_title manual-first
+key j
+edit_title manual-stale
+check 'Both grid rows are staged before the manual save' eval '[[ $(sku_title) == manual-first && $(sku_title 2) == manual-stale ]]'
+key C-s
+check 'Two-row save reports stale sku_1 and marks the manual transaction failed' wait_for 5 eval 'screen_has "code = sku_1" && [[ $(bar) == *事务出错* ]]'
+key C-l
+setsql 'COMMIT'
+key Enter
+check 'COMMIT of the failed grid save reports ROLLBACK' wait_for 5 eval 'screen_has ROLLBACK && [[ $(bar) != *事务出错* ]]'
+check 'sqlmux exits before checking the file after COMMIT' duckdb_quit discard
+check 'Neither staged row was committed, and the preceding grid save landed in the file' stored_titles_are file-stayed peer-second
+
 # Launch from the fixture directory so the positional argument is literally x.duckdb.
 e2e_start -c "$D/conf/config.toml" "cd '$D' && '$E2E_BIN' x.duckdb"
 check 'sqlmux x.duckdb opens a temporary DuckDB connection with the main schema' wait_for 5 eval 'running && tree_has x && tree_has main && tree_has t_sku'
 open_table t_sku
-check 'Temporary DuckDB connection reads the same file' wait_for 5 eval '[[ $(sku_title) == peer-wrote ]]'
+check 'Temporary DuckDB connection reads the same file' wait_for 5 eval '[[ $(sku_title) == file-stayed ]]'
 check 'Temporary DuckDB connection exits without saving a connection or layout' eval 'duckdb_quit && [[ ! -e $E2E_TMP/config/sqlmux/connections.toml && -z $(find "$E2E_TMP" -name last.toml) ]]'
 e2e_done
