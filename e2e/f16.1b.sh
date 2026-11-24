@@ -146,7 +146,7 @@ check "[redis] delimiter = \"\"：启动报错「must not be empty」，退出�
 check "[redis] scan_keys = 0：报「must be greater than 0」" bad_start '[redis]\nscan_keys = 0\n' "$CONN" '[redis] scan_keys = 0: must be greater than 0' || e2e_plain | head -4
 check "[redis] load_all = -3：报「must be greater than 0」" bad_start '[redis]\nload_all = -3\n' "$CONN" '[redis] load_all = -3: must be greater than 0' || e2e_plain | head -4
 check "connections.toml：postgres 连接写了 delimiter：报「delimiter 只对 redis 连接有用」，退出码 1" bad_start '' '[[connection]]\nname = "pg"\nengine = "postgres"\ndsn = "postgres://u:p@h/d"\ndelimiter = "/"\n' 'delimiter 只对 redis 连接有用' || e2e_plain | head -4
-check "connections.toml：engine = \"redis2\"：报「只能是 postgres、mysql、sqlite、redis、mssql 或 exec」" bad_start '' '[[connection]]\nname = "x"\nengine = "redis2"\ndsn = "redis://h/0"\n' '只能是 postgres、mysql、sqlite、redis、mssql 或 exec' || e2e_plain | head -4
+check "connections.toml：engine = \"redis2\"：报「只能是 postgres、mysql、sqlite、duckdb、redis、mssql 或 exec」" bad_start '' '[[connection]]\nname = "x"\nengine = "redis2"\ndsn = "redis://h/0"\n' '只能是 postgres、mysql、sqlite、duckdb、redis、mssql 或 exec' || e2e_plain | head -4
 _e2e_kill; rm -rf "$D/v"; mkdir -p "$D/v"; printf '[redis]\ndelimiter = "/"\nscan_keys = 5\nload_all = 7\n' >"$D/v/config.toml"; (umask 077; printf '[[connection]]\nname = "rd"\nengine = "redis"\ndsn = "redis://localhost:%s/0"\ndelimiter = "-"\n' "$RPORT" >"$D/v/connections.toml")
 DIR=$D/v sstart rd
 check "[redis] 三项都写了、连接里写了 delimiter：照常启动，树连上了" eval 'running && [[ $(dbrows) == "db0 db1 " ]]' || { dbrows; e2e_plain | head -3; }
