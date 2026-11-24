@@ -1,3 +1,5 @@
+//go:build !linux || duckdb
+
 // Package duckdb is the DuckDB engine (§8.1, F24.1): the C API of libduckdb,
 // loaded as the program runs (purego), so the build stays CGO_ENABLED=0 and
 // the binary the size it was. Reference: duckdb.h of the library; the probes

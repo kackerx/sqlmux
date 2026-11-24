@@ -35,19 +35,19 @@ npm-check:
 
 # build bin/sqlmux
 build:
-    go build -ldflags "-X main.version=$(git describe --tags --match 'v*' --always --dirty) -X main.commit=$(git rev-parse --short HEAD) -X main.date=$(TZ=UTC git log -1 --date=iso-strict-local --format=%cd)" -o bin/sqlmux ./cmd/sqlmux
+    go build -tags duckdb -ldflags "-X main.version=$(git describe --tags --match 'v*' --always --dirty) -X main.commit=$(git rev-parse --short HEAD) -X main.date=$(TZ=UTC git log -1 --date=iso-strict-local --format=%cd)" -o bin/sqlmux ./cmd/sqlmux
 
 # run sqlmux from source
 run *args:
     go run ./cmd/sqlmux {{args}}
 
-# unit tests, golden files included
+# unit tests, golden files included; DuckDB's code is built in on Linux with the duckdb tag only (§8.1「Linux 例外」)
 test:
-    go test ./...
+    go test -tags duckdb ./...
 
 # the tests that need the databases of `just db-up` (in the main workspace only: AGENTS.md)
 test-integration:
-    go test -tags integration ./... || { echo "if the databases are not up: just db-up" >&2; exit 1; }
+    go test -tags "integration duckdb" ./... || { echo "if the databases are not up: just db-up" >&2; exit 1; }
 
 # end-to-end scripts in tmux, all of them or the named ones (just e2e f0.1 f0.2); one build for all
 e2e *scripts:
@@ -55,7 +55,7 @@ e2e *scripts:
     set -u
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
-    go build -o "$tmp/sqlmux" ./cmd/sqlmux || exit 1
+    go build -tags duckdb -o "$tmp/sqlmux" ./cmd/sqlmux || exit 1
     export E2E_BIN="$tmp/sqlmux" E2E_NOBUILD=1
     list="{{scripts}}"
     # the whole run starts from a clean instance: a crashed run's databases skew counts and widths (F21.1)
@@ -91,13 +91,26 @@ fmt:
 tidy:
     go mod tidy
 
+# the default build is static on Linux: purego, which DuckDB's code needs, would make it dynamic, so that is behind the duckdb tag (§15)
+static:
+    #!/usr/bin/env bash
+    set -eu
+    [ "$(go env GOOS)" = linux ] || exit 0
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    CGO_ENABLED=0 go build -o "$tmp/sqlmux" ./cmd/sqlmux
+    file "$tmp/sqlmux" | grep -q 'statically linked' || { file "$tmp/sqlmux" >&2; echo "the default Linux build is not static: something outside the duckdb tag pulls in purego or cgo" >&2; exit 1; }
+
 # what every commit passes: vet, tests with the databases, lint, gofmt, go mod tidy
 check:
     go vet ./...
-    go vet -tags integration ./...
+    go vet -tags duckdb ./...
+    go vet -tags "integration duckdb" ./...
     go test ./...
-    go test -run '^$' -bench . -benchtime 1x ./internal/app/
+    go test -tags duckdb ./...
+    go test -tags duckdb -run '^$' -bench . -benchtime 1x ./internal/app/
     just test-integration
+    just static
     just lint
     @test -z "$($(go env GOROOT)/bin/gofmt -l .)" || { $(go env GOROOT)/bin/gofmt -l . >&2; echo "gofmt: just fmt" >&2; exit 1; }
     go mod tidy

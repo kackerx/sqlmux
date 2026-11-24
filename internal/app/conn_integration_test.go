@@ -19,7 +19,6 @@ import (
 
 	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db"
-	"github.com/kackerx/sqlmux/internal/db/duckdb"
 	"github.com/kackerx/sqlmux/internal/db/mssql"
 	"github.com/kackerx/sqlmux/internal/db/mysql"
 	"github.com/kackerx/sqlmux/internal/db/postgres"
@@ -59,7 +58,9 @@ func engineDSNs(t *testing.T) map[string]string {
 		dsns["mysql"] = mysql.IntegrationDSN(t)
 	}
 	if os.Getenv("SQLMUX_TEST_DUCKDB") != "" {
-		dsns["duckdb"] = duckdb.OwnDB(t)
+		if dsn := duckdbDSN(t); dsn != "" {
+			dsns["duckdb"] = dsn
+		}
 	}
 	return dsns
 }
@@ -91,7 +92,7 @@ func ownDB(t *testing.T, eng string) string {
 	case "sqlite":
 		return sqlite.OwnDB(t)
 	case "duckdb":
-		return duckdb.OwnDB(t)
+		return duckdbDSN(t)
 	}
 	return postgres.OwnDB(t)
 }

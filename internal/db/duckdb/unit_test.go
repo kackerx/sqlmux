@@ -1,3 +1,5 @@
+//go:build !linux || duckdb
+
 package duckdb
 
 import (

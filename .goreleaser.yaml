@@ -1,4 +1,5 @@
-# tech-design §15「发布与分发」: a v* tag builds the six binaries, the
+# tech-design §15「发布与分发」: a v* tag builds the six binaries (and linux's
+# two with DuckDB, §8.1「Linux 例外」: a dynamic binary, its archives _duckdb), the
 # archives, checksums.txt and the changelog of the GitHub Release
 # (.github/workflows/release.yml). OSS GoReleaser only.
 version: 2
@@ -18,13 +19,30 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w -X main.version=v{{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.CommitDate}}
+  - id: sqlmux-duckdb # linux with DuckDB: purego links it to glibc, so it is no default (static) build
+    main: ./cmd/sqlmux
+    binary: sqlmux
+    tags: [duckdb]
+    env:
+      - CGO_ENABLED=0
+    goos: [linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version=v{{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.CommitDate}}
 
 archives:
-  - formats: [tar.gz]
+  - id: sqlmux
+    ids: [sqlmux]
+    formats: [tar.gz]
     name_template: "sqlmux_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides: # a windows archive is a zip, what Explorer opens (§15)
       - goos: windows
         formats: [zip]
+  - id: sqlmux-duckdb
+    ids: [sqlmux-duckdb]
+    formats: [tar.gz]
+    name_template: "sqlmux_{{ .Version }}_{{ .Os }}_{{ .Arch }}_duckdb"
 
 checksum:
   name_template: checksums.txt
