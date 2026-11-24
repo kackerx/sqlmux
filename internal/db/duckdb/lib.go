@@ -102,14 +102,6 @@ func fromC(p uintptr) string {
 // Version is the library's, as it says: v2.0.1.
 func Version() string { return goString(c.version()) }
 
-// PinnedVersion is the libduckdb the downloads are of and the tests run on;
-// the library is looked for under this version in the data directory.
-const PinnedVersion = "2.0.1"
-
-// minVersion is the oldest libduckdb the catalog queries run on: 1.4.4 has no
-// duckdb_columns().is_generated (tried on both).
-var minVersion = "2.0.0" // a var for the tests
-
 // atLeast is whether version v, "v2.0.1" or "v2.1.0-dev123", is minimum or
 // later, by its numbers.
 func atLeast(v, minimum string) bool {
@@ -139,24 +131,6 @@ func Configure(libraryPath, data string) {
 	library, dataDir = libraryPath, data
 }
 
-// NotFound is no libduckdb in any of the places there are to look.
-type NotFound struct{ Tried []string }
-
-func (e *NotFound) Error() string {
-	return i18n.T("找不到 libduckdb（找过：%s）。装好后在 config.toml 的 [duckdb] library 写上它的路径", strings.Join(e.Tried, ", "))
-}
-
-// libName is the file the library is, and what the system finds it by.
-func libName(goos string) string {
-	switch goos {
-	case "windows":
-		return "duckdb.dll"
-	case "darwin":
-		return "libduckdb.dylib"
-	}
-	return "libduckdb.so"
-}
-
 // candidates are the places to look for the library, in order (§8.1): the
 // configured path alone when there is one; else the data directory's, the
 // package managers' directories, the program's own on windows, then the bare
@@ -169,7 +143,7 @@ func candidates(goos, configured, data, exeDir string) []string {
 	name := libName(goos)
 	var out []string
 	if data != "" {
-		out = append(out, filepath.Join(data, "duckdb", PinnedVersion, name))
+		out = append(out, downloadPath(goos, data))
 	}
 	if goos == "windows" {
 		if exeDir != "" {
@@ -199,6 +173,10 @@ func Load() error {
 		exeDir = filepath.Dir(exe)
 	}
 	var tried []string
+	into := "" // where a download would put one (F24.3)
+	if dataDir != "" {
+		into = downloadPath(runtime.GOOS, dataDir)
+	}
 	for _, p := range candidates(runtime.GOOS, library, dataDir, exeDir) {
 		_, statErr := os.Stat(p)
 		bare := p == filepath.Base(p) // the loader's to find
@@ -211,24 +189,34 @@ func Load() error {
 		}
 		h, err := openLib(p)
 		if err != nil {
+			// shortcut: one on the system's search path that does not load (of another
+			// architecture) is taken for none, and a download offered
 			if bare && library == "" {
 				tried = append(tried, p)
 				continue
 			}
 			return loadError(p, err)
 		}
+		// shortcut: one older than the functions (0.9) says so plainly, no download offered
 		if err := bind(h); err != nil {
 			closeLib(h) // not kept: the user's next try is of another library
 			return err
 		}
 		if v := Version(); !atLeast(v, minVersion) {
-			closeLib(h) // nor is one that is too old, for a newer one to be found at the next try
+			// nor is one that is too old, for a newer one to be found at the next try:
+			// with none configured, the one a download puts in the data directory
+			// shortcut: one put at the same path over it is not, the old one staying
+			// mapped there till sqlmux is started again
+			closeLib(h)
+			if library == "" {
+				return &NotFound{Old: v, Into: into}
+			}
 			return fmt.Errorf("%s", i18n.T("libduckdb 至少要 v%s，这个是 %s", minVersion, v))
 		}
 		loaded = true
 		return nil
 	}
-	return &NotFound{Tried: tried}
+	return &NotFound{Tried: tried, Into: into}
 }
 
 // loadError is a library that is there and does not load: wrong architecture,

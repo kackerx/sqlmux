@@ -10,7 +10,7 @@ npm install -g sqlmux                    # or npx sqlmux; no Go needed
 go install github.com/kackerx/sqlmux/cmd/sqlmux@latest   # Go 1.26+
 ```
 
-Or download a binary for macOS or Linux (amd64 / arm64) from the [Releases page](https://github.com/kackerx/sqlmux/releases). Check it:
+Or download a binary for macOS, Linux or Windows (amd64 / arm64) from the [Releases page](https://github.com/kackerx/sqlmux/releases). On Linux, only the `sqlmux_<version>_linux_<arch>_duckdb` archive and `go install -tags duckdb …` have DuckDB ([DuckDB](duckdb.md)). Check it:
 
 ```sh
 sqlmux --version
@@ -27,6 +27,7 @@ sqlmux ./app.db
 sqlmux "postgres://me@localhost:5432/app?sslmode=disable"
 sqlmux "mysql://me@localhost:3306/app"
 sqlmux "redis://localhost:6379/0"
+sqlmux ./data.duckdb      # DuckDB (on Linux, the _duckdb build: see 1. Install)
 ```
 
 No database at hand? Make one:
@@ -42,7 +43,7 @@ To keep a connection, add it to `~/.config/sqlmux/connections.toml` (on Windows 
 ```toml
 [[connection]]
 name         = "local"
-engine       = "postgres"          # postgres | mysql | sqlite | mssql | redis
+engine       = "postgres"          # postgres | mysql | sqlite | duckdb | mssql | redis
 dsn          = "postgres://me@localhost:5432/app?sslmode=disable"
 password_env = "PGPASSWORD"        # or password_cmd = "…", or password = "…"
 ```

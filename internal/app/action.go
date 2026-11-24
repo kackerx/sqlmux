@@ -101,6 +101,10 @@ func init() {
 				p.conn.Meta.Cancel()
 				return nil
 			}
+			if c := a.conn(); a.libFetch != nil && (c == nil || c.busy == 0) { // the download of libduckdb, as its toast says, over an input's esc (F24.3)
+				a.libFetch.cancel()
+				return nil
+			}
 			if ed := a.vim(); ed != nil && ed.Plain() { // a plain editor's: the selection, then the list, else the first press (§6.9)
 				switch {
 				case ed.HasSelection():
@@ -553,7 +557,14 @@ func init() {
 			}
 			return then()
 		})},
-		"confirm.no": {Title: i18n.N("取消"), Local: true, Run: when(inConfirm, func(a *App) tea.Cmd { a.confirm = nil; return nil })},
+		"confirm.no": {Title: i18n.N("取消"), Local: true, Run: when(inConfirm, func(a *App) tea.Cmd {
+			no := a.confirm.no
+			a.confirm = nil
+			if no == nil {
+				return nil
+			}
+			return no()
+		})},
 		// The query bar (§7.8「查询条」).
 		"grid.where": {Title: i18n.N("WHERE 条件"), Run: do(func(a *App, _ Args) {
 			if t := dataOf(a.focused()); t != nil && t.typing != "where" {

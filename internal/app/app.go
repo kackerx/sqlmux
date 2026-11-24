@@ -119,6 +119,7 @@ type App struct {
 	dragTree    bool         // the sidebar's edge is being dragged
 	dragCol     *colDrag     // a column's width is being dragged by its head's edge (F17.14)
 	exporting   map[any]bool // the tabs with an export going on (F12.4)
+	libFetch    *libFetch    // the download of libduckdb going on (F24.3)
 	shiftClick  bool         // the left click being handled had Shift down (a column head's: add to the sorting)
 	dragText    int          // the pane whose query text is being selected by dragging; 0 for none
 	dragWhere   int          // the same for a WHERE's text (vim = false)
@@ -282,6 +283,12 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotConnected(msg)
 	case connTested:
 		a.gotConnTested(msg)
+	case libFetched:
+		return a, a.gotLibFetched(msg)
+	case libTick:
+		if msg.f == a.libFetch { // a tick of a download that is over is the end of its chain
+			return a, a.libProgress()
+		}
 	case sessionDialed:
 		return a, a.gotSessionDialed(msg)
 	case catalogMsg:
@@ -533,6 +540,9 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		var picked tea.Cmd
 		if a.cols != nil {
 			picked = a.closeCols()
+		}
+		if b := a.confirm; b != nil && b.no != nil { // a no too
+			picked = tea.Batch(picked, b.no())
 		}
 		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols, a.confirm, a.keyHelp, a.sessList, a.menu, a.ddl = false, false, nil, nil, nil, nil, nil, nil, nil, nil
 		a.res.Reset()
