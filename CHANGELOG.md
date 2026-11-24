@@ -6,6 +6,8 @@ All notable changes to sqlmux are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-25
+
 ### Added
 
 - **DuckDB**, the sixth engine: open a `.duckdb` or `.ddb` file (`sqlmux data.duckdb`), or a `:memory:` connection to query Parquet and CSV files. Schemas, tables, views, macros and sequences in the tree; tables page, sort, filter and edit as on PostgreSQL (a table needs a primary key or a unique constraint to be edited); queries run and cancel; `?mode=ro` opens a file read only and other DSN parameters are DuckDB settings (`?memory_limit=4GB`). DuckDB lets one process write a file at a time: while sqlmux is connected, other programs cannot open it; *Disconnect* releases it. See [DuckDB](docs/duckdb.md).
@@ -321,7 +323,8 @@ Note: `go install github.com/kackerx/sqlmux/...` does not work for this version 
 - Every key can be rebound per pane type in `keymaps.toml` (`SPC` is the leader). `sqlmux keys` lists every action and `sqlmux keys --check` reports conflicts. Key help (`?`), which-key hints and full mouse support are built in, and `vim = false` gives plain editors and arrow-key navigation.
 - Themes, border styles, Nerd Font or ASCII icons, and an English or Chinese UI (`language = "zh"`).
 
-[Unreleased]: https://github.com/kackerx/sqlmux/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/kackerx/sqlmux/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/kackerx/sqlmux/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/kackerx/sqlmux/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/kackerx/sqlmux/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/kackerx/sqlmux/compare/v0.8.0...v0.9.0
