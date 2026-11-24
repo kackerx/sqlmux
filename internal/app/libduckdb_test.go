@@ -89,7 +89,7 @@ func TestNoLibduckdbAsksToDownload(t *testing.T) {
 // What waits for the download dials what it was (§8.1): the spec it was
 // dialed with, an edit meanwhile the next dial's; the query tab that picked
 // the connection still has it; one that fails meanwhile waits too, and a
-// failed download fails them all.
+// failed download fails them all, the command line's SQL for one dropped.
 func TestLibduckdbWaitersKeepWhatTheyWere(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	nf := notFound(t)
@@ -100,6 +100,7 @@ func TestLibduckdbWaitersKeepWhatTheyWere(t *testing.T) {
 	first.Engine, first.DSN = "sqlite", filepath.Join(t.TempDir(), "first.db")
 	c.setSpec(first)
 	c.State, q.want = connConnecting, c
+	a.want = &startTable{conn: c, name: "insert into t values (1)", query: q} // --sql
 	a.Update(connected{conn: c, err: nf, spec: first})
 	a.run("confirm.yes", 0)
 	second := first
@@ -126,7 +127,7 @@ func TestLibduckdbWaitersKeepWhatTheyWere(t *testing.T) {
 	}
 
 	a.Update(libFetched{err: context.DeadlineExceeded})
-	if c.State != connFailed || other.State != connFailed || q.want != nil || !strings.Contains(a.toast, "下载 libduckdb 失败") {
+	if c.State != connFailed || other.State != connFailed || q.want != nil || a.want != nil || !strings.Contains(a.toast, "下载 libduckdb 失败") {
 		t.Errorf("a failed download: %v %v, toast %q", c.State, other.State, a.toast)
 	}
 }

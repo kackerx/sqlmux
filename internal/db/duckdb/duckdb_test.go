@@ -4,6 +4,7 @@ package duckdb
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -182,19 +183,22 @@ func TestShapes(t *testing.T) {
 func TestCancel(t *testing.T) {
 	c, _ := open(t)
 	long := "select count(*) from range(100000000000) a, range(1000) b"
-	cancelled := func(sql string, after time.Duration) time.Duration {
+	// cancelled is whether the cancel came while the library ran the statement,
+	// INTERRUPT, or before, ctx's own error and nothing run: which one is the
+	// race of the cancel with the steps of Query (both seen)
+	cancelled := func(sql string, after time.Duration) (bool, time.Duration) {
 		ctx, cancel := context.WithCancel(context.Background())
 		time.AfterFunc(after, cancel)
 		start := time.Now()
 		_, err := c.Query(ctx, sql)
-		if err == nil || !strings.Contains(err.Error(), "INTERRUPT") {
+		if err == nil || !errors.Is(err, context.Canceled) && !strings.Contains(err.Error(), "INTERRUPT") {
 			t.Fatalf("a cancelled statement: %v", err)
 		}
-		return time.Since(start) - after
+		return !errors.Is(err, context.Canceled), time.Since(start) - after
 	}
 	// at once, before the statement has started, the interrupt is lost and sent again
 	for _, after := range []time.Duration{0, 50 * time.Microsecond, 150 * time.Microsecond, 400 * time.Microsecond, time.Millisecond, 3 * time.Millisecond, 200 * time.Millisecond} {
-		if d := cancelled(long, after); d > time.Second {
+		if _, d := cancelled(long, after); d > time.Second {
 			t.Errorf("cancelled after %v, back %v later", after, d)
 		}
 		eq(t, cells(q(t, c, "select 42")), []string{"42"}) // the connection is the same
@@ -206,7 +210,14 @@ func TestCancel(t *testing.T) {
 	if db.TxStatus(c) != 'T' {
 		t.Fatalf("in a transaction: %c", db.TxStatus(c))
 	}
-	cancelled(long, 100*time.Millisecond)
+	for i := 0; ; i++ { // one the library did not run yet leaves the transaction as it was; a busy machine's prepare can take 100 ms
+		if ran, _ := cancelled(long, 100*time.Millisecond); ran {
+			break
+		}
+		if db.TxStatus(c) != 'T' || i == 9 {
+			t.Fatalf("cancelled before it ran: %c", db.TxStatus(c))
+		}
+	}
 	if db.TxStatus(c) != 'E' {
 		t.Errorf("after a cancel: %c", db.TxStatus(c))
 	}

@@ -121,7 +121,8 @@ func (a *App) gotConnected(m connected) tea.Cmd {
 		}
 		// no libduckdb (F24.3): c is connecting till it is there, the query tabs
 		// waiting on it still, and dials m.spec again; one disconnected or gone
-		// meanwhile is not dialed
+		// meanwhile is not dialed. Without it, the command line's table or SQL
+		// for c goes too: the next dial may be of an edit, another database
 		dialing := func(then func() tea.Cmd) func() tea.Cmd {
 			return func() tea.Cmd {
 				if a.sessionOf(c) == nil || c.State != connConnecting {
@@ -130,7 +131,12 @@ func (a *App) gotConnected(m connected) tea.Cmd {
 				return then()
 			}
 		}
-		if a.offerLibrary(m.err, dialing(func() tea.Cmd { return dialConn(c, m.spec) }), dialing(failed)) {
+		if a.offerLibrary(m.err, dialing(func() tea.Cmd { return dialConn(c, m.spec) }), dialing(func() tea.Cmd {
+			if a.want != nil && a.want.conn == c {
+				a.want = nil
+			}
+			return failed()
+		})) {
 			return nil
 		}
 		return failed()
