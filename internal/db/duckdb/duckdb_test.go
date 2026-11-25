@@ -61,6 +61,7 @@ func eq(t *testing.T, got, want []string) {
 func TestTypes(t *testing.T) {
 	c, _ := open(t)
 	q(t, c, `create table t(tags integer[], st struct(b varchar, a int), mp map(varchar,int), d decimal(18,3), ts timestamptz, u uuid, iv interval, h hugeint, f double, nested struct(x integer[], y struct(z int)), un union(i int, s varchar), tz timetz, tm time, bit bit, e enum('a','b'), fl float, s varchar, n varchar)`)
+	q(t, c, "set TimeZone='Asia/Shanghai'") // timestamptz shows in the session's zone, which follows the host's (CI runs in UTC)
 	q(t, c, `insert into t values ([1,2],{'b':'x','a':1},map {'k':1},12345.678,'2024-01-02 03:04:05+08','3077b41a-1111-2222-3333-444455556666',interval '1 day 2 hours',170141183460469231731687303715884105727,'NaN'::double,{'x':[1,2],'y':{'z':3}},union_value(s:='hi'),'12:00:00+02'::timetz,'03:04:05.123456','101'::bit,'a',1.1,'NULL',NULL)`)
 	eq(t, cells(q(t, c, "select * from t")), []string{"[1, 2]", "{'b': x, 'a': 1}", "{k=1}", "12345.678", "2024-01-02 03:04:05+08",
 		"3077b41a-1111-2222-3333-444455556666", "1 day 02:00:00", "170141183460469231731687303715884105727", "nan",
