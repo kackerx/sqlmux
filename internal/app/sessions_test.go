@@ -610,14 +610,14 @@ func TestNewSessionToastGoesWhenConnected(t *testing.T) {
 	answer := func() {
 		a.Update(sessionDialed{name: "1", spec: spec, d: dialed{main: noDB{}, meta: noDB{}, spec: spec}})
 	}
-	a.dialSession("1")
+	a.dialSession("1", spec)
 	if a.toast != "正在连接 doraemon…" {
 		t.Fatalf("toast %q", a.toast)
 	}
 	if answer(); a.toast != "" || a.sess.Name != "1" {
 		t.Errorf("connected: toast %q", a.toast)
 	}
-	a.dialSession("2")
+	a.dialSession("2", spec)
 	a.showToast("something else")
 	spec2 := spec
 	a.Update(sessionDialed{name: "2", spec: spec2, d: dialed{main: noDB{}, meta: noDB{}, spec: spec2}})

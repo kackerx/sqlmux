@@ -1,4 +1,6 @@
-# reviewer（`sqlmux-code-reviewer`）
+# 审查（Codex）
+
+2026-11-24 起没有 reviewer 会话：节点审查由决策者用 Codex 做（AGENTS.md「固定的工作流」第 3 步），下面的审查重点是决策者判断 Codex 结论、写复审重点时的标准；全仓审计由决策者起的 `code-reviewer` 后台会话照「全仓审计」一条做，那时其余各条也适用。
 
 流程全文在 [`../../AGENTS.md`](../../AGENTS.md)。reviewer 只读：不改代码、不改 `specs/`、不提交。
 

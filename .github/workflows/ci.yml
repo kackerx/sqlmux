@@ -35,10 +35,15 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go vet ./... && go vet -tags integration ./...
-      - run: go test ./...
+      # DuckDB's code is built in on Linux with the duckdb tag only; the default build is the stub (§15)
+      - run: go vet ./... && go vet -tags duckdb ./... && go vet -tags "integration duckdb" ./...
+      - run: go test ./... && go test -tags duckdb ./...
+      - name: the default Linux build is static (purego, which DuckDB needs, makes a binary dynamic)
+        run: |
+          CGO_ENABLED=0 go build -o "$RUNNER_TEMP/sqlmux" ./cmd/sqlmux
+          file "$RUNNER_TEMP/sqlmux" | tee /dev/stderr | grep -q 'statically linked'
       - name: the benchmarks run (a go test without -bench only compiles them)
-        run: go test -run '^$' -bench . -benchtime 1x ./internal/app/
+        run: go test -tags duckdb -run '^$' -bench . -benchtime 1x ./internal/app/
       - name: gofmt and go mod tidy leave nothing to change
         run: |
           test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
@@ -117,4 +122,12 @@ jobs:
           mysql -h 127.0.0.1 -uroot -psqlmux sqlmux < testdata/seed/mysql.sql
           docker run -i --rm --network host redis/redis-stack-server:7.4.0-v3 redis-cli -h 127.0.0.1 < testdata/seed/redis.txt
           docker run -i --rm --network host --entrypoint /opt/mssql-tools18/bin/sqlcmd mcr.microsoft.com/mssql/server:2022-latest -C -b -S localhost -U sa -P 'Sqlmux!2026' < testdata/seed/mssql.sql
-      - run: go test -tags integration ./...
+      # F24.2: DuckDB needs no service, but its library: the version sqlmux pins
+      # (duckdb.PinnedVersion), its checksum the one F24.3 puts in the download table
+      - name: libduckdb
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/duckdb.tgz" https://install.duckdb.org/v2.0.1/duckdb-shared-libs-linux-amd64.tar.gz
+          echo "e25502612fed533a243b61f23a2a574daad030e7e88906222a5f0ab30d06769e  $RUNNER_TEMP/duckdb.tgz" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/duckdb" && tar -xzf "$RUNNER_TEMP/duckdb.tgz" -C "$RUNNER_TEMP/duckdb"
+          echo "SQLMUX_TEST_DUCKDB=$RUNNER_TEMP/duckdb/libduckdb.so" >> "$GITHUB_ENV"
+      - run: go test -tags "integration duckdb" ./...

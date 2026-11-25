@@ -29,10 +29,10 @@ func dangerous(s string, ts []Token, depth []int, d Dialect) bool {
 		main = i
 	case "alter":
 		return lower(s, ts, i+1) == "table" && dropsData(s, ts, i, d)
-	case "explain": // MySQL's only plans
+	case "explain": // MySQL's only plans; PG's and DuckDB's ANALYZE runs it
 		analyze, j := explainOptions(s, ts[i+1:])
 		j += i + 1
-		return d == PG && analyze && j < len(ts) && dangerous(s, ts[j:], depth[j:], d)
+		return (d == PG || d == DuckDB) && analyze && j < len(ts) && dangerous(s, ts[j:], depth[j:], d)
 	case "with": // the statement after the CTEs, whose bodies are in parentheses
 		main = withMain(s, ts, depth, i)
 	}
@@ -77,9 +77,10 @@ func noWhere(s string, ts []Token, depth []int, i int) bool {
 // column. PG's other words are no keywords there: `drop key` drops a column
 // named key (§13, tried on PG 17); MySQL reserves these.
 var keeps = map[Dialect]map[string]bool{
-	PG:    {"constraint": true},
-	MySQL: {"constraint": true, "index": true, "key": true, "primary": true, "foreign": true, "check": true},
-	MSSQL: {"constraint": true},
+	PG:     {"constraint": true},
+	MySQL:  {"constraint": true, "index": true, "key": true, "primary": true, "foreign": true, "check": true},
+	MSSQL:  {"constraint": true},
+	DuckDB: {"constraint": true},
 }
 
 // dropsData is whether the ALTER TABLE at ts[i] drops a column, or on MySQL

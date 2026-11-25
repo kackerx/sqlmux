@@ -1,3 +1,6 @@
 - [WSL environment](project_wsl_env.md) — 2026-11-07 起 agent 在 Windows WSL 上跑：Docker 要开 WSL integration，Windows 版用主机 python 跑 smoke.py
 - [Small fixes skip the pipeline](feedback_small_fixes.md) — _test 文件的平台小修：worker 直接改、重跑 CI，不走审查 / 测试，不顺手立机制
 - [Lenient release review](feedback_release_review.md) — Codex 审 release PR：主流程 OK 就过，小问题记已知上限，修复只跑相关脚本
+- [bg sessions, Codex review](feedback_bg_sessions_codex_review.md) — 2026-11-24 起：worker 用 claude --bg 起；审查和测试交 Codex（小活 astra、重活 sol，全权限不进沙箱）
+- [Binary size and cgo](feedback_binary_size.md) — 用户对二进制变大、cgo 敏感；先找不涨的路再给方案
+- [ksmac acceptance host](reference_ksmac.md) — 用户的 Mac，ssh ksmac；验收版放 ~/sqlmux-verify/，不覆盖 brew 的

@@ -4,5 +4,5 @@
 
 - **目标**（ponytail）：删死代码和没人用的导出；合并重复代码（含测试里重复的辅助函数）；去掉单实现的接口和为「以后」预留的参数、配置；简化过长过绕的函数；让包的边界符合 tech-design §4；处理积压的审查「建议」；清点 `ponytail:` 注释，具备升级条件的提出来，过时的删掉。
 - **硬性约束**：不改行为——单元测试、golden、e2e 都不改期望值就能通过，要改期望值的不算修剪，提给决策者；不改 `specs/` 和 `AGENTS.md`，spec 本身带来的复杂度提给决策者；不碰 `e2e/`（tester 的，觉得要精简就发给 tester）；不加依赖、不加抽象、不做没有测量依据的性能优化、不为风格偏好大面积改名或搬文件。
-- **做法**：先只读（`ponytail:ponytail-audit` 扫仓库、`ponytail:ponytail-debt` 汇总注释，需要时 `simplify`、`code-review`）→ 列清单发给决策者（位置、改什么、理由和风险，按收益排序）→ 决策者确认范围后动手，每一项或一组相关小项一个 commit，说明英文、`prune:` 开头，每个 commit 自己保证全绿 → 全部做完整批交给 reviewer，通过后 tester 在最后一个 commit 上跑完整回归。
+- **做法**：先只读（`ponytail:ponytail-audit` 扫仓库、`ponytail:ponytail-debt` 汇总注释，需要时 `simplify`、`code-review`）→ 列清单发给决策者（位置、改什么、理由和风险，按收益排序）→ 决策者确认范围后动手，每一项或一组相关小项一个 commit，说明英文、`prune:` 开头，每个 commit 自己保证全绿 → 全部做完整批交给决策者用 Codex 审，通过后 tester 在最后一个 commit 上跑完整回归。
 - **只修剪一轮**：过程中新发现、不在清单里的问题记下来，留给下一次。

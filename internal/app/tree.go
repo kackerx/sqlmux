@@ -10,6 +10,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db"
 	"github.com/kackerx/sqlmux/internal/db/redis"
 	"github.com/kackerx/sqlmux/internal/i18n"
@@ -32,11 +33,13 @@ type treeState struct {
 	findStop context.CancelFunc
 }
 
-// connected answers connect: c's Main and Meta, or why not.
+// connected answers connect: c's Main and Meta, or why not; spec is what
+// was dialed.
 type connected struct {
 	conn *Conn
 	d    dialed
 	err  error
+	spec config.Connection
 }
 
 // connect connects c, not connected yet or failed before; then its
@@ -46,11 +49,16 @@ func (a *App) connect(c *Conn) tea.Cmd {
 		return nil
 	}
 	c.State = connConnecting
-	spec := c.Spec
+	return dialConn(c, c.Spec)
+}
+
+// dialConn dials c, connecting, as spec says: its own, or the one of a dial
+// that waited for libduckdb (F24.3).
+func dialConn(c *Conn, spec config.Connection) tea.Cmd {
 	c.setDriver(spec) // as this dial has them
 	return func() tea.Msg {
 		d, err := dial(context.Background(), spec)
-		return connected{c, d, err}
+		return connected{c, d, err, spec}
 	}
 }
 
@@ -96,19 +104,46 @@ func (a *App) gotConnected(m connected) tea.Cmd {
 	if c.State != connConnecting && m.err == nil { // disconnected while it dialed: the one that is not wanted
 		return m.d.discard()
 	}
-	var waiting []*queryTab
-	for _, t := range a.queries() {
-		if t.want == c {
-			t.want, waiting = nil, append(waiting, t)
+	waiting := func() []*queryTab {
+		var ts []*queryTab
+		for _, t := range a.queries() {
+			if t.want == c {
+				t.want, ts = nil, append(ts, t)
+			}
 		}
+		return ts
 	}
 	if m.err != nil {
-		c.State, c.err = connFailed, m.err // the tabs waiting on it stay, saying why (F12.5)
-		return a.showToast(i18n.T("%s：%s", c.label(), m.err))
+		failed := func() tea.Cmd {
+			waiting()
+			c.State, c.err = connFailed, m.err // the tabs waiting on it stay, saying why (F12.5)
+			return a.showToast(i18n.T("%s：%s", c.label(), m.err))
+		}
+		// no libduckdb (F24.3): c is connecting till it is there, the query tabs
+		// waiting on it still, and dials m.spec again; one disconnected or gone
+		// meanwhile is not dialed. Without it, the command line's table or SQL
+		// for c goes too: the next dial may be of an edit, another database
+		dialing := func(then func() tea.Cmd) func() tea.Cmd {
+			return func() tea.Cmd {
+				if a.sessionOf(c) == nil || c.State != connConnecting {
+					return nil
+				}
+				return then()
+			}
+		}
+		if a.offerLibrary(m.err, dialing(func() tea.Cmd { return dialConn(c, m.spec) }), dialing(func() tea.Cmd {
+			if a.want != nil && a.want.conn == c {
+				a.want = nil
+			}
+			return failed()
+		})) {
+			return nil
+		}
+		return failed()
 	}
 	c.take(m.d)
 	cmds := []tea.Cmd{a.loadCatalog(c)}
-	for _, t := range waiting {
+	for _, t := range waiting() {
 		if why := t.stayReason(); why != "" { // begun, or running, meanwhile
 			cmds = append(cmds, a.showToast(why))
 			continue

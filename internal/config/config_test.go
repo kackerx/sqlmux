@@ -487,3 +487,32 @@ func TestOuterNav(t *testing.T) {
 		t.Errorf("zellij: %v", err)
 	}
 }
+
+// [duckdb] library is the libduckdb to load (F24.2); a misspelt key is told.
+func TestParseDuckDB(t *testing.T) {
+	c, err := Parse("[duckdb]\nlibrary = \"/opt/lib/libduckdb.so\"\n")
+	if err != nil || c.DuckDBLibrary != "/opt/lib/libduckdb.so" || len(c.Unknown) != 0 {
+		t.Errorf("%+v %v", c, err)
+	}
+	if c, _ := Parse("[duckdb]\nlibrry = \"x\"\n"); len(c.Unknown) != 1 || c.DuckDBLibrary != "" {
+		t.Errorf("a misspelt key: %v", c.Unknown)
+	}
+}
+
+// A relative [duckdb] library is of config.toml's directory, not the one
+// sqlmux starts in (§8.1); an absolute one is as it is.
+func TestLoadDuckDBLibraryRelative(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	abs := filepath.Join(t.TempDir(), "libduckdb.so")
+	for lib, want := range map[string]string{"lib/libduckdb.so": filepath.Join(Dir(), "lib", "libduckdb.so"), abs: abs} {
+		if err := os.MkdirAll(Dir(), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(Dir(), "config.toml"), []byte("[duckdb]\nlibrary = '"+lib+"'\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if c, err := Load(); err != nil || c.DuckDBLibrary != want {
+			t.Errorf("%s: %q, %v", lib, c.DuckDBLibrary, err)
+		}
+	}
+}

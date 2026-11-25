@@ -37,22 +37,6 @@ type Conn struct {
 	tx   byte // 'I' or 'T', as the statements run tell (txAfter)
 }
 
-// Path is the file spec names: ~ at its start is the home directory, a
-// relative one is relative to where sqlmux started; ?mode=ro and the like are
-// the driver's, which Config passes on. Both separators are taken on windows.
-func Path(spec string) (path, query string, err error) {
-	path, query, _ = strings.Cut(spec, "?")
-	if rest, ok := strings.CutPrefix(path, "~"); ok && (rest == "" || rest[0] == '/' || rest[0] == '\\' && runtime.GOOS == "windows") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", "", err
-		}
-		path = home + rest
-	}
-	path, err = filepath.Abs(path)
-	return path, query, err
-}
-
 // slashPath is the windows drive path in the shape a file: URL takes: C:\x.db
 // is the path /C:/x.db there. Unix paths already are that shape.
 func slashPath(p string) string {
@@ -66,7 +50,7 @@ func slashPath(p string) string {
 // timeout, as Main writes while Meta reads the same file, unless a _pragma
 // sets one, and mode=rw unless another mode is written.
 func DSN(spec string) (path, dsn string, err error) {
-	path, query, err := Path(spec)
+	path, query, err := db.FilePath(spec)
 	if err != nil {
 		return "", "", err
 	}

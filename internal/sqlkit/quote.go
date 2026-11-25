@@ -93,5 +93,10 @@ func (d Dialect) NeedsQuote(name string) bool {
 			return true
 		}
 	}
+	// shortcut: PG's words for DuckDB, which reserves qualify, pivot, summarize and others besides:
+	// a table of that name is completed bare; read duckdb_keywords() when one comes up
+	if d == DuckDB {
+		d = PG
+	}
 	return reserved[d][strings.ToLower(name)]
 }

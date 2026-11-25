@@ -9,9 +9,9 @@ trap 'e2e_stop' EXIT
 E2E_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 E2E_BIN=${E2E_BIN:-$E2E_ROOT/bin/sqlmux}
 E2E_PASS=0 E2E_FAIL=0
-# sqlmux won't start without a connection (§14): every run needs the seeded PG from
-# docker-compose.yml (AGENTS.md「集成测试环境」) and SQLMUX_TEST_PG pointing at it.
-[[ -n $SQLMUX_TEST_PG ]] || { echo "e2e: SQLMUX_TEST_PG is not set (see docker-compose.yml)" >&2; trap - EXIT; exit 1; }
+# The default test connection uses the seeded PG from docker-compose.yml.
+# File-only tests set E2E_NOCONN before sourcing this file and supply their own connection.
+[[ -n $E2E_NOCONN || -n $SQLMUX_TEST_PG ]] || { echo "e2e: SQLMUX_TEST_PG is not set (see docker-compose.yml)" >&2; trap - EXIT; exit 1; }
 # The user's PG* settings and ~/.pgpass stay out of every run.
 unset $(env | sed -n 's/^\(PG[A-Z_]*\)=.*/\1/p'); export PGPASSFILE=/nonexistent/pgpass
 
@@ -25,7 +25,7 @@ t() { tmux -L "$E2E_SOCK" "$@"; }
 # e2e_build: go build into E2E_BIN — skipped when E2E_NOBUILD is set, so a full run builds once and every
 # script shares that binary (AGENTS.md「tester 的规则」: one build per round, not one per script).
 e2e_build() { [[ -n $E2E_NOBUILD ]] && { [[ -x $E2E_BIN ]] || { echo "e2e: E2E_NOBUILD but no $E2E_BIN" >&2; return 1; }; return 0; }
-  (cd "$E2E_ROOT" && go build -o "$E2E_BIN" ./cmd/sqlmux); }
+  (cd "$E2E_ROOT" && go build -tags duckdb -o "$E2E_BIN" ./cmd/sqlmux); }
 
 # e2e_start [-x W] [-y H] [-k] [-c FILE] [-K FILE] CMD — fresh server, session "t" (default 160x45).
 # -k: turn on tmux extended-keys before CMD starts, so it can negotiate key enhancements.

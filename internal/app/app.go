@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/kackerx/sqlmux/internal/config"
+	"github.com/kackerx/sqlmux/internal/db/duckdb"
 	"github.com/kackerx/sqlmux/internal/editor"
 	"github.com/kackerx/sqlmux/internal/i18n"
 	"github.com/kackerx/sqlmux/internal/keymap"
@@ -118,6 +119,7 @@ type App struct {
 	dragTree    bool         // the sidebar's edge is being dragged
 	dragCol     *colDrag     // a column's width is being dragged by its head's edge (F17.14)
 	exporting   map[any]bool // the tabs with an export going on (F12.4)
+	libFetch    *libFetch    // the download of libduckdb going on (F24.3)
 	shiftClick  bool         // the left click being handled had Shift down (a column head's: add to the sorting)
 	dragText    int          // the pane whose query text is being selected by dragging; 0 for none
 	dragWhere   int          // the same for a WHERE's text (vim = false)
@@ -149,6 +151,7 @@ var whichKeyDelay = 400 * time.Millisecond
 // not "", shows as a toast on start.
 func New(cfg *config.Config, keys *keymap.Map, sess *Session, st *config.State, warning string) *App {
 	editor.UnnamedPlus = cfg.Clipboard == "unnamedplus"
+	duckdb.Configure(cfg.DuckDBLibrary, config.DataDir()) // where to look for libduckdb (§8.1)
 	a := &App{
 		theme: cfg.Theme, icons: cfg.Icons, baseIcons: cfg.BaseIcons, plain: !cfg.Vim, themeName: cfg.ThemeName, tabWidth: cfg.TabWidth, maxRows: cfg.MaxRows, redisDelim: cfg.RedisDelimiter, scanKeys: cfg.RedisScanKeys, indexKeys: cfg.RedisIndexKeys, indexCache: cfg.RedisIndexCache, outerNav: cfg.OuterNav == "auto", loadAll: cfg.RedisLoadAll, resultHeight: cfg.ResultHeight, fullWidth: cfg.GridFullWidth, treeWidth: cfg.TreeWidth, treeFollow: cfg.TreeFollow, border: cfg.Border, focusBorder: cfg.FocusBorder, newDesc: cfg.GridDesc, newTurned: cfg.GridTranspose,
 		keywordCase: cfg.KeywordCase, formatPrg: cfg.FormatPrg, autoPairs: cfg.AutoPairs, valueHints: cfg.Hints, tipsOn: cfg.Tips, tip: tipState{cur: -1, pick: rand.IntN}, confirmDangerous: cfg.ConfirmDangerous, previewSave: cfg.PreviewSave,
@@ -280,6 +283,12 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.gotConnected(msg)
 	case connTested:
 		a.gotConnTested(msg)
+	case libFetched:
+		return a, a.gotLibFetched(msg)
+	case libTick:
+		if msg.f == a.libFetch { // a tick of a download that is over is the end of its chain
+			return a, a.libProgress()
+		}
 	case sessionDialed:
 		return a, a.gotSessionDialed(msg)
 	case catalogMsg:
@@ -531,6 +540,9 @@ func (a *App) click(p uv.Position) tea.Cmd {
 		var picked tea.Cmd
 		if a.cols != nil {
 			picked = a.closeCols()
+		}
+		if b := a.confirm; b != nil && b.no != nil { // a no too
+			picked = tea.Batch(picked, b.no())
 		}
 		a.whichKey, a.paneNumbers, a.palette, a.drop, a.cols, a.confirm, a.keyHelp, a.sessList, a.menu, a.ddl = false, false, nil, nil, nil, nil, nil, nil, nil, nil
 		a.res.Reset()

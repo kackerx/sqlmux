@@ -46,8 +46,9 @@ func settle(a *App, cmd tea.Cmd) {
 }
 
 // engineDSNs is each engine's seeded database the tests run against, as
-// SQLMUX_TEST_PG and SQLMUX_TEST_MYSQL name them, and a file SQLite's, which
-// needs no server; a test with only that one runs on it alone.
+// SQLMUX_TEST_PG and SQLMUX_TEST_MYSQL name them, a file SQLite's, which
+// needs no server, and DuckDB's, which wants its library (SQLMUX_TEST_DUCKDB);
+// a test with only SQLite's runs on it alone.
 func engineDSNs(t *testing.T) map[string]string {
 	dsns := map[string]string{"sqlite": sqlite.OwnDB(t)}
 	if os.Getenv("SQLMUX_TEST_PG") != "" {
@@ -55,6 +56,11 @@ func engineDSNs(t *testing.T) map[string]string {
 	}
 	if os.Getenv("SQLMUX_TEST_MYSQL") != "" {
 		dsns["mysql"] = mysql.IntegrationDSN(t)
+	}
+	if os.Getenv("SQLMUX_TEST_DUCKDB") != "" {
+		if dsn := duckdbDSN(t); dsn != "" {
+			dsns["duckdb"] = dsn
+		}
 	}
 	return dsns
 }
@@ -70,7 +76,7 @@ func eachEngine(t *testing.T, test func(t *testing.T, eng, dsn string)) {
 // no other database, no session of another's.
 func eachServer(t *testing.T, test func(t *testing.T, eng, dsn string)) {
 	eachEngine(t, func(t *testing.T, eng, dsn string) {
-		if eng == "sqlite" {
+		if config.FileEngine(eng) {
 			t.Skip("a file has no server")
 		}
 		test(t, eng, dsn)
@@ -85,6 +91,8 @@ func ownDB(t *testing.T, eng string) string {
 		return mysql.OwnDB(t)
 	case "sqlite":
 		return sqlite.OwnDB(t)
+	case "duckdb":
+		return duckdbDSN(t)
 	}
 	return postgres.OwnDB(t)
 }
@@ -347,7 +355,7 @@ func readOnlyMain(t *testing.T, eng, dsn string) {
 		_, err := conn.Query(ctx, "update t_user set name = name where id = 1")
 		return err
 	})
-	want := map[string]string{"sqlite": "8"}[eng] // SQLITE_READONLY
+	want := map[string]string{"sqlite": "8", "duckdb": "TransactionContext"}[eng] // SQLITE_READONLY
 	if want == "" {
 		want = "25006"
 	}
@@ -418,7 +426,11 @@ func manualTxTable(t *testing.T, eng, _ string) {
 	settle(a, a.fetch(tab, false))
 	var tx byte
 	_ = play.Main.Run(context.Background(), func(_ context.Context, c db.Conn) error { tx = db.TxStatus(c); return nil })
-	if tab.bar == nil || tx != 'T' {
+	wantTx := byte('T') // DuckDB has no savepoint to take the failed read back to: it fails the transaction (§8.1)
+	if eng == "duckdb" {
+		wantTx = 'E'
+	}
+	if tab.bar == nil || tx != wantTx {
 		t.Fatalf("a WHERE failing: bar %v, %c", tab.bar, tx)
 	}
 	tab.applied = ""

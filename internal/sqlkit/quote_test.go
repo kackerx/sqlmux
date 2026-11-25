@@ -21,6 +21,8 @@ func TestNeedsQuote(t *testing.T) {
 		{"comment", MySQL, false}, {"first", MySQL, false}, {"view", MySQL, false},
 		{"autoincrement", SQLite, true}, {"isnull", SQLite, true}, {"notnull", SQLite, true}, {"raise", SQLite, true}, {"deferrable", SQLite, true},
 		{"comment", SQLite, false}, {"rank", SQLite, false}, {"rank", PG, false},
+		// DuckDB: PG's words, and names that go by any case need no quotes for a capital
+		{"Status", DuckDB, false}, {"createdAt", DuckDB, false}, {"order", DuckDB, true}, {"a b", DuckDB, true}, {"1a", DuckDB, true},
 	} {
 		if got := c.d.NeedsQuote(c.name); got != c.want {
 			t.Errorf("%q in %v: %v", c.name, c.d, got)

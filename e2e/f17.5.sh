@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # F17.5 发布元数据（specs/m17-polish-exec/task.md F17.5）
-# a. formula 和 npm 壳包的描述写四种引擎；b. --version：没有 ldflags 时用 Go 记下的 vcs.revision / vcs.time，都没有时只打版本、不打 (none, unknown)；
+# a. formula 和 npm 壳包的描述列出支持的引擎；b. --version：没有 ldflags 时用 Go 记下的 vcs.revision / vcs.time，都没有时只打版本、不打 (none, unknown)；
 # d. formula 的 ldflags 带 -s -w。（c. npm 五个包都带 LICENSE 在 f11.3 里，它要 goreleaser 出包。）
 # 这里用真的 go build：在一份本地 clone 里编（vcs 信息只有 git 检出里才有），带 / 不带 -buildvcs=false、带 / 不带 ldflags 各一份。
 . "$(dirname "$0")/lib.sh"
@@ -23,8 +23,8 @@ check "ldflags 注入了版本、commit、日期（GoReleaser / brew 的做法�
 gb -ldflags "-X main.version=v1.2.3 -X main.commit=abc1234" -buildvcs=false -o "$D/part"
 check "只注入了 commit（没有日期）：括号里只有 commit，不打 unknown" eval '[[ $("$D/part" --version) == "sqlmux v1.2.3 (abc1234)" ]] || { "$D/part" --version; false; }'
 
-# ---- a. 描述写五种引擎（F17.5 四种，F19.6 加了 SQL Server）
-want="PostgreSQL, MySQL, SQLite, SQL Server and Redis"   # F19.6 added SQL Server
+# ---- a. 描述写六种引擎（F24.4 加了 DuckDB）
+want="PostgreSQL, MySQL, SQLite, DuckDB, SQL Server and Redis"
 check "npm 壳包的 description：…for $want" eval 'python3 -c "import json,sys; d=json.load(open(\"npm/sqlmux/package.json\"))[\"description\"]; sys.exit(0 if d.endswith(\"$want\") else 1)"' || python3 -c 'import json; print(json.load(open("npm/sqlmux/package.json"))["description"])'
 .github/scripts/tap-formula.sh v0.5.1 0000000000000000000000000000000000000000000000000000000000000000 abc1234 2026-10-18T00:00:00Z >"$D/formula.rb"
 check "formula 的 desc：…for $want" eval 'grep -q "^  desc \".*for $want\"" "$D/formula.rb"' || grep desc "$D/formula.rb"

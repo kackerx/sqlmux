@@ -35,6 +35,11 @@ func init() {
 	}
 }
 
+// duckdbKeywords are the first words of the statements DuckDB has that the
+// others do not, keywords in its dialect alone: SQLite's PRAGMA is no write
+// for quick SQL, and an exported T-SQL procedure is called by its name (F24.2).
+var duckdbKeywords = map[string]bool{"attach": true, "detach": true, "export": true, "pragma": true}
+
 // common are the keywords completion offers besides the names of tables
 // and columns: the common ones of lazysql's builtinKeywords
 // (components/sql_completer.go), a few functions and clauses of two words

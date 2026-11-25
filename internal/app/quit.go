@@ -14,7 +14,8 @@ import (
 type confirmBox struct {
 	text, yes string
 	then      func() tea.Cmd
-	danger    bool // its first line is in the error color: what is asked is a delete or a drop (§13)
+	no        func() tea.Cmd // what no does but close it, nil for nothing
+	danger    bool           // its first line is in the error color: what is asked is a delete or a drop (§13)
 }
 
 // unsaved is how many changes the tabs of panes hold (§10.6).

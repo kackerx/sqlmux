@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # F11.1 --version 和 GoReleaser（specs/m11-distribution/task.md F11.1；tech-design §15「发布与分发」）
-# 不碰界面：--version 的输出（ldflags 注入、没注入、不读配置不建文件）、just build 的注入、just release-check（snapshot 出六个二进制，F18.4 起加 windows amd64 / arm64）、
-# 在打了 tag 的干净 clone 里 goreleaser release --skip=publish（四个 tar.gz 和两个 zip、校验和、二进制的版本是 tag、changelog 分组和排除）、release.yml 的结构。
+# 不碰界面：--version 的输出（ldflags 注入、没注入、不读配置不建文件）、just build 的注入、just release-check（snapshot 出八个二进制）、
+# 在打了 tag 的干净 clone 里 goreleaser release --skip=publish（六个 tar.gz、两个 zip、校验和、Linux 链接方式、版本和 changelog）、release.yml 的结构。
 # 真 tag 的 workflow 要推送后由决策者确认。需要 goreleaser（GORELEASER=路径）、just；时间在 goreleaser 的编译上（约 1 分钟）。
 . "$(dirname "$0")/lib.sh"
 D=$(mktemp -d "${TMPDIR:-/tmp}/sqlmux-e2e-rel.XXXXXX"); trap 'rm -rf "$D"' EXIT
@@ -32,19 +32,52 @@ rm -rf bin
 # ---- just release-check：goreleaser check + build --snapshot
 PATH=$(dirname "$(command -v "$GR")"):$PATH just release-check >"$D/rc.log" 2>&1; rc=$?
 check "just release-check 通过（goreleaser check 和 build --snapshot）" eval '[[ $rc -eq 0 ]] || { tail -15 "$D/rc.log"; false; }'
-check "snapshot 在 dist/ 出六个二进制：四个不带扩展名（darwin / linux × amd64 / arm64），windows 的两个是 sqlmux.exe（F18.4）" eval 'n=$(ls dist/sqlmux_*/sqlmux | wc -l | tr -d " "); [[ $n == 4 && $(ls dist/sqlmux_windows_*/sqlmux.exe | wc -l | tr -d " ") == 2 ]] && ls -d dist/sqlmux_darwin_amd64* dist/sqlmux_darwin_arm64* dist/sqlmux_linux_amd64* dist/sqlmux_linux_arm64* >/dev/null || { ls dist; false; }'
+snapshot_binaries() (
+  local build arch os
+  local binaries=(dist/sqlmux_*/sqlmux dist/sqlmux_windows_*/sqlmux.exe dist/sqlmux-duckdb_*/sqlmux)
+  [[ ${#binaries[@]} == 8 ]] || { ls dist; return 1; }
+  for arch in amd64 arm64; do
+    for os in darwin linux; do
+      build=(dist/sqlmux_${os}_${arch}_*/sqlmux)
+      [[ -x ${build[0]} ]] || return 1
+    done
+    build=(dist/sqlmux_windows_${arch}_*/sqlmux.exe)
+    [[ -f ${build[0]} ]] || return 1
+    build=(dist/sqlmux-duckdb_linux_${arch}_*/sqlmux)
+    [[ -x ${build[0]} ]] || return 1
+  done
+)
+check "snapshot 在 dist/ 出八个二进制：darwin / linux / windows 各两个，Linux DuckDB 版两个" snapshot_binaries
 check "本机的 snapshot 二进制 --version：sqlmux v<版本>-SNAPSHOT-<短 sha> (短 sha, 日期)" eval 'got=$($(rel_native) --version); [[ $got == "sqlmux v"*"-SNAPSHOT-$SHORT ($SHORT, "* ]] || { echo "  $got"; false; }'
 
 # ---- 打了 tag 的 release（不发布）
 rel_run; rr=$?
 check "goreleaser release --clean --skip=publish 成功" eval '[[ $rr -eq 0 ]]'
 v=${TAG#v}
-check "四个压缩包名字是 sqlmux_<version>_<os>_<arch>.tar.gz，加 checksums.txt" eval '[[ $(cd dist && ls *.tar.gz | tr "\n" " ") == "sqlmux_${v}_darwin_amd64.tar.gz sqlmux_${v}_darwin_arm64.tar.gz sqlmux_${v}_linux_amd64.tar.gz sqlmux_${v}_linux_arm64.tar.gz " && -s dist/checksums.txt ]]'
-check "zip：windows 的两个压缩包名字是 sqlmux_<version>_windows_<arch>.zip，里面有 sqlmux.exe（F18.4）" eval '[[ $(cd dist && ls *.zip | tr "\n" " ") == "sqlmux_${v}_windows_amd64.zip sqlmux_${v}_windows_arm64.zip " ]] && for a in amd64 arm64; do unzip -Z1 "dist/sqlmux_${v}_windows_$a.zip" | grep -qx sqlmux.exe || { echo "  $a: no sqlmux.exe"; exit 1; }; done'
-check "checksums.txt 校验六个压缩包（四个 tar.gz、两个 zip）全部 OK" eval '[[ $(cd dist && shasum -a 256 -c checksums.txt 2>&1 | grep -c ": OK$") -eq 6 ]]'
-check "每个压缩包里有可执行的 sqlmux" eval 'for f in dist/*.tar.gz; do tar -tzvf "$f" | awk "\$NF == \"sqlmux\" && \$1 ~ /x/ {ok=1} END {exit !ok}" || { echo "  $f"; tar -tzvf "$f"; exit 1; }; done'
-x() { mkdir -p "$D/x/$1"; tar -xzf "dist/sqlmux_${v}_$1.tar.gz" -C "$D/x/$1" sqlmux; file "$D/x/$1/sqlmux"; }
-check "二进制的平台对：darwin arm64 / x86_64 是 Mach-O，linux 是静态链接的 ELF（CGO 关）" eval 'x darwin_arm64 | grep -q "Mach-O.*arm64" && x darwin_amd64 | grep -q "Mach-O.*x86_64" && x linux_amd64 | grep -q "ELF.*x86-64.*statically linked" && x linux_arm64 | grep -q "ELF.*ARM aarch64.*statically linked"'
+archives=(sqlmux_"${v}"_{darwin,linux}_{amd64,arm64}.tar.gz
+          sqlmux_"${v}"_linux_{amd64,arm64}_duckdb.tar.gz
+          sqlmux_"${v}"_windows_{amd64,arm64}.zip)
+archive_names() { printf '%s\n' "$@" | LC_ALL=C sort; }
+check "八个压缩包的文件名正确，包括两个 Linux _duckdb 包" eval '(cd dist && diff -u <(archive_names "${archives[@]}") <(archive_names *.tar.gz *.zip))'
+windows_archive_binaries() {
+  local arch
+  for arch in amd64 arm64; do
+    unzip -Z1 "dist/sqlmux_${v}_windows_$arch.zip" | grep -qx sqlmux.exe || return 1
+  done
+}
+check "两个 Windows zip 都含有 sqlmux.exe（F18.4）" windows_archive_binaries
+check "checksums.txt 列出了全部八个压缩包，且校验全部通过" eval '(cd dist && diff -u <(archive_names "${archives[@]}") <(awk "{print \$2}" checksums.txt | LC_ALL=C sort) && shasum -a 256 -c checksums.txt)'
+check "每个 tar.gz 里有可执行的 sqlmux" eval '(for f in dist/*.tar.gz; do tar -tzvf "$f" | awk "\$NF == \"sqlmux\" && \$1 ~ /x/ {ok=1} END {exit !ok}" || { echo "  $f"; tar -tzvf "$f"; exit 1; }; done)'
+archive_binary_is() {
+  local dir="$D/x/$1" description
+  mkdir -p "$dir" && tar -xzf "dist/sqlmux_${v}_$1.tar.gz" -C "$dir" sqlmux || return 1
+  description=$(file "$dir/sqlmux") || return 1
+  printf '%s\n' "$description"
+  [[ $description =~ $2 ]]
+}
+check "Darwin arm64 / amd64 包里的二进制是对应平台的 Mach-O" eval 'archive_binary_is darwin_arm64 "Mach-O.*arm64" && archive_binary_is darwin_amd64 "Mach-O.*x86_64"'
+check "普通 Linux amd64 / arm64 包里的 ELF 是静态链接的" eval 'archive_binary_is linux_amd64 "ELF.*x86-64.*statically linked" && archive_binary_is linux_arm64 "ELF.*(ARM )?aarch64.*statically linked"'
+check "Linux _duckdb amd64 / arm64 包里的 ELF 是动态链接的" eval 'archive_binary_is linux_amd64_duckdb "ELF.*x86-64.*dynamically linked" && archive_binary_is linux_arm64_duckdb "ELF.*(ARM )?aarch64.*dynamically linked"'
 check "本机的二进制 --version：sqlmux ${TAG} ($SHORT, 提交时间)" eval 'got=$($(rel_native) --version); [[ $got == "sqlmux $TAG ($SHORT, $DATE_UTC)" ]] || { echo "  $got"; false; }'
 check "压缩包里的本机二进制同样（-s -w 去符号后还能跑）" eval 'os=$(uname -s | tr A-Z a-z); cpu=$(uname -m | sed "s/x86_64/amd64/"); [[ $("$D/x/${os}_${cpu}/sqlmux" -version) == "sqlmux $TAG ($SHORT, $DATE_UTC)" ]]'
 chlog=dist/CHANGELOG.md

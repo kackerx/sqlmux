@@ -17,6 +17,7 @@ import (
 
 	"github.com/kackerx/sqlmux/internal/config"
 	"github.com/kackerx/sqlmux/internal/db"
+	"github.com/kackerx/sqlmux/internal/db/duckdb"
 	dbexec "github.com/kackerx/sqlmux/internal/db/exec"
 	"github.com/kackerx/sqlmux/internal/db/mssql"
 	"github.com/kackerx/sqlmux/internal/db/mysql"
@@ -496,7 +497,7 @@ func (c *Conn) liveSpec() config.Connection {
 }
 
 // drivers are the servers connections.toml names (§8.1, §5「连接缝」).
-var drivers = map[string]db.Driver{"postgres": postgres.Engine{}, "mysql": mysql.Engine{}, "sqlite": sqlite.Engine{}, "redis": redis.Driver{}, "mssql": mssql.Engine{}}
+var drivers = map[string]db.Driver{"postgres": postgres.Engine{}, "mysql": mysql.Engine{}, "sqlite": sqlite.Engine{}, "redis": redis.Driver{}, "mssql": mssql.Engine{}, "duckdb": duckdb.Engine{}}
 
 // driverOf is the driver of spec's engine: an exec connection's is the engine of its
 // dialect over its command (§8.8).
@@ -924,9 +925,9 @@ func connectTo(ctx context.Context, spec config.Connection, readOnly bool) (db.C
 }
 
 // tunneled is ctx asking for the connection to go through spec's ssh, when it
-// has one: a SQLite file has no network to go through (F15.2).
+// has one: a SQLite or DuckDB file has no network to go through (F15.2).
 func tunneled(ctx context.Context, spec config.Connection) context.Context {
-	if spec.SSH == "" || spec.Engine == "sqlite" {
+	if spec.SSH == "" || config.FileEngine(spec.Engine) {
 		return ctx
 	}
 	return db.WithDialer(ctx, db.SSHDialer(spec.SSH))

@@ -17,10 +17,11 @@ const (
 	MySQL
 	SQLite // read as PG, but for its $tag$ strings, E'…' and nested comments, and with `…` identifiers too (F14.1)
 	MSSQL  // read as PG, but for its [name] and "name" identifiers and N'…' strings, @x and #x names, and its GO batches (§9.2, F18.6)
+	DuckDB // read as PG, whose SQL it is of: "ident", 'str', $$…$$, comments (F24.1)
 )
 
 // CaseInsensitive is whether names go by any case, `quoted` ones too: MySQL's
-// and SQLite's; PG folds an unquoted name's to lower case and takes a quoted one
+// SQLite's and DuckDB's; PG folds an unquoted name's to lower case and takes a quoted one
 // as it is.
 // ponytail: MySQL's tables on Linux go by case; SQLite's ASCII letters only
 func (d Dialect) CaseInsensitive() bool { return d != PG }
@@ -49,7 +50,7 @@ type Token struct {
 
 // Scan splits s into tokens (§9.1), after lazysql's components/sql_lexer.go,
 // with each dialect's strings and comments:
-//   - PG: a doubled quote in '…', \ in E'…', $tag$…$tag$, "…"
+//   - PG and DuckDB: a doubled quote in '…', \ in E'…', $tag$…$tag$, "…"
 //     identifiers, -- and /* */ that nest;
 //   - MySQL: \ and doubled quotes in '…' and "…", `…` identifiers, #, --
 //     with a blank after it, /* */ that do not nest; /*! … */ is code, its
@@ -68,12 +69,13 @@ type Token struct {
 func Scan(s string, d Dialect) []Token {
 	var out []Token
 	line := 0
-	exec := false // in MySQL's /*! … */
+	exec := false                // in MySQL's /*! … */
+	pg := d == PG || d == DuckDB // $tag$ strings, E'…', nested comments, no `…` (F24.1)
 	for i := 0; i < len(s); {
 		start := i
 		r, n := utf8.DecodeRuneInString(s[i:])
 		kind, tag := Space, ""
-		if d == PG && r == '$' {
+		if pg && r == '$' {
 			tag = dollarTag(s[i:])
 		}
 		switch {
@@ -86,18 +88,18 @@ func Scan(s string, d Dialect) []Token {
 			line, _, _ := strings.Cut(s[i:], "\n")
 			kind, i = Comment, i+len(line)
 		case strings.HasPrefix(s[i:], "/*"):
-			kind, i = Comment, blockComment(s, i, d == PG)
+			kind, i = Comment, blockComment(s, i, pg)
 		case r == '\'':
 			kind, i = String, quoted(s, i, d == MySQL)
 		case d == MSSQL && (r == 'N' || r == 'n') && strings.HasPrefix(s[i+1:], "'"): // N'…'
 			kind, i = String, quoted(s, i+1, false)
 		case r == '[' && d == MSSQL: // [name], a ] in it doubled
 			kind, i = Quoted, bracket(s, i)
-		case r == '"' && d != MySQL, r == '`' && d != PG:
+		case r == '"' && d != MySQL, r == '`' && !pg:
 			kind, i = Quoted, quoted(s, i, false)
 		case r == '"':
 			kind, i = String, quoted(s, i, true)
-		case d == PG && (r == 'e' || r == 'E') && strings.HasPrefix(s[i+1:], "'"): // E'…'
+		case pg && (r == 'e' || r == 'E') && strings.HasPrefix(s[i+1:], "'"): // E'…'
 			kind, i = String, quoted(s, i+1, true)
 		case tag != "":
 			kind = String
@@ -112,7 +114,7 @@ func Scan(s string, d Dialect) []Token {
 		case identStart(r): // before digits and blanks: past ASCII, those are a name's too
 			i = advance(s, i, func(r rune) bool { return identStart(r) || r == '$' || r >= '0' && r <= '9' })
 			kind = Ident
-			if keywords[strings.ToLower(s[start:i])] {
+			if w := strings.ToLower(s[start:i]); keywords[w] || d == DuckDB && duckdbKeywords[w] {
 				kind = Keyword
 			}
 		case r >= '0' && r <= '9', r == '.' && i+1 < len(s) && s[i+1] >= '0' && s[i+1] <= '9':

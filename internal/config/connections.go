@@ -51,7 +51,11 @@ type Connection struct {
 
 // engines are the values of a connection's engine; temp_test.go makes each say
 // how the command line opens it.
-var engines = []string{"postgres", "mysql", "sqlite", "redis", "exec", "mssql"}
+var engines = []string{"postgres", "mysql", "sqlite", "redis", "exec", "mssql", "duckdb"}
+
+// FileEngine is whether engine is one of a file, SQLite or DuckDB: no host, no
+// user, no network to go through (F14.1, F24.2).
+func FileEngine(engine string) bool { return engine == "sqlite" || engine == "duckdb" }
 
 // Kind is the engine whose catalog and commands c speaks: its Engine, or an exec
 // connection's dialect (§8.8).
@@ -235,7 +239,7 @@ func (c Connection) Check(names []string) (field, problem string) {
 		return "group", fmt.Sprintf(i18n.T(`group = %q：不能含 / 或 \，也不能以 . 开头`), c.Group)
 	}
 	if !slices.Contains(engines, c.Engine) {
-		return "engine", fmt.Sprintf(i18n.T("engine = %q：只能是 postgres、mysql、sqlite、redis、mssql 或 exec"), c.Engine)
+		return "engine", fmt.Sprintf(i18n.T("engine = %q：只能是 postgres、mysql、sqlite、duckdb、redis、mssql 或 exec"), c.Engine)
 	}
 	if c.Engine == "exec" {
 		place := map[string]string{"postgres": "{sql}", "redis": "{cmd}"}[c.Dialect]
